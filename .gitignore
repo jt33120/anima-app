@@ -1,0 +1,23 @@
+# dépendances
+/node_modules
+
+# build Next
+/.next
+/out
+
+# secrets — jamais commités (AD-2 : secrets serveur uniquement)
+.env
+.env*.local
+
+# divers
+.DS_Store
+/coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# supabase local
+/supabase/.temp
+/supabase/.branches
+
+# outillage BMAD régénérable (npx bmad-method install)
+.claude/

@@ -1,0 +1,1694 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anam — 5 pistes de palette</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   ANAM — 5 pistes de palette
+   Direction : bohème chic / yogi. Terreux, artisanal, textile, MAT.
+   Tous les ratios de cette page sont calculés selon la formule de
+   luminance relative WCAG 2.x, arrondis à 2 décimales.
+   Seuils : texte courant 4,5:1 — grand texte et éléments non textuels 3:1.
+   ═══════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #EAE7E1; color: #22201C;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.55;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 96px; }
+
+/* ── En-tête de page ── */
+.page-head { margin-bottom: 40px; }
+.page-head h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -.02em; font-weight: 650; }
+.page-head .sub { margin: 0 0 22px; color: #5D5850; font-size: 15px; max-width: 68ch; }
+.callout {
+  border-left: 3px solid #8C6A4A; background: #F2EEE8;
+  padding: 14px 18px; margin: 0 0 14px; border-radius: 0 6px 6px 0;
+  font-size: 14px; color: #3A352E; max-width: 82ch;
+}
+.callout b { display: block; margin-bottom: 3px; color: #22201C; }
+.callout.crit { border-left-color: #9C4A2A; background: #F5EDE7; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 22px; font-size: 13px; color: #5D5850;
+  padding: 14px 0 0; border-top: 1px solid #D6D1C8; margin-top: 22px; }
+
+/* ── Sommaire ── */
+.toc { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 26px 0 0; }
+.toc a { display: block; padding: 11px 13px; background: #F2EEE8; border: 1px solid #DCD7CE;
+  border-radius: 7px; text-decoration: none; color: #22201C; font-size: 13px; }
+.toc a:hover { border-color: #8C6A4A; }
+.toc a span { display: block; color: #6B655C; font-size: 11.5px; margin-top: 2px; }
+
+/* ── Section variation ── */
+.variation { margin-top: 52px; padding-top: 34px; border-top: 2px solid #D6D1C8; }
+.v-id { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.v-num { width: 27px; height: 27px; border-radius: 50%; background: #22201C; color: #F2EEE8;
+  display: grid; place-items: center; font-size: 13px; font-weight: 650; flex: none; }
+.v-head h2 { font-size: 23px; margin: 0; letter-spacing: -.015em; font-weight: 650; }
+.v-registre { margin: 0 0 7px; font-size: 15px; color: #3A352E; max-width: 80ch; }
+.v-resume { margin: 0 0 22px; font-size: 13.5px; color: #6B655C; max-width: 80ch; }
+.v-resume em { font-style: normal; color: #3A352E; }
+
+/* ── Panneaux clair / sombre ── */
+.panes { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 18px; }
+.pane { background: var(--bg); border-radius: 12px; padding: 18px; border: 1px solid #D6D1C8; overflow: hidden; }
+.pane-label { margin: 0 0 14px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text2); font-weight: 650; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tag { background: var(--accentdoux); color: var(--text); text-transform: none;
+  letter-spacing: 0; font-size: 10.5px; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
+
+/* ── Maquette d'interface ── */
+.mock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; color: var(--text); }
+.mock-top { display: flex; justify-content: space-between; align-items: baseline;
+  padding-bottom: 11px; margin-bottom: 14px; border-bottom: 1px solid var(--border); gap: 10px; }
+.mock-wordmark { font-size: 14.5px; font-weight: 650; letter-spacing: .06em; color: var(--text); }
+.mock-date { font-size: 11px; color: var(--text2); }
+.bubble-anam { background: var(--accentdoux); border-radius: 12px 12px 12px 3px;
+  padding: 11px 13px; margin-bottom: 8px; }
+.bubble-anam p { margin: 0; font-size: 14px; color: var(--text); }
+.bubble-user { background: transparent; border: 1px solid var(--border);
+  border-radius: 12px 12px 3px 12px; padding: 9px 13px; margin: 0 0 8px auto; max-width: 78%; }
+.bubble-user p { margin: 0; font-size: 13.5px; color: var(--text2); text-align: right; }
+.mock-succes { margin: 0 0 14px; font-size: 12px; color: var(--succes); }
+.field { border: 1px solid var(--borderf); border-radius: 8px; padding: 9px 12px;
+  font-size: 13px; color: var(--text2); margin-bottom: 16px; background: var(--bg); }
+.card-raised { background: var(--raised); border: 1px solid var(--border);
+  border-radius: 10px; padding: 13px; margin-bottom: 10px; }
+.card-branch { display: flex; gap: 12px; align-items: center; }
+.tree { width: 58px; height: 51px; flex: none; }
+.eyebrow { margin: 0 0 3px; font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text2); font-weight: 650; }
+.branch-name { margin: 0 0 3px; font-size: 14.5px; color: var(--text); font-weight: 550; }
+.card-title { margin: 0 0 3px; font-size: 15px; color: var(--text); font-weight: 600; }
+.meta { margin: 0; font-size: 11.5px; color: var(--text2); }
+.card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 13px; margin-bottom: 12px; }
+.mock-alerte { margin: 0 0 15px; font-size: 12px; color: var(--alerte); }
+.btn-row { display: flex; gap: 9px; flex-wrap: wrap; }
+.btn-primary, .btn-ghost { font: inherit; font-size: 13.5px; font-weight: 600;
+  padding: 9px 16px; border-radius: 8px; cursor: default; border: 1px solid transparent; }
+.btn-ghost { background: transparent; border-style: solid; }
+.mock-warn { margin: 14px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--text2);
+  border-top: 1px dashed var(--borderf); padding-top: 10px; }
+
+/* ── Pastilles de tokens ── */
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 7px; margin-top: 16px; }
+.chip { display: flex; align-items: center; gap: 8px; padding: 5px 7px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+.dot { width: 22px; height: 22px; border-radius: 5px; flex: none;
+  box-shadow: inset 0 0 0 1px rgba(128,128,128,.35); }
+.chip-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.chip-txt b { font-size: 10.5px; font-weight: 600; color: var(--text); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.chip-txt code { font-size: 10.5px; color: var(--text2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* ── Tableau de vérification ── */
+.verif { margin-top: 20px; background: #F2EEE8; border: 1px solid #DCD7CE; border-radius: 10px; padding: 18px; }
+.verif h3 { margin: 0 0 12px; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: #4A443C; }
+.tw { overflow-x: auto; }
+table.ratios { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.ratios th { text-align: center; font-weight: 650; color: #4A443C; padding: 6px 8px;
+  border-bottom: 1.5px solid #CFC9BF; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; }
+table.ratios th.l, table.ratios td.l { text-align: left; }
+table.ratios td { padding: 6px 8px; border-bottom: 1px solid #E2DDD5; vertical-align: middle; }
+table.ratios td.l { color: #3A352E; }
+table.ratios td.thr, table.ratios td.num { text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+table.ratios td.thr { color: #7A736A; font-size: 11.5px; }
+table.ratios td.num { font-weight: 650; }
+table.ratios td.num.pass { color: #2F5A3C; }
+table.ratios td.num.fail { color: #9A2F1E; }
+table.ratios td.vd { text-align: left; white-space: nowrap; }
+.hint { font-size: 10.5px; color: #857D73; font-style: italic; }
+.badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  padding: 2px 7px; border-radius: 4px; }
+.badge.pass { background: #DCE7DC; color: #2A5236; }
+.badge.fail { background: #F2DAD3; color: #8E2C1A; }
+.badge.big { font-size: 11px; padding: 4px 10px; }
+
+/* ── Notes ── */
+ul.notes { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; }
+.note { padding: 10px 13px; border-radius: 7px; font-size: 12.5px; border-left: 3px solid; }
+.note b { display: block; margin-bottom: 2px; }
+.note span { color: #4A443C; }
+.note-ok { background: #E7EDE6; border-left-color: #4E6B4A; }
+.note-ok b { color: #2A5236; }
+.note-fail { background: #F6E4DE; border-left-color: #9A2F1E; }
+.note-fail b { color: #8E2C1A; }
+.note-fix { background: #F1EADB; border-left-color: #8A6A2C; }
+.note-fix b { color: #6B5220; }
+
+/* ── Pied ── */
+.foot { margin-top: 56px; padding-top: 22px; border-top: 2px solid #D6D1C8;
+  font-size: 13px; color: #5D5850; max-width: 82ch; }
+.foot h3 { font-size: 15px; margin: 0 0 10px; color: #22201C; }
+.foot ul { margin: 0 0 16px; padding-left: 20px; }
+.foot li { margin-bottom: 5px; }
+
+@media (max-width: 640px) {
+  .wrap { padding: 26px 14px 60px; }
+  .page-head h1 { font-size: 24px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LES 5 PALETTES — valeurs hexadécimales à récupérer
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ══════════ V1 — « Atelier de fin de journée » ══════════ */
+/* V1 · mode clair */
+.t-v1-light {
+  --bg: #F5EFE4;                  /* fond */
+  --surface: #FBF7F0;             /* surface */
+  --raised: #FFFFFF;              /* surface-élevée */
+  --text: #2E2822;                /* texte-principal */
+  --text2: #6B5F51;               /* texte-secondaire */
+  --border: #DED3C2;              /* bordure */
+  --borderf: #82715A;             /* bordure forte · focus */
+  --accent: #9C4A2A;              /* accent (l'action) */
+  --accentdoux: #E8D5C4;          /* accent-doux */
+  --tronc: #6B4A32;               /* arbre · tronc */
+  --branche: #8A6B4B;             /* arbre · branche */
+  --feuillage: #5E6B45;           /* arbre · feuillage */
+  --succes: #4E6B4A;              /* succès discret */
+  --alerte: #8A5320;              /* alerte discrète */
+  --onaccent: #FFFFFF;            /* texte posé sur le remplissage accent */
+}
+/* V1 · mode sombre */
+.t-v1-dark {
+  --bg: #1E1A16;                  /* fond */
+  --surface: #26211B;             /* surface */
+  --raised: #302A22;              /* surface-élevée */
+  --text: #EFE7DA;                /* texte-principal */
+  --text2: #B0A392;               /* texte-secondaire */
+  --border: #3D362C;              /* bordure */
+  --borderf: #7E7263;             /* bordure forte · focus */
+  --accent: #E0A882;              /* accent (l'action) */
+  --accentdoux: #4A3A2C;          /* accent-doux */
+  --tronc: #B08A66;               /* arbre · tronc */
+  --branche: #C9A780;             /* arbre · branche */
+  --feuillage: #9FB07E;           /* arbre · feuillage */
+  --succes: #8FB08A;              /* succès discret */
+  --alerte: #D9A05E;              /* alerte discrète */
+  --onaccent: #1E1A16;            /* texte posé sur le remplissage accent */
+}
+
+/* ══════════ V2 — « Nuit d'argile » ══════════ */
+/* V2 · mode clair */
+.t-v2-light {
+  --bg: #EDE6DC;                  /* fond */
+  --surface: #F6F1E9;             /* surface */
+  --raised: #FDFAF5;              /* surface-élevée */
+  --text: #33291F;                /* texte-principal */
+  --text2: #6E6153;               /* texte-secondaire */
+  --border: #D7CCBC;              /* bordure */
+  --borderf: #7D6D5C;             /* bordure forte · focus */
+  --accent: #8C4B33;              /* accent (l'action) */
+  --accentdoux: #E4D2C2;          /* accent-doux */
+  --tronc: #5E4230;               /* arbre · tronc */
+  --branche: #83614A;             /* arbre · branche */
+  --feuillage: #5B6647;           /* arbre · feuillage */
+  --succes: #4A6650;              /* succès discret */
+  --alerte: #8B5A24;              /* alerte discrète */
+  --onaccent: #FFFFFF;            /* texte posé sur le remplissage accent */
+}
+/* V2 · mode sombre */
+.t-v2-dark {
+  --bg: #17120E;                  /* fond */
+  --surface: #1F1913;             /* surface */
+  --raised: #29211A;              /* surface-élevée */
+  --text: #E8DECF;                /* texte-principal */
+  --text2: #A99B88;               /* texte-secondaire */
+  --border: #342B22;              /* bordure */
+  --borderf: #786A59;             /* bordure forte · focus */
+  --accent: #D9926B;              /* accent (l'action) */
+  --accentdoux: #3A2A20;          /* accent-doux */
+  --tronc: #9E7A58;               /* arbre · tronc */
+  --branche: #B99671;             /* arbre · branche */
+  --feuillage: #94A472;           /* arbre · feuillage */
+  --succes: #84A67F;              /* succès discret */
+  --alerte: #CE9455;              /* alerte discrète */
+  --onaccent: #17120E;            /* texte posé sur le remplissage accent */
+}
+
+/* ══════════ V3 — « Encre et laiton » ══════════ */
+/* V3 · mode clair */
+.t-v3-light {
+  --bg: #F2EDE3;                  /* fond */
+  --surface: #FBF8F1;             /* surface */
+  --raised: #FFFFFF;              /* surface-élevée */
+  --text: #1A1815;                /* texte-principal */
+  --text2: #5A5349;               /* texte-secondaire */
+  --border: #CFC5B4;              /* bordure */
+  --borderf: #7A6C57;             /* bordure forte · focus */
+  --accent: #7A5312;              /* accent (l'action) */
+  --accentdoux: #E9DCC2;          /* accent-doux */
+  --tronc: #4A3A28;               /* arbre · tronc */
+  --branche: #6E5940;             /* arbre · branche */
+  --feuillage: #4E5A3C;           /* arbre · feuillage */
+  --succes: #3F6146;              /* succès discret */
+  --alerte: #8A4B1E;              /* alerte discrète */
+  --onaccent: #FFFFFF;            /* texte posé sur le remplissage accent */
+}
+/* V3 · mode sombre */
+.t-v3-dark {
+  --bg: #12110F;                  /* fond */
+  --surface: #1B1A17;             /* surface */
+  --raised: #232120;              /* surface-élevée */
+  --text: #F3EFE7;                /* texte-principal */
+  --text2: #B5AC9C;               /* texte-secondaire */
+  --border: #33302B;              /* bordure */
+  --borderf: #756D60;             /* bordure forte · focus */
+  --accent: #D8B87A;              /* accent (l'action) */
+  --accentdoux: #3A3221;          /* accent-doux */
+  --tronc: #A08662;               /* arbre · tronc */
+  --branche: #BFA37C;             /* arbre · branche */
+  --feuillage: #9AA97C;           /* arbre · feuillage */
+  --succes: #88AE8B;              /* succès discret */
+  --alerte: #D9A15F;              /* alerte discrète */
+  --onaccent: #12110F;            /* texte posé sur le remplissage accent */
+}
+
+/* ══════════ V4 — « Sauge et pierre » ══════════ */
+/* V4 · mode clair */
+.t-v4-light {
+  --bg: #EFEFE8;                  /* fond */
+  --surface: #F7F7F2;             /* surface */
+  --raised: #FFFFFF;              /* surface-élevée */
+  --text: #262A24;                /* texte-principal */
+  --text2: #5C6158;               /* texte-secondaire */
+  --border: #D3D5CA;              /* bordure */
+  --borderf: #7B7F70;             /* bordure forte · focus */
+  --accent: #3F5E4C;              /* accent (l'action) */
+  --accentdoux: #DDE3D6;          /* accent-doux */
+  --tronc: #5A5347;               /* arbre · tronc */
+  --branche: #7C7565;             /* arbre · branche */
+  --feuillage: #556146;           /* arbre · feuillage */
+  --succes: #41654C;              /* succès discret */
+  --alerte: #8A5A2E;              /* alerte discrète */
+  --onaccent: #FFFFFF;            /* texte posé sur le remplissage accent */
+}
+/* V4 · mode sombre */
+.t-v4-dark {
+  --bg: #171A17;                  /* fond */
+  --surface: #1F231F;             /* surface */
+  --raised: #282D27;              /* surface-élevée */
+  --text: #E6E9E1;                /* texte-principal */
+  --text2: #A3A99C;               /* texte-secondaire */
+  --border: #333930;              /* bordure */
+  --borderf: #6F7469;             /* bordure forte · focus */
+  --accent: #93B79C;              /* accent (l'action) */
+  --accentdoux: #2C352E;          /* accent-doux */
+  --tronc: #9A9483;               /* arbre · tronc */
+  --branche: #B2AB97;             /* arbre · branche */
+  --feuillage: #9BAE7E;           /* arbre · feuillage */
+  --succes: #8DB394;              /* succès discret */
+  --alerte: #CFA063;              /* alerte discrète */
+  --onaccent: #171A17;            /* texte posé sur le remplissage accent */
+}
+
+/* ══════════ V5 — « Terre cuite » ══════════ */
+/* V5 · mode clair */
+.t-v5-light {
+  --bg: #F7EDE4;                  /* fond */
+  --surface: #FDF6EE;             /* surface */
+  --raised: #FFFFFF;              /* surface-élevée */
+  --text: #3A2A20;                /* texte-principal */
+  --text2: #7A6252;               /* texte-secondaire */
+  --border: #E4D0BC;              /* bordure */
+  --borderf: #907760;             /* bordure forte · focus */
+  --accent: #C1663F;              /* accent (l'action) */
+  --accentdoux: #F0DAC7;          /* accent-doux */
+  --tronc: #7A4A2C;               /* arbre · tronc */
+  --branche: #A06A44;             /* arbre · branche */
+  --feuillage: #6B7A4A;           /* arbre · feuillage */
+  --succes: #5A7A55;              /* succès discret */
+  --alerte: #B04A2A;              /* alerte discrète */
+  --onaccent: #FFFFFF;            /* texte posé sur le remplissage accent */
+}
+/* V5 · mode sombre */
+.t-v5-dark {
+  --bg: #241812;                  /* fond */
+  --surface: #2E1F17;             /* surface */
+  --raised: #3A2820;              /* surface-élevée */
+  --text: #F2E2D4;                /* texte-principal */
+  --text2: #BC9E88;               /* texte-secondaire */
+  --border: #48342A;              /* bordure */
+  --borderf: #8E6D58;             /* bordure forte · focus */
+  --accent: #E8956A;              /* accent (l'action) */
+  --accentdoux: #513429;          /* accent-doux */
+  --tronc: #B57A50;               /* arbre · tronc */
+  --branche: #CE9668;             /* arbre · branche */
+  --feuillage: #A6B074;           /* arbre · feuillage */
+  --succes: #94B287;              /* succès discret */
+  --alerte: #E08A55;              /* alerte discrète */
+  --onaccent: #241812;            /* texte posé sur le remplissage accent */
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page-head">
+  <h1>Anam — 5 pistes de palette</h1>
+  <p class="sub">Cinq directions distinctes par le <b>registre</b>, pas seulement par la teinte. Toutes tiennent la ligne bohème chic / yogi : terreux, artisanal, textile, mat. Chaque variation est montrée en mode clair et en mode sombre, avec une maquette d'interface réelle et le contraste vérifié rôle par rôle.</p>
+
+  <div class="callout">
+    <b>Le mode sombre n'est pas une option.</b>
+    Le moment d'usage principal est le soir, souvent au lit, souvent dans le noir. Le mode sombre est probablement le mode par défaut de l'application, et le mode clair la variante de jour. Jugez chaque palette d'abord sur sa colonne de droite.
+  </div>
+
+  <div class="callout crit">
+    <b>Le piège de cette direction visuelle.</b>
+    Les pastels terreux désaturés échouent presque systématiquement au ratio 4,5:1 sur fond clair. Tous les ratios de cette page sont calculés selon la formule de luminance relative WCAG 2.x — aucun n'est estimé à l'œil. Les échecs sont affichés tels quels, avec une variante corrigée quand la couleur de marque ne peut pas porter de texte.
+  </div>
+
+  <div class="legend">
+    <span><b>Texte courant</b> — seuil 4,5:1</span>
+    <span><b>Grand texte, tracés, bordures actives</b> — seuil 3:1</span>
+    <span><span class="badge pass">PASS AA</span> conforme</span>
+    <span><span class="badge fail">FAIL AA</span> non conforme</span>
+  </div>
+
+  <nav class="toc">
+    <a href="#v1"><b>1. Atelier de fin de journée</b><span>Clair, papier, chaud.</span></a><a href="#v2"><b>2. Nuit d'argile</b><span>Le sombre traité comme le lieu principal, pas comme une option.</span></a><a href="#v3"><b>3. Encre et laiton</b><span>La plus contrastée et la plus affirmée.</span></a><a href="#v4"><b>4. Sauge et pierre</b><span>Minérale et tempérée.</span></a><a href="#v5"><b>5. Terre cuite</b><span>La marque poussée à fond : terracotta dominante, chaleur maximale, la plus séduisante des cinq en vignette.</span></a>
+  </nav>
+</header>
+
+<section class="variation" id="v1">
+  <header class="v-head">
+    <div class="v-id"><span class="v-num">1</span><h2>Atelier de fin de journée</h2><span class="badge pass big">Conforme AA</span></div>
+    <p class="v-registre">Clair, papier, chaud. La lumière rasante d'un atelier à 19 h : on y voit encore très clair, mais la journée décline déjà. Le registre le plus accueillant, le moins solennel.</p>
+    <p class="v-resume">L'écru domine, la terracotta ne sert qu'à l'action. Aucun risque d'accessibilité : tout le texte porteur est brun profond. <em>Aucun rôle porteur de texte n'échoue, dans aucun des deux modes.</em></p>
+  </header>
+
+  <div class="panes">
+    <div class="pane t-v1-light">
+      <p class="pane-label">Mode clair</p>
+      <div class="mock">
+  <div class="mock-top">
+    <span class="mock-wordmark">Anam</span>
+    <span class="mock-date">mardi 21 juillet · 22 h 40</span>
+  </div>
+
+  <div class="bubble-anam">
+    <p>J'ai l'impression que tu analyses beaucoup — au point, parfois, de ne plus être là où tu es. Je me trompe&nbsp;?</p>
+  </div>
+  <div class="bubble-user"><p>Non. Tu ne te trompes pas.</p></div>
+  <p class="mock-succes">↳ Noté. On y revient demain soir.</p>
+
+  <div class="field">Écris ce que tu en penses…</div>
+
+  <div class="card-raised">
+    <div class="card-branch">
+      <svg class="tree" viewBox="0 0 96 84" aria-hidden="true">
+  <path d="M48 82 L48 34" style="stroke:var(--tronc)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M48 80 C40 78 34 76 28 78 M48 80 C56 78 62 76 68 78" style="stroke:var(--tronc)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/>
+  <path d="M48 56 C40 52 33 46 27 42" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 46 C57 42 64 36 70 31" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 36 C44 27 44 19 46 12" style="stroke:var(--branche)" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="39" rx="6.5" ry="4.6" style="fill:var(--feuillage)" transform="rotate(-24 24 39)"/>
+  <ellipse cx="33" cy="47" rx="5" ry="3.6" style="fill:var(--feuillage)" transform="rotate(-18 33 47)" opacity=".82"/>
+  <ellipse cx="73" cy="28" rx="6.8" ry="4.8" style="fill:var(--feuillage)" transform="rotate(28 73 28)"/>
+  <ellipse cx="63" cy="36" rx="4.8" ry="3.4" style="fill:var(--feuillage)" transform="rotate(22 63 36)" opacity=".82"/>
+  <ellipse cx="45" cy="10" rx="5.6" ry="4.2" style="fill:var(--feuillage)" transform="rotate(-8 45 10)"/>
+  <ellipse cx="49" cy="22" rx="4.2" ry="3" style="fill:var(--feuillage)" transform="rotate(6 49 22)" opacity=".8"/>
+</svg>
+      <div>
+        <p class="eyebrow" style="color:#9C4A2A">Branche · en feuillaison</p>
+        <p class="branch-name">arrêter de payer la mauvaise facture</p>
+        <p class="meta">Nommée le 14 mars 2026 · revenue 6 fois depuis</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Bibliothèque</p>
+    <p class="card-title">Ton chemin de vie</p>
+    <p class="meta">Chemin 7 · calculé à partir du 3 septembre 1997</p>
+  </div>
+
+  <p class="mock-alerte">Trois soirs sans passer. L'arbre n'a rien perdu.</p>
+
+  <div class="btn-row">
+    <button class="btn-primary" style="background:#9C4A2A;color:#FFFFFF">Continuer ce soir</button>
+    <button class="btn-ghost" style="color:#9C4A2A;border-color:#9C4A2A">Plus tard</button>
+  </div>
+  
+</div>
+      <div class="chips">
+<div class="chip">
+      <span class="dot" style="background:#F5EFE4"></span>
+      <span class="chip-txt"><b>fond</b><code>#F5EFE4</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#FBF7F0"></span>
+      <span class="chip-txt"><b>surface</b><code>#FBF7F0</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#FFFFFF"></span>
+      <span class="chip-txt"><b>surface-élevée</b><code>#FFFFFF</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#2E2822"></span>
+      <span class="chip-txt"><b>texte-principal</b><code>#2E2822</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#6B5F51"></span>
+      <span class="chip-txt"><b>texte-secondaire</b><code>#6B5F51</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#DED3C2"></span>
+      <span class="chip-txt"><b>bordure</b><code>#DED3C2</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#82715A"></span>
+      <span class="chip-txt"><b>bordure forte · focus</b><code>#82715A</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#9C4A2A"></span>
+      <span class="chip-txt"><b>accent (l'action)</b><code>#9C4A2A</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#E8D5C4"></span>
+      <span class="chip-txt"><b>accent-doux</b><code>#E8D5C4</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#6B4A32"></span>
+      <span class="chip-txt"><b>arbre · tronc</b><code>#6B4A32</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#8A6B4B"></span>
+      <span class="chip-txt"><b>arbre · branche</b><code>#8A6B4B</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#5E6B45"></span>
+      <span class="chip-txt"><b>arbre · feuillage</b><code>#5E6B45</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#4E6B4A"></span>
+      <span class="chip-txt"><b>succès discret</b><code>#4E6B4A</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#8A5320"></span>
+      <span class="chip-txt"><b>alerte discrète</b><code>#8A5320</code></span>
+    </div>
+</div>
+    </div>
+    <div class="pane t-v1-dark">
+      <p class="pane-label">Mode sombre <span class="tag">usage principal</span></p>
+      <div class="mock">
+  <div class="mock-top">
+    <span class="mock-wordmark">Anam</span>
+    <span class="mock-date">mardi 21 juillet · 22 h 40</span>
+  </div>
+
+  <div class="bubble-anam">
+    <p>J'ai l'impression que tu analyses beaucoup — au point, parfois, de ne plus être là où tu es. Je me trompe&nbsp;?</p>
+  </div>
+  <div class="bubble-user"><p>Non. Tu ne te trompes pas.</p></div>
+  <p class="mock-succes">↳ Noté. On y revient demain soir.</p>
+
+  <div class="field">Écris ce que tu en penses…</div>
+
+  <div class="card-raised">
+    <div class="card-branch">
+      <svg class="tree" viewBox="0 0 96 84" aria-hidden="true">
+  <path d="M48 82 L48 34" style="stroke:var(--tronc)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M48 80 C40 78 34 76 28 78 M48 80 C56 78 62 76 68 78" style="stroke:var(--tronc)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/>
+  <path d="M48 56 C40 52 33 46 27 42" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 46 C57 42 64 36 70 31" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 36 C44 27 44 19 46 12" style="stroke:var(--branche)" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="39" rx="6.5" ry="4.6" style="fill:var(--feuillage)" transform="rotate(-24 24 39)"/>
+  <ellipse cx="33" cy="47" rx="5" ry="3.6" style="fill:var(--feuillage)" transform="rotate(-18 33 47)" opacity=".82"/>
+  <ellipse cx="73" cy="28" rx="6.8" ry="4.8" style="fill:var(--feuillage)" transform="rotate(28 73 28)"/>
+  <ellipse cx="63" cy="36" rx="4.8" ry="3.4" style="fill:var(--feuillage)" transform="rotate(22 63 36)" opacity=".82"/>
+  <ellipse cx="45" cy="10" rx="5.6" ry="4.2" style="fill:var(--feuillage)" transform="rotate(-8 45 10)"/>
+  <ellipse cx="49" cy="22" rx="4.2" ry="3" style="fill:var(--feuillage)" transform="rotate(6 49 22)" opacity=".8"/>
+</svg>
+      <div>
+        <p class="eyebrow" style="color:#E0A882">Branche · en feuillaison</p>
+        <p class="branch-name">arrêter de payer la mauvaise facture</p>
+        <p class="meta">Nommée le 14 mars 2026 · revenue 6 fois depuis</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Bibliothèque</p>
+    <p class="card-title">Ton chemin de vie</p>
+    <p class="meta">Chemin 7 · calculé à partir du 3 septembre 1997</p>
+  </div>
+
+  <p class="mock-alerte">Trois soirs sans passer. L'arbre n'a rien perdu.</p>
+
+  <div class="btn-row">
+    <button class="btn-primary" style="background:#E0A882;color:#1E1A16">Continuer ce soir</button>
+    <button class="btn-ghost" style="color:#E0A882;border-color:#E0A882">Plus tard</button>
+  </div>
+  
+</div>
+      <div class="chips">
+<div class="chip">
+      <span class="dot" style="background:#1E1A16"></span>
+      <span class="chip-txt"><b>fond</b><code>#1E1A16</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#26211B"></span>
+      <span class="chip-txt"><b>surface</b><code>#26211B</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#302A22"></span>
+      <span class="chip-txt"><b>surface-élevée</b><code>#302A22</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#EFE7DA"></span>
+      <span class="chip-txt"><b>texte-principal</b><code>#EFE7DA</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#B0A392"></span>
+      <span class="chip-txt"><b>texte-secondaire</b><code>#B0A392</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#3D362C"></span>
+      <span class="chip-txt"><b>bordure</b><code>#3D362C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#7E7263"></span>
+      <span class="chip-txt"><b>bordure forte · focus</b><code>#7E7263</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#E0A882"></span>
+      <span class="chip-txt"><b>accent (l'action)</b><code>#E0A882</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#4A3A2C"></span>
+      <span class="chip-txt"><b>accent-doux</b><code>#4A3A2C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#B08A66"></span>
+      <span class="chip-txt"><b>arbre · tronc</b><code>#B08A66</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#C9A780"></span>
+      <span class="chip-txt"><b>arbre · branche</b><code>#C9A780</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#9FB07E"></span>
+      <span class="chip-txt"><b>arbre · feuillage</b><code>#9FB07E</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#8FB08A"></span>
+      <span class="chip-txt"><b>succès discret</b><code>#8FB08A</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#D9A05E"></span>
+      <span class="chip-txt"><b>alerte discrète</b><code>#D9A05E</code></span>
+    </div>
+</div>
+    </div>
+  </div>
+
+  <div class="verif">
+    <h3>Vérification du contraste</h3>
+    <div class="tw">
+<table class="ratios"><thead><tr>
+<th class="l">Paire testée</th><th>Seuil</th>
+<th colspan="2">Mode clair</th><th colspan="2">Mode sombre</th>
+</tr></thead><tbody>
+<tr><td class="l">Texte principal sur fond</td><td class="thr">4,5:1</td><td class="num pass">12,72</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">14,09</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte principal sur surface</td><td class="thr">4,5:1</td><td class="num pass">13,63</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">13,01</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte secondaire sur fond</td><td class="thr">4,5:1</td><td class="num pass">5,43</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,00</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte secondaire sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,82</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,46</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Accent utilisé en texte sur fond</td><td class="thr">4,5:1</td><td class="num pass">5,36</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">8,31</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Accent utilisé en texte sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,74</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,67</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte sur remplissage accent (bouton)</td><td class="thr">4,5:1</td><td class="num pass">6,13</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">8,31</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte principal sur accent-doux</td><td class="thr">4,5:1</td><td class="num pass">10,22</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">8,85</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Succès discret sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,58</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,65</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Alerte discrète sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,89</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,95</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Bordure décorative sur fond <span class="hint">décoratif</span></td><td class="thr">3:1</td><td class="num fail">1,29</td><td class="vd"><span class="badge fail">FAIL AA</span></td><td class="num fail">1,45</td><td class="vd"><span class="badge fail">FAIL AA</span></td></tr>
+<tr><td class="l">Bordure forte · anneau de focus sur fond</td><td class="thr">3:1</td><td class="num pass">4,12</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">3,68</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · tronc sur surface</td><td class="thr">3:1</td><td class="num pass">7,42</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">5,07</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · branche sur surface</td><td class="thr">3:1</td><td class="num pass">4,59</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,09</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · feuillage sur surface</td><td class="thr">3:1</td><td class="num pass">5,37</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,83</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+</tbody></table></div>
+    <ul class="notes"><li class="note note-ok"><b>Aucune correction nécessaire.</b><span>Tous les rôles porteurs de texte passent AA en mode clair comme en mode sombre. La terracotta #9C4A2A est assez sombre pour servir de texte de lien (5,36:1) — c'est rare dans cette direction visuelle et c'est le principal atout de cette variation.</span></li></ul>
+  </div>
+</section><section class="variation" id="v2">
+  <header class="v-head">
+    <div class="v-id"><span class="v-num">2</span><h2>Nuit d'argile</h2><span class="badge pass big">Conforme AA</span></div>
+    <p class="v-registre">Le sombre traité comme le lieu principal, pas comme une option. Brun-terre profond, jamais noir : une chambre éclairée par une seule lampe basse. Le mode clair n'est que la version « il fait encore jour » du même monde.</p>
+    <p class="v-resume">C'est la seule variation pensée sombre d'abord : le fond #17120E est chaud et absorbant, il ne fait pas écran d'ordinateur dans le noir. <em>Aucun rôle porteur de texte n'échoue, dans aucun des deux modes.</em></p>
+  </header>
+
+  <div class="panes">
+    <div class="pane t-v2-light">
+      <p class="pane-label">Mode clair</p>
+      <div class="mock">
+  <div class="mock-top">
+    <span class="mock-wordmark">Anam</span>
+    <span class="mock-date">mardi 21 juillet · 22 h 40</span>
+  </div>
+
+  <div class="bubble-anam">
+    <p>J'ai l'impression que tu analyses beaucoup — au point, parfois, de ne plus être là où tu es. Je me trompe&nbsp;?</p>
+  </div>
+  <div class="bubble-user"><p>Non. Tu ne te trompes pas.</p></div>
+  <p class="mock-succes">↳ Noté. On y revient demain soir.</p>
+
+  <div class="field">Écris ce que tu en penses…</div>
+
+  <div class="card-raised">
+    <div class="card-branch">
+      <svg class="tree" viewBox="0 0 96 84" aria-hidden="true">
+  <path d="M48 82 L48 34" style="stroke:var(--tronc)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M48 80 C40 78 34 76 28 78 M48 80 C56 78 62 76 68 78" style="stroke:var(--tronc)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/>
+  <path d="M48 56 C40 52 33 46 27 42" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 46 C57 42 64 36 70 31" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 36 C44 27 44 19 46 12" style="stroke:var(--branche)" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="39" rx="6.5" ry="4.6" style="fill:var(--feuillage)" transform="rotate(-24 24 39)"/>
+  <ellipse cx="33" cy="47" rx="5" ry="3.6" style="fill:var(--feuillage)" transform="rotate(-18 33 47)" opacity=".82"/>
+  <ellipse cx="73" cy="28" rx="6.8" ry="4.8" style="fill:var(--feuillage)" transform="rotate(28 73 28)"/>
+  <ellipse cx="63" cy="36" rx="4.8" ry="3.4" style="fill:var(--feuillage)" transform="rotate(22 63 36)" opacity=".82"/>
+  <ellipse cx="45" cy="10" rx="5.6" ry="4.2" style="fill:var(--feuillage)" transform="rotate(-8 45 10)"/>
+  <ellipse cx="49" cy="22" rx="4.2" ry="3" style="fill:var(--feuillage)" transform="rotate(6 49 22)" opacity=".8"/>
+</svg>
+      <div>
+        <p class="eyebrow" style="color:#8C4B33">Branche · en feuillaison</p>
+        <p class="branch-name">arrêter de payer la mauvaise facture</p>
+        <p class="meta">Nommée le 14 mars 2026 · revenue 6 fois depuis</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Bibliothèque</p>
+    <p class="card-title">Ton chemin de vie</p>
+    <p class="meta">Chemin 7 · calculé à partir du 3 septembre 1997</p>
+  </div>
+
+  <p class="mock-alerte">Trois soirs sans passer. L'arbre n'a rien perdu.</p>
+
+  <div class="btn-row">
+    <button class="btn-primary" style="background:#8C4B33;color:#FFFFFF">Continuer ce soir</button>
+    <button class="btn-ghost" style="color:#8C4B33;border-color:#8C4B33">Plus tard</button>
+  </div>
+  
+</div>
+      <div class="chips">
+<div class="chip">
+      <span class="dot" style="background:#EDE6DC"></span>
+      <span class="chip-txt"><b>fond</b><code>#EDE6DC</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#F6F1E9"></span>
+      <span class="chip-txt"><b>surface</b><code>#F6F1E9</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#FDFAF5"></span>
+      <span class="chip-txt"><b>surface-élevée</b><code>#FDFAF5</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#33291F"></span>
+      <span class="chip-txt"><b>texte-principal</b><code>#33291F</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#6E6153"></span>
+      <span class="chip-txt"><b>texte-secondaire</b><code>#6E6153</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#D7CCBC"></span>
+      <span class="chip-txt"><b>bordure</b><code>#D7CCBC</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#7D6D5C"></span>
+      <span class="chip-txt"><b>bordure forte · focus</b><code>#7D6D5C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#8C4B33"></span>
+      <span class="chip-txt"><b>accent (l'action)</b><code>#8C4B33</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#E4D2C2"></span>
+      <span class="chip-txt"><b>accent-doux</b><code>#E4D2C2</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#5E4230"></span>
+      <span class="chip-txt"><b>arbre · tronc</b><code>#5E4230</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#83614A"></span>
+      <span class="chip-txt"><b>arbre · branche</b><code>#83614A</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#5B6647"></span>
+      <span class="chip-txt"><b>arbre · feuillage</b><code>#5B6647</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#4A6650"></span>
+      <span class="chip-txt"><b>succès discret</b><code>#4A6650</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#8B5A24"></span>
+      <span class="chip-txt"><b>alerte discrète</b><code>#8B5A24</code></span>
+    </div>
+</div>
+    </div>
+    <div class="pane t-v2-dark">
+      <p class="pane-label">Mode sombre <span class="tag">usage principal</span></p>
+      <div class="mock">
+  <div class="mock-top">
+    <span class="mock-wordmark">Anam</span>
+    <span class="mock-date">mardi 21 juillet · 22 h 40</span>
+  </div>
+
+  <div class="bubble-anam">
+    <p>J'ai l'impression que tu analyses beaucoup — au point, parfois, de ne plus être là où tu es. Je me trompe&nbsp;?</p>
+  </div>
+  <div class="bubble-user"><p>Non. Tu ne te trompes pas.</p></div>
+  <p class="mock-succes">↳ Noté. On y revient demain soir.</p>
+
+  <div class="field">Écris ce que tu en penses…</div>
+
+  <div class="card-raised">
+    <div class="card-branch">
+      <svg class="tree" viewBox="0 0 96 84" aria-hidden="true">
+  <path d="M48 82 L48 34" style="stroke:var(--tronc)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M48 80 C40 78 34 76 28 78 M48 80 C56 78 62 76 68 78" style="stroke:var(--tronc)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/>
+  <path d="M48 56 C40 52 33 46 27 42" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 46 C57 42 64 36 70 31" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 36 C44 27 44 19 46 12" style="stroke:var(--branche)" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="39" rx="6.5" ry="4.6" style="fill:var(--feuillage)" transform="rotate(-24 24 39)"/>
+  <ellipse cx="33" cy="47" rx="5" ry="3.6" style="fill:var(--feuillage)" transform="rotate(-18 33 47)" opacity=".82"/>
+  <ellipse cx="73" cy="28" rx="6.8" ry="4.8" style="fill:var(--feuillage)" transform="rotate(28 73 28)"/>
+  <ellipse cx="63" cy="36" rx="4.8" ry="3.4" style="fill:var(--feuillage)" transform="rotate(22 63 36)" opacity=".82"/>
+  <ellipse cx="45" cy="10" rx="5.6" ry="4.2" style="fill:var(--feuillage)" transform="rotate(-8 45 10)"/>
+  <ellipse cx="49" cy="22" rx="4.2" ry="3" style="fill:var(--feuillage)" transform="rotate(6 49 22)" opacity=".8"/>
+</svg>
+      <div>
+        <p class="eyebrow" style="color:#D9926B">Branche · en feuillaison</p>
+        <p class="branch-name">arrêter de payer la mauvaise facture</p>
+        <p class="meta">Nommée le 14 mars 2026 · revenue 6 fois depuis</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Bibliothèque</p>
+    <p class="card-title">Ton chemin de vie</p>
+    <p class="meta">Chemin 7 · calculé à partir du 3 septembre 1997</p>
+  </div>
+
+  <p class="mock-alerte">Trois soirs sans passer. L'arbre n'a rien perdu.</p>
+
+  <div class="btn-row">
+    <button class="btn-primary" style="background:#D9926B;color:#17120E">Continuer ce soir</button>
+    <button class="btn-ghost" style="color:#D9926B;border-color:#D9926B">Plus tard</button>
+  </div>
+  
+</div>
+      <div class="chips">
+<div class="chip">
+      <span class="dot" style="background:#17120E"></span>
+      <span class="chip-txt"><b>fond</b><code>#17120E</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#1F1913"></span>
+      <span class="chip-txt"><b>surface</b><code>#1F1913</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#29211A"></span>
+      <span class="chip-txt"><b>surface-élevée</b><code>#29211A</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#E8DECF"></span>
+      <span class="chip-txt"><b>texte-principal</b><code>#E8DECF</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#A99B88"></span>
+      <span class="chip-txt"><b>texte-secondaire</b><code>#A99B88</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#342B22"></span>
+      <span class="chip-txt"><b>bordure</b><code>#342B22</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#786A59"></span>
+      <span class="chip-txt"><b>bordure forte · focus</b><code>#786A59</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#D9926B"></span>
+      <span class="chip-txt"><b>accent (l'action)</b><code>#D9926B</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#3A2A20"></span>
+      <span class="chip-txt"><b>accent-doux</b><code>#3A2A20</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#9E7A58"></span>
+      <span class="chip-txt"><b>arbre · tronc</b><code>#9E7A58</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#B99671"></span>
+      <span class="chip-txt"><b>arbre · branche</b><code>#B99671</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#94A472"></span>
+      <span class="chip-txt"><b>arbre · feuillage</b><code>#94A472</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#84A67F"></span>
+      <span class="chip-txt"><b>succès discret</b><code>#84A67F</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#CE9455"></span>
+      <span class="chip-txt"><b>alerte discrète</b><code>#CE9455</code></span>
+    </div>
+</div>
+    </div>
+  </div>
+
+  <div class="verif">
+    <h3>Vérification du contraste</h3>
+    <div class="tw">
+<table class="ratios"><thead><tr>
+<th class="l">Paire testée</th><th>Seuil</th>
+<th colspan="2">Mode clair</th><th colspan="2">Mode sombre</th>
+</tr></thead><tbody>
+<tr><td class="l">Texte principal sur fond</td><td class="thr">4,5:1</td><td class="num pass">11,47</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">13,97</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte principal sur surface</td><td class="thr">4,5:1</td><td class="num pass">12,64</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">13,08</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte secondaire sur fond</td><td class="thr">4,5:1</td><td class="num pass">4,85</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,85</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte secondaire sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,34</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,41</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Accent utilisé en texte sur fond</td><td class="thr">4,5:1</td><td class="num pass">5,35</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,33</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Accent utilisé en texte sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,89</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,86</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte sur remplissage accent (bouton)</td><td class="thr">4,5:1</td><td class="num pass">6,63</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,33</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte principal sur accent-doux</td><td class="thr">4,5:1</td><td class="num pass">9,67</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">10,30</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Succès discret sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,65</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,42</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Alerte discrète sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,21</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,62</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Bordure décorative sur fond <span class="hint">décoratif</span></td><td class="thr">3:1</td><td class="num fail">1,28</td><td class="vd"><span class="badge fail">FAIL AA</span></td><td class="num fail">1,34</td><td class="vd"><span class="badge fail">FAIL AA</span></td></tr>
+<tr><td class="l">Bordure forte · anneau de focus sur fond</td><td class="thr">3:1</td><td class="num pass">4,02</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">3,55</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · tronc sur surface</td><td class="thr">3:1</td><td class="num pass">8,13</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">4,46</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · branche sur surface</td><td class="thr">3:1</td><td class="num pass">4,95</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,35</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · feuillage sur surface</td><td class="thr">3:1</td><td class="num pass">5,44</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,47</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+</tbody></table></div>
+    <ul class="notes"><li class="note note-ok"><b>Aucune correction nécessaire.</b><span>Le fond sombre #17120E est un brun très désaturé, pas un noir : il conserve la chaleur de la direction artistique tout en offrant 13,97:1 sur le texte principal. En mode clair, le texte secondaire #6E6153 passe à 4,85:1 — c'est la marge la plus faible des cinq, à ne pas éclaircir davantage.</span></li></ul>
+  </div>
+</section><section class="variation" id="v3">
+  <header class="v-head">
+    <div class="v-id"><span class="v-num">3</span><h2>Encre et laiton</h2><span class="badge pass big">Conforme AA</span></div>
+    <p class="v-registre">La plus contrastée et la plus affirmée. Encre quasi noire sur papier, laiton patiné pour l'action. Éditoriale, franche, sans détour — le registre le plus proche du positionnement « elle ne te dit pas ce que tu veux entendre ».</p>
+    <p class="v-resume">Contraste du texte principal jusqu'à 16,7:1 : c'est la variation la plus confortable en lecture longue et la plus lisible en plein soleil. <em>Aucun rôle porteur de texte n'échoue, dans aucun des deux modes.</em></p>
+  </header>
+
+  <div class="panes">
+    <div class="pane t-v3-light">
+      <p class="pane-label">Mode clair</p>
+      <div class="mock">
+  <div class="mock-top">
+    <span class="mock-wordmark">Anam</span>
+    <span class="mock-date">mardi 21 juillet · 22 h 40</span>
+  </div>
+
+  <div class="bubble-anam">
+    <p>J'ai l'impression que tu analyses beaucoup — au point, parfois, de ne plus être là où tu es. Je me trompe&nbsp;?</p>
+  </div>
+  <div class="bubble-user"><p>Non. Tu ne te trompes pas.</p></div>
+  <p class="mock-succes">↳ Noté. On y revient demain soir.</p>
+
+  <div class="field">Écris ce que tu en penses…</div>
+
+  <div class="card-raised">
+    <div class="card-branch">
+      <svg class="tree" viewBox="0 0 96 84" aria-hidden="true">
+  <path d="M48 82 L48 34" style="stroke:var(--tronc)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M48 80 C40 78 34 76 28 78 M48 80 C56 78 62 76 68 78" style="stroke:var(--tronc)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/>
+  <path d="M48 56 C40 52 33 46 27 42" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 46 C57 42 64 36 70 31" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 36 C44 27 44 19 46 12" style="stroke:var(--branche)" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="39" rx="6.5" ry="4.6" style="fill:var(--feuillage)" transform="rotate(-24 24 39)"/>
+  <ellipse cx="33" cy="47" rx="5" ry="3.6" style="fill:var(--feuillage)" transform="rotate(-18 33 47)" opacity=".82"/>
+  <ellipse cx="73" cy="28" rx="6.8" ry="4.8" style="fill:var(--feuillage)" transform="rotate(28 73 28)"/>
+  <ellipse cx="63" cy="36" rx="4.8" ry="3.4" style="fill:var(--feuillage)" transform="rotate(22 63 36)" opacity=".82"/>
+  <ellipse cx="45" cy="10" rx="5.6" ry="4.2" style="fill:var(--feuillage)" transform="rotate(-8 45 10)"/>
+  <ellipse cx="49" cy="22" rx="4.2" ry="3" style="fill:var(--feuillage)" transform="rotate(6 49 22)" opacity=".8"/>
+</svg>
+      <div>
+        <p class="eyebrow" style="color:#7A5312">Branche · en feuillaison</p>
+        <p class="branch-name">arrêter de payer la mauvaise facture</p>
+        <p class="meta">Nommée le 14 mars 2026 · revenue 6 fois depuis</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Bibliothèque</p>
+    <p class="card-title">Ton chemin de vie</p>
+    <p class="meta">Chemin 7 · calculé à partir du 3 septembre 1997</p>
+  </div>
+
+  <p class="mock-alerte">Trois soirs sans passer. L'arbre n'a rien perdu.</p>
+
+  <div class="btn-row">
+    <button class="btn-primary" style="background:#7A5312;color:#FFFFFF">Continuer ce soir</button>
+    <button class="btn-ghost" style="color:#7A5312;border-color:#7A5312">Plus tard</button>
+  </div>
+  
+</div>
+      <div class="chips">
+<div class="chip">
+      <span class="dot" style="background:#F2EDE3"></span>
+      <span class="chip-txt"><b>fond</b><code>#F2EDE3</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#FBF8F1"></span>
+      <span class="chip-txt"><b>surface</b><code>#FBF8F1</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#FFFFFF"></span>
+      <span class="chip-txt"><b>surface-élevée</b><code>#FFFFFF</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#1A1815"></span>
+      <span class="chip-txt"><b>texte-principal</b><code>#1A1815</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#5A5349"></span>
+      <span class="chip-txt"><b>texte-secondaire</b><code>#5A5349</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#CFC5B4"></span>
+      <span class="chip-txt"><b>bordure</b><code>#CFC5B4</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#7A6C57"></span>
+      <span class="chip-txt"><b>bordure forte · focus</b><code>#7A6C57</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#7A5312"></span>
+      <span class="chip-txt"><b>accent (l'action)</b><code>#7A5312</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#E9DCC2"></span>
+      <span class="chip-txt"><b>accent-doux</b><code>#E9DCC2</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#4A3A28"></span>
+      <span class="chip-txt"><b>arbre · tronc</b><code>#4A3A28</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#6E5940"></span>
+      <span class="chip-txt"><b>arbre · branche</b><code>#6E5940</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#4E5A3C"></span>
+      <span class="chip-txt"><b>arbre · feuillage</b><code>#4E5A3C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#3F6146"></span>
+      <span class="chip-txt"><b>succès discret</b><code>#3F6146</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#8A4B1E"></span>
+      <span class="chip-txt"><b>alerte discrète</b><code>#8A4B1E</code></span>
+    </div>
+</div>
+    </div>
+    <div class="pane t-v3-dark">
+      <p class="pane-label">Mode sombre <span class="tag">usage principal</span></p>
+      <div class="mock">
+  <div class="mock-top">
+    <span class="mock-wordmark">Anam</span>
+    <span class="mock-date">mardi 21 juillet · 22 h 40</span>
+  </div>
+
+  <div class="bubble-anam">
+    <p>J'ai l'impression que tu analyses beaucoup — au point, parfois, de ne plus être là où tu es. Je me trompe&nbsp;?</p>
+  </div>
+  <div class="bubble-user"><p>Non. Tu ne te trompes pas.</p></div>
+  <p class="mock-succes">↳ Noté. On y revient demain soir.</p>
+
+  <div class="field">Écris ce que tu en penses…</div>
+
+  <div class="card-raised">
+    <div class="card-branch">
+      <svg class="tree" viewBox="0 0 96 84" aria-hidden="true">
+  <path d="M48 82 L48 34" style="stroke:var(--tronc)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M48 80 C40 78 34 76 28 78 M48 80 C56 78 62 76 68 78" style="stroke:var(--tronc)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/>
+  <path d="M48 56 C40 52 33 46 27 42" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 46 C57 42 64 36 70 31" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 36 C44 27 44 19 46 12" style="stroke:var(--branche)" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="39" rx="6.5" ry="4.6" style="fill:var(--feuillage)" transform="rotate(-24 24 39)"/>
+  <ellipse cx="33" cy="47" rx="5" ry="3.6" style="fill:var(--feuillage)" transform="rotate(-18 33 47)" opacity=".82"/>
+  <ellipse cx="73" cy="28" rx="6.8" ry="4.8" style="fill:var(--feuillage)" transform="rotate(28 73 28)"/>
+  <ellipse cx="63" cy="36" rx="4.8" ry="3.4" style="fill:var(--feuillage)" transform="rotate(22 63 36)" opacity=".82"/>
+  <ellipse cx="45" cy="10" rx="5.6" ry="4.2" style="fill:var(--feuillage)" transform="rotate(-8 45 10)"/>
+  <ellipse cx="49" cy="22" rx="4.2" ry="3" style="fill:var(--feuillage)" transform="rotate(6 49 22)" opacity=".8"/>
+</svg>
+      <div>
+        <p class="eyebrow" style="color:#D8B87A">Branche · en feuillaison</p>
+        <p class="branch-name">arrêter de payer la mauvaise facture</p>
+        <p class="meta">Nommée le 14 mars 2026 · revenue 6 fois depuis</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Bibliothèque</p>
+    <p class="card-title">Ton chemin de vie</p>
+    <p class="meta">Chemin 7 · calculé à partir du 3 septembre 1997</p>
+  </div>
+
+  <p class="mock-alerte">Trois soirs sans passer. L'arbre n'a rien perdu.</p>
+
+  <div class="btn-row">
+    <button class="btn-primary" style="background:#D8B87A;color:#12110F">Continuer ce soir</button>
+    <button class="btn-ghost" style="color:#D8B87A;border-color:#D8B87A">Plus tard</button>
+  </div>
+  
+</div>
+      <div class="chips">
+<div class="chip">
+      <span class="dot" style="background:#12110F"></span>
+      <span class="chip-txt"><b>fond</b><code>#12110F</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#1B1A17"></span>
+      <span class="chip-txt"><b>surface</b><code>#1B1A17</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#232120"></span>
+      <span class="chip-txt"><b>surface-élevée</b><code>#232120</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#F3EFE7"></span>
+      <span class="chip-txt"><b>texte-principal</b><code>#F3EFE7</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#B5AC9C"></span>
+      <span class="chip-txt"><b>texte-secondaire</b><code>#B5AC9C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#33302B"></span>
+      <span class="chip-txt"><b>bordure</b><code>#33302B</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#756D60"></span>
+      <span class="chip-txt"><b>bordure forte · focus</b><code>#756D60</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#D8B87A"></span>
+      <span class="chip-txt"><b>accent (l'action)</b><code>#D8B87A</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#3A3221"></span>
+      <span class="chip-txt"><b>accent-doux</b><code>#3A3221</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#A08662"></span>
+      <span class="chip-txt"><b>arbre · tronc</b><code>#A08662</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#BFA37C"></span>
+      <span class="chip-txt"><b>arbre · branche</b><code>#BFA37C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#9AA97C"></span>
+      <span class="chip-txt"><b>arbre · feuillage</b><code>#9AA97C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#88AE8B"></span>
+      <span class="chip-txt"><b>succès discret</b><code>#88AE8B</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#D9A15F"></span>
+      <span class="chip-txt"><b>alerte discrète</b><code>#D9A15F</code></span>
+    </div>
+</div>
+    </div>
+  </div>
+
+  <div class="verif">
+    <h3>Vérification du contraste</h3>
+    <div class="tw">
+<table class="ratios"><thead><tr>
+<th class="l">Paire testée</th><th>Seuil</th>
+<th colspan="2">Mode clair</th><th colspan="2">Mode sombre</th>
+</tr></thead><tbody>
+<tr><td class="l">Texte principal sur fond</td><td class="thr">4,5:1</td><td class="num pass">15,18</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">16,46</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte principal sur surface</td><td class="thr">4,5:1</td><td class="num pass">16,70</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">15,17</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte secondaire sur fond</td><td class="thr">4,5:1</td><td class="num pass">6,50</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">8,40</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte secondaire sur surface</td><td class="thr">4,5:1</td><td class="num pass">7,15</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,74</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Accent utilisé en texte sur fond</td><td class="thr">4,5:1</td><td class="num pass">5,86</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">9,94</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Accent utilisé en texte sur surface</td><td class="thr">4,5:1</td><td class="num pass">6,44</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">9,16</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte sur remplissage accent (bouton)</td><td class="thr">4,5:1</td><td class="num pass">6,83</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">9,94</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte principal sur accent-doux</td><td class="thr">4,5:1</td><td class="num pass">13,06</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">11,04</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Succès discret sur surface</td><td class="thr">4,5:1</td><td class="num pass">6,58</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,02</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Alerte discrète sur surface</td><td class="thr">4,5:1</td><td class="num pass">6,37</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,64</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Bordure décorative sur fond <span class="hint">décoratif</span></td><td class="thr">3:1</td><td class="num fail">1,46</td><td class="vd"><span class="badge fail">FAIL AA</span></td><td class="num fail">1,44</td><td class="vd"><span class="badge fail">FAIL AA</span></td></tr>
+<tr><td class="l">Bordure forte · anneau de focus sur fond</td><td class="thr">3:1</td><td class="num pass">4,38</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">3,70</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · tronc sur surface</td><td class="thr">3:1</td><td class="num pass">10,27</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">5,04</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · branche sur surface</td><td class="thr">3:1</td><td class="num pass">6,25</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,25</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · feuillage sur surface</td><td class="thr">3:1</td><td class="num pass">6,94</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,91</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+</tbody></table></div>
+    <ul class="notes"><li class="note note-ok"><b>Aucune correction nécessaire, et la plus grande marge de manœuvre.</b><span>Le laiton #D8B87A en mode sombre atteint 9,94:1 : il peut servir de texte, de lien, d'icône et d'anneau de focus sans réserve. En mode clair, le laiton doit être assombri en #7A5312 (bronze) pour rester lisible — les deux valeurs sont dans la palette, elles ne sont pas interchangeables.</span></li></ul>
+  </div>
+</section><section class="variation" id="v4">
+  <header class="v-head">
+    <div class="v-id"><span class="v-num">4</span><h2>Sauge et pierre</h2><span class="badge pass big">Conforme AA</span></div>
+    <p class="v-registre">Minérale et tempérée. Vert sauge éteint et gris de pierre : la seule des cinq qui ne soit pas chaude. Retenue, respirante, presque austère — elle ressemble le moins à une app de bien-être.</p>
+    <p class="v-resume">L'accent vert profond éloigne totalement du registre voyance. C'est aussi la plus ambiguë en open space : rien n'y évoque le spirituel. <em>Aucun rôle porteur de texte n'échoue, dans aucun des deux modes.</em></p>
+  </header>
+
+  <div class="panes">
+    <div class="pane t-v4-light">
+      <p class="pane-label">Mode clair</p>
+      <div class="mock">
+  <div class="mock-top">
+    <span class="mock-wordmark">Anam</span>
+    <span class="mock-date">mardi 21 juillet · 22 h 40</span>
+  </div>
+
+  <div class="bubble-anam">
+    <p>J'ai l'impression que tu analyses beaucoup — au point, parfois, de ne plus être là où tu es. Je me trompe&nbsp;?</p>
+  </div>
+  <div class="bubble-user"><p>Non. Tu ne te trompes pas.</p></div>
+  <p class="mock-succes">↳ Noté. On y revient demain soir.</p>
+
+  <div class="field">Écris ce que tu en penses…</div>
+
+  <div class="card-raised">
+    <div class="card-branch">
+      <svg class="tree" viewBox="0 0 96 84" aria-hidden="true">
+  <path d="M48 82 L48 34" style="stroke:var(--tronc)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M48 80 C40 78 34 76 28 78 M48 80 C56 78 62 76 68 78" style="stroke:var(--tronc)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/>
+  <path d="M48 56 C40 52 33 46 27 42" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 46 C57 42 64 36 70 31" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 36 C44 27 44 19 46 12" style="stroke:var(--branche)" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="39" rx="6.5" ry="4.6" style="fill:var(--feuillage)" transform="rotate(-24 24 39)"/>
+  <ellipse cx="33" cy="47" rx="5" ry="3.6" style="fill:var(--feuillage)" transform="rotate(-18 33 47)" opacity=".82"/>
+  <ellipse cx="73" cy="28" rx="6.8" ry="4.8" style="fill:var(--feuillage)" transform="rotate(28 73 28)"/>
+  <ellipse cx="63" cy="36" rx="4.8" ry="3.4" style="fill:var(--feuillage)" transform="rotate(22 63 36)" opacity=".82"/>
+  <ellipse cx="45" cy="10" rx="5.6" ry="4.2" style="fill:var(--feuillage)" transform="rotate(-8 45 10)"/>
+  <ellipse cx="49" cy="22" rx="4.2" ry="3" style="fill:var(--feuillage)" transform="rotate(6 49 22)" opacity=".8"/>
+</svg>
+      <div>
+        <p class="eyebrow" style="color:#3F5E4C">Branche · en feuillaison</p>
+        <p class="branch-name">arrêter de payer la mauvaise facture</p>
+        <p class="meta">Nommée le 14 mars 2026 · revenue 6 fois depuis</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Bibliothèque</p>
+    <p class="card-title">Ton chemin de vie</p>
+    <p class="meta">Chemin 7 · calculé à partir du 3 septembre 1997</p>
+  </div>
+
+  <p class="mock-alerte">Trois soirs sans passer. L'arbre n'a rien perdu.</p>
+
+  <div class="btn-row">
+    <button class="btn-primary" style="background:#3F5E4C;color:#FFFFFF">Continuer ce soir</button>
+    <button class="btn-ghost" style="color:#3F5E4C;border-color:#3F5E4C">Plus tard</button>
+  </div>
+  
+</div>
+      <div class="chips">
+<div class="chip">
+      <span class="dot" style="background:#EFEFE8"></span>
+      <span class="chip-txt"><b>fond</b><code>#EFEFE8</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#F7F7F2"></span>
+      <span class="chip-txt"><b>surface</b><code>#F7F7F2</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#FFFFFF"></span>
+      <span class="chip-txt"><b>surface-élevée</b><code>#FFFFFF</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#262A24"></span>
+      <span class="chip-txt"><b>texte-principal</b><code>#262A24</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#5C6158"></span>
+      <span class="chip-txt"><b>texte-secondaire</b><code>#5C6158</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#D3D5CA"></span>
+      <span class="chip-txt"><b>bordure</b><code>#D3D5CA</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#7B7F70"></span>
+      <span class="chip-txt"><b>bordure forte · focus</b><code>#7B7F70</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#3F5E4C"></span>
+      <span class="chip-txt"><b>accent (l'action)</b><code>#3F5E4C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#DDE3D6"></span>
+      <span class="chip-txt"><b>accent-doux</b><code>#DDE3D6</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#5A5347"></span>
+      <span class="chip-txt"><b>arbre · tronc</b><code>#5A5347</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#7C7565"></span>
+      <span class="chip-txt"><b>arbre · branche</b><code>#7C7565</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#556146"></span>
+      <span class="chip-txt"><b>arbre · feuillage</b><code>#556146</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#41654C"></span>
+      <span class="chip-txt"><b>succès discret</b><code>#41654C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#8A5A2E"></span>
+      <span class="chip-txt"><b>alerte discrète</b><code>#8A5A2E</code></span>
+    </div>
+</div>
+    </div>
+    <div class="pane t-v4-dark">
+      <p class="pane-label">Mode sombre <span class="tag">usage principal</span></p>
+      <div class="mock">
+  <div class="mock-top">
+    <span class="mock-wordmark">Anam</span>
+    <span class="mock-date">mardi 21 juillet · 22 h 40</span>
+  </div>
+
+  <div class="bubble-anam">
+    <p>J'ai l'impression que tu analyses beaucoup — au point, parfois, de ne plus être là où tu es. Je me trompe&nbsp;?</p>
+  </div>
+  <div class="bubble-user"><p>Non. Tu ne te trompes pas.</p></div>
+  <p class="mock-succes">↳ Noté. On y revient demain soir.</p>
+
+  <div class="field">Écris ce que tu en penses…</div>
+
+  <div class="card-raised">
+    <div class="card-branch">
+      <svg class="tree" viewBox="0 0 96 84" aria-hidden="true">
+  <path d="M48 82 L48 34" style="stroke:var(--tronc)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M48 80 C40 78 34 76 28 78 M48 80 C56 78 62 76 68 78" style="stroke:var(--tronc)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/>
+  <path d="M48 56 C40 52 33 46 27 42" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 46 C57 42 64 36 70 31" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 36 C44 27 44 19 46 12" style="stroke:var(--branche)" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="39" rx="6.5" ry="4.6" style="fill:var(--feuillage)" transform="rotate(-24 24 39)"/>
+  <ellipse cx="33" cy="47" rx="5" ry="3.6" style="fill:var(--feuillage)" transform="rotate(-18 33 47)" opacity=".82"/>
+  <ellipse cx="73" cy="28" rx="6.8" ry="4.8" style="fill:var(--feuillage)" transform="rotate(28 73 28)"/>
+  <ellipse cx="63" cy="36" rx="4.8" ry="3.4" style="fill:var(--feuillage)" transform="rotate(22 63 36)" opacity=".82"/>
+  <ellipse cx="45" cy="10" rx="5.6" ry="4.2" style="fill:var(--feuillage)" transform="rotate(-8 45 10)"/>
+  <ellipse cx="49" cy="22" rx="4.2" ry="3" style="fill:var(--feuillage)" transform="rotate(6 49 22)" opacity=".8"/>
+</svg>
+      <div>
+        <p class="eyebrow" style="color:#93B79C">Branche · en feuillaison</p>
+        <p class="branch-name">arrêter de payer la mauvaise facture</p>
+        <p class="meta">Nommée le 14 mars 2026 · revenue 6 fois depuis</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Bibliothèque</p>
+    <p class="card-title">Ton chemin de vie</p>
+    <p class="meta">Chemin 7 · calculé à partir du 3 septembre 1997</p>
+  </div>
+
+  <p class="mock-alerte">Trois soirs sans passer. L'arbre n'a rien perdu.</p>
+
+  <div class="btn-row">
+    <button class="btn-primary" style="background:#93B79C;color:#171A17">Continuer ce soir</button>
+    <button class="btn-ghost" style="color:#93B79C;border-color:#93B79C">Plus tard</button>
+  </div>
+  
+</div>
+      <div class="chips">
+<div class="chip">
+      <span class="dot" style="background:#171A17"></span>
+      <span class="chip-txt"><b>fond</b><code>#171A17</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#1F231F"></span>
+      <span class="chip-txt"><b>surface</b><code>#1F231F</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#282D27"></span>
+      <span class="chip-txt"><b>surface-élevée</b><code>#282D27</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#E6E9E1"></span>
+      <span class="chip-txt"><b>texte-principal</b><code>#E6E9E1</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#A3A99C"></span>
+      <span class="chip-txt"><b>texte-secondaire</b><code>#A3A99C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#333930"></span>
+      <span class="chip-txt"><b>bordure</b><code>#333930</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#6F7469"></span>
+      <span class="chip-txt"><b>bordure forte · focus</b><code>#6F7469</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#93B79C"></span>
+      <span class="chip-txt"><b>accent (l'action)</b><code>#93B79C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#2C352E"></span>
+      <span class="chip-txt"><b>accent-doux</b><code>#2C352E</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#9A9483"></span>
+      <span class="chip-txt"><b>arbre · tronc</b><code>#9A9483</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#B2AB97"></span>
+      <span class="chip-txt"><b>arbre · branche</b><code>#B2AB97</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#9BAE7E"></span>
+      <span class="chip-txt"><b>arbre · feuillage</b><code>#9BAE7E</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#8DB394"></span>
+      <span class="chip-txt"><b>succès discret</b><code>#8DB394</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#CFA063"></span>
+      <span class="chip-txt"><b>alerte discrète</b><code>#CFA063</code></span>
+    </div>
+</div>
+    </div>
+  </div>
+
+  <div class="verif">
+    <h3>Vérification du contraste</h3>
+    <div class="tw">
+<table class="ratios"><thead><tr>
+<th class="l">Paire testée</th><th>Seuil</th>
+<th colspan="2">Mode clair</th><th colspan="2">Mode sombre</th>
+</tr></thead><tbody>
+<tr><td class="l">Texte principal sur fond</td><td class="thr">4,5:1</td><td class="num pass">12,63</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">14,30</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte principal sur surface</td><td class="thr">4,5:1</td><td class="num pass">13,58</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">12,98</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte secondaire sur fond</td><td class="thr">4,5:1</td><td class="num pass">5,50</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,28</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte secondaire sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,91</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,61</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Accent utilisé en texte sur fond</td><td class="thr">4,5:1</td><td class="num pass">6,23</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,93</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Accent utilisé en texte sur surface</td><td class="thr">4,5:1</td><td class="num pass">6,70</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,20</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte sur remplissage accent (bouton)</td><td class="thr">4,5:1</td><td class="num pass">7,20</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">7,93</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte principal sur accent-doux</td><td class="thr">4,5:1</td><td class="num pass">11,14</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">10,33</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Succès discret sur surface</td><td class="thr">4,5:1</td><td class="num pass">6,12</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,83</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Alerte discrète sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,45</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,72</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Bordure décorative sur fond <span class="hint">décoratif</span></td><td class="thr">3:1</td><td class="num fail">1,29</td><td class="vd"><span class="badge fail">FAIL AA</span></td><td class="num fail">1,48</td><td class="vd"><span class="badge fail">FAIL AA</span></td></tr>
+<tr><td class="l">Bordure forte · anneau de focus sur fond</td><td class="thr">3:1</td><td class="num pass">3,56</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">3,66</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · tronc sur surface</td><td class="thr">3:1</td><td class="num pass">7,07</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">5,26</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · branche sur surface</td><td class="thr">3:1</td><td class="num pass">4,26</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,95</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · feuillage sur surface</td><td class="thr">3:1</td><td class="num pass">6,14</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,64</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+</tbody></table></div>
+    <ul class="notes"><li class="note note-ok"><b>Aucune correction nécessaire.</b><span>Le vert #3F5E4C en clair et #93B79C en sombre sont les deux faces du même accent. Attention : la branche #7C7565 en mode clair tombe à 4,26:1 sur surface — suffisant pour un tracé graphique (seuil 3:1), insuffisant si un jour cette teinte servait à écrire un libellé.</span></li></ul>
+  </div>
+</section><section class="variation" id="v5">
+  <header class="v-head">
+    <div class="v-id"><span class="v-num">5</span><h2>Terre cuite</h2><span class="badge fail big">3 échecs AA</span></div>
+    <p class="v-registre">La marque poussée à fond : terracotta dominante, chaleur maximale, la plus séduisante des cinq en vignette. C'est aussi la seule qui échoue en accessibilité — elle est ici pour montrer le piège, pas pour être choisie telle quelle.</p>
+    <p class="v-resume">Le piège annoncé : une couleur de marque magnifique, parfaitement inutilisable en texte sur fond clair. <em>3 paires sous le seuil. Corrections proposées ci-dessous.</em></p>
+  </header>
+
+  <div class="panes">
+    <div class="pane t-v5-light">
+      <p class="pane-label">Mode clair</p>
+      <div class="mock">
+  <div class="mock-top">
+    <span class="mock-wordmark">Anam</span>
+    <span class="mock-date">mardi 21 juillet · 22 h 40</span>
+  </div>
+
+  <div class="bubble-anam">
+    <p>J'ai l'impression que tu analyses beaucoup — au point, parfois, de ne plus être là où tu es. Je me trompe&nbsp;?</p>
+  </div>
+  <div class="bubble-user"><p>Non. Tu ne te trompes pas.</p></div>
+  <p class="mock-succes">↳ Noté. On y revient demain soir.</p>
+
+  <div class="field">Écris ce que tu en penses…</div>
+
+  <div class="card-raised">
+    <div class="card-branch">
+      <svg class="tree" viewBox="0 0 96 84" aria-hidden="true">
+  <path d="M48 82 L48 34" style="stroke:var(--tronc)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M48 80 C40 78 34 76 28 78 M48 80 C56 78 62 76 68 78" style="stroke:var(--tronc)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/>
+  <path d="M48 56 C40 52 33 46 27 42" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 46 C57 42 64 36 70 31" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 36 C44 27 44 19 46 12" style="stroke:var(--branche)" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="39" rx="6.5" ry="4.6" style="fill:var(--feuillage)" transform="rotate(-24 24 39)"/>
+  <ellipse cx="33" cy="47" rx="5" ry="3.6" style="fill:var(--feuillage)" transform="rotate(-18 33 47)" opacity=".82"/>
+  <ellipse cx="73" cy="28" rx="6.8" ry="4.8" style="fill:var(--feuillage)" transform="rotate(28 73 28)"/>
+  <ellipse cx="63" cy="36" rx="4.8" ry="3.4" style="fill:var(--feuillage)" transform="rotate(22 63 36)" opacity=".82"/>
+  <ellipse cx="45" cy="10" rx="5.6" ry="4.2" style="fill:var(--feuillage)" transform="rotate(-8 45 10)"/>
+  <ellipse cx="49" cy="22" rx="4.2" ry="3" style="fill:var(--feuillage)" transform="rotate(6 49 22)" opacity=".8"/>
+</svg>
+      <div>
+        <p class="eyebrow" style="color:#A04E2B">Branche · en feuillaison</p>
+        <p class="branch-name">arrêter de payer la mauvaise facture</p>
+        <p class="meta">Nommée le 14 mars 2026 · revenue 6 fois depuis</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Bibliothèque</p>
+    <p class="card-title">Ton chemin de vie</p>
+    <p class="meta">Chemin 7 · calculé à partir du 3 septembre 1997</p>
+  </div>
+
+  <p class="mock-alerte">Trois soirs sans passer. L'arbre n'a rien perdu.</p>
+
+  <div class="btn-row">
+    <button class="btn-primary" style="background:#A8542F;color:#FFFFFF">Continuer ce soir</button>
+    <button class="btn-ghost" style="color:#A04E2B;border-color:#A04E2B">Plus tard</button>
+  </div>
+  <p class="mock-warn">Maquette montrée avec les variantes corrigées #A04E2B / #A8542F. Avec la terracotta de marque #C1663F, ce bouton et ce lien seraient non conformes.</p>
+</div>
+      <div class="chips">
+<div class="chip">
+      <span class="dot" style="background:#F7EDE4"></span>
+      <span class="chip-txt"><b>fond</b><code>#F7EDE4</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#FDF6EE"></span>
+      <span class="chip-txt"><b>surface</b><code>#FDF6EE</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#FFFFFF"></span>
+      <span class="chip-txt"><b>surface-élevée</b><code>#FFFFFF</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#3A2A20"></span>
+      <span class="chip-txt"><b>texte-principal</b><code>#3A2A20</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#7A6252"></span>
+      <span class="chip-txt"><b>texte-secondaire</b><code>#7A6252</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#E4D0BC"></span>
+      <span class="chip-txt"><b>bordure</b><code>#E4D0BC</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#907760"></span>
+      <span class="chip-txt"><b>bordure forte · focus</b><code>#907760</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#C1663F"></span>
+      <span class="chip-txt"><b>accent (l'action)</b><code>#C1663F</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#F0DAC7"></span>
+      <span class="chip-txt"><b>accent-doux</b><code>#F0DAC7</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#7A4A2C"></span>
+      <span class="chip-txt"><b>arbre · tronc</b><code>#7A4A2C</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#A06A44"></span>
+      <span class="chip-txt"><b>arbre · branche</b><code>#A06A44</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#6B7A4A"></span>
+      <span class="chip-txt"><b>arbre · feuillage</b><code>#6B7A4A</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#5A7A55"></span>
+      <span class="chip-txt"><b>succès discret</b><code>#5A7A55</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#B04A2A"></span>
+      <span class="chip-txt"><b>alerte discrète</b><code>#B04A2A</code></span>
+    </div>
+</div>
+    </div>
+    <div class="pane t-v5-dark">
+      <p class="pane-label">Mode sombre <span class="tag">usage principal</span></p>
+      <div class="mock">
+  <div class="mock-top">
+    <span class="mock-wordmark">Anam</span>
+    <span class="mock-date">mardi 21 juillet · 22 h 40</span>
+  </div>
+
+  <div class="bubble-anam">
+    <p>J'ai l'impression que tu analyses beaucoup — au point, parfois, de ne plus être là où tu es. Je me trompe&nbsp;?</p>
+  </div>
+  <div class="bubble-user"><p>Non. Tu ne te trompes pas.</p></div>
+  <p class="mock-succes">↳ Noté. On y revient demain soir.</p>
+
+  <div class="field">Écris ce que tu en penses…</div>
+
+  <div class="card-raised">
+    <div class="card-branch">
+      <svg class="tree" viewBox="0 0 96 84" aria-hidden="true">
+  <path d="M48 82 L48 34" style="stroke:var(--tronc)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M48 80 C40 78 34 76 28 78 M48 80 C56 78 62 76 68 78" style="stroke:var(--tronc)" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".75"/>
+  <path d="M48 56 C40 52 33 46 27 42" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 46 C57 42 64 36 70 31" style="stroke:var(--branche)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M48 36 C44 27 44 19 46 12" style="stroke:var(--branche)" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="39" rx="6.5" ry="4.6" style="fill:var(--feuillage)" transform="rotate(-24 24 39)"/>
+  <ellipse cx="33" cy="47" rx="5" ry="3.6" style="fill:var(--feuillage)" transform="rotate(-18 33 47)" opacity=".82"/>
+  <ellipse cx="73" cy="28" rx="6.8" ry="4.8" style="fill:var(--feuillage)" transform="rotate(28 73 28)"/>
+  <ellipse cx="63" cy="36" rx="4.8" ry="3.4" style="fill:var(--feuillage)" transform="rotate(22 63 36)" opacity=".82"/>
+  <ellipse cx="45" cy="10" rx="5.6" ry="4.2" style="fill:var(--feuillage)" transform="rotate(-8 45 10)"/>
+  <ellipse cx="49" cy="22" rx="4.2" ry="3" style="fill:var(--feuillage)" transform="rotate(6 49 22)" opacity=".8"/>
+</svg>
+      <div>
+        <p class="eyebrow" style="color:#E8956A">Branche · en feuillaison</p>
+        <p class="branch-name">arrêter de payer la mauvaise facture</p>
+        <p class="meta">Nommée le 14 mars 2026 · revenue 6 fois depuis</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Bibliothèque</p>
+    <p class="card-title">Ton chemin de vie</p>
+    <p class="meta">Chemin 7 · calculé à partir du 3 septembre 1997</p>
+  </div>
+
+  <p class="mock-alerte">Trois soirs sans passer. L'arbre n'a rien perdu.</p>
+
+  <div class="btn-row">
+    <button class="btn-primary" style="background:#E8956A;color:#241812">Continuer ce soir</button>
+    <button class="btn-ghost" style="color:#E8956A;border-color:#E8956A">Plus tard</button>
+  </div>
+  
+</div>
+      <div class="chips">
+<div class="chip">
+      <span class="dot" style="background:#241812"></span>
+      <span class="chip-txt"><b>fond</b><code>#241812</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#2E1F17"></span>
+      <span class="chip-txt"><b>surface</b><code>#2E1F17</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#3A2820"></span>
+      <span class="chip-txt"><b>surface-élevée</b><code>#3A2820</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#F2E2D4"></span>
+      <span class="chip-txt"><b>texte-principal</b><code>#F2E2D4</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#BC9E88"></span>
+      <span class="chip-txt"><b>texte-secondaire</b><code>#BC9E88</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#48342A"></span>
+      <span class="chip-txt"><b>bordure</b><code>#48342A</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#8E6D58"></span>
+      <span class="chip-txt"><b>bordure forte · focus</b><code>#8E6D58</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#E8956A"></span>
+      <span class="chip-txt"><b>accent (l'action)</b><code>#E8956A</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#513429"></span>
+      <span class="chip-txt"><b>accent-doux</b><code>#513429</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#B57A50"></span>
+      <span class="chip-txt"><b>arbre · tronc</b><code>#B57A50</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#CE9668"></span>
+      <span class="chip-txt"><b>arbre · branche</b><code>#CE9668</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#A6B074"></span>
+      <span class="chip-txt"><b>arbre · feuillage</b><code>#A6B074</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#94B287"></span>
+      <span class="chip-txt"><b>succès discret</b><code>#94B287</code></span>
+    </div>
+<div class="chip">
+      <span class="dot" style="background:#E08A55"></span>
+      <span class="chip-txt"><b>alerte discrète</b><code>#E08A55</code></span>
+    </div>
+</div>
+    </div>
+  </div>
+
+  <div class="verif">
+    <h3>Vérification du contraste</h3>
+    <div class="tw">
+<table class="ratios"><thead><tr>
+<th class="l">Paire testée</th><th>Seuil</th>
+<th colspan="2">Mode clair</th><th colspan="2">Mode sombre</th>
+</tr></thead><tbody>
+<tr><td class="l">Texte principal sur fond</td><td class="thr">4,5:1</td><td class="num pass">11,87</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">13,67</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte principal sur surface</td><td class="thr">4,5:1</td><td class="num pass">12,79</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">12,54</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte secondaire sur fond</td><td class="thr">4,5:1</td><td class="num pass">4,92</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,90</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte secondaire sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,30</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,33</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Accent utilisé en texte sur fond</td><td class="thr">4,5:1</td><td class="num fail">3,47</td><td class="vd"><span class="badge fail">FAIL AA</span></td><td class="num pass">7,36</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Accent utilisé en texte sur surface</td><td class="thr">4,5:1</td><td class="num fail">3,74</td><td class="vd"><span class="badge fail">FAIL AA</span></td><td class="num pass">6,75</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte sur remplissage accent (bouton)</td><td class="thr">4,5:1</td><td class="num fail">4,01</td><td class="vd"><span class="badge fail">FAIL AA</span></td><td class="num pass">7,36</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Texte principal sur accent-doux</td><td class="thr">4,5:1</td><td class="num pass">10,16</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">8,86</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Succès discret sur surface</td><td class="thr">4,5:1</td><td class="num pass">4,50</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,78</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Alerte discrète sur surface</td><td class="thr">4,5:1</td><td class="num pass">5,08</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">5,99</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Bordure décorative sur fond <span class="hint">décoratif</span></td><td class="thr">3:1</td><td class="num fail">1,29</td><td class="vd"><span class="badge fail">FAIL AA</span></td><td class="num fail">1,48</td><td class="vd"><span class="badge fail">FAIL AA</span></td></tr>
+<tr><td class="l">Bordure forte · anneau de focus sur fond</td><td class="thr">3:1</td><td class="num pass">3,64</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">3,69</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · tronc sur surface</td><td class="thr">3:1</td><td class="num pass">6,89</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">4,43</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · branche sur surface</td><td class="thr">3:1</td><td class="num pass">4,22</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,18</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+<tr><td class="l">Arbre · feuillage sur surface</td><td class="thr">3:1</td><td class="num pass">4,35</td><td class="vd"><span class="badge pass">PASS AA</span></td><td class="num pass">6,86</td><td class="vd"><span class="badge pass">PASS AA</span></td></tr>
+</tbody></table></div>
+    <ul class="notes"><li class="note note-fail"><b>La terracotta de marque #C1663F ne peut pas porter de texte sur fond clair.</b><span>3,47:1 sur le fond et 3,74:1 sur la surface, pour un seuil de 4,5:1. Un lien, un libellé de bouton texte ou une mention « Continuer » écrits dans cette couleur sont non conformes.</span></li><li class="note note-fail"><b>Le bouton plein #C1663F avec libellé blanc échoue également : 4,01:1.</b><span>C'est le cas le plus insidieux, parce qu'il est visuellement très convaincant. Il manque un demi-point de ratio.</span></li><li class="note note-fix"><b>Variante accessible pour le texte : #A04E2B.</b><span>5,03:1 sur le fond, 5,41:1 sur la surface. Même famille chromatique, écart perceptif faible, conformité acquise. À utiliser partout où la terracotta porte du texte.</span></li><li class="note note-fix"><b>Variante accessible pour le remplissage : #A8542F avec libellé blanc.</b><span>5,28:1. C'est la valeur la plus claire qui passe encore AA avec du blanc.</span></li><li class="note note-fix"><b>Succès discret : remonter #5A7A55 à #54734E.</b><span>#5A7A55 donne exactement 4,50:1, soit la limite au chiffre près. La moindre variation de rendu écran le fait basculer. #54734E donne 4,97:1 et supprime le doute.</span></li><li class="note note-ok"><b>#C1663F reste utilisable — mais pas pour du texte courant.</b><span>À 3,47:1 elle est conforme en grand texte (≥ 24 px, ou ≥ 19 px en gras, seuil 3:1) : titres, chiffre du chemin de vie, tracé de l'arbre, aplats et fonds. C'est une couleur d'atmosphère, pas une couleur de lecture.</span></li></ul>
+  </div>
+</section>
+
+<footer class="foot">
+  <h3>Ce qu'il faut retenir avant de choisir</h3>
+  <ul>
+    <li><b>Quatre variations sur cinq sont conformes AA</b> sur tous les rôles porteurs de texte, dans les deux modes. Seule « Terre cuite » échoue — volontairement, pour montrer où se situe la limite exacte de la direction visuelle.</li>
+    <li><b>La bordure décorative échoue à 3:1 dans les cinq variations</b>, autour de 1,3:1. Ce n'est pas un défaut : le critère WCAG 1.4.11 ne s'applique pas aux séparateurs purement décoratifs. En revanche, dès qu'une bordure <em>délimite un contrôle</em> (champ de saisie, case à cocher) ou matérialise le <em>focus clavier</em>, elle doit atteindre 3:1. C'est le rôle du token <b>bordure forte · focus</b>, présent dans chaque palette et vérifié à ce seuil. Les deux tokens ne sont pas interchangeables.</li>
+    <li><b>Le mode sombre est plus facile à réussir que le mode clair.</b> Sur fond sombre, les teintes terreuses claires atteignent naturellement 6 à 10:1. C'est sur fond clair que la direction visuelle se casse : une terracotta ou un sauge assez clairs pour rester « doux » sont presque toujours trop clairs pour porter du texte.</li>
+    <li><b>La règle de survie :</b> une couleur de marque a le droit d'être belle et illisible — à condition de ne jamais porter de texte courant. Aplats, tracés de l'arbre, fonds, grands titres : oui. Liens, libellés, texte de bouton : il faut une variante assombrie. Les palettes ci-dessus déclinent systématiquement les deux.</li>
+  </ul>
+  <p>Les valeurs hexadécimales sont récupérables telles quelles dans le bloc <code>&lt;style&gt;</code> de ce fichier, groupées par variation et par mode, chaque ligne annotée de son rôle sémantique.</p>
+</footer>
+
+</div>
+</body>
+</html>

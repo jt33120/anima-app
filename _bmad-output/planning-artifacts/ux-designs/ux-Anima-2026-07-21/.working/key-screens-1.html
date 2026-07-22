@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anam — maquettes des écrans clés</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Anam — maquettes des écrans clés — .working/key-screens-1.html
+   Mode SOMBRE (mode principal). Aucune ressource réseau, aucun JavaScript.
+
+   Sections de la colonne vertébrale que ces maquettes illustrent :
+   DESIGN.md    → Colors (tous les hex sont repris tels quels) · Typography
+                  (échelle display/titre/titre-sm/anam/corps/meta/surtitre/bouton)
+                  · Layout & Spacing (marge-mobile 20, respiration 40, cible 44,
+                  échelle 4/8/12/16/24/32/48/64/96) · Elevation & Depth (AUCUNE
+                  ombre en sombre ; grain 5,5 % ; lumiere = seul dégradé autorisé,
+                  écran de l'arbre uniquement) · Shapes · Components : arbre,
+                  fiche-branche, tour-anam, tour-utilisatrice, signe-anam,
+                  champ-saisie, bouton-primaire, bouton-fantome, carte,
+                  carte-du-jour, porte-de-secours, mention-ia, focus
+   EXPERIENCE.md → Information Architecture · Voice and Tone (registre Anam vs
+                  registre produit) · Component Patterns · State Patterns
+                  (Séance close, Tronc incomplet, Arbre sans branche) ·
+                  Dossier L'écran de conversation · Dossier Le rituel de lecture ·
+                  Dossier Consentement art. 9 · Dossier Le paywall ·
+                  Dossier La discrétion · Accessibility Floor
+   PRD          → FR-001→014, FR-015→022, FR-027→031, FR-049→052, FR-055→061,
+                  FR-069→077, FR-080, FR-083→089, NFR-015, NFR-016
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  /* ── couleurs : mode sombre = tokens sans suffixe (DESIGN.md) ── */
+  --fond:#17120E;
+  --surface:#1F1913;
+  --surface-elevee:#29211A;
+  --texte:#E8DECF;
+  --texte-doux:#A99B88;
+  --bordure:#342B22;
+  --bordure-forte:#786A59;
+  --accent:#D9926B;
+  --accent-doux:#3A2A20;
+  --sur-accent:#17120E;
+  --arbre-tronc:#9E7A58;
+  --arbre-branche:#B99671;
+  --arbre-feuillage:#94A472;
+
+  /* ── piles de polices (repli hors ligne, voir la note de planche) ── */
+  --serif:'Fraunces','Iowan Old Style',Georgia,serif;
+  --sans:'Inter',-apple-system,'Segoe UI',system-ui,sans-serif;
+
+  /* ── rayons ── */
+  --r-sm:4px; --r:8px; --r-md:12px; --r-lg:16px; --r-full:9999px;
+
+  /* ── espacement ── */
+  --marge:20px; --respiration:40px; --cible:44px;
+
+  /* ── grain de lin / papier, tuile 180 px, 5,5 % en sombre ── */
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  background:var(--fond);
+  color:var(--texte);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.65;
+  padding:48px 24px 96px;
+  position:relative;
+}
+body::before{
+  content:'';position:fixed;inset:0;background-image:var(--grain);
+  opacity:.055;pointer-events:none;z-index:0;
+}
+body > *{position:relative;z-index:1}
+
+/* ═══ échelle typographique — DESIGN.md § Typography (tout en rem) ═══ */
+.t-display  {font-family:var(--serif);font-size:2rem;line-height:1.15;letter-spacing:-.01em;font-weight:400}
+.t-titre    {font-family:var(--serif);font-size:1.5rem;line-height:1.25;font-weight:400}
+.t-titre-sm {font-family:var(--serif);font-size:1.125rem;line-height:1.35;font-weight:500}
+.t-anam     {font-family:var(--serif);font-size:1.1875rem;line-height:1.6;letter-spacing:.005em;font-weight:400}
+.t-corps    {font-family:var(--sans);font-size:1rem;line-height:1.65;font-weight:400}
+.t-meta     {font-family:var(--sans);font-size:.8125rem;line-height:1.45;font-weight:400}
+.t-surtitre {font-family:var(--sans);font-size:.75rem;line-height:1.4;font-weight:500;letter-spacing:.06em;text-transform:none}
+.t-bouton   {font-family:var(--sans);font-size:.9375rem;line-height:1;font-weight:500;letter-spacing:.01em}
+.doux{color:var(--texte-doux)}
+
+/* ═══ chrome de planche (hors produit) ═══ */
+.entete{max-width:40rem;margin:0 auto 48px}
+.entete h1{font-family:var(--serif);font-size:2rem;line-height:1.15;letter-spacing:-.01em;font-weight:400;margin-bottom:12px}
+.entete p{color:var(--texte-doux);font-size:.9375rem;line-height:1.65;max-width:32rem}
+.entete p + p{margin-top:12px}
+.entete b{color:var(--texte);font-weight:500}
+
+.legende{
+  max-width:40rem;margin:0 auto 64px;background:var(--surface);
+  border:1px solid var(--bordure);border-radius:var(--r-md);padding:24px;
+}
+.legende h2{font-family:var(--sans);font-size:.75rem;font-weight:500;letter-spacing:.06em;color:var(--texte-doux);margin-bottom:16px}
+.legende ul{list-style:none}
+.legende li{font-size:.8125rem;line-height:1.45;color:var(--texte-doux);padding-left:16px;position:relative;margin-bottom:12px}
+.legende li:last-child{margin-bottom:0}
+.legende li::before{content:'—';position:absolute;left:0;color:var(--bordure-forte)}
+.legende b{color:var(--texte);font-weight:500}
+.legende i{font-style:normal;color:var(--texte)}
+
+.nuancier{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.pastille{width:52px}
+.pastille i{display:block;height:28px;border-radius:var(--r-sm);border:1px solid var(--bordure)}
+.pastille span{display:block;font-size:.625rem;line-height:1.4;color:var(--texte-doux);margin-top:4px;letter-spacing:.02em}
+
+.planches{display:flex;flex-wrap:wrap;gap:96px 40px;justify-content:center;align-items:flex-start}
+.planche{width:406px;max-width:100%}
+.planche--double{width:852px}
+.planche--double .duo{display:flex;flex-wrap:wrap;gap:40px;justify-content:center}
+.planche--double .duo > figure{margin:0}
+.sous-titre-etat{font-size:.75rem;letter-spacing:.06em;color:var(--texte-doux);margin-bottom:12px;font-weight:500}
+
+.planche h3{font-family:var(--serif);font-size:1.125rem;line-height:1.35;font-weight:500;margin-bottom:6px}
+.planche .fr{font-size:.75rem;letter-spacing:.06em;color:var(--texte-doux);margin-bottom:20px;font-weight:500;line-height:1.6}
+.notes{margin-top:24px;border-top:1px solid var(--bordure);padding-top:16px}
+.notes p{font-size:.8125rem;line-height:1.5;color:var(--texte-doux);margin-bottom:10px}
+.notes p:last-child{margin-bottom:0}
+.notes b{color:var(--texte);font-weight:500}
+.notes i{font-style:normal;color:var(--texte)}
+
+/* ═══ cadre de téléphone — chrome de planche, pas un composant du système ═══ */
+.tel{background:var(--bordure);border-radius:30px;padding:8px;width:406px;max-width:100%}
+.ecran{
+  width:390px;max-width:100%;height:844px;border-radius:22px;overflow:hidden;
+  background:var(--fond);position:relative;display:flex;flex-direction:column;
+}
+/* vue déroulée : la hauteur suit le contenu, le fil défile réellement */
+.ecran--long{height:auto;min-height:844px}
+.ecran::before{content:'';position:absolute;inset:0;background-image:var(--grain);opacity:.055;pointer-events:none;z-index:0}
+.ecran > *{position:relative;z-index:1}
+.ecran--arbre{background:radial-gradient(130% 85% at 50% 98%, #1F1913 0%, #17120E 62%)}
+
+/* ═══ en-tête produit : « Anam » à gauche, un glyphe de menu à droite ═══ */
+.appbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px var(--marge);border-bottom:1px solid var(--bordure);flex:0 0 auto;
+}
+.appbar .nom{display:flex;align-items:center;gap:8px}
+.appbar .nom span{font-size:.75rem;letter-spacing:.06em;font-weight:500;color:var(--texte)}
+.menu{color:var(--texte-doux);display:flex;width:var(--cible);height:20px;align-items:center;justify-content:flex-end}
+
+/* bande persistante : mention IA (conversation) + porte de secours (partout) */
+.bande{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:8px var(--marge) 12px;flex:0 0 auto;
+}
+.bande .ia{font-size:.8125rem;line-height:1.45;color:var(--texte-doux);border-bottom:1px solid var(--bordure)}
+.secours{font-size:.8125rem;line-height:1.45;color:var(--texte-doux);text-decoration:none;white-space:nowrap}
+
+/* ═══ fil de conversation ═══ */
+.fil{
+  flex:1 1 auto;display:flex;flex-direction:column;justify-content:flex-end;
+  gap:var(--respiration);padding:24px var(--marge);overflow:hidden;
+}
+.fil--haut{justify-content:flex-start}
+.tour-anam{font-family:var(--serif);font-size:1.1875rem;line-height:1.6;letter-spacing:.005em;color:var(--texte);max-width:32rem}
+.tour-moi{
+  font-family:var(--sans);font-size:1rem;line-height:1.65;color:var(--texte);
+  border-left:1px solid var(--bordure-forte);padding-left:16px;max-width:32rem;
+}
+
+/* ═══ composeur ═══ */
+.composeur{flex:0 0 auto;padding:12px var(--marge) 20px}
+.champ{
+  display:flex;align-items:center;gap:8px;background:var(--surface-elevee);
+  border:1px solid var(--bordure-forte);border-radius:var(--r);
+  padding:0 12px 0 16px;min-height:var(--cible);
+}
+.champ p{flex:1;font-size:1rem;line-height:1.65;color:var(--texte-doux);padding:8px 0}
+.champ .icone{width:var(--cible);height:var(--cible);display:flex;align-items:center;justify-content:center;color:var(--texte-doux);flex:0 0 auto}
+.champ .micro{border-radius:var(--r-full)}
+.champ .envoi{color:var(--texte)}
+.champ--focus{outline:2px solid var(--bordure-forte);outline-offset:2px;border-radius:var(--r-sm)}
+.caret{display:inline-block;width:1px;height:20px;background:var(--texte);vertical-align:-4px}
+
+/* ═══ barre basse ═══ */
+.barre{
+  flex:0 0 auto;display:flex;border-top:1px solid var(--bordure);
+  padding:12px var(--marge) 20px;gap:8px;
+}
+.barre a{
+  flex:1;text-align:center;font-size:.8125rem;line-height:1.45;text-decoration:none;
+  color:var(--texte-doux);min-height:var(--cible);display:flex;align-items:center;justify-content:center;
+}
+.barre a.actif{color:var(--texte)}
+
+/* ═══ cartes de bibliothèque ═══ */
+.corps-page{flex:1 1 auto;overflow:hidden;padding:8px var(--marge) 0}
+.carte{background:var(--surface);border:1px solid var(--bordure);border-radius:var(--r-md);padding:24px}
+.carte-du-jour{background:var(--surface-elevee);border-radius:var(--r-lg);padding:32px}
+.carte + .carte{margin-top:12px}
+.carte-du-jour + .carte{margin-top:24px}
+.carte .haut{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.surtitre{font-size:.75rem;letter-spacing:.06em;font-weight:500;color:var(--texte-doux);display:block;margin-bottom:8px}
+.carte h4{font-family:var(--serif);font-size:1.5rem;line-height:1.25;font-weight:400;color:var(--texte)}
+.carte .titre-carte{font-family:var(--serif);font-size:1.125rem;line-height:1.35;font-weight:500;color:var(--texte)}
+.carte .m{font-size:.8125rem;line-height:1.45;color:var(--texte-doux);margin-top:4px}
+.motif{flex:0 0 auto;color:var(--bordure-forte);margin-top:4px}
+
+/* ═══ bloc document (bilan, restitution, synthèse) ═══ */
+.document{background:var(--surface);border:1px solid var(--bordure);border-radius:var(--r-md);padding:24px}
+.document h4{font-family:var(--serif);font-size:1.5rem;line-height:1.25;font-weight:400;margin-bottom:4px}
+.document .date{font-size:.8125rem;line-height:1.45;color:var(--texte-doux);margin-bottom:16px}
+.document p{font-size:1rem;line-height:1.65;margin-bottom:12px}
+.document h5{font-family:var(--serif);font-size:1.125rem;line-height:1.35;font-weight:500;margin:16px 0 8px}
+.document ul{list-style:none}
+.document li{font-size:1rem;line-height:1.65;padding-left:16px;position:relative;margin-bottom:4px}
+.document li::before{content:'—';position:absolute;left:0;color:var(--bordure-forte)}
+.ses-mots{border-left:1px solid var(--bordure-forte);padding-left:16px;font-size:1rem;line-height:1.65;margin-bottom:12px;color:var(--texte)}
+
+/* ═══ boutons ═══ */
+.b-primaire{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--accent);color:var(--sur-accent);border:0;border-radius:var(--r);
+  height:var(--cible);padding:0 24px;font-family:var(--sans);font-size:.9375rem;
+  font-weight:500;letter-spacing:.01em;line-height:1;text-decoration:none;
+}
+.b-fantome{
+  display:inline-flex;align-items:center;justify-content:center;background:transparent;
+  color:var(--accent);border:1px solid var(--accent);border-radius:var(--r);
+  height:var(--cible);padding:0 24px;font-family:var(--sans);font-size:.9375rem;
+  font-weight:500;letter-spacing:.01em;line-height:1;text-decoration:none;
+}
+.b-inactif{
+  display:inline-flex;align-items:center;justify-content:center;background:var(--surface-elevee);
+  color:var(--texte-doux);border:1px solid var(--bordure-forte);border-radius:var(--r);
+  height:var(--cible);padding:0 24px;font-family:var(--sans);font-size:.9375rem;
+  font-weight:500;letter-spacing:.01em;line-height:1;
+}
+.lien{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-doux)}
+.lien-action{
+  color:var(--accent);text-decoration:none;font-size:.9375rem;font-weight:500;
+  display:inline-flex;align-items:center;min-height:var(--cible);
+}
+
+/* ═══ écran de l'arbre ═══ */
+.canevas{flex:1 1 auto;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.canevas svg.arbre{width:100%;display:block}
+.vide-arbre{
+  position:absolute;left:var(--marge);right:var(--marge);bottom:24px;text-align:center;
+  font-size:1rem;line-height:1.65;color:var(--texte-doux);
+}
+.zoom{position:absolute;right:16px;bottom:96px;display:flex;flex-direction:column;gap:8px}
+.zoom span{
+  width:var(--cible);height:var(--cible);border:1px solid var(--bordure-forte);
+  border-radius:var(--r);display:flex;align-items:center;justify-content:center;
+  color:var(--texte);font-size:1.125rem;line-height:1;background:transparent;
+}
+.vue-liste{position:absolute;right:16px;top:0}
+.vue-liste a{
+  color:var(--accent);text-decoration:none;font-size:.8125rem;
+  display:inline-flex;align-items:center;min-height:var(--cible);padding:0 4px;
+}
+.fiche{
+  position:absolute;left:16px;right:16px;bottom:16px;background:var(--surface-elevee);
+  border:1px solid var(--bordure);border-radius:var(--r-lg);padding:24px;
+}
+.fiche h4{font-family:var(--serif);font-size:1.125rem;line-height:1.35;font-weight:500;margin-bottom:4px}
+.fiche .date{font-size:.8125rem;line-height:1.45;color:var(--texte-doux);margin-bottom:16px}
+.fiche .extrait{border-left:1px solid var(--bordure-forte);padding-left:16px;font-size:1rem;line-height:1.65;color:var(--texte);margin-bottom:8px}
+.fiche .actions{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+
+/* ═══ consentement ═══ */
+.page{flex:1 1 auto;overflow:hidden;padding:4px var(--marge) 24px}
+.bloc{margin-bottom:24px}
+.bloc h4{font-family:var(--serif);font-size:1.125rem;line-height:1.35;font-weight:500;margin-bottom:4px}
+.bloc p{font-size:1rem;line-height:1.65;color:var(--texte)}
+.case{display:flex;gap:12px;align-items:flex-start;padding:8px 0}
+.case i{
+  flex:0 0 auto;width:22px;height:22px;border:1px solid var(--bordure-forte);
+  border-radius:var(--r-sm);margin-top:4px;
+}
+.case p{font-size:1rem;line-height:1.65}
+.sep{height:1px;background:var(--bordure);margin:24px 0}
+
+/* ═══ carte tirée (rituel de lecture) ═══ */
+.tirage{display:flex;justify-content:center}
+.carte-tiree{
+  width:186px;height:280px;background:var(--surface-elevee);
+  border:1px solid var(--bordure);border-radius:var(--r-md);overflow:hidden;
+}
+.carte-tiree svg{display:block;width:100%;height:100%}
+</style>
+</head>
+<body>
+
+<div class="entete">
+  <h1>Anam — maquettes des écrans clés</h1>
+  <p>Six surfaces porteuses, rendues en <b>mode sombre</b>, le mode principal du système. Contenu réel, tiré des parcours du PRD : <b>Camille, 34 ans</b>, séparée depuis huit mois, sur le navigateur de son téléphone, le soir.</p>
+  <p>Les couleurs, les typographies, les espacements et les rayons viennent de <b>DESIGN.md</b> sans exception. Les comportements, l’architecture et la microcopie viennent de <b>EXPERIENCE.md</b>. Chaque planche indique les exigences qu’elle matérialise.</p>
+</div>
+
+<div class="legende">
+  <h2>À lire avant de regarder</h2>
+  <ul>
+    <li><b>Polices substituées.</b> Fraunces et Inter ne sont pas chargeables hors ligne. Les piles de repli de DESIGN.md sont appliquées telles quelles : <i>Fraunces, ’Iowan Old Style’, Georgia, serif</i> pour la voix d’Anam et les titres, <i>Inter, -apple-system, ’Segoe UI’, system-ui, sans-serif</i> pour l’interface. La règle reste intacte et vérifiable en revue : le sérif, c’est Anam qui parle ; la grotesque, c’est Camille qui écrit et l’interface qui se tait. Avec Fraunces, le rendu final sera plus chaud et plus contrasté.</li>
+    <li><b>Aucune ombre.</b> En mode sombre la profondeur passe par le ton — <i>fond</i> → <i>surface</i> → <i>surface-elevee</i> — plus un filet <i>bordure</i> de 1 px. Aucun <i>box-shadow</i> n’apparaît dans ces maquettes.</li>
+    <li><b>Un seul dégradé dans tout le système</b> : la lueur rasante ancrée en bas de l’écran de l’arbre, delta de luminance plafonné à 4 %. Nulle part ailleurs. Le grain de lin est à 5,5 %, en tuile de 180 px, sur les fonds — jamais sous un bloc de texte long.</li>
+    <li><b>Le cadre de téléphone est du chrome de planche</b>, pas un composant du système. Deux écrans sont montrés en cadre allongé (vue déroulée) parce qu’ils défilent réellement sur un téléphone.</li>
+    <li><b>Porte de secours (FR-077)</b> : « Aide et ressources » occupe la même position sur les six écrans, en <i>meta</i> / <i>texte-doux</i>, sur fond transparent. Aucun rouge, aucune pastille, aucune icône d’alerte, aucune majuscule. Elle ne dépend d’aucune détection et n’est jamais masquée.</li>
+    <li><b>Ce qu’on ne trouvera nulle part ici</b>, par construction : barre de progression, jauge, pourcentage, série, score, badge, pastille de non-lu, emoji, point d’exclamation, capitale d’emphase, violet, or brillant, étoile.</li>
+  </ul>
+  <div class="nuancier">
+    <div class="pastille"><i style="background:#17120E"></i><span>fond</span></div>
+    <div class="pastille"><i style="background:#1F1913"></i><span>surface</span></div>
+    <div class="pastille"><i style="background:#29211A"></i><span>élevée</span></div>
+    <div class="pastille"><i style="background:#E8DECF"></i><span>texte</span></div>
+    <div class="pastille"><i style="background:#A99B88"></i><span>doux</span></div>
+    <div class="pastille"><i style="background:#342B22"></i><span>bordure</span></div>
+    <div class="pastille"><i style="background:#786A59"></i><span>forte</span></div>
+    <div class="pastille"><i style="background:#D9926B"></i><span>accent</span></div>
+    <div class="pastille"><i style="background:#3A2A20"></i><span>ac. doux</span></div>
+    <div class="pastille"><i style="background:#9E7A58"></i><span>tronc</span></div>
+    <div class="pastille"><i style="background:#B99671"></i><span>branche</span></div>
+    <div class="pastille"><i style="background:#94A472"></i><span>feuillage</span></div>
+  </div>
+</div>
+
+<div class="planches">
+
+<!-- ══════════════════ 1 — LE FIL DE CONVERSATION ══════════════════ -->
+<div class="planche">
+  <h3>1 · Le fil de conversation</h3>
+  <p class="fr">FR-001 · FR-004 · FR-005 · FR-006 · FR-007 · FR-013 · FR-077 · FR-083 · FR-084 · FR-087 · NFR-014</p>
+  <div class="tel">
+    <div class="ecran">
+      <div class="appbar">
+        <div class="nom">
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 13.4C2.6 6.6 8.2 1.8 13 4.1c2.6 1.2 3.2 5 .7 6.3" fill="none" stroke="#D9926B" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Anam</span>
+        </div>
+        <span class="menu"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h14M3 13h14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+      </div>
+
+      <div class="bande">
+        <span class="ia">Anam est une IA</span>
+        <a class="secours" href="#">Aide et ressources</a>
+      </div>
+
+      <div class="fil">
+        <p class="tour-anam">Tu m’as dit qu’il est parti en novembre, et que tu n’en as parlé à personne. Qu’est-ce qui a changé chez toi depuis&#8239;?</p>
+
+        <p class="tour-moi">Je sais exactement d’où ça vient. Mon père faisait pareil, il partait dès que ça devenait sérieux, et ma mère faisait comme si de rien n’était. J’ai mis dix ans à comprendre ce que ça m’a fait.</p>
+
+        <p class="tour-anam">Tu me racontes ça comme si c’était rangé quelque part.</p>
+
+        <p class="tour-moi">C’est rangé. Je l’ai travaillé, je sais ce que ça a produit chez moi.</p>
+
+        <p class="tour-anam">Tu comprends très bien pourquoi les choses t’arrivent. J’ai l’impression que ça t’évite d’avoir à les ressentir. Je me trompe&#8239;?</p>
+      </div>
+
+      <div class="composeur">
+        <div class="champ">
+          <p>Écris ici.</p>
+          <span class="icone micro"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="7.4" y="2.7" width="5.2" height="9.1" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.7 9.6a5.3 5.3 0 0 0 10.6 0M10 14.9v2.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span>
+          <span class="icone envoi"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 16.2V4.4M5.3 9.2 10 4.3l4.7 4.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p><b>La voix se distingue par la lettre, pas par une bulle.</b> Anam en sérif, Camille en grotesque avec un filet de lin de 1 px en <i>bordure-forte</i> et 16 px de retrait. Ses mots restent en <i>texte</i> pleine valeur, jamais atténués : le contenu vient d’elle, il ne peut pas être le plus faible de l’écran. Flux vertical unique, aucune bulle opposée.</p>
+    <p><b>L’observation est délivrée en hypothèse réfutable et tient en trois phrases.</b> Quatre tours lisibles, 40 px de respiration entre chacun, le tour du haut est coupé parce que le fil continue au-dessus. Aucun horodatage, aucune coche, aucun « en ligne », aucun indicateur d’étape : l’arc construire → observer → nommer → clore ne se voit nulle part.</p>
+    <p><b>La bande sous l’en-tête est permanente</b> : « Anam est une IA » à gauche, « Aide et ressources » à droite, au même endroit sur les six écrans. Le composeur ne porte que le micro (seule cible en rayon plein du système) et l’envoi — aucune barre d’outils, aucun sélecteur d’emoji, aucun bouton d’envoi coloré.</p>
+  </div>
+</div>
+
+<!-- ══════════════════ 2 — LA CLÔTURE DE SÉANCE ══════════════════ -->
+<div class="planche">
+  <h3>2 · La clôture de séance</h3>
+  <p class="fr">FR-008 · FR-014 · FR-043 · FR-055 · FR-056 · FR-057 · FR-061 · FR-088 · FR-089 · vue déroulée</p>
+  <div class="tel">
+    <div class="ecran ecran--long">
+      <div class="appbar">
+        <div class="nom">
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 13.4C2.6 6.6 8.2 1.8 13 4.1c2.6 1.2 3.2 5 .7 6.3" fill="none" stroke="#D9926B" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Anam</span>
+        </div>
+        <span class="menu"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h14M3 13h14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+      </div>
+
+      <div class="bande">
+        <span class="ia">Anam est une IA</span>
+        <a class="secours" href="#">Aide et ressources</a>
+      </div>
+
+      <div class="fil fil--haut" style="gap:0">
+        <p class="tour-moi" style="margin-bottom:var(--respiration)">Peut-être. Je ne sais pas quoi en faire, mais ça sonne juste.</p>
+
+        <p class="tour-anam">On en a assez fait pour ce soir.</p>
+
+        <!-- respiration double, puis le bilan s'insère comme bloc document -->
+        <div class="document" style="margin-top:80px">
+          <h4>Ce qu’on a posé ce soir</h4>
+          <p class="date">21 juillet</p>
+          <p>Ton père qui partait, la séparation de novembre, et le fait que tu n’as pleuré ni pour l’un ni pour l’autre.</p>
+          <p class="ses-mots">« Je l’ai travaillé, je sais ce que ça a produit chez moi. »</p>
+          <p>L’hypothèse qu’on a posée, et que tu n’as pas écartée : comprendre te sert aussi à ne pas ressentir.</p>
+          <h5>Ce qui reste ouvert</h5>
+          <ul>
+            <li>ton heure de naissance, que tu ne connais pas encore</li>
+            <li>ce que tu ferais de ce constat, s’il est vrai</li>
+          </ul>
+        </div>
+
+        <!-- la carte d'abonnement, sous le bilan uniquement, en registre système -->
+        <div class="carte" style="margin-top:32px">
+          <span class="surtitre">L’abonnement</span>
+          <h4>69&nbsp;€ par an.</h4>
+          <p class="t-corps" style="margin-top:12px">Inclus : la conversation sans limite, les branches, les lectures, les ancrages, les plans d’étapes, la synthèse et la mémoire longue.</p>
+          <p class="t-meta doux" style="margin-top:12px">Restent gratuits, indéfiniment : la numérologie, ton thème selon les données disponibles, l’horoscope, le mantra du jour, le test d’ennéagramme, le tronc de ton arbre et les ressources d’aide.</p>
+          <p class="t-meta doux" style="margin-top:12px">Si aucune branche n’a été posée au bout de trois mois, tu es remboursée sur simple demande.</p>
+          <div style="display:flex;gap:12px;margin-top:24px">
+            <a class="b-primaire" href="#" style="flex:1;padding:0 12px">M’abonner</a>
+            <a class="b-fantome" href="#" style="flex:1;padding:0 12px">Pas maintenant</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="composeur">
+        <div class="champ">
+          <p>Écris ici.</p>
+          <span class="icone micro"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="7.4" y="2.7" width="5.2" height="9.1" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.7 9.6a5.3 5.3 0 0 0 10.6 0M10 14.9v2.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span>
+          <span class="icone envoi"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 16.2V4.4M5.3 9.2 10 4.3l4.7 4.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p><b>Anam clôt en un tour, dans son registre normal.</b> Après une respiration double, le bilan s’insère dans le fil comme bloc document : titres et listes y sont autorisés parce que ce n’est plus une parole, c’est un document. Ses mots à elle reviennent en citation, au filet de lin. <b>Aucune durée n’est affichée</b> — dix-sept minutes se sont écoulées et personne ne le lui dit.</p>
+    <p><b>La carte d’abonnement se place sous le bilan, jamais avant, jamais pendant.</b> Registre système : Anam ne vend rien. Prix unique, aucun prix barré, aucun compte à rebours, aucune rareté ; « Pas maintenant » de lisibilité strictement égale. Ce qui reste gratuit est dit sur la même carte, tronc de l’arbre inclus. Le composant refuse de se monter tant que <i>limites_levees</i> est vrai.</p>
+    <p><b>Le composeur reste actif.</b> Aucun bouton « Terminer la séance », aucun « Reprendre où on en était », aucune notification « ta séance t’attend ». Si Camille réécrit, Anam répond sans rouvrir l’arc.</p>
+  </div>
+</div>
+
+<!-- ══════════════════ 3 — L'ARBRE (deux états) ══════════════════ -->
+<div class="planche planche--double">
+  <h3>3 · L’arbre — l’objet signature</h3>
+  <p class="fr">FR-027 · FR-028 · FR-029 · FR-031 · FR-049 · FR-051 · FR-055 · FR-056 · FR-088 · NFR-015</p>
+  <div class="duo">
+
+    <!-- ÉTAT A — compte gratuit, tronc incomplet, aucune branche -->
+    <figure>
+      <p class="sous-titre-etat">état A — compte gratuit · tronc incomplet · aucune branche</p>
+      <div class="tel">
+        <div class="ecran ecran--arbre">
+          <div class="appbar">
+            <div class="nom">
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 13.4C2.6 6.6 8.2 1.8 13 4.1c2.6 1.2 3.2 5 .7 6.3" fill="none" stroke="#D9926B" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <span>Anam</span>
+            </div>
+            <span class="menu"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h14M3 13h14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          </div>
+          <div class="bande" style="justify-content:flex-end">
+            <a class="secours" href="#">Aide et ressources</a>
+          </div>
+
+          <div class="canevas">
+            <svg class="arbre" style="margin-bottom:56px" viewBox="0 0 300 470" preserveAspectRatio="xMidYMax meet" role="img" aria-label="Ton arbre : le tronc seul, sans branche.">
+              <!-- racines : la régularité, le fait de revenir -->
+              <g fill="none" stroke="#9E7A58" stroke-width="2.5" stroke-linecap="round">
+                <path d="M137 420C122 428 106 432 88 434"/>
+                <path d="M143 424C138 434 132 440 124 445"/>
+                <path d="M150 424v24"/>
+                <path d="M158 424c5 10 11 15 18 21"/>
+                <path d="M163 420c15 8 31 12 49 14"/>
+                <path d="M106 432c-6 4-10 8-14 12" opacity=".7"/>
+                <path d="M194 432c6 4 10 8 14 12" opacity=".7"/>
+              </g>
+              <!-- matière du tronc : les cernes s'arrêtent en cours de route, la réserve reste vide -->
+              <g fill="none" stroke="#786A59" stroke-width="1.4" stroke-linecap="round">
+                <path d="M138 410c7-4 17-4 24 0" opacity=".55"/>
+                <path d="M139 392c7-4 16-4 22 0" opacity=".5"/>
+                <path d="M140 374c6-4 14-4 20 0" opacity=".44"/>
+                <path d="M141 356c6-3 12-3 18 0" opacity=".36"/>
+                <path d="M142 338c5-3 11-3 16 0" opacity=".28"/>
+                <path d="M143 320c5-3 10-3 14 0" opacity=".2"/>
+                <path d="M144 305c4-2 8-2 12 0" opacity=".12"/>
+                <path d="M148 418c1-22 0-46 2-70" stroke-width="1" opacity=".26"/>
+              </g>
+              <!-- contour du tronc : entier, sans interruption, sans pointillé -->
+              <path d="M133 424c-1-48 5-102 10-152 3-28 2-46 2-60 1-9 11-9 12 0 0 16-3 34 0 62 5 50 11 104 10 150"
+                    fill="none" stroke="#9E7A58" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div class="vue-liste"><a href="#">Vue liste</a></div>
+            <div class="zoom" aria-hidden="true"><span>+</span><span>−</span></div>
+            <p class="vide-arbre">Rien n’a encore été nommé. C’est normal, ça vient en parlant.</p>
+          </div>
+
+          <div class="barre">
+            <a href="#">Accueil</a>
+            <a href="#">Anam</a>
+            <a href="#" class="actif">L’arbre</a>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- ÉTAT B — compte premium, trois branches, fiche ouverte -->
+    <figure>
+      <p class="sous-titre-etat">état B — compte premium · trois branches · fiche ouverte</p>
+      <div class="tel">
+        <div class="ecran ecran--arbre">
+          <div class="appbar">
+            <div class="nom">
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 13.4C2.6 6.6 8.2 1.8 13 4.1c2.6 1.2 3.2 5 .7 6.3" fill="none" stroke="#D9926B" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <span>Anam</span>
+            </div>
+            <span class="menu"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h14M3 13h14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          </div>
+          <div class="bande" style="justify-content:flex-end">
+            <a class="secours" href="#">Aide et ressources</a>
+          </div>
+
+          <div class="canevas">
+            <svg class="arbre" viewBox="0 0 300 470" preserveAspectRatio="xMidYMax meet" role="img" aria-label="Ton arbre : trois branches. Sélectionnée : arrêter de payer la mauvaise facture, en feuillaison, née le 12 juin.">
+              <!-- à la sélection, tout le reste de l'arbre descend à 0,55 — sans flou -->
+              <g opacity=".55">
+                <g fill="none" stroke="#9E7A58" stroke-width="2.5" stroke-linecap="round">
+                  <path d="M137 420C122 428 106 432 88 434"/>
+                  <path d="M143 424C138 434 132 440 124 445"/>
+                  <path d="M150 424v24"/>
+                  <path d="M158 424c5 10 11 15 18 21"/>
+                  <path d="M163 420c15 8 31 12 49 14"/>
+                  <path d="M106 432c-6 4-10 8-14 12" opacity=".7"/>
+                  <path d="M194 432c6 4 10 8 14 12" opacity=".7"/>
+                </g>
+                <g fill="none" stroke="#786A59" stroke-width="1.4" stroke-linecap="round">
+                  <path d="M138 410c7-4 17-4 24 0" opacity=".55"/>
+                  <path d="M139 392c7-4 16-4 22 0" opacity=".5"/>
+                  <path d="M140 374c6-4 14-4 20 0" opacity=".44"/>
+                  <path d="M141 356c6-3 12-3 18 0" opacity=".36"/>
+                  <path d="M142 338c5-3 11-3 16 0" opacity=".28"/>
+                  <path d="M143 320c5-3 10-3 14 0" opacity=".2"/>
+                  <path d="M144 305c4-2 8-2 12 0" opacity=".12"/>
+                  <path d="M148 418c1-22 0-46 2-70" stroke-width="1" opacity=".26"/>
+                </g>
+                <!-- un nœud : une tempête traversée, marque d'honneur, jamais un défaut -->
+                <path d="M143 348c3-4 8-4 11 0" fill="none" stroke="#786A59" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M133 424c-1-48 5-102 10-152 3-28 2-46 2-60 1-9 11-9 12 0 0 16-3 34 0 62 5 50 11 104 10 150"
+                      fill="none" stroke="#9E7A58" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+                <!-- branche à l'état fruit : pleinement feuillue, un seul fruit, la branche ploie -->
+                <path d="M155 246c18-5 33-12 44-20 4-3 7-2 8 4" fill="none" stroke="#9E7A58" stroke-width="3.2" stroke-linecap="round"/>
+                <g fill="#94A472">
+                  <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(163,240) rotate(-24) scale(.8)" opacity=".92"/>
+                  <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(170,248) rotate(28) scale(.72)" opacity=".8"/>
+                  <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(178,234) rotate(-32) scale(.86)" opacity="1"/>
+                  <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(184,242) rotate(22) scale(.74)" opacity=".84"/>
+                  <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(191,226) rotate(-40) scale(.8)" opacity=".9"/>
+                  <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(197,236) rotate(16) scale(.7)" opacity=".78"/>
+                </g>
+                <!-- le fruit : seule apparition de l'accent dans l'illustration -->
+                <circle cx="208" cy="236" r="5.6" fill="#D9926B"/>
+
+                <!-- branche à l'état naissance : fine, nue, bois clair, jonction fraîche -->
+                <path d="M156 226c12-8 22-14 30-22" fill="none" stroke="#B99671" stroke-width="2" stroke-linecap="round"/>
+                <!-- points d'accroche : nœuds discrets dans le bois, cible tactile 44 px indépendante du dessin -->
+                <circle cx="156" cy="246" r="2.6" fill="#9E7A58"/>
+                <circle cx="157" cy="226" r="2.2" fill="#B99671"/>
+              </g>
+
+              <!-- branche sélectionnée, état feuillaison : trait épaissi, teinte assombrie, feuilles individuelles -->
+              <path d="M144 270c-20-10-38-24-54-42" fill="none" stroke="#9E7A58" stroke-width="3.2" stroke-linecap="round"/>
+              <g fill="#94A472">
+                <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(139,258) rotate(-38) scale(.78)" opacity=".82"/>
+                <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(133,268) rotate(18) scale(.7)" opacity=".78"/>
+                <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(124,248) rotate(-44) scale(.88)" opacity="1"/>
+                <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(118,260) rotate(12) scale(.72)" opacity=".84"/>
+                <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(110,240) rotate(-50) scale(.82)" opacity=".94"/>
+                <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(104,252) rotate(8) scale(.68)" opacity=".8"/>
+                <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(96,232) rotate(-56) scale(.8)" opacity=".9"/>
+                <path d="M0 0C3-4.6 9-4.6 12 0C9 4.6 3 4.6 0 0Z" transform="translate(90,242) rotate(4) scale(.7)" opacity=".86"/>
+              </g>
+              <circle cx="145" cy="269" r="3" fill="#9E7A58"/>
+            </svg>
+
+            <div class="vue-liste"><a href="#">Vue liste</a></div>
+
+            <!-- fiche-branche : une étiquette posée sur l'illustration, pas une modale -->
+            <div class="fiche">
+              <span class="surtitre">Branche · en feuillaison</span>
+              <h4>arrêter de payer la mauvaise facture</h4>
+              <p class="date">née le 12 juin</p>
+              <p class="extrait">« en fait je crois que je lui en veux pour un truc qui n’a rien à voir »</p>
+              <div class="actions">
+                <a class="lien-action" href="#">Voir dans la conversation</a>
+                <a class="lien-action" href="#">Renommer</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="barre">
+            <a href="#">Accueil</a>
+            <a href="#">Anam</a>
+            <a href="#" class="actif">L’arbre</a>
+          </div>
+        </div>
+      </div>
+    </figure>
+  </div>
+
+  <div class="notes">
+    <p><b>État A — le tronc incomplet.</b> Le contour est entièrement tracé ; la matière — cernes, grain — s’arrête en cours de route et laisse une réserve vide. Aucun pointillé, aucun cadenas, aucun aplat grisé, aucun pourcentage, et le mot « incomplet » n’est écrit nulle part sur le dessin. Ça ressemble à un travail en cours, pas à une erreur. Au tap : une fiche honnête — ce qui est disponible, ce qui manque, où trouver l’heure — et deux actions, « Ajouter mon heure » · « Où la trouver ».</p>
+    <p><b>Le vide au-dessus est la place de ce qui va pousser.</b> Sur un compte gratuit le tronc est visible et l’espace des branches reste vide : c’est la représentation honnête de ce qu’elle n’a pas encore, jamais un verrou ostentatoire ni un aperçu flouté. Aucun compteur de branches, aucune légende permanente, aucun titre d’écran bavard. La lueur rasante en bas est le seul dégradé du système.</p>
+    <p><b>État B — la progression se lit dans la matière, jamais dans un effet lumineux.</b> Naissance 2 px nue en bois clair, feuillaison 3,2 px assombrie avec des feuilles individuelles d’opacités 0,78 à 1, fruit dense et mat qui fait ployer la branche — seule apparition de l’accent dans l’illustration. La fiche est une étiquette posée, pas une modale ; le reste de l’arbre descend à 0,55 sans flou. <b>Aucun nom n’est écrit sur l’arbre</b> : la discrétion interdit qu’un regard de deux secondes lise « arrêter de payer la mauvaise facture ». La vue liste, de rang égal, dit chaque état en toutes lettres.</p>
+  </div>
+</div>
+
+<!-- ══════════════════ 4 — L'ACCUEIL / LA BIBLIOTHÈQUE ══════════════════ -->
+<div class="planche">
+  <h3>4 · L’accueil — la bibliothèque</h3>
+  <p class="fr">FR-033 · FR-047 · FR-049 · FR-052 · FR-055 · FR-057 · FR-058 · FR-080 · NFR-015</p>
+  <div class="tel">
+    <div class="ecran">
+      <div class="appbar">
+        <div class="nom"><span>Anam</span></div>
+        <span class="menu"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h14M3 13h14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+      </div>
+      <div class="bande" style="justify-content:flex-end">
+        <a class="secours" href="#">Aide et ressources</a>
+      </div>
+
+      <div class="corps-page">
+        <div class="carte-du-jour">
+          <span class="surtitre">Le mantra du jour</span>
+          <h4 class="t-titre">Ce qui n’est pas dit occupe quand même la place.</h4>
+          <p class="t-meta doux" style="margin-top:12px">21 juillet</p>
+        </div>
+
+        <div class="carte">
+          <div class="haut">
+            <div>
+              <span class="surtitre">Le socle</span>
+              <p class="titre-carte">L’horoscope du jour</p>
+              <p class="m">calculé, jamais rédigé pour toi seule</p>
+            </div>
+            <span class="motif"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M5 21C8 8 21 7 25 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M18 23l7-5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span>
+          </div>
+        </div>
+
+        <div class="carte">
+          <div class="haut">
+            <div>
+              <span class="surtitre">Le socle</span>
+              <p class="titre-carte">Ton thème natal</p>
+              <p class="m">complet, sauf l’ascendant et les maisons</p>
+            </div>
+            <span class="motif"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 5c6 0 10 5 9 11-1 6-8 9-13 7-5-2-7-9-5-14 2-4 5-4 9-4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 17c4-3 8-3 11 1" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span>
+          </div>
+        </div>
+
+        <div class="carte">
+          <div class="haut">
+            <div>
+              <span class="surtitre">Les nombres</span>
+              <p class="titre-carte">Ton chemin de vie</p>
+              <p class="m">ce qu’il ouvre, et ce qu’il coûte</p>
+            </div>
+            <span class="motif"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M5 24c5-7 3-12 8-16 5-4 4 4 11-1" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span>
+          </div>
+        </div>
+
+        <div class="carte">
+          <div class="haut">
+            <div>
+              <span class="surtitre">Se situer</span>
+              <p class="titre-carte">L’ennéagramme</p>
+              <p class="m">un test court, ou une hypothèse d’Anam</p>
+            </div>
+            <span class="motif"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M6 10c6-5 15-2 18 5 2 6-4 11-9 9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M10 21h5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="barre">
+        <a href="#" class="actif">Accueil</a>
+        <a href="#">Anam</a>
+        <a href="#">L’arbre</a>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p><b>Des objets reçus, pas des lignes de menu.</b> Cinq cartes, ordre fixe et jamais algorithmique, une colonne aérée. Le mantra du jour est la carte du jour — <i>surface-elevee</i>, rayon 16, plus grande, seule en haut — pour donner le sentiment de recevoir plutôt que de chercher. Chaque carte porte un motif abstrait tracé à la main : aucun symbole astrologique, aucune lune, aucun chiffre décoratif. La dernière carte passe sous la ligne de flottaison : la page défile.</p>
+    <p><b>Mantra ≠ ancrage ≠ lecture.</b> Le libellé le dit, et l’écran ne montre que ce qui est disponible : aucune carte premium cadenassée, aucun badge, aucune pastille de non-lu, aucun compteur de jours, aucun message de bienvenue. En haut : le mot « Anam », et rien d’autre.</p>
+    <p><b>Discrétion (NFR-015).</b> Au-dessus de la ligne de flottaison, uniquement du contenu impersonnel et calculé — rien de la conversation, aucune branche nommée, aucun extrait. Le thème dit ce qui lui manque en une ligne factuelle, sans le transformer en profil à compléter.</p>
+  </div>
+</div>
+
+<!-- ══════════════════ 5 — CONSENTEMENT ART. 9 + DÉCLARATION IA ══════════════════ -->
+<div class="planche">
+  <h3>5 · Consentement art. 9 et déclaration IA</h3>
+  <p class="fr">FR-012 · FR-013 · FR-069 · FR-070 · FR-072 · FR-077 · FR-086 · NFR-006 · NFR-007 · NFR-023 · vue déroulée</p>
+  <div class="tel">
+    <div class="ecran ecran--long">
+      <div class="appbar">
+        <div class="nom"><span>Anam</span></div>
+        <span></span>
+      </div>
+      <div class="bande" style="justify-content:flex-end">
+        <a class="secours" href="#">Aide et ressources</a>
+      </div>
+
+      <div class="page">
+        <h2 class="t-display" style="margin:24px 0 32px">Avant de commencer.</h2>
+
+        <div class="bloc">
+          <h4>Tu vas parler à une intelligence artificielle.</h4>
+          <p>Anam n’est pas humaine. Anima est une personne réelle, et elle ne lit pas ce que tu écris.</p>
+        </div>
+
+        <div class="bloc">
+          <h4>Ce que tu écris est conservé, et pourquoi.</h4>
+          <p>C’est ce qui permet à Anam de se souvenir d’un mois sur l’autre. C’est aussi ce qui la rend capable de te contredire.</p>
+        </div>
+
+        <div class="bloc">
+          <h4>Tu peux tout effacer, et ça marche vraiment.</h4>
+          <p>Export complet, suppression totale, propagée à nos sous-traitants. Depuis « Mes données », à tout moment.</p>
+        </div>
+
+        <p><a class="lien" href="#">Lire le détail</a></p>
+
+        <div class="sep"></div>
+
+        <div class="case">
+          <i></i>
+          <p>J’accepte qu’Anam conserve ce que j’écris, y compris ce qui touche à ma vie intime, à mes convictions et à mes origines, pour pouvoir me répondre dans la durée.</p>
+        </div>
+        <div class="case">
+          <i></i>
+          <p>J’ai 18 ans ou plus et j’accepte les <a class="lien" href="#">conditions générales</a>.</p>
+        </div>
+
+        <div style="margin-top:24px">
+          <span class="b-inactif" style="width:100%">Je commence</span>
+          <p class="t-meta doux" style="margin-top:8px">Les deux cases sont nécessaires pour continuer.</p>
+        </div>
+
+        <div style="margin-top:16px">
+          <a class="b-fantome" href="#" style="width:100%">Je ne veux pas</a>
+        </div>
+
+        <p class="t-meta doux" style="margin-top:32px">Anam est une intelligence artificielle. Créé par Anima.</p>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p><b>Trois idées, deux phrases chacune, en français courant.</b> Le texte long existe derrière « Lire le détail » et se déplie en place, sans quitter l’écran : la version courte est la version principale, la longue est disponible et pas imposée. Aucun défilement obligatoire jusqu’en bas, aucun corps réduit pour le juridique, aucun ton commercial.</p>
+    <p><b>Deux cases distinctes, aucune pré-cochée, jamais groupées.</b> Celle du haut porte seule le consentement sensible ; celle du bas porte les conditions générales et les 18 ans. Le motif du blocage est écrit en toutes lettres sous le bouton, pas seulement signifié par la désactivation. Les cases sont bordées en <i>bordure-forte</i> : ce sont des contrôles, le seuil 3:1 s’applique.</p>
+    <p><b>La sortie est honnête et de lisibilité égale.</b> « Je ne veux pas » mène à la suppression immédiate du compte, confirmation unique, sans rétention et sans « es-tu sûre ». La déclaration IA sera redite par Anam au premier tour, puis vivra en permanence dans l’en-tête de conversation ; cet écran est révocable depuis « Ce que j’ai accepté ».</p>
+  </div>
+</div>
+
+<!-- ══════════════════ 6 — LE RITUEL DE LECTURE ══════════════════ -->
+<div class="planche">
+  <h3>6 · Le rituel de lecture</h3>
+  <p class="fr">FR-015 · FR-016 · FR-017 · FR-018 · FR-019 · FR-020 · FR-022 · FR-077</p>
+  <div class="tel">
+    <div class="ecran">
+      <div class="appbar">
+        <div class="nom">
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 13.4C2.6 6.6 8.2 1.8 13 4.1c2.6 1.2 3.2 5 .7 6.3" fill="none" stroke="#D9926B" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Anam</span>
+        </div>
+        <span class="menu"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h14M3 13h14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+      </div>
+      <div class="bande">
+        <span class="ia">Anam est une IA</span>
+        <a class="secours" href="#">Aide et ressources</a>
+      </div>
+
+      <div class="fil">
+        <p class="tour-moi">Est-ce que tu peux me tirer une carte&#8239;? J’ai envie de regarder ailleurs deux minutes.</p>
+
+        <div class="tirage">
+          <div class="carte-tiree">
+            <svg viewBox="0 0 186 280" role="img" aria-label="Une carte est posée.">
+              <g fill="none" stroke="#786A59" stroke-linecap="round">
+                <rect x="14" y="14" width="158" height="252" rx="8" stroke-width="1" opacity=".5"/>
+                <path d="M40 186h106" stroke-width="1" opacity=".8"/>
+                <path d="M93 52v176" stroke-width="1" opacity=".4"/>
+              </g>
+              <path d="M42 214C56 116 118 96 152 128" fill="none" stroke="#9E7A58" stroke-width="1.6" stroke-linecap="round" opacity=".95"/>
+              <path d="M62 232C74 168 106 152 128 168" fill="none" stroke="#786A59" stroke-width="1.2" stroke-linecap="round" opacity=".6"/>
+              <circle cx="121" cy="146" r="4.4" fill="#9E7A58" opacity=".95"/>
+            </svg>
+          </div>
+        </div>
+
+        <p class="tour-anam">Qu’est-ce que tu vois&#8239;?</p>
+      </div>
+
+      <div class="composeur">
+        <div class="champ champ--focus">
+          <p style="color:var(--texte)"><span class="caret"></span></p>
+          <span class="icone micro"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="7.4" y="2.7" width="5.2" height="9.1" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.7 9.6a5.3 5.3 0 0 0 10.6 0M10 14.9v2.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span>
+          <span class="icone envoi"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 16.2V4.4M5.3 9.2 10 4.3l4.7 4.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p><b>La carte se dépose, seule, à la largeur de la colonne.</b> Visuel propriétaire, tracé dans les bruns du système, sans accent, sans doré, sans étoile : pas de retournement, pas de mélange animé, pas de scintillement, pas de son. Théâtraliser reviendrait à revendiquer une magie que le produit ne revendique pas. Le tirage vient d’un point d’entrée qui n’a accès ni au profil, ni à l’historique, ni à l’état.</p>
+    <p><b>Anam demande « Qu’est-ce que tu vois ? » et rien d’autre.</b> Le composeur prend le focus — l’anneau de 2 px en <i>bordure-forte</i>, décalé de 2 px, rayon 4, est visible ici. Tant que Camille n’a pas répondu, la personnalisation n’existe pas : elle vivra dans la lecture, jamais dans la sélection.</p>
+    <p><b>Aucun nom de carte, aucun mot-clé, aucune infobulle, aucun lien « signification », aucun re-tirage.</b> Le catalogue existe côté serveur et n’a aucune représentation dans l’interface. La restitution écrite ira ensuite dans « Mes lectures », datée, avec le visuel et ses mots à elle en citation distincte.</p>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint (garde de direction des dépendances AD-1/AD-10)
+        run: npm run lint
+
+      # Supabase local pour prouver la RLS deny-by-default (AD-12).
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+
+      - name: Exporter les clés Supabase locales
+        run: |
+          echo "SUPABASE_URL=$(supabase status -o env | grep '^API_URL=' | cut -d= -f2-)" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=$(supabase status -o env | grep '^ANON_KEY=' | cut -d= -f2-)" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2-)" >> "$GITHUB_ENV"
+
+      # Bloque le build si un test échoue — dont la preuve RLS (AD-12) et le smoke test.
+      - name: Tests (bloquants)
+        run: npm test

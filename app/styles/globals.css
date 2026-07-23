@@ -1,0 +1,280 @@
+/*
+ * globals.css — Fondation visuelle Anam (Story 1.2).
+ * REFLET de app/styles/tokens.ts (source de vérité). tests/tokens-parite.test.ts
+ * échoue si une seule valeur diverge. Ne pas ajuster « à l'œil ».
+ *
+ * Mode sombre « Nuit galactique » = mode NATIF (:root). Il n'existe pas de thème
+ * jour de confort. Le seul autre mode est l'accessibilité (-clair), déclenché par
+ * prefers-contrast: more ou l'attribut data-a11y="contraste" — jamais par goût.
+ */
+
+/* ═══════════════════════════ TOKENS — MODE NUIT ═══════════════════════════ */
+:root {
+  /* Couleurs (rôles) */
+  --fond: #0C0A1E;
+  --surface: #16132F;
+  --surface-elevee: #201C42;
+  --texte: #EEECF7;
+  --texte-doux: #ABA6C9;
+  --bordure: #2A2648;
+  --bordure-forte: #77719C;
+  --accent: #8FC1EF;
+  --accent-doux: #241F47;
+  --sur-accent: #0C0A1E;
+  --arbre-tronc: #6A6690;
+  --arbre-branche: #9A96BE;
+  --arbre-feuillage: #8FB6D8;
+  --succes: #86B79E;
+  --alerte: #D0A05C;
+  --lueur: #CDE4F8;
+
+  /* Piles typographiques (les var. de police viennent de next/font/local) */
+  --pile-anam: var(--police-anam), "Iowan Old Style", Georgia, serif;
+  --pile-ui: var(--police-ui), -apple-system, "Segoe UI", system-ui, sans-serif;
+
+  /* Espacement — base 8 */
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 24px;
+  --esp-6: 32px;
+  --esp-7: 48px;
+  --esp-8: 64px;
+  --esp-9: 96px;
+  --marge-mobile: 20px;
+  --marge-desktop: 48px;
+  --respiration: 40px;
+  --mesure: 32rem;
+  --contenu-max: 40rem;
+  --cible-tactile: 44px;
+
+  /* Rayons */
+  --rayon-sm: 4px;
+  --rayon: 8px;
+  --rayon-md: 12px;
+  --rayon-lg: 16px;
+  --rayon-full: 9999px;
+
+  /* Mouvement — une seule courbe, aucun rebond */
+  --duree-courte: 180ms;
+  --duree-standard: 320ms;
+  --duree-longue: 700ms;
+  --duree-respiration: 4200ms;
+  --courbe: cubic-bezier(0.32, 0.08, 0.24, 1);
+
+  /* Imagerie : pleine en nuit, atténuée (→0) en mode accessibilité */
+  --imagerie-opacite: 1;
+}
+
+/* ═══════════ MODE ACCESSIBILITÉ « contraste renforcé » (-clair) ═══════════ */
+/* Mêmes rôles, valeurs -clair. PAS un thème jour. Deux déclencheurs équivalents. */
+:root[data-a11y="contraste"] {
+  --fond: #F3F1FB;
+  --surface: #FBFAFE;
+  --surface-elevee: #FFFFFF;
+  --texte: #1B1836;
+  --texte-doux: #4C476B;
+  --bordure: #DCD8EE;
+  --bordure-forte: #565179;
+  --accent: #265F91;
+  --accent-doux: #E2ECF8;
+  --sur-accent: #FFFFFF;
+  --arbre-tronc: #5A5680;
+  --arbre-branche: #4A4670;
+  --arbre-feuillage: #3C6C93;
+  --succes: #3B7357;
+  --alerte: #8A5A16;
+  --lueur: #3C6C93;
+  --imagerie-opacite: 0; /* imagerie atténuée : les fonds illustrés cèdent aux aplats */
+  color-scheme: light;
+}
+
+@media (prefers-contrast: more) {
+  :root:not([data-a11y="nuit"]) {
+    --fond: #F3F1FB;
+    --surface: #FBFAFE;
+    --surface-elevee: #FFFFFF;
+    --texte: #1B1836;
+    --texte-doux: #4C476B;
+    --bordure: #DCD8EE;
+    --bordure-forte: #565179;
+    --accent: #265F91;
+    --accent-doux: #E2ECF8;
+    --sur-accent: #FFFFFF;
+    --arbre-tronc: #5A5680;
+    --arbre-branche: #4A4670;
+    --arbre-feuillage: #3C6C93;
+    --succes: #3B7357;
+    --alerte: #8A5A16;
+    --lueur: #3C6C93;
+    --imagerie-opacite: 0;
+    color-scheme: light;
+  }
+}
+
+/* Hook d'atténuation de l'imagerie (aucune image à atténuer dans cette story) */
+.imagerie {
+  opacity: var(--imagerie-opacite);
+}
+
+/* ═══════════════════════════════ BASE ═══════════════════════════════ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--fond);
+  color: var(--texte);
+  font-family: var(--pile-ui);
+  font-size: 1rem;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ═══════════════════════ ÉCHELLE TYPOGRAPHIQUE ═══════════════════════ */
+/* Fraunces = la voix d'Anam ; Inter = l'interface. Tout en rem, ≤500, sans capitale. */
+.t-display {
+  font-family: var(--pile-anam);
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  font-variation-settings: "opsz" 48, "SOFT" 30, "WONK" 0;
+  letter-spacing: -0.01em;
+}
+@media (min-width: 768px) {
+  .t-display {
+    font-size: 2.5rem;
+  }
+}
+
+.t-titre {
+  font-family: var(--pile-anam);
+  font-size: 1.5rem;
+  line-height: 1.25;
+  font-weight: 400;
+  font-variation-settings: "opsz" 32, "SOFT" 30, "WONK" 0;
+}
+
+.t-titre-sm {
+  font-family: var(--pile-anam);
+  font-size: 1.125rem;
+  line-height: 1.35;
+  font-weight: 500;
+  font-variation-settings: "opsz" 20, "SOFT" 30, "WONK" 0;
+}
+
+.t-anam {
+  font-family: var(--pile-anam);
+  font-size: 1.1875rem;
+  line-height: 1.6;
+  font-weight: 400;
+  font-variation-settings: "opsz" 14, "SOFT" 20, "WONK" 0;
+  letter-spacing: 0.005em;
+}
+
+.t-corps {
+  font-family: var(--pile-ui);
+  font-size: 1rem;
+  line-height: 1.65;
+  font-weight: 400;
+}
+
+.t-meta {
+  font-family: var(--pile-ui);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  font-weight: 400;
+  color: var(--texte-doux);
+}
+
+.t-surtitre {
+  font-family: var(--pile-ui);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--texte-doux);
+  /* jamais de text-transform: la distinction vient de l'interlettrage + la couleur */
+}
+
+.t-bouton {
+  font-family: var(--pile-ui);
+  font-size: 0.9375rem;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* ══════════════════════ MOUVEMENT — LE FONDU LENT ══════════════════════ */
+/* Rien ne glisse latéralement, rien ne rebondit. Les choses paraissent. */
+@keyframes anam-fondu {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes anam-fondu-derive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Respiration : seul mouvement en boucle du produit (servira au signe-anam). */
+@keyframes respiration {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+.fondu-texte {
+  animation: anam-fondu-derive var(--duree-standard) var(--courbe) both;
+}
+.fondu-image {
+  animation: anam-fondu var(--duree-longue) var(--courbe) both;
+}
+.fondu-personnage {
+  animation: anam-fondu var(--duree-longue) var(--courbe) both;
+}
+.fondu-region {
+  animation: anam-fondu var(--duree-longue) var(--courbe) both;
+}
+.respiration {
+  animation: respiration var(--duree-respiration) var(--courbe) infinite;
+}
+
+/* prefers-reduced-motion : fondus en opacité seule ≤180ms sans dérive ;
+   la respiration s'arrête. Aucune information n'est portée par le seul mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  .fondu-texte,
+  .fondu-image,
+  .fondu-personnage,
+  .fondu-region {
+    animation-name: anam-fondu;
+    animation-duration: var(--duree-courte);
+  }
+  .respiration {
+    animation: none;
+  }
+}

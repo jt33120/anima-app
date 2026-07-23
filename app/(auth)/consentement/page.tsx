@@ -1,32 +1,77 @@
-// Placeholder — le vrai écran de consentement art.9 + déclaration IA est la Story 1.5.
-export const metadata = { title: "Bientôt" };
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/data/supabase/server";
+import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
+import FormulaireConsentement from "./formulaire-consentement";
+import s from "./consentement.module.css";
 
-export default function PageConsentement() {
+// Titre discret (NFR-015) — ne trahit ni l'intimité ni l'ésotérisme.
+export const metadata = { title: "Avant de commencer" };
+
+/**
+ * Halte de consentement art. 9 + déclaration IA (Story 1.5).
+ * NB : le texte juridique exact (CGU, formulation art. 9, durées) sera validé par un
+ * juriste avant lancement — ici, un texte clair et honnête, non définitif.
+ */
+export default async function PageConsentement() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/entrer");
+
+  const etape = await etapeOnboardingPour(supabase, user.id);
+  if (etape === "mineur") {
+    // Barrière persistante : un mineur signalé est refusé à chaque connexion (FR-070).
+    await supabase.auth.signOut();
+    redirect("/entrer?refus=age");
+  }
+  if (etape === "naissance") redirect("/naissance"); // date pas encore posée
+  if (etape === "suite") redirect("/"); // déjà consenti → la scène
+
   return (
-    <main
-      style={{
-        minHeight: "100dvh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "var(--esp-7) var(--marge-mobile)",
-        textAlign: "center",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--esp-4)",
-          maxWidth: "var(--mesure)",
-        }}
-      >
-        <p className="t-surtitre">Prochaine étape</p>
-        <h1 className="t-display">Bientôt</h1>
+    <main className={s.page}>
+      <div className={s.contenu}>
+        <p className="t-surtitre">Avant de commencer</p>
+        <h1 className="t-display">Ce que tu acceptes</h1>
+
+        {/* Déclaration IA — FR-013 / AI Act art. 50, en français courant */}
         <p className="t-anam">
-          Te voilà entrée. La suite — ce que tu acceptes de me confier — arrive très
-          vite.
+          Tu vas parler à une <strong>intelligence artificielle</strong>. Pas à un être
+          humain, pas à une voyante. Anam lit, relie et te répond — mais elle n&apos;a ni
+          conscience ni intuition.
         </p>
+        <p className="t-corps">
+          Ce que tu lui confies est <strong>conservé</strong>, pour qu&apos;elle se
+          souvienne d&apos;une fois sur l&apos;autre, et gardé chiffré. Tu peux tout{" "}
+          <strong>effacer</strong> quand tu veux : alors tout disparaît, chez elle comme
+          chez ses prestataires techniques.
+        </p>
+
+        {/* « Lire le détail » — accordéon déplié EN PLACE (AC4), version courte principale */}
+        <details className={s.details}>
+          <summary className={s.summary}>
+            <span className="t-meta">Lire le détail</span>
+          </summary>
+          <div className={s.detailsCorps}>
+            <p className="t-corps">
+              Anam s&apos;appuie sur un modèle d&apos;IA opéré par un prestataire
+              technique, encadré par contrat : il ne s&apos;entraîne pas sur tes données
+              et ne les conserve pas au-delà du traitement de ta demande.
+            </p>
+            <p className="t-corps">
+              Les confidences que tu partages relèvent de tes{" "}
+              <strong>données sensibles</strong> au sens de l&apos;article&nbsp;9 du RGPD
+              (ta vie intérieure, tes croyances). Elles ne sont traitées qu&apos;avec ton
+              consentement explicite, que tu peux retirer à tout moment.
+            </p>
+            <p className="t-corps">
+              À ta demande de suppression, ton compte et tes contenus sont effacés, et la
+              consigne d&apos;effacement est propagée aux prestataires concernés.
+            </p>
+          </div>
+        </details>
+
+        <FormulaireConsentement />
       </div>
     </main>
   );

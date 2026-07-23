@@ -1,0 +1,160 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-7) var(--marge-mobile);
+}
+.contenu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  width: 100%;
+  max-width: var(--contenu-max);
+}
+
+/* Accordéon « Lire le détail » — déplié EN PLACE (AC4), la version courte reste principale. */
+.details {
+  border-top: 1px solid var(--bordure);
+  border-bottom: 1px solid var(--bordure);
+  padding: var(--esp-2) 0;
+}
+.summary {
+  cursor: pointer;
+  list-style: none;
+  min-height: var(--cible-tactile);
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  color: var(--texte-doux);
+}
+.summary::-webkit-details-marker {
+  display: none;
+}
+.summary::before {
+  content: "＋";
+  font-family: var(--pile-ui);
+  color: var(--texte-doux);
+}
+.details[open] .summary::before {
+  content: "－";
+}
+.summary:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+.detailsCorps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  padding: var(--esp-3) 0 var(--esp-2);
+}
+
+/* Formulaire des accords */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-5);
+  width: 100%;
+}
+.cases {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+.cases legend {
+  padding: 0;
+  margin-bottom: var(--esp-2);
+}
+.case {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--esp-3);
+  padding: var(--esp-3);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  cursor: pointer;
+}
+.case:focus-within {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+.checkbox {
+  flex: 0 0 auto;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: 0.1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.lienTexte {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
+/* Actions — « Je commence » (primaire) et « Je ne veux pas » de lisibilité ÉGALE (AC3) */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+.bouton,
+.boutonSecondaire,
+.boutonDanger {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-5);
+  border-radius: var(--rayon);
+  cursor: pointer;
+  transition: opacity var(--duree-standard) var(--courbe);
+}
+.bouton {
+  background: var(--accent);
+  color: var(--sur-accent);
+  border: 0;
+}
+.bouton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+/* Même poids typographique, texte pleine intensité : le refus n'est pas minoré. */
+.boutonSecondaire {
+  background: transparent;
+  color: var(--texte);
+  border: 1px solid var(--bordure-forte);
+}
+.boutonDanger {
+  background: transparent;
+  color: var(--texte);
+  border: 1px solid var(--alerte);
+}
+.bouton:focus-visible,
+.boutonSecondaire:focus-visible,
+.boutonDanger:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+.motif {
+  color: var(--texte-doux);
+  font-family: var(--pile-ui);
+  font-size: 0.8125rem;
+  margin: 0;
+}
+.erreur {
+  color: var(--alerte);
+  font-family: var(--pile-ui);
+  font-size: 0.8125rem;
+  margin: 0;
+}
+
+/* Écran de refus */
+.refus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  width: 100%;
+  max-width: var(--contenu-max);
+}

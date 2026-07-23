@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
-import { etapeOnboarding } from "@/app/(auth)/onboarding";
+import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import FormulaireNaissance from "./formulaire-naissance";
 import s from "./naissance.module.css";
 
@@ -13,20 +13,15 @@ export default async function PageNaissance() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrer");
 
-  const { data: u } = await supabase
-    .from("utilisatrice")
-    .select("date_naissance, mineur_detecte")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const etape = etapeOnboarding(u);
-  // Mineur signalé : refusé même avec une session (barrière persistante).
+  const etape = await etapeOnboardingPour(supabase, user.id);
+  // Mineur signalé : refusé même avec une session (barrière persistante, FR-070).
   if (etape === "mineur") {
     await supabase.auth.signOut();
     redirect("/entrer?refus=age");
   }
-  // Saisie unique (AC4) : date déjà posée → on ne la redemande jamais.
-  if (etape === "suite") redirect("/consentement");
+  // Date déjà posée (AC4) : on ne la redemande jamais.
+  if (etape === "consentement") redirect("/consentement");
+  if (etape === "suite") redirect("/"); // déjà consenti → la scène
 
   return (
     <main className={s.page}>

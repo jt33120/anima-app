@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
-import { etapeOnboarding } from "@/app/(auth)/onboarding";
+import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 
 /**
  * Confirmation du magic link (Story 1.3, AC2). Robuste aux DEUX flux Supabase :
@@ -19,20 +19,16 @@ async function destinationApresAuth(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return next;
-  const { data: u } = await supabase
-    .from("utilisatrice")
-    .select("date_naissance, mineur_detecte")
-    .eq("id", user.id)
-    .maybeSingle();
 
-  const etape = etapeOnboarding(u);
+  const etape = await etapeOnboardingPour(supabase, user.id);
   if (etape === "mineur") {
     // Barrière persistante : un mineur signalé est refusé à CHAQUE connexion (FR-070).
     await supabase.auth.signOut();
     return "/entrer?refus=age";
   }
   if (etape === "naissance") return "/naissance";
-  return next;
+  if (etape === "consentement") return "/consentement";
+  return next; // suite
 }
 
 export async function GET(request: NextRequest) {

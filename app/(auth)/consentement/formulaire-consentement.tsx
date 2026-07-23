@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useFormStatus } from "react-dom";
 import {
   donnerConsentement,
   refuser,
@@ -10,6 +11,19 @@ import s from "./consentement.module.css";
 
 const initial: EtatConsentement = { statut: "saisie" };
 
+// Bouton de suppression : désactivé pendant l'action (évite le double-clic qui, sur un
+// compte déjà supprimé, ferait échouer le 2e appel et afficherait une erreur trompeuse).
+function BoutonSupprimer() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" className={s.boutonDanger} disabled={pending}>
+      <span className="t-bouton">
+        {pending ? "Suppression…" : "Confirmer et supprimer mon compte"}
+      </span>
+    </button>
+  );
+}
+
 export default function FormulaireConsentement() {
   const [etat, action, enCours] = useActionState(donnerConsentement, initial);
   const [art9, setArt9] = useState(false);
@@ -17,23 +31,20 @@ export default function FormulaireConsentement() {
   const [refus, setRefus] = useState(false);
   const pret = art9 && cgu;
 
-  // Refus (AC6) : UNE confirmation franche, aucune culpabilisation ni reconquête.
+  // Refus (AC6) : UNE confirmation franche, registre factuel — aucune culpabilisation ni reconquête.
   if (refus) {
     return (
       <section className={s.refus} aria-labelledby="refus-titre">
         <h2 id="refus-titre" className="t-titre-sm">
-          Sans cet accord, Anam ne peut pas t&apos;accompagner
+          Ces accords sont nécessaires pour utiliser Anam
         </h2>
         <p className="t-corps">
-          Ces deux accords sont ce qui permet à Anam d&apos;exister avec toi. Si tu
-          confirmes, ton compte et tout ce qui s&apos;y rattache sont supprimés
-          maintenant.
+          Sans eux, il n&apos;y a pas de séance possible. Si tu confirmes, ton compte et
+          tout ce qui s&apos;y rattache sont supprimés maintenant.
         </p>
         <div className={s.actions}>
           <form action={refuser}>
-            <button type="submit" className={s.boutonDanger}>
-              <span className="t-bouton">Confirmer et supprimer mon compte</span>
-            </button>
+            <BoutonSupprimer />
           </form>
           <button
             type="button"

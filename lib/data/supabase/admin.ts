@@ -1,3 +1,4 @@
+import "server-only"; // barrière de compilation : erreur si jamais importé côté client (AD-12)
 import { createClient } from "@supabase/supabase-js";
 
 /**

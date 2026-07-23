@@ -1,0 +1,10 @@
+# Travail différé
+
+Éléments réels, non actionnables maintenant (pré-existants ou hors périmètre de la story en cours), à reprendre au bon moment.
+
+## Deferred from: code review of 1-5-consentement-art9-declaration-ia (2026-07-23)
+
+- **Garde de route sur la scène `/`** — l'ordre âge→consentement→séance (FR-072) n'est aujourd'hui tenu que par des redirections douces depuis les pages d'onboarding ; `/` (le prototype WebGL) est atteignable en tapant l'URL, sans consentement. Sans conséquence tant que la scène n'écrit ni n'expose d'art. 9. **À poser avec le write-gate art. 9 de la Story 1.6 (AD-13)** : garde serveur sur `/` (ou la route de séance) via `etapeOnboardingPour`. [middleware.ts, app/page.tsx]
+- **Mention IA persistante (AD-9 / FR-013)** — la déclaration « Tu vas parler à une intelligence artificielle » n'existe que sur `/consentement`, inatteignable une fois le consentement donné. AD-9 demande une mention IA accessible en continu. **Relève de l'écran de séance / conversation** (epic ultérieur). [app/(auth)/consentement/page.tsx]
+- **Open redirect dans `/auth/confirm` (pré-existant, Story 1.3)** — le paramètre `next` est utilisé tel quel dans la redirection : `?next=https://evil.com` renvoie hors domaine après un échange de code valide (exploitabilité limitée : exige un code à usage unique valide). **Correctif simple** : allow-list « chemin interne commençant par `/` ». Non introduit par 1.5 mais le fichier est touché par le diff. [app/auth/confirm/route.ts:39]
+- **AC1 « sans défilement obligatoire » — vérification iPhone** (décision de revue 2026-07-23) — l'écran de consentement est dense (déclaration + conservation/effacement + accordéon + 2 cases à texte long + boutons) et `.page` centre le contenu (`justify-content:center`), ce qui rogne le débordement plutôt que de le rendre défilable. **À mesurer sur un vrai iPhone (~375×667) avant tout ajustement** — porte pré-lancement. Fix probable si confirmé : centrage → flux (`flex-start`), rythme vertical resserré, sans retirer de texte légalement requis. [app/(auth)/consentement/page.tsx, consentement.module.css]

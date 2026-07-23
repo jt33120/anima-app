@@ -12,7 +12,12 @@ export const metadata = { title: "Avant de commencer" };
  * NB : le texte juridique exact (CGU, formulation art. 9, durées) sera validé par un
  * juriste avant lancement — ici, un texte clair et honnête, non définitif.
  */
-export default async function PageConsentement() {
+export default async function PageConsentement({
+  searchParams,
+}: {
+  searchParams: Promise<{ erreur?: string }>;
+}) {
+  const { erreur } = await searchParams;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -33,6 +38,14 @@ export default async function PageConsentement() {
       <div className={s.contenu}>
         <p className="t-surtitre">Avant de commencer</p>
         <h1 className="t-display">Ce que tu acceptes</h1>
+
+        {/* Échec de suppression (AC6) : jamais silencieux — la session est restée ouverte. */}
+        {erreur === "suppression" ? (
+          <p className={s.erreur} role="alert">
+            La suppression n&apos;a pas pu aboutir. Ton compte est toujours là — tu peux
+            réessayer.
+          </p>
+        ) : null}
 
         {/* Déclaration IA — FR-013 / AI Act art. 50, en français courant */}
         <p className="t-anam">

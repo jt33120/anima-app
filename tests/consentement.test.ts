@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
+import { accordsComplets } from "@/app/(auth)/consentement/accords";
+import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 
 /**
  * Story 1.5 — halte de consentement art. 9. Preuves BLOQUANTES en CI :
@@ -157,5 +159,72 @@ describe("Frontière art. 9 : aucune écriture avant consentement (AC7 / AD-4 / 
       const { error } = await admin.from(table).select("*").limit(1);
       expect(error, `la table art. 9 « ${table} » ne devrait pas exister avant le write-gate (Story 1.6)`).not.toBeNull();
     }
+  });
+});
+
+describe("Re-validation serveur des accords (AC5) — logique pure, couverte en CI", () => {
+  const fd = (o: Record<string, string>) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries(o)) f.set(k, v);
+    return f;
+  };
+  it("les deux accords cochés → valide", () => {
+    expect(accordsComplets(fd({ art9: "on", cgu: "on" }))).toBe(true);
+  });
+  it("un seul accord → refusé", () => {
+    expect(accordsComplets(fd({ art9: "on" }))).toBe(false);
+    expect(accordsComplets(fd({ cgu: "on" }))).toBe(false);
+  });
+  it("valeur autre que 'on' ou champ absent → refusé (pas de faux positif)", () => {
+    expect(accordsComplets(fd({ art9: "true", cgu: "true" }))).toBe(false);
+    expect(accordsComplets(fd({}))).toBe(false);
+  });
+});
+
+describe("La garde exige art9_accorde=true, pas la simple existence d'une ligne (revue 1.5)", () => {
+  const u = { email: `cons-art9-${t}@exemple.fr`, password: "test-art9-123!", id: "" };
+
+  beforeAll(async () => {
+    const { data, error } = await admin.auth.admin.createUser({
+      email: u.email,
+      password: u.password,
+      email_confirm: true,
+    });
+    if (error) throw new Error(`createUser: ${error.message}`);
+    u.id = data.user!.id;
+    // Majeure, date posée : sinon la garde s'arrête AVANT l'étape consentement.
+    const { error: e2 } = await admin
+      .from("utilisatrice")
+      .update({ date_naissance: "1990-01-01" })
+      .eq("id", u.id);
+    if (e2) throw new Error(`date_naissance: ${e2.message}`);
+  });
+
+  afterAll(async () => {
+    if (u.id) await admin.auth.admin.deleteUser(u.id);
+  });
+
+  it("une ligne art9_accorde=false NE débloque PAS la scène → étape 'consentement'", async () => {
+    const c = clientScope();
+    await c.auth.signInWithPassword({ email: u.email, password: u.password });
+    const { error } = await c.from("consentement").upsert(
+      { utilisatrice_id: u.id, art9_accorde: false, ia_reconnue: false, cgu_acceptees: false },
+      { onConflict: "utilisatrice_id" },
+    );
+    expect(error).toBeNull();
+    expect(await etapeOnboardingPour(c, u.id)).toBe("consentement");
+    await c.auth.signOut();
+  });
+
+  it("art9_accorde=true + ia_reconnue=true → étape 'suite' (scène débloquée)", async () => {
+    const c = clientScope();
+    await c.auth.signInWithPassword({ email: u.email, password: u.password });
+    const { error } = await c.from("consentement").upsert(
+      { utilisatrice_id: u.id, art9_accorde: true, ia_reconnue: true, cgu_acceptees: true },
+      { onConflict: "utilisatrice_id" },
+    );
+    expect(error).toBeNull();
+    expect(await etapeOnboardingPour(c, u.id)).toBe("suite");
+    await c.auth.signOut();
   });
 });

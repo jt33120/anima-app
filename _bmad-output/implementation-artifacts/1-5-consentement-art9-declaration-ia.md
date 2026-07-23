@@ -6,7 +6,7 @@ title: "Poser la halte de consentement art. 9 et la déclaration IA"
 epic_name: "Franchir le seuil"
 covers: [FR-012, FR-013, FR-072, NFR-006, AD-9, AD-4, AD-12]
 depends_on: ["1-4-date-naissance-majorite"]
-status: review
+status: done
 baseline_commit: 0f14ec2790742fa443720ec6910199f1a1332cf1
 created: "2026-07-23"
 sources:
@@ -17,7 +17,7 @@ sources:
 
 # Story 1.5 : Poser la halte de consentement art. 9 et la déclaration IA
 
-Status: review
+Status: done
 
 <!-- Note : validation optionnelle. Lancer validate-create-story avant dev-story pour un contrôle qualité. -->
 
@@ -89,6 +89,32 @@ afin de **savoir à quoi je consens avant qu'aucune confidence ne soit écrite**
     - **AC6** : la suppression retire le compte (auth + `utilisatrice` par cascade) — tester la fonction système d'effacement (compte de test).
     - **etapeOnboarding** : les 4 cas (mineur / naissance / consentement / suite) — étendre le test existant.
   - [x] Vérifs finales : `npx vitest run` (tout : 1.1→1.5), `npm run lint`, `npx tsc --noEmit`, `next build`.
+
+### Review Findings
+
+_Revue de code adversariale (3 couches à l'aveugle, même capacité), 2026-07-23. Commit 394b268._
+
+**Décisions (arbitrées 2026-07-23) :**
+
+- [x] [Review][Defer] AC1 « sans défilement obligatoire » — à vérifier sur vrai iPhone (porte pré-lancement) avant tout ajustement ; contenu dense + centrage `justify-content:center` qui rogne le débordement. [app/(auth)/consentement/page.tsx, consentement.module.css] — deferred (décision : vérif iPhone d'abord)
+- [x] [Review][Patch] Adoucir le registre du refus — retirer « exister avec toi » / atténuer « ne peut pas t'accompagner », garder le fait ; rester dans la voix mais sûr côté non culpabilisant (AC6). [app/(auth)/consentement/formulaire-consentement.tsx:24-31]
+
+**À corriger (fix non ambigu) :**
+
+- [x] [Review][Patch] La garde ne lit jamais `art9_accorde` : `aConsenti` = existence d'une ligne non révoquée seulement → une ligne `art9_accorde=false` (écrite en direct via l'API REST sous RLS) ouvrirait la scène. Sélectionner et exiger `art9_accorde === true` (+ `ia_reconnue`). [app/(auth)/etat-onboarding.ts:25-30]
+- [x] [Review][Patch] `donnerConsentement` n'exige pas l'état d'onboarding avant d'écrire — un POST direct (date null / mineur) persiste une preuve de consentement + « 18 ans confirmé ». Appeler `etapeOnboardingPour` et exiger l'étape "consentement" avant l'upsert. [app/(auth)/consentement/actions.ts:14-45]
+- [x] [Review][Patch] `refuser` : `signOut()` s'exécute AVANT le test de `error`, et `/entrer` ignore `erreur=suppression` → échec de suppression silencieux, session détruite, compte + données conservés (RGPD). Ne détruire la session que si succès, et afficher le message sur `/entrer`. [app/(auth)/consentement/actions.ts:61-66 ; app/(auth)/entrer/page.tsx:10-12]
+- [x] [Review][Patch] Les tests n'exécutent jamais les Server Actions (`donnerConsentement`/`refuser`) — ils répliquent l'upsert et appellent `deleteUser` en direct → re-validation serveur, garde `getUser`, `signOut`, redirections NON couvertes (fausse assurance CI). Tester réellement les actions (ou leur logique extraite). [tests/consentement.test.ts]
+- [x] [Review][Patch] L'upsert ne réinitialise pas `revoked_at` → piège latent : dès la Story 1.6, re-consentir laissera `revoked_at` non-null → `aConsenti=false` en boucle. Ajouter `revoked_at: null` à l'upsert. [app/(auth)/consentement/actions.ts:31-39]
+- [x] [Review][Patch] `admin.ts` (clé `service_role`) sans barrière `server-only` — isolation par convention seulement ; un futur import client embarquerait le secret. Installer + `import "server-only"`. [lib/data/supabase/admin.ts] *(ajout de dépendance = ton feu vert)*
+- [x] [Review][Patch] Bouton « Confirmer et supprimer » sans état pending/disabled → double-clic = 2e `refuser` sur compte déjà supprimé → une suppression réussie peut afficher une erreur. Désactiver pendant l'action. [app/(auth)/consentement/formulaire-consentement.tsx:33-37]
+- [x] [Review][Patch] `etapeOnboardingPour` avale les erreurs de lecture (`error` ignoré) → sur erreur transitoire, une adulte consentante est renvoyée à `/naissance` puis bloquée par l'immutabilité de la date. Distinguer erreur de lecture d'absence de ligne. [app/(auth)/etat-onboarding.ts:17-30]
+
+**Différé (pré-existant ou hors périmètre 1.5) :**
+
+- [x] [Review][Defer] La scène `/` n'a aucune garde — l'ordre âge→consentement→séance n'est tenu que par des redirections douces ; `/` est atteignable en tapant l'URL. Latent (prototype WebGL, zéro art. 9). À poser avec le write-gate art. 9 en Story 1.6 (AD-13). [middleware.ts ; app/page.tsx] — deferred
+- [x] [Review][Defer] Aucune mention IA persistante après consentement (AD-9/FR-013) — la déclaration n'existe que sur `/consentement`, inatteignable une fois consenti. Relève de l'écran de séance (epic ultérieur). [app/(auth)/consentement/page.tsx] — deferred
+- [x] [Review][Defer] Open redirect pré-existant dans `/auth/confirm` via `next` (non introduit par 1.5) : `next=https://evil.com` redirige hors domaine après échange de code valide. Allow-list « chemin interne commençant par / ». [app/auth/confirm/route.ts:39] — deferred, pre-existing
 
 ## Dev Notes
 
@@ -179,6 +205,7 @@ Opus 4.8 (`claude-opus-4-8`, 1M context) — via `bmad-dev-story`.
 - `supabase/migrations/0004_consentement.sql`
 - `app/(auth)/etat-onboarding.ts`
 - `app/(auth)/consentement/actions.ts`
+- `app/(auth)/consentement/accords.ts` (revue de code : validation pure testable)
 - `app/(auth)/consentement/formulaire-consentement.tsx`
 - `app/(auth)/consentement/consentement.module.css`
 - `lib/data/supabase/admin.ts`
@@ -199,7 +226,8 @@ Opus 4.8 (`claude-opus-4-8`, 1M context) — via `bmad-dev-story`.
 |---|---|---|---|
 | 2026-07-23 | 0.1 | Création de la story (halte de consentement art.9 + déclaration IA : cases distinctes, refus honnête + suppression, table consentement, onboarding étendu) | create-story |
 | 2026-07-23 | 0.2 | Implémentation : migration 0004 (consentement RLS+forcée), écran (2 cases distinctes + accordéon + refus égal), Server Actions (upsert consentement / suppression immédiate isolée), helper `etat-onboarding` partagé, gardes branchées, `/cgu`, 6 preuves par test. 108 tests / lint / tsc / build verts. | dev-story (Opus 4.8) |
+| 2026-07-23 | 0.3 | Revue de code (3 couches adversariales à l'aveugle) : garde qui lit `art9_accorde`+`ia_reconnue` (plus la seule existence), garde d'état sur `donnerConsentement`, suppression RGPD non silencieuse (session conservée si échec + bannière), `revoked_at:null` à l'upsert, `server-only` sur `admin.ts`, bouton suppression anti-double-clic, validation extraite/testée, refus adouci. 113 tests / lint / tsc / build verts. Différés : garde de `/` → 1.6, mention IA persistante → séance, open redirect pré-existant, vérif défilement iPhone. | code-review (Opus 4.8) |
 
 ## Status
 
-review
+done

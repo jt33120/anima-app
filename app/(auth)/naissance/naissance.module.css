@@ -1,0 +1,67 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-7) var(--marge-mobile);
+}
+.contenu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--esp-5);
+  text-align: center;
+  max-width: var(--mesure);
+  width: 100%;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  width: 100%;
+  max-width: 22rem;
+}
+.etiquette {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  text-align: left;
+}
+.champ {
+  font-family: var(--pile-ui);
+  font-size: 1rem;
+  color: var(--texte);
+  background: var(--surface-elevee);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  padding: var(--esp-3) var(--esp-4);
+  min-height: var(--cible-tactile);
+}
+.champ:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+.bouton {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-5);
+  background: var(--accent);
+  color: var(--sur-accent);
+  border: 0;
+  border-radius: var(--rayon);
+  cursor: pointer;
+  transition: opacity var(--duree-standard) var(--courbe);
+}
+.bouton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.bouton:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+.erreur {
+  color: var(--alerte);
+  font-family: var(--pile-ui);
+  font-size: 0.8125rem;
+  margin: 0;
+}

@@ -1,8 +1,25 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { calculerAge, estMajeur } from "@/app/(auth)/naissance/age";
+import { etapeOnboarding } from "@/app/(auth)/onboarding";
 
 /** Story 1.4 — barrière 18 ans + date immuable. */
+
+describe("Décision d'onboarding — la barrière mineur est persistante (revue 1.4)", () => {
+  it("mineur signalé → 'mineur' (refusé à chaque connexion, même sans date)", () => {
+    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: true })).toBe("mineur");
+    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: true })).toBe("mineur");
+  });
+  it("ni date ni mineur → 'naissance'", () => {
+    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: false })).toBe("naissance");
+  });
+  it("date posée, non mineur → 'suite'", () => {
+    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false })).toBe("suite");
+  });
+  it("ligne absente → 'suite' (aucun blocage indu)", () => {
+    expect(etapeOnboarding(null)).toBe("suite");
+  });
+});
 
 describe("Règle de majorité — pure, appliquée côté serveur (NFR-023)", () => {
   const now = new Date("2026-07-23T12:00:00Z");

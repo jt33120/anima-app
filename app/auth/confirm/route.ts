@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
+import { etapeOnboarding } from "@/app/(auth)/onboarding";
 
 /**
  * Confirmation du magic link (Story 1.3, AC2). Robuste aux DEUX flux Supabase :
@@ -23,7 +24,14 @@ async function destinationApresAuth(
     .select("date_naissance, mineur_detecte")
     .eq("id", user.id)
     .maybeSingle();
-  if (u && !u.mineur_detecte && !u.date_naissance) return "/naissance";
+
+  const etape = etapeOnboarding(u);
+  if (etape === "mineur") {
+    // Barrière persistante : un mineur signalé est refusé à CHAQUE connexion (FR-070).
+    await supabase.auth.signOut();
+    return "/entrer?refus=age";
+  }
+  if (etape === "naissance") return "/naissance";
   return next;
 }
 

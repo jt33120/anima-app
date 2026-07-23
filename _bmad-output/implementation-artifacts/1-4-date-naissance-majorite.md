@@ -172,10 +172,27 @@ Claude Opus 4.8 (1M) — bmad-dev-story.
 - **Nouveaux** :
   - `supabase/migrations/0003_date_naissance.sql`
   - `app/(auth)/naissance/age.ts`, `actions.ts`, `formulaire-naissance.tsx`, `page.tsx`, `naissance.module.css`
+  - `app/(auth)/onboarding.ts` (revue — décision d'onboarding pure)
   - `app/(auth)/consentement/page.tsx`
   - `tests/date-naissance.test.ts`
 - **Modifiés** :
-  - `app/auth/confirm/route.ts` (redirection d'onboarding vers `/naissance`)
+  - `app/auth/confirm/route.ts` (redirection d'onboarding + barrière mineur persistante)
+  - `app/(auth)/naissance/page.tsx` (garde mineur en défense en profondeur)
+  - `app/(auth)/entrer/page.tsx` (message de refus non culpabilisant sur `?refus=age`)
+
+## Senior Developer Review (AI)
+
+**Date :** 2026-07-23 · **Revue :** adversariale, contexte neuf (Opus). *Les 3 sous-agents (`bmad-review-adversarial-general`, `bmad-review-edge-case-hunter`, auditeur d'AC) ont été interrompus par une limite de session ; la revue a été complétée en direct à partir de leurs pistes.* · **Verdict :** Changes Requested → **corrigé**.
+
+### Action Items
+
+- [x] **[Haute] `mineur_detecte` n'était pas appliqué au re-login** (sécurité mineur). Le drapeau était posé mais jamais vérifié comme barrière : un compte signalé mineur pouvait redemander un magic link et atteindre l'app — alors que la Task 4 revendiquait « accès bloqué, pas de re-tentative ». **Corrigé** : helper pur `etapeOnboarding` ; `/auth/confirm` **et** `/naissance` refusent tout compte `mineur_detecte` (déconnexion + `/entrer?refus=age`) à **chaque** connexion. 4 tests ajoutés. Refus non culpabilisant affiché sur `/entrer`.
+
+### Notes (Basses, non bloquantes)
+
+- Calcul d'âge en **UTC cohérent** (la date de naissance est une date pure) — le cas du jour d'anniversaire et les bissextiles sont corrects.
+- `/consentement` (placeholder de la 1.5) n'a **pas** de garde de session — aucune donnée sensible pour l'instant ; à traiter dans la vraie Story 1.5.
+- Pas de protection de route générale (le middleware ne fait que le refresh) — **par design** ici ; une story dédiée viendra.
 
 ## Change Log
 
@@ -183,6 +200,7 @@ Claude Opus 4.8 (1M) — bmad-dev-story.
 |---|---|---|---|
 | 2026-07-23 | 0.1 | Création de la story | create-story |
 | 2026-07-23 | 0.2 | Implémentation : date de naissance immuable + barrière 18 ans (contrôle serveur, drapeau mineur, parcours branché) ; 98 tests, build prod OK | dev-story |
+| 2026-07-23 | 0.3 | Revue adversariale : correctif barrière mineur persistante (re-login) ; +4 tests → 102, build OK | code-review |
 
 ## Status
 

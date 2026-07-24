@@ -33,11 +33,13 @@ export function etapeOnboarding(
   consentement: StatutConsentement,
 ): EtapeOnboarding {
   if (ligne?.mineur_detecte) return "mineur";
+  // Révoquée : sortie latérale PRIORITAIRE (avant même la date). Une fois le consentement
+  // retiré, on ne repasse JAMAIS par le tunnel d'onboarding — on va vers l'écran suspendu,
+  // jamais re-cocher (pas de reconquête, AC4).
+  if (consentement === "revoque") return "revoque";
   // Pas de ligne lisible (cas défensif — le trigger la garantit) OU pas de date :
   // on (re)part de la naissance. On n'entre JAMAIS dans la scène sans état confirmé.
   if (!ligne || !ligne.date_naissance) return "naissance";
-  // Révoquée : sortie latérale AVANT « consentement » — jamais renvoyée re-cocher (pas de reconquête).
-  if (consentement === "revoque") return "revoque";
   if (consentement === "aucun") return "consentement";
   return "suite";
 }

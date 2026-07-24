@@ -62,7 +62,7 @@ describe("Write-gate art. 9 — la base refuse l'écriture sans consentement (AC
     expect(sign).toBeNull();
 
     // Le prédicat de garde répond « non ».
-    const { data: consenti } = await c.rpc("a_consenti_art9", { uid: u.id });
+    const { data: consenti } = await c.rpc("a_consenti_art9");
     expect(consenti).toBe(false);
 
     // Toute écriture art. 9 est refusée (RLS with check), même sous SA propre identité.
@@ -85,7 +85,7 @@ describe("Write-gate art. 9 — la base refuse l'écriture sans consentement (AC
     );
     expect(cons).toBeNull();
 
-    const { data: consenti } = await c.rpc("a_consenti_art9", { uid: u.id });
+    const { data: consenti } = await c.rpc("a_consenti_art9");
     expect(consenti).toBe(true);
 
     const { error } = await c
@@ -100,14 +100,17 @@ describe("Write-gate art. 9 — la base refuse l'écriture sans consentement (AC
     const c = clientScope();
     await c.auth.signInWithPassword({ email: u.email, password: u.password });
 
-    // Révoquer = poser revoked_at, sous la session RLS (jamais service_role).
+    // Révoquer = poser revoked_at sous la session RLS (jamais service_role). On reproduit
+    // FIDÈLEMENT revoquerConsentement, `.is("revoked_at", null)` compris (idempotence testée plus bas).
+    const premiereRevocation = new Date().toISOString();
     const { error: rev } = await c
       .from("consentement")
-      .update({ revoked_at: new Date().toISOString() })
-      .eq("utilisatrice_id", u.id);
+      .update({ revoked_at: premiereRevocation })
+      .eq("utilisatrice_id", u.id)
+      .is("revoked_at", null);
     expect(rev).toBeNull();
 
-    const { data: consenti } = await c.rpc("a_consenti_art9", { uid: u.id });
+    const { data: consenti } = await c.rpc("a_consenti_art9");
     expect(consenti).toBe(false);
 
     // L'utilisatrice bascule en « traitement art. 9 suspendu » (état 'revoque').
@@ -126,6 +129,22 @@ describe("Write-gate art. 9 — la base refuse l'écriture sans consentement (AC
       .eq("utilisatrice_id", u.id);
     expect(lec).toBeNull();
     expect(lignes?.length).toBe(1); // la confidence écrite en AC2 reste exportable
+
+    // Idempotence de la révocation (comme revoquerConsentement) : une 2e tentative ne réécrit
+    // PAS revoked_at — le `.is("revoked_at", null)` ne matche plus aucune ligne.
+    await c
+      .from("consentement")
+      .update({ revoked_at: "2099-01-01T00:00:00.000Z" })
+      .eq("utilisatrice_id", u.id)
+      .is("revoked_at", null);
+    const { data: apres } = await c
+      .from("consentement")
+      .select("revoked_at")
+      .eq("utilisatrice_id", u.id)
+      .single();
+    expect(new Date(apres!.revoked_at as string).getTime()).toBe(
+      new Date(premiereRevocation).getTime(),
+    ); // inchangé — la 1re révocation tient
 
     await c.auth.signOut();
   });

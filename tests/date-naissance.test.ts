@@ -19,8 +19,10 @@ describe("Décision d'onboarding — barrière mineur + étapes consentement/ré
   it("date posée + consentement valide → 'suite' (la scène)", () => {
     expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false }, "valide")).toBe("suite");
   });
-  it("consentement révoqué → 'revoque' (jamais renvoyée re-consentir)", () => {
+  it("consentement révoqué → 'revoque' (prioritaire, même sans date, jamais renvoyée re-consentir)", () => {
     expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false }, "revoque")).toBe("revoque");
+    // Priorité sur l'absence de date (revue 1.6) : une révoquée ne repasse jamais par le tunnel.
+    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: false }, "revoque")).toBe("revoque");
   });
   it("ligne absente (cas défensif) → 'naissance' : jamais la scène sans état confirmé", () => {
     expect(etapeOnboarding(null, "aucun")).toBe("naissance");

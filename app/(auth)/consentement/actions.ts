@@ -39,6 +39,7 @@ export async function donnerConsentement(
     redirect("/entrer?refus=age");
   }
   if (etape === "naissance") redirect("/naissance");
+  if (etape === "revoque") redirect("/consentement/revoque"); // révoquée : JAMAIS de reconquête (AC4) — sinon revoked_at repasserait à null et rouvrirait le write-gate
   if (etape === "suite") redirect("/"); // déjà consenti
 
   const { error } = await supabase.from("consentement").upsert(
@@ -47,7 +48,7 @@ export async function donnerConsentement(
       art9_accorde: true,
       ia_reconnue: true,
       cgu_acceptees: true,
-      revoked_at: null, // re-consentir efface une révocation éventuelle (évite la boucle en 1.6)
+      revoked_at: null, // consentement INITIAL, non révoqué — une révoquée est redirigée avant (voir garde ci-dessus), jamais re-consentie
     },
     { onConflict: "utilisatrice_id" },
   );
@@ -111,6 +112,18 @@ export async function revoquerConsentement(): Promise<void> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrer");
+
+  // Garde d'état (symétrique de donnerConsentement) : on ne révoque QUE depuis un consentement
+  // valide (étape "suite"). Empêche un POST direct de poser revoked_at sur une ligne non
+  // consentie / inexistante (état incohérent ou faux succès).
+  const etape = await etapeOnboardingPour(supabase, user.id);
+  if (etape === "mineur") {
+    await supabase.auth.signOut();
+    redirect("/entrer?refus=age");
+  }
+  if (etape === "naissance") redirect("/naissance");
+  if (etape === "consentement") redirect("/consentement");
+  if (etape === "revoque") redirect("/consentement/revoque"); // déjà révoquée (idempotent)
 
   const { error } = await supabase
     .from("consentement")

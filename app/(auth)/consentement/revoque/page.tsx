@@ -47,7 +47,7 @@ export default async function PageRevoque({
           </p>
         ) : null}
 
-        <p className="t-anam">
+        <p className="t-corps">
           Le traitement de tes données sensibles est suspendu. Plus rien n&apos;est analysé ni
           ajouté.
         </p>

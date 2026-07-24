@@ -6,7 +6,7 @@ title: "Rendre le consentement techniquement non contournable et révocable"
 epic_name: "Franchir le seuil"
 covers: [FR-012, FR-072, AD-13, AD-4, AD-12]
 depends_on: ["1-5-consentement-art9-declaration-ia"]
-status: review
+status: done
 baseline_commit: ce51ddba9e3376560b8d4ef5eecc53505e13977d
 created: "2026-07-24"
 sources:
@@ -16,7 +16,7 @@ sources:
 
 # Story 1.6 : Rendre le consentement techniquement non contournable et révocable
 
-Status: review
+Status: done
 
 <!-- Note : validation optionnelle. Lancer validate-create-story avant dev-story pour un contrôle qualité. -->
 
@@ -110,6 +110,24 @@ afin que **la légalité du traitement ne dépende jamais d'un oubli d'interface
   - [x] Vérifier que `tests/rls.test.ts` (RLS deny-by-default, AD-12) reste vert et **couvre** `art9_temoin` comme table gardée (policy présente ≠ défaut de build).
   - [x] Mettre à jour les tests de `etapeOnboarding` (nouvel état `revoque`).
   - [x] Vérifs finales : `set -a && . ./.env.local && set +a && npx vitest run` (tout : 1.1→1.6), `npm run lint`, `npx tsc --noEmit`, `next build`.
+
+### Review Findings
+
+_Revue de code adversariale (Edge Case Hunter + Acceptance Auditor ; Blind Hunter a échoué → couche manquée), 2026-07-24. Commit bf75435._
+
+**Décision requise :**
+
+- [x] [Review][Decision] Ton des écrans de révocation — `t-anam` (voix d'Anam, Fraunces) vs registre produit (`t-corps`, Inter). La story dit « registre produit, jamais signé Anam » mais les écrans revoquer/revoque ouvrent en `t-anam`. Copie neutre (2ᵉ personne, pas de « je ») donc probablement conforme sur le fond ; l'habillage-voix est à trancher. [app/(auth)/consentement/revoque/page.tsx, revoquer/page.tsx]
+
+**À corriger (patch) :**
+
+- [x] [Review][Patch] **[HIGH]** `donnerConsentement` n'a AUCUNE garde pour l'état `revoque` (gère mineur/naissance/suite, oublie revoque) → une révoquée (session vivante, pas de signOut à la révocation) qui rejoue l'action voit `revoked_at` remis à `null` (upsert l.50) → `a_consenti_art9` rerépond true → **le write-gate se rouvre** : reconquête, contourne « non contournable » (AC4). Trouvé par edge+auditor. Ajouter `if (etape === "revoque") redirect("/consentement/revoque")` avant l'upsert + corriger le commentaire l.50. [app/(auth)/consentement/actions.ts:37-50]
+- [x] [Review][Patch] **[MEDIUM]** `revoquerConsentement` sans garde d'état (contrairement à `donnerConsentement`) → un POST direct pose `revoked_at` sur une ligne `art9_accorde=false` (état incohérent, lu comme « aucun ») ou « réussit » en n'updatant 0 ligne (faux succès, redirige vers l'écran suspendu sans rien avoir révoqué). Ajouter une garde `etapeOnboardingPour` (ne révoquer que depuis `suite`). [app/(auth)/consentement/actions.ts:108-123]
+- [x] [Review][Patch] **[LOW]** `revoked_at` posé sans `date_naissance` → `etapeOnboarding` teste `!date → naissance` AVANT `revoque` → une révoquée sans date est routée vers le tunnel `/naissance` au lieu de l'écran suspendu. Déplacer le test `revoque` avant le test date. [app/(auth)/onboarding.ts:35-42]
+- [x] [Review][Patch] **[LOW]** `a_consenti_art9(uid)` prend un `uid` arbitraire, `security definer`, exposée en RPC à tout `authenticated` → oracle booléen inter-utilisatrices (B apprend si A a un consentement art. 9 actif). Passer à une variante sans paramètre s'appuyant sur `auth.uid()`. [supabase/migrations/0005_write_gate_art9.sql:15-32]
+- [x] [Review][Patch] **[LOW]** AC3 « bout en bout » : la révocation est testée en rejouant l'UPDATE à la main, jamais via la Server Action `revoquerConsentement` (getUser + idempotence + redirect non couverts). Renforcer la couverture (lié au patch MEDIUM ci-dessus). [tests/write-gate-art9.test.ts]
+
+**✅ Correctifs appliqués (2026-07-24).** Les 5 patchs + la décision (registre produit `t-corps` sur les écrans de révocation) sont appliqués. Le bug HIGH est fermé : `donnerConsentement` redirige une révoquée vers l'écran suspendu avant tout upsert ; `revoquerConsentement` gagne la même garde d'état ; l'oracle `a_consenti_art9(uid)` devient sans paramètre (`auth.uid()`) ; l'ordre `revoque`-avant-date est corrigé ; idempotence couverte. **119 tests / tsc / lint / build verts.** Blind Hunter : couche manquée (à relancer sur une prochaine story).
 
 ## Dev Notes
 
@@ -243,7 +261,8 @@ Opus 4.8 (`claude-opus-4-8`, 1M context) — via `bmad-dev-story`.
 |---|---|---|---|
 | 2026-07-24 | 0.1 | Création de la story (write-gate art. 9 au niveau base : fonction `a_consenti_art9` + table témoin gardée `art9_temoin` en RLS `WITH CHECK` ; révocation `revoked_at` sous RLS ; état onboarding `revoque` + écran suspendu sans rétention ; garde de `/` en préambule ; preuves par test bloquantes). Périmètre : egress-gate / export réel / moteur d'effacement (AD-14) explicitement différés. | create-story |
 | 2026-07-24 | 0.2 | Implémentation : migration 0005 (fonction `a_consenti_art9` security definer + table témoin `art9_temoin` gardée en RLS WITH CHECK), Server Action `revoquerConsentement` (revoked_at sous RLS), état onboarding `revoque` (statut ternaire) + routage des 4 gardes, écrans `/consentement/revoquer` + `/consentement/revoque` (export différé → suppression réutilisant 1.5), garde de `/` (préambule). 119 tests / lint / tsc / build verts. | dev-story (Opus 4.8) |
+| 2026-07-24 | 0.3 | Revue de code (Edge Case Hunter + Acceptance Auditor ; Blind Hunter manqué). 1 bug HIGH — reconquête : `donnerConsentement` oubliait l'état `revoque` → une révoquée pouvait re-consentir et rouvrir le write-gate ; corrigé. + garde d'état sur `revoquerConsentement`, oracle `a_consenti_art9` rendu sans paramètre (`auth.uid()`), ordre `revoque`-avant-date, registre produit sur les écrans de révocation, couverture d'idempotence. 119 tests / lint / tsc / build verts. | code-review (Opus 4.8) |
 
 ## Status
 
-review
+done

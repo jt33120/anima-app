@@ -48,7 +48,7 @@ export default async function PageRevoquer({
           </p>
         ) : null}
 
-        <p className="t-anam">
+        <p className="t-corps">
           Tu peux retirer ton consentement au traitement de tes données sensibles quand tu
           veux. C&apos;est ton droit, et il n&apos;a pas à se justifier.
         </p>

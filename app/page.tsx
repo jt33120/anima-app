@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
-import SceneImmersive from "./_scene/scene-immersive";
-
-export const metadata = { title: "Anam" };
+import SceneDom from "@/render/scene-dom";
+import { projectionInitiale } from "@/lib/scene";
 
 /*
  * La scène — le cœur du lieu. Accessible SEULEMENT une fois le seuil légal franchi :
@@ -29,6 +28,7 @@ export default async function Page() {
   if (etape === "consentement") redirect("/consentement");
   if (etape === "revoque") redirect("/consentement/revoque"); // consentement retiré → écran suspendu
 
-  // etape === "suite" : le seuil est franchi → la scène.
-  return <SceneImmersive />;
+  // etape === "suite" : le seuil est franchi → la scène (adaptateur DOM/2D, AD-7).
+  // La projection réelle (branches AD-8, lecture DB) arrivera avec l'Epic 4 ; ici, le stub.
+  return <SceneDom projection={projectionInitiale} />;
 }

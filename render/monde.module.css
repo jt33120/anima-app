@@ -1,0 +1,295 @@
+/*
+ * monde.module.css — L'adaptateur de rendu DOM/2D (AD-7). Le « beau », mais MUET :
+ * aucune logique métier ici, seulement du dessin. Récolté du prototype (app/_scene)
+ * puis débranché de son état (parti dans lib/scene).
+ *
+ * INVARIANTS de mouvement :
+ *  - Le fondu de région (crossfade opacité) est la SEULE grammaire de mouvement.
+ *  - La parallaxe au pointeur du prototype est RETIRÉE (différée, hors modèle — SPINE L272).
+ *  - Sous prefers-reduced-motion, le changement de région est INSTANTANÉ (0 ms, AC4) :
+ *    la transition de région est explicitement neutralisée (le bug du prototype est corrigé).
+ */
+
+.monde {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 8%, #1a1640 0%, var(--fond) 58%);
+  isolation: isolate;
+}
+
+/* Mode accessibilité (-clair) : l'imagerie cède aux aplats — fond plat, ni halo violet
+   codé en dur, ni lune, ni étoiles (cohérent avec --imagerie-opacite: 0). */
+:global(:root[data-a11y="contraste"]) .monde {
+  background: var(--fond);
+}
+:global(:root[data-a11y="contraste"]) .lune,
+:global(:root[data-a11y="contraste"]) .etoiles {
+  display: none;
+}
+@media (prefers-contrast: more) {
+  :global(:root:not([data-a11y="nuit"])) .monde {
+    background: var(--fond);
+  }
+  :global(:root:not([data-a11y="nuit"])) .lune,
+  :global(:root:not([data-a11y="nuit"])) .etoiles {
+    display: none;
+  }
+}
+
+/* ── Couches de fond persistantes (la scène est une : le ciel ne change jamais) ── */
+.ciel {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.lune {
+  position: absolute;
+  top: 6%;
+  left: 50%;
+  width: 340px;
+  height: 340px;
+  margin-left: -170px;
+  border-radius: var(--rayon-full);
+  background: radial-gradient(
+    circle at 50% 45%,
+    rgba(205, 228, 248, 0.5) 0%,
+    rgba(143, 193, 239, 0.14) 34%,
+    transparent 66%
+  );
+  filter: blur(2px);
+}
+.etoiles {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.etoile {
+  position: absolute;
+  border-radius: var(--rayon-full);
+  background: var(--lueur);
+  opacity: 0;
+  animation: scintille var(--duree-etoile, 4200ms) var(--courbe) infinite;
+  animation-delay: var(--retard, 0ms);
+}
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── L'arbre : ancre PERSISTANTE du monde, au centre (AC1). Statique, muet. ── */
+.arbreMonde {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: min(72vw, 26rem);
+  transform: translate(-50%, -48%);
+  pointer-events: none;
+  filter: drop-shadow(0 8px 40px rgba(143, 193, 239, 0.12));
+}
+.arbreMonde canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── Régions reliées en FONDU (crossfade). Empilées, une seule active à la fois. ── */
+.region {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Pas de justify-content:flex-end (rognerait le HAUT au débordement). Le contenu est
+     poussé en bas par margin-top:auto, et reste défilable s'il dépasse le viewport
+     (zoom 200 %, paysage court — WCAG 1.4.10 Reflow). */
+  overflow-y: auto;
+  padding: var(--esp-7) var(--marge-mobile) calc(var(--cible-tactile) + var(--esp-6));
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--duree-longue) var(--courbe),
+    visibility 0ms linear var(--duree-longue);
+}
+.regionActive {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--duree-longue) var(--courbe),
+    visibility 0ms;
+}
+@media (min-width: 1024px) {
+  .region {
+    /* dégage le rail latéral gauche (doublage non-spatial) */
+    padding-left: calc(var(--esp-9) + var(--esp-6));
+    padding-right: var(--marge-desktop);
+    padding-bottom: var(--esp-8);
+  }
+}
+
+/* ── Bloc de texte d'une région (panneau placeholder / voix) ── */
+.panneau {
+  align-items: center;
+}
+.bloc {
+  position: relative;
+  margin-top: auto; /* pousse le bloc en bas ; se rétracte au débordement → scroll possible */
+  max-width: var(--mesure);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+/* Entêtes de région : focus déplacé PAR PROGRAMME (tabindex=-1) → cibler :focus, pas
+   seulement :focus-visible (qui peut ne pas s'armer sur un focus programmatique). */
+.seuilTexte h1:focus,
+.bloc h1:focus {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 4px;
+  border-radius: var(--rayon-sm);
+}
+
+/* ── Seuil : le personnage 4:5 à gauche, le texte dans la bande de voile (AC5) ── */
+.seuil {
+  align-items: flex-start;
+}
+.seuilPersonnage {
+  position: absolute;
+  left: max(0px, calc(50% - var(--contenu-max)));
+  bottom: 6%;
+  width: min(58vw, 19rem);
+  aspect-ratio: 4 / 5;
+  z-index: -1;
+  pointer-events: none;
+}
+.seuilImg {
+  object-fit: contain;
+  /* bord plumeux : l'image se dissout dans la nuit, aucun cadre (AC1) */
+  -webkit-mask-image: radial-gradient(118% 96% at 46% 44%, #000 55%, transparent 82%);
+  mask-image: radial-gradient(118% 96% at 46% 44%, #000 55%, transparent 82%);
+}
+.seuilTexte {
+  position: relative;
+  margin-top: auto;
+  max-width: var(--mesure);
+  /* le texte tient dans la bande dense ≥ 85 % du voile ; padding généreux au-dessus */
+  padding: var(--esp-8) var(--esp-4) var(--esp-4);
+  border-radius: var(--rayon-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  text-align: left;
+}
+
+/* ── Affordance : jamais un bouton criard, une invitation basse ── */
+.affordance {
+  align-self: flex-start;
+  margin-top: var(--esp-2);
+  padding: var(--esp-3) var(--esp-5);
+  min-height: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  color: var(--texte);
+  cursor: pointer;
+  transition:
+    border-color var(--duree-standard) var(--courbe),
+    background var(--duree-standard) var(--courbe);
+}
+.affordance:hover {
+  border-color: var(--accent);
+  background: rgba(143, 193, 239, 0.06);
+}
+.affordance:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
+/* ── Doublage non-spatial : barre basse (sm/md) → rail gauche (≥ lg). ── */
+.nav {
+  position: fixed;
+  z-index: 10;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--esp-2);
+  padding: var(--esp-3) var(--marge-mobile);
+  padding-bottom: max(var(--esp-3), env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--fond) 30%, transparent);
+}
+@media (min-width: 1024px) {
+  .nav {
+    top: 0;
+    right: auto;
+    bottom: 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--esp-3);
+    padding: var(--esp-6) var(--esp-5);
+    background: linear-gradient(to right, var(--fond) 30%, transparent);
+  }
+}
+.navLien {
+  min-height: var(--cible-tactile);
+  min-width: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-2) var(--esp-4);
+  background: transparent;
+  border: 0;
+  border-radius: var(--rayon);
+  color: var(--texte-doux);
+  cursor: pointer;
+  transition: color var(--duree-standard) var(--courbe);
+}
+.navLien:hover {
+  color: var(--texte);
+}
+.navLien[aria-current="true"] {
+  color: var(--texte);
+}
+.navLien:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
+/* ── Keyframes — tout paraît, rien ne glisse ── */
+@keyframes scintille {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* ══ Accessibilité (AC4) : le changement de région est INSTANTANÉ, rien ne scintille ══
+   La transition de région est explicitement neutralisée (correction du bug du prototype,
+   où la transition d'opacité n'était pas couverte). Aucune parallaxe à neutraliser : retirée. */
+@media (prefers-reduced-motion: reduce) {
+  .region,
+  .regionActive {
+    transition: none;
+  }
+  .etoile {
+    animation: none;
+    opacity: 0.55;
+  }
+}

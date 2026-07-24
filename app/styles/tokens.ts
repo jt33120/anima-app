@@ -142,3 +142,17 @@ export const mouvement = {
   courbe: "cubic-bezier(0.32, 0.08, 0.24, 1)",
   deriveMaxPx: 6, // translateY bas→haut optionnel, JAMAIS latéral
 } as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Voile de lisibilité — le texte ne se pose JAMAIS sur une image sans voile
+// (DESIGN.md §components.voile, UX-DR-39). Les opacités sont calibrées pour garantir
+// le contraste WCAG AA sur imagerie, quel que soit l'arrière-plan (vérifié PAR CALCUL
+// dans tests/voile.test.ts, pire cas = image blanche). `text-shadow` est interdit
+// comme substitut. La couleur du voile suit --fond (donc s'adapte au mode -clair).
+// ─────────────────────────────────────────────────────────────────────────────
+export const voile = {
+  // Opacité unique : tout le texte du Seuil tient dans la bande à cette densité, ce qui
+  // garantit WCAG AA (≥ 4,5:1) sur imagerie quel que soit l'arrière-plan. Consommée pour
+  // de vrai par .voile-seuil (var(--voile-opacite-texte-courant)) ; plus de token mort.
+  opaciteTexteCourant: 0.85,
+} as const;

@@ -1,8 +1,9 @@
 import FormulaireEntree from "./formulaire-entree";
+import { entreeDemo } from "./actions";
 import s from "./entrer.module.css";
 
-// Titre discret — ne trahit ni spiritualité ni intimité (NFR-015).
-export const metadata = { title: "Entrer" };
+// NFR-015 / AC7 (1.7) — identité uniforme : « Anam » sur toutes les routes.
+export const metadata = { title: "Anam" };
 
 export default async function PageEntrer({
   searchParams,
@@ -29,6 +30,16 @@ export default async function PageEntrer({
             </p>
             <FormulaireEntree />
           </>
+        )}
+        {process.env.NODE_ENV !== "production" && (
+          <form action={entreeDemo} style={{ marginTop: "var(--esp-7)" }}>
+            <p className="t-meta" style={{ marginBottom: "var(--esp-2)" }}>
+              Dev — accès sans email (n&apos;existe pas en production)
+            </p>
+            <button type="submit" className={s.bouton}>
+              <span className="t-bouton">Entrer directement (démo)</span>
+            </button>
+          </form>
         )}
       </div>
     </main>

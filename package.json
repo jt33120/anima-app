@@ -17,12 +17,10 @@
   "dependencies": {
     "@supabase/ssr": "0.12.3",
     "@supabase/supabase-js": "2.110.8",
-    "@types/three": "^0.185.1",
     "next": "16.2.11",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "server-only": "^0.0.1",
-    "three": "^0.185.1"
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",

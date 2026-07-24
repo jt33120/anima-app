@@ -4,7 +4,7 @@ import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import FormulaireNaissance from "./formulaire-naissance";
 import s from "./naissance.module.css";
 
-export const metadata = { title: "Bienvenue" };
+export const metadata = { title: "Anam" }; // NFR-015 / AC7 — identité uniforme « Anam »
 
 export default async function PageNaissance() {
   const supabase = await createSupabaseServerClient();

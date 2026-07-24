@@ -4,8 +4,8 @@ import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import FormulaireConsentement from "./formulaire-consentement";
 import s from "./consentement.module.css";
 
-// Titre discret (NFR-015) — ne trahit ni l'intimité ni l'ésotérisme.
-export const metadata = { title: "Avant de commencer" };
+// NFR-015 / AC7 (1.7) — identité uniforme : « Anam » sur toutes les routes.
+export const metadata = { title: "Anam" };
 
 /**
  * Halte de consentement art. 9 + déclaration IA (Story 1.5).

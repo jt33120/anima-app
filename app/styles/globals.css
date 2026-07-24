@@ -63,6 +63,11 @@
   --duree-respiration: 4200ms;
   --courbe: cubic-bezier(0.32, 0.08, 0.24, 1);
 
+  /* Voile de lisibilité — jamais de texte sur image sans voile (UX-DR-39, DESIGN.md).
+     Opacités vérifiées PAR CALCUL (tests/voile.test.ts). Reflet de tokens.ts (`voile`). */
+  --voile-opacite-texte-courant: 0.85;
+  --voile-couleur: var(--fond);
+
   /* Imagerie : pleine en nuit, atténuée (→0) en mode accessibilité */
   --imagerie-opacite: 1;
 }
@@ -113,9 +118,37 @@
   }
 }
 
-/* Hook d'atténuation de l'imagerie (aucune image à atténuer dans cette story) */
+/* Hook d'atténuation de l'imagerie : pleine en nuit, cède aux aplats en -clair. */
 .imagerie {
   opacity: var(--imagerie-opacite);
+}
+
+/* Voile du format Seuil (UX-DR-39) : le texte ne se pose JAMAIS sur une image sans voile.
+   La teinte = --voile-couleur à l'opacité du token (RÉELLEMENT consommés, plus de variables
+   mortes). Le voile est dense sur TOUTE la hauteur du bloc et ne se dissout que dans le
+   padding haut (--esp-7, sans texte) → le texte repose toujours sur ≥ 85 % du fond. Le
+   grain se pose par-dessus (anti-banding). L'ombre portée de texte est proscrite. */
+.voile-seuil {
+  --voile-teinte: color-mix(
+    in srgb,
+    var(--voile-couleur) calc(var(--voile-opacite-texte-courant) * 100%),
+    transparent
+  );
+  background: linear-gradient(
+    to top,
+    var(--voile-teinte) 0%,
+    var(--voile-teinte) calc(100% - var(--esp-7)),
+    transparent 100%
+  );
+}
+/* En accessibilité l'imagerie cède aux aplats : plus d'image → plus de voile à peindre. */
+:root[data-a11y="contraste"] .voile-seuil {
+  background: none;
+}
+@media (prefers-contrast: more) {
+  :root:not([data-a11y="nuit"]) .voile-seuil {
+    background: none;
+  }
 }
 
 /* ═══════════════════════════════ BASE ═══════════════════════════════ */
@@ -257,9 +290,6 @@ body {
 .fondu-personnage {
   animation: anam-fondu var(--duree-longue) var(--courbe) both;
 }
-.fondu-region {
-  animation: anam-fondu var(--duree-longue) var(--courbe) both;
-}
 .respiration {
   animation: respiration var(--duree-respiration) var(--courbe) infinite;
 }
@@ -269,8 +299,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .fondu-texte,
   .fondu-image,
-  .fondu-personnage,
-  .fondu-region {
+  .fondu-personnage {
     animation-name: anam-fondu;
     animation-duration: var(--duree-courte);
   }

@@ -1,6 +1,6 @@
 import s from "./cgu.module.css";
 
-export const metadata = { title: "Conditions d'utilisation" };
+export const metadata = { title: "Anam" }; // NFR-015 / AC7 — identité uniforme « Anam »
 
 /**
  * CGU — page minimale (ouverte dans un nouvel onglet depuis la halte de consentement).

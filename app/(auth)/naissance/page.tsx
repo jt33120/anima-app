@@ -21,6 +21,7 @@ export default async function PageNaissance() {
   }
   // Date déjà posée (AC4) : on ne la redemande jamais.
   if (etape === "consentement") redirect("/consentement");
+  if (etape === "revoque") redirect("/consentement/revoque"); // consentement retiré → écran suspendu
   if (etape === "suite") redirect("/"); // déjà consenti → la scène
 
   return (

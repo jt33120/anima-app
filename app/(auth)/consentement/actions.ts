@@ -59,14 +59,14 @@ export async function donnerConsentement(
 }
 
 /**
- * « Je ne veux pas » (AC6). Suppression IMMÉDIATE du compte — tâche système isolée via l'API
- * admin (`deleteUser`), jamais `service_role` sur du contenu (AD-12) ; aucun art. 9 n'existe
- * encore. On ne supprime que SON propre compte (getUser d'abord). En cas d'ÉCHEC : on NE
- * détruit PAS la session (elle permet de réessayer) et on le dit clairement — jamais
- * d'effacement silencieux sur un chemin RGPD. Succès SEULEMENT : signOut + sortie. Le
- * `on delete cascade` propage à `utilisatrice` puis `consentement`. Registre non culpabilisant.
+ * Efface le compte COURANT — tâche système isolée via l'API admin (`deleteUser`), jamais
+ * `service_role` sur du contenu (AD-12). On ne supprime que SON propre compte (getUser d'abord).
+ * En cas d'ÉCHEC : on NE détruit PAS la session (elle permet de réessayer) et on le dit
+ * clairement via `cheminEchec` — jamais d'effacement silencieux sur un chemin RGPD (acquis
+ * revue 1.5). Succès SEULEMENT : signOut + sortie. Le `on delete cascade` propage à
+ * `utilisatrice`, `consentement` et aux tables art. 9 (`art9_temoin` et futures).
  */
-export async function refuser(): Promise<void> {
+async function effacerCompteCourant(cheminEchec: string): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -75,11 +75,49 @@ export async function refuser(): Promise<void> {
 
   const admin = createSupabaseAdminClient();
   const { error } = await admin.auth.admin.deleteUser(user.id);
-  if (error) {
-    // Session conservée (réessai possible), message explicite sur la halte.
-    redirect("/consentement?erreur=suppression");
-  }
+  if (error) redirect(cheminEchec); // session conservée, message explicite là où on revient
 
   await supabase.auth.signOut(); // succès : on nettoie les cookies
   redirect("/entrer");
+}
+
+/**
+ * « Je ne veux pas » (Story 1.5, AC6). Refus AVANT toute séance → suppression immédiate du
+ * compte. Registre non culpabilisant, une seule confirmation, aucune rétention.
+ */
+export async function refuser(): Promise<void> {
+  return effacerCompteCourant("/consentement?erreur=suppression");
+}
+
+/**
+ * Suppression du compte APRÈS révocation (Story 1.6, AC4). Même unique chemin d'effacement
+ * que `refuser`, mais l'échec revient sur l'écran suspendu (jamais silencieux). L'export réel
+ * des données (proposé avant la suppression) est différé à l'epic données (AD-14).
+ */
+export async function supprimerCompteRevoque(): Promise<void> {
+  return effacerCompteCourant("/consentement/revoque?erreur=suppression");
+}
+
+/**
+ * Révoquer le consentement art. 9 (Story 1.6, FR-012 / AD-13). Pose `revoked_at` SOUS la
+ * session RLS (jamais service_role) → le write-gate se referme aussitôt (`a_consenti_art9`
+ * exige `revoked_at IS NULL`) et l'utilisatrice bascule en « traitement art. 9 suspendu ».
+ * Idempotent : `.is("revoked_at", null)` ne re-pose rien si déjà révoqué. On ne révoque que
+ * SON consentement (getUser d'abord). Puis → écran suspendu (export puis suppression).
+ */
+export async function revoquerConsentement(): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/entrer");
+
+  const { error } = await supabase
+    .from("consentement")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("utilisatrice_id", user.id)
+    .is("revoked_at", null);
+  if (error) redirect("/consentement/revoquer?erreur=revocation");
+
+  redirect("/consentement/revoque");
 }

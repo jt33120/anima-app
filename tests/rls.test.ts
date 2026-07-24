@@ -35,4 +35,17 @@ describe("RLS deny-by-default (AD-12)", () => {
     const write = await anonClient.from("probe").insert({ secret: "intrus" });
     expect(write.error).not.toBeNull();
   });
+
+  it("art9_temoin (table art. 9 gardée) : une clé publishable non authentifiée ne lit ni n'écrit — fermée par défaut", async () => {
+    const anonClient = createClient(url!, publishable!, { auth: { persistSession: false } });
+    // Lecture : le USING (auth.uid() = utilisatrice_id) masque tout pour un non-authentifié.
+    const seen = await anonClient.from("art9_temoin").select("*");
+    expect(seen.error).toBeNull();
+    expect(seen.data).toEqual([]);
+    // Écriture : refusée — ni identité, ni consentement (write-gate AD-13).
+    const write = await anonClient
+      .from("art9_temoin")
+      .insert({ utilisatrice_id: "00000000-0000-0000-0000-000000000000", note: "intrus" });
+    expect(write.error).not.toBeNull();
+  });
 });

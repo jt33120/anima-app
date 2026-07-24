@@ -150,14 +150,19 @@ describe("Refus → suppression immédiate du compte (AC6)", () => {
   });
 });
 
-describe("Frontière art. 9 : aucune écriture avant consentement (AC7 / AD-4 / FR-072)", () => {
-  // Tripwire : ces tables de CONTENU art. 9 n'existent pas encore. Leur write-gate
-  // est la Story 1.6 (AD-13) ; quand elles arriveront, elles devront être gardées.
-  const tablesArt9 = ["journal", "seance", "tirage", "socle"];
-  it("aucune table de contenu art. 9 n'existe (seuls utilisatrice/consentement/probe)", async () => {
-    for (const table of tablesArt9) {
+describe("Frontière art. 9 : le gabarit du write-gate existe, les vraies tables de contenu non (AC7 / AD-4 / FR-072)", () => {
+  // Le write-gate art. 9 est désormais posé (Story 1.6) : le gabarit `art9_temoin` existe et est
+  // gardé (comportement prouvé dans write-gate-art9.test.ts). Les VRAIES tables de contenu art. 9,
+  // elles, n'existent toujours pas — elles arriveront dans leurs epics et copieront la policy du gabarit.
+  const tablesContenu = ["journal", "seance", "tirage", "socle"];
+  it("le gabarit `art9_temoin` existe (sonde vivante du write-gate)", async () => {
+    const { error } = await admin.from("art9_temoin").select("*").limit(1);
+    expect(error).toBeNull();
+  });
+  it("aucune VRAIE table de contenu art. 9 n'existe encore", async () => {
+    for (const table of tablesContenu) {
       const { error } = await admin.from(table).select("*").limit(1);
-      expect(error, `la table art. 9 « ${table} » ne devrait pas exister avant le write-gate (Story 1.6)`).not.toBeNull();
+      expect(error, `la table de contenu art. 9 « ${table} » ne devrait pas exister avant son epic`).not.toBeNull();
     }
   });
 });

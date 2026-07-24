@@ -31,6 +31,7 @@ export default async function PageConsentement({
     redirect("/entrer?refus=age");
   }
   if (etape === "naissance") redirect("/naissance"); // date pas encore posée
+  if (etape === "revoque") redirect("/consentement/revoque"); // déjà révoqué → jamais re-cocher
   if (etape === "suite") redirect("/"); // déjà consenti → la scène
 
   return (

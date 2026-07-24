@@ -28,6 +28,7 @@ async function destinationApresAuth(
   }
   if (etape === "naissance") return "/naissance";
   if (etape === "consentement") return "/consentement";
+  if (etape === "revoque") return "/consentement/revoque";
   return next; // suite
 }
 

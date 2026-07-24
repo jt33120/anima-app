@@ -1,9 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { etapeOnboarding, type EtapeOnboarding } from "./onboarding";
+import {
+  etapeOnboarding,
+  type EtapeOnboarding,
+  type StatutConsentement,
+} from "./onboarding";
 
 /**
  * État d'onboarding d'une session — SOURCE UNIQUE de vérité partagée par toutes les
- * gardes (/auth/confirm, /naissance, /consentement) ET la Server Action de consentement.
+ * gardes (/, /auth/confirm, /naissance, /consentement) ET les Server Actions de consentement.
  * Un seul endroit lit et décide, pour qu'aucun chemin ne diverge (leçon de la revue 1.4 :
  * une barrière oubliée dans un seul chemin suffit à laisser passer un mineur).
  *
@@ -35,14 +39,20 @@ export async function etapeOnboardingPour(
     throw new Error(`Lecture du consentement impossible : ${erreurConsentement.message}`);
   }
 
-  // aConsenti : une preuve EXPLICITE (art. 9 accordé ET déclaration IA reconnue), non révoquée.
-  // On lit les DRAPEAUX — pas seulement l'existence de la ligne : une ligne art9_accorde=false
-  // (écrivable en direct via l'API REST sous RLS) ne doit JAMAIS ouvrir la scène (revue 1.5).
-  const aConsenti =
-    !!consentement &&
-    consentement.art9_accorde === true &&
-    consentement.ia_reconnue === true &&
-    consentement.revoked_at === null;
+  return etapeOnboarding(ligne, statutConsentement(consentement));
+}
 
-  return etapeOnboarding(ligne, aConsenti);
+/**
+ * Statut du consentement art. 9 à partir de la ligne `consentement` (ou son absence) :
+ *  - `aucun`   : pas de preuve valide (pas de ligne, ou art. 9 / IA non reconnus) → doit consentir.
+ *  - `valide`  : art. 9 accordé ET IA reconnue ET non révoqué → traitement autorisé.
+ *  - `revoque` : art. 9 accordé + IA reconnue MAIS `revoked_at` posé → traitement suspendu (AD-13).
+ * On lit les DRAPEAUX, jamais la seule existence d'une ligne (acquis de la revue 1.5) : une ligne
+ * `art9_accorde=false` (écrivable en direct via l'API REST sous RLS) ne vaut PAS un consentement.
+ */
+function statutConsentement(
+  c: { art9_accorde: boolean; ia_reconnue: boolean; revoked_at: string | null } | null,
+): StatutConsentement {
+  if (!c || c.art9_accorde !== true || c.ia_reconnue !== true) return "aucun";
+  return c.revoked_at === null ? "valide" : "revoque";
 }

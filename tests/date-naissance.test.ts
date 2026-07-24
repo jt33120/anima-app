@@ -5,22 +5,25 @@ import { etapeOnboarding } from "@/app/(auth)/onboarding";
 
 /** Story 1.4 — barrière 18 ans + date immuable. */
 
-describe("Décision d'onboarding — barrière mineur + étape consentement (revue 1.4, étendue 1.5)", () => {
+describe("Décision d'onboarding — barrière mineur + étapes consentement/révocation (revue 1.4, étendue 1.5/1.6)", () => {
   it("mineur signalé → 'mineur' (prime sur tout, refusé à chaque connexion)", () => {
-    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: true }, false)).toBe("mineur");
-    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: true }, true)).toBe("mineur");
+    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: true }, "aucun")).toBe("mineur");
+    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: true }, "valide")).toBe("mineur");
   });
   it("pas de date → 'naissance'", () => {
-    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: false }, false)).toBe("naissance");
+    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: false }, "aucun")).toBe("naissance");
   });
   it("date posée mais pas de consentement → 'consentement'", () => {
-    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false }, false)).toBe("consentement");
+    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false }, "aucun")).toBe("consentement");
   });
-  it("date posée + consentement → 'suite' (la scène)", () => {
-    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false }, true)).toBe("suite");
+  it("date posée + consentement valide → 'suite' (la scène)", () => {
+    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false }, "valide")).toBe("suite");
+  });
+  it("consentement révoqué → 'revoque' (jamais renvoyée re-consentir)", () => {
+    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false }, "revoque")).toBe("revoque");
   });
   it("ligne absente (cas défensif) → 'naissance' : jamais la scène sans état confirmé", () => {
-    expect(etapeOnboarding(null, false)).toBe("naissance");
+    expect(etapeOnboarding(null, "aucun")).toBe("naissance");
   });
 });
 

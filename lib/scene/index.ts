@@ -11,3 +11,4 @@
 export * from "./regions";
 export * from "./vue";
 export * from "./projection";
+export * from "./surimpression";

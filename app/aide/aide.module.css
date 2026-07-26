@@ -1,0 +1,62 @@
+/*
+ * aide.module.css — La halte ressources + transparence (Story 1.8). Sobre, lisible, JAMAIS
+ * alarmant : ni rouge, ni --alerte, ni fiche bloquante (la mise en forme « fiche »
+ * surface-elevee/bordure-forte est la Story 2.5). Calqué sur le patron des pages statiques.
+ */
+.page {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  padding: var(--esp-8) var(--marge-mobile);
+  background: var(--fond);
+}
+.contenu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-6);
+  width: 100%;
+  max-width: var(--mesure);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
+/* Liste des ressources — statique, non alarmante. Numéros lisibles ; le lecteur d'écran les
+   énonce chiffre par chiffre (aria-label). */
+.ressources {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+.ressource {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+  padding-left: var(--esp-4);
+  border-left: 2px solid var(--bordure-forte);
+}
+.numero {
+  align-self: flex-start;
+  min-height: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  color: var(--texte);
+  text-decoration: none;
+}
+.numero:hover {
+  color: var(--accent);
+}
+.numero:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+  border-radius: var(--rayon-sm);
+}
+.desc {
+  color: var(--texte-doux);
+}

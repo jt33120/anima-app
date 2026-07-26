@@ -37,6 +37,13 @@ export const REGIONS: readonly Region[] = CATALOGUE_REGIONS.filter(
 /** Le rideau d'entrée : où l'on arrive en franchissant le seuil. */
 export const REGION_ENTREE: IdRegion = "seuil";
 
+/**
+ * La région où vit la conversation avec Anam. SOURCE UNIQUE (ne jamais coder « anam »
+ * en dur ailleurs) : c'est elle qui, seule, porte la mention IA légale (FR-013, art. 50)
+ * et le signe d'Anam dans la surimpression persistante (Story 1.8).
+ */
+export const REGION_CONVERSATION: IdRegion = "anam";
+
 const IDS: readonly string[] = CATALOGUE_REGIONS.map((r) => r.id);
 
 /** Garde de type : `v` est-il un identifiant de région connu ? */

@@ -23,10 +23,12 @@ import {
   REGIONS,
   etatInitial,
   reducteurVue,
+  surimpressionPour,
   type IdRegion,
   type ProjectionScene,
 } from "@/lib/scene";
 import ArbreVivant from "./arbre-vivant";
+import Surimpression from "./surimpression";
 import s from "./monde.module.css";
 
 export interface ProprietesSceneRendue {
@@ -106,6 +108,12 @@ export default function SceneDom({ projection }: ProprietesSceneRendue) {
 
   return (
     <main className={s.monde}>
+      {/* Surimpression persistante (Story 1.8) — EN TÊTE du DOM (hors régions inert) : la porte
+          de secours est parmi les tout premiers arrêts de tabulation (AC3). Couche constante,
+          jamais dans une région → jamais masquée/dissoute au changement de région (AC1). Le
+          MODÈLE décide quoi porter (surimpressionPour) ; ce rendu ne fait que dessiner (AD-7). */}
+      <Surimpression modele={surimpressionPour(region)} />
+
       {/* Fond persistant — la scène est une, seul le premier plan se fond. */}
       <div className={s.ciel} aria-hidden>
         <div className={s.lune} />

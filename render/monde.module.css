@@ -114,7 +114,11 @@
      poussé en bas par margin-top:auto, et reste défilable s'il dépasse le viewport
      (zoom 200 %, paysage court — WCAG 1.4.10 Reflow). */
   overflow-y: auto;
-  padding: var(--esp-7) var(--marge-mobile) calc(var(--cible-tactile) + var(--esp-6));
+  /* Le haut réserve la hauteur de la surimpression persistante (~76px) comme le bas réserve
+     la nav : en débordement (zoom 200 %/paysage court), l'entête focalisé ne passe pas sous
+     la surimpression (revue 1.8, trouvaille [8]). */
+  padding: calc(var(--cible-tactile) + var(--esp-6)) var(--marge-mobile)
+    calc(var(--cible-tactile) + var(--esp-6));
   opacity: 0;
   visibility: hidden;
   transition:
@@ -149,6 +153,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--esp-4);
+}
+/* Le focus programmatique fait défiler l'entête sous la surimpression : on réserve la marge
+   de défilement pour qu'il reste dégagé (revue 1.8, trouvaille [8]). */
+.seuilTexte h1,
+.bloc h1 {
+  scroll-margin-top: calc(var(--cible-tactile) + var(--esp-6));
 }
 /* Entêtes de région : focus déplacé PAR PROGRAMME (tabindex=-1) → cibler :focus, pas
    seulement :focus-visible (qui peut ne pas s'armer sur un focus programmatique). */
@@ -267,6 +277,124 @@
 .navLien:focus-visible {
   outline: 2px solid var(--bordure-forte);
   outline-offset: 2px;
+}
+
+/* ══ Surimpression persistante (Story 1.8) : présence flottante, SANS BORD, voile-portée ══
+   Jamais un bandeau : NI background --surface, NI border, NI box-shadow de barre. Sa
+   lisibilité tient au VOILE (même mécanisme que .voile-seuil, orienté vers le bas). Le
+   conteneur ne capte pas le pointeur ; seuls les liens le font → la scène reste cliquable
+   dessous. Rendue en tête de la scène (premiers arrêts de tabulation, AC3). */
+.surimpression {
+  position: absolute;
+  inset: 0 0 auto 0; /* haut, pleine largeur */
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  padding: var(--esp-4) var(--marge-mobile);
+  pointer-events: none;
+}
+@media (min-width: 1024px) {
+  .surimpression {
+    padding-left: calc(var(--esp-9) + var(--esp-6)); /* dégage le rail latéral gauche */
+    padding-right: var(--marge-desktop);
+  }
+}
+
+/* Le voile : dense en HAUT (là où flotte le texte), se dissout vers le bas (jamais un aplat
+   fermé). Consomme RÉELLEMENT --voile-couleur + --voile-opacite-texte-courant (garde vivante,
+   comme .voile-seuil) → contraste WCAG AA prouvé par compositing (tests/surimpression.test.ts). */
+.surimpressionVoile {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  --voile-teinte: color-mix(
+    in srgb,
+    var(--voile-couleur) calc(var(--voile-opacite-texte-courant) * 100%),
+    transparent
+  );
+  background: linear-gradient(
+    to bottom,
+    var(--voile-teinte) 0%,
+    var(--voile-teinte) calc(100% - var(--esp-5)),
+    transparent 100%
+  );
+}
+/* En accessibilité (-clair), l'imagerie cède aux aplats → plus d'image, plus de voile à peindre. */
+:global(:root[data-a11y="contraste"]) .surimpressionVoile {
+  background: none;
+}
+@media (prefers-contrast: more) {
+  :global(:root:not([data-a11y="nuit"])) .surimpressionVoile {
+    background: none;
+  }
+}
+
+/* Signe d'Anam — placeholder abstrait, STATIQUE, décoratif. Aucune animation. */
+.signeAnam {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: none;
+  stroke: var(--arbre-branche);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+/* Mention IA — « Anam est une IA », lien vers /aide (transparence). t-meta (13px, jamais moins).
+   Soulignée pour signaler le lien sans dépendre de la couleur seule. Cible tactile 44px comme
+   la porte de secours (lien à enjeu légal art. 50 — revue 1.8, trouvaille [3]). */
+.mentionIa {
+  pointer-events: auto;
+  min-height: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  color: var(--texte-doux);
+  text-decoration: underline;
+  text-decoration-color: var(--bordure-forte);
+  text-underline-offset: 3px;
+  transition: color var(--duree-standard) var(--courbe);
+}
+.mentionIa:hover {
+  color: var(--texte);
+}
+/* Le texte des deux liens vit dans un <span class="t-meta"> : sans ceci, .t-meta figerait sa
+   couleur (--texte-doux) et le :hover posé sur le <a> resterait inerte (revue 1.8, [6]/[10]).
+   `inherit` fait suivre au texte la couleur du lien (repos ET survol). */
+.mentionIa .t-meta,
+.porteSecours .t-meta {
+  color: inherit;
+}
+.mentionIa:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+  border-radius: var(--rayon-sm);
+}
+
+/* Porte de secours — un mot « Aide », discret, TOUJOURS au même endroit (à droite). Jamais
+   rouge / --alerte / pastille / icône / majuscule (FR-077, AD-9). Même grammaire que .navLien. */
+.porteSecours {
+  margin-left: auto; /* aligné à droite, position stable */
+  flex: none;
+  pointer-events: auto;
+  min-height: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  padding: var(--esp-1) var(--esp-2);
+  color: var(--texte-doux);
+  text-transform: none;
+  text-decoration: none;
+  transition: color var(--duree-standard) var(--courbe);
+}
+.porteSecours:hover {
+  color: var(--texte);
+}
+.porteSecours:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+  border-radius: var(--rayon-sm);
 }
 
 /* ── Keyframes — tout paraît, rien ne glisse ── */

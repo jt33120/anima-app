@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AiPort, RequeteIa, ReponseIa } from "./port";
+import type { AiPort, EvenementIa, RequeteIa, ReponseIa } from "./port";
 
 /**
  * Egress-guard — le point d'egress art. 9 UNIQUE (AD-13). Le SEUL endroit d'où du contenu art. 9
@@ -25,32 +25,60 @@ export type ResultatEgress =
   | { bloque: false; reponse: ReponseIa }
   | { bloque: true; raison: RaisonRefus };
 
+/** Variante streaming (Story 2.2) : le flux n'est retourné QUE si les gardes passent. */
+export type ResultatEgressFlux =
+  | { bloque: false; flux: AsyncIterable<EvenementIa> }
+  | { bloque: true; raison: RaisonRefus };
+
+/**
+ * Exécute les trois gardes art. 9, dans l'ordre, sur une requête. Retourne la raison de blocage
+ * (ou `null` si tout passe). Partagé par les deux variantes d'egress (envoi / flux) → une seule
+ * définition des gardes, pas de dérive entre les deux chemins.
+ */
+async function verifierGardesArt9(
+  supabase: SupabaseClient,
+  adaptateur: AiPort,
+  requete: RequeteIa,
+): Promise<RaisonRefus | null> {
+  if (!requete.contientArt9) return null;
+  // 1) ZDR de l'adaptateur lié (agnostique au fournisseur, AD-3).
+  if (!adaptateur.estZdrProuve()) return "zdr";
+  // 2) Consentement vivant, sous RLS (auth.uid()).
+  const { data: consenti, error: eConsent } = await supabase.rpc("a_consenti_art9");
+  if (eConsent || consenti !== true) return "consentement";
+  // 3) Barrière de minorité (Story 1.9) : un compte suspendu ne doit PLUS aucun échange.
+  //    Fail-safe : une erreur RPC bloque aussi (dernier await avant l'envoi).
+  const { data: barre, error: eBarre } = await supabase.rpc("est_barre_minorite");
+  if (eBarre || barre === true) return "minorite";
+  return null;
+}
+
 export async function envoyerSousEgressArt9(args: {
   supabase: SupabaseClient;
   adaptateur: AiPort;
   requete: RequeteIa;
 }): Promise<ResultatEgress> {
   const { supabase, adaptateur, requete } = args;
-
-  if (requete.contientArt9) {
-    // 1) ZDR de l'adaptateur lié.
-    if (!adaptateur.estZdrProuve()) {
-      return { bloque: true, raison: "zdr" };
-    }
-    // 2) Consentement vivant, sous RLS (auth.uid()).
-    const { data: consenti, error: eConsent } = await supabase.rpc("a_consenti_art9");
-    if (eConsent || consenti !== true) {
-      return { bloque: true, raison: "consentement" };
-    }
-    // 3) Barrière de minorité (Story 1.9) : un compte suspendu ne doit PLUS aucun échange.
-    //    Fail-safe : une erreur RPC bloque aussi (dernier await avant l'envoi).
-    const { data: barre, error: eBarre } = await supabase.rpc("est_barre_minorite");
-    if (eBarre || barre === true) {
-      return { bloque: true, raison: "minorite" };
-    }
-  }
-
-  // 4) Seulement maintenant : l'envoi.
+  const raison = await verifierGardesArt9(supabase, adaptateur, requete);
+  if (raison) return { bloque: true, raison };
+  // Seulement maintenant : l'envoi.
   const reponse = await adaptateur.completer(requete);
   return { bloque: false, reponse };
+}
+
+/**
+ * Point d'egress art. 9 UNIQUE pour le STREAMING (AD-13, Story 2.2). Les gardes s'exécutent et
+ * s'AWAIT **avant** d'appeler `adaptateur.diffuser` — et comme `diffuser` est un `async function*`,
+ * son corps ne tourne pas avant la première itération : les gardes sont donc réellement passées
+ * **avant le premier octet**. Un blocage ne diffuse rien (adaptateur jamais itéré).
+ */
+export async function diffuserSousEgressArt9(args: {
+  supabase: SupabaseClient;
+  adaptateur: AiPort;
+  requete: RequeteIa;
+}): Promise<ResultatEgressFlux> {
+  const { supabase, adaptateur, requete } = args;
+  const raison = await verifierGardesArt9(supabase, adaptateur, requete);
+  if (raison) return { bloque: true, raison };
+  return { bloque: false, flux: adaptateur.diffuser(requete) };
 }

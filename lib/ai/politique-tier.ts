@@ -1,12 +1,16 @@
 import "server-only";
-import type { CapaciteIa, TierIa } from "./port";
+import type { CapaciteIa, NiveauSecurite, TierIa } from "./port";
 
 /**
- * Politique de tier — résolveur MINIMAL `capacité → tier → modèle` (Story 2.1).
+ * Politique de tier — la politique UNIQUE `(capacité, niveau_sécurité) → tier` (AD-5, Story 2.2).
  *
- * ⚠️ La politique COMPLÈTE `(capacité, niveau_sécurité) → tier` (AD-5) — notamment « la détection
- * de détresse force TOUJOURS le modèle le plus capable » — vit dans les Stories 2.2/2.3. Ne PAS
- * l'ajouter ici : 2.1 ne connaît pas encore la dimension sécurité.
+ * C'est LA seule fonction qui décide du tier : les appelants déclarent leur CAPACITÉ, la politique
+ * résout ; aucun `if` fournisseur, aucun tier codé en dur chez un appelant. Résolue CÔTÉ SERVEUR ;
+ * le client ne choisit jamais le tier.
+ *
+ * Règle dure : dès `niveau_sécurité ≥ 1`, le modèle FORT est forcé — pour la détection ET la
+ * réponse de détresse, jamais le léger, en aucune circonstance (AD-5, NFR-012). La Story 2.3
+ * (pipeline sécurité) PRODUIT ce niveau ; ici il est CONSOMMÉ (défaut 0).
  *
  * Modèles par id DATÉ (jamais `-latest`) : un repoint amont silencieux ne doit pas changer le
  * comportement sur le chemin art. 9. (Vérifié 2026-07-27 : Small 4 / Large 3.)
@@ -17,8 +21,12 @@ const MODELE: Record<TierIa, string> = {
   fort: "mistral-large-2512",
 };
 
-/** Échange courant → léger ; reconceptualisation & synthèse → fort. */
-export function tierPour(capacite: CapaciteIa): TierIa {
+/**
+ * Résout le tier. Détresse (niveau ≥ 1) → FORT forcé pour toute capacité. Sinon : échange courant
+ * → léger ; reconceptualisation & synthèse → fort.
+ */
+export function tierPour(capacite: CapaciteIa, niveauSecurite: NiveauSecurite = 0): TierIa {
+  if (niveauSecurite >= 1) return "fort"; // AD-5 : détresse → le plus capable, jamais le léger
   return capacite === "echange" ? "leger" : "fort";
 }
 

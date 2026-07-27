@@ -1,14 +1,14 @@
 import "server-only";
 import { Mistral } from "@mistralai/mistralai";
-import type { AiPort, RequeteIa, ReponseIa } from "../port";
+import type { AiPort, EvenementIa, RequeteIa, ReponseIa } from "../port";
 import { modelePour, tierPour } from "../politique-tier";
 
 /**
  * Adaptateur Mistral — le SEUL module autorisé à importer un SDK fournisseur (AD-3).
  * Gardé en CI : `tests/frontiere-serveur.test.ts` échoue si `@mistralai/mistralai` apparaît ailleurs.
  *
- * Endpoints STATELESS uniquement (`chat.complete` / `chat.stream` à venir en 2.2) — jamais
- * `agents`, `conversations`, `batch`, `fineTuning`, `libraries` : ZDR exclut ces surfaces (AD-4).
+ * Endpoints STATELESS uniquement (`chat.complete` / `chat.stream`) — jamais `agents`,
+ * `conversations`, `batch`, `fineTuning`, `libraries` : ZDR exclut ces surfaces (AD-4).
  * Modèles par id DATÉ (jamais `-latest`) sur le chemin art. 9.
  */
 
@@ -31,6 +31,25 @@ function assertConformiteArt9(): void {
   }
 }
 
+/**
+ * Extrait le texte d'un contenu Mistral qui peut être `string` OU `ContentChunk[]` (type SDK).
+ * Une réponse/delta en tableau de chunks (contenu structuré) verrait sinon son texte silencieusement
+ * perdu (revue 2.2). Défensif (aucun couplage au type SDK) : ne garde que les fragments `.text`.
+ */
+function extraireTexte(contenu: unknown): string {
+  if (typeof contenu === "string") return contenu;
+  if (Array.isArray(contenu)) {
+    return contenu
+      .map((c) =>
+        c && typeof c === "object" && typeof (c as { text?: unknown }).text === "string"
+          ? (c as { text: string }).text
+          : "",
+      )
+      .join("");
+  }
+  return "";
+}
+
 export class AdaptateurMistral implements AiPort {
   private readonly client: Mistral;
 
@@ -49,18 +68,22 @@ export class AdaptateurMistral implements AiPort {
     return true;
   }
 
-  async completer(req: RequeteIa): Promise<ReponseIa> {
-    const tier = tierPour(req.capacite);
-    const modele = modelePour(tier);
-    // STATELESS : chat.complete uniquement.
-    const res = await this.client.chat.complete({
-      model: modele,
-      messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
-    });
-    const brut = res.choices?.[0]?.message?.content;
-    const texte = typeof brut === "string" ? brut : "";
+  /** Prépare tier/modele/messages EN UN endroit — completer et diffuser ne dérivent pas (revue 2.2). */
+  private preparer(req: RequeteIa) {
+    const tier = tierPour(req.capacite, req.niveauSecurite);
     return {
-      texte,
+      tier,
+      modele: modelePour(tier),
+      messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+    };
+  }
+
+  async completer(req: RequeteIa): Promise<ReponseIa> {
+    const { tier, modele, messages } = this.preparer(req);
+    // STATELESS : chat.complete uniquement.
+    const res = await this.client.chat.complete({ model: modele, messages });
+    return {
+      texte: extraireTexte(res.choices?.[0]?.message?.content),
       tier,
       modele,
       usage: {
@@ -68,5 +91,31 @@ export class AdaptateurMistral implements AiPort {
         tokensSortie: res.usage?.completionTokens ?? 0,
       },
     };
+  }
+
+  /**
+   * Streaming (Story 2.2) — STATELESS : `chat.stream` uniquement. Émet chaque fragment texte du
+   * flux Mistral en `delta`, puis un `fin` avec l'usage (présent dans le dernier chunk). Le
+   * regroupement par mots côté client (NFR-014) opère quelle que soit la taille des chunks amont.
+   */
+  async *diffuser(req: RequeteIa): AsyncIterable<EvenementIa> {
+    const { tier, modele, messages } = this.preparer(req);
+    let tokensEntree = 0;
+    let tokensSortie = 0;
+    const flux = await this.client.chat.stream({ model: modele, messages });
+    for await (const evenement of flux) {
+      // `delta.content` peut être `string` OU `ContentChunk[]` (type SDK) : extraire les DEUX,
+      // sinon un delta structuré serait silencieusement perdu (revue 2.2).
+      const texte = extraireTexte(evenement.data.choices?.[0]?.delta?.content);
+      if (texte.length > 0) {
+        yield { type: "delta", texte };
+      }
+      const usage = evenement.data.usage;
+      if (usage) {
+        tokensEntree = usage.promptTokens ?? tokensEntree;
+        tokensSortie = usage.completionTokens ?? tokensSortie;
+      }
+    }
+    yield { type: "fin", tier, modele, usage: { tokensEntree, tokensSortie } };
   }
 }

@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
-import { envoyerSousEgressArt9 } from "@/lib/ai/egress-guard";
+import { diffuserSousEgressArt9 } from "@/lib/ai/egress-guard";
 import type { AiPort, EvenementIa, RequeteIa } from "@/lib/ai/port";
 
 /**
- * Story 2.1 — l'egress-guard art. 9 (AD-13, AC4). Preuves BLOQUANTES contre un vrai Supabase local :
- *  - consentement valide + ZDR prouvé → l'envoi PROCÈDE (positif, non tautologique) ;
- *  - ZDR non prouvé → BLOQUÉ, adaptateur JAMAIS appelé ;
- *  - révocation en vol → BLOQUÉ raison consentement, rien posté ;
- *  - contenu non-art. 9 → court-circuite (pas de contrôle consentement).
+ * Story 2.2 — l'egress-guard art. 9 sur le FLUX (`diffuserSousEgressArt9`, AC4, AD-13). Preuves
+ * BLOQUANTES contre un vrai Supabase local, miroir exact de `egress-guard.test.ts` (completer) :
+ *  - consentement valide + ZDR prouvé → le flux PROCÈDE (deltas émis) ;
+ *  - ZDR non prouvé → BLOQUÉ, adaptateur JAMAIS diffusé (zéro delta) ;
+ *  - révocation en vol → BLOQUÉ (consentement), rien diffusé ;
+ *  - barrière de minorité (consentement valide, compte suspendu) → BLOQUÉ (minorite) ;
+ *  - contenu non-art. 9 → court-circuite.
  *
- * L'adaptateur-espion compte ses appels : on prouve qu'un blocage ne poste réellement rien.
+ * L'adaptateur-espion compte ses `diffuser` : un blocage doit se produire AVANT tout octet.
  */
 
 const url = process.env.SUPABASE_URL!;
@@ -29,23 +31,27 @@ const requete: RequeteIa = {
 };
 
 function espion(zdr: boolean) {
-  const etat = { appels: 0 };
+  const etat = { diffusions: 0 };
   const port: AiPort = {
     estZdrProuve: () => zdr,
-    completer: async () => {
-      etat.appels++;
-      return { texte: "ok", tier: "leger", modele: "m", usage: { tokensEntree: 0, tokensSortie: 0 } };
-    },
-    // Requis par le contrat AiPort depuis la 2.2 ; non exercé par ces tests (chemin completer).
+    completer: async () => ({ texte: "ok", tier: "leger", modele: "m", usage: { tokensEntree: 0, tokensSortie: 0 } }),
     async *diffuser(): AsyncIterable<EvenementIa> {
-      throw new Error("non utilisé dans egress-guard.test.ts (voir flux-anam-egress.test.ts)");
+      etat.diffusions++;
+      yield { type: "delta", texte: "ok " };
+      yield { type: "fin", tier: "leger", modele: "m", usage: { tokensEntree: 0, tokensSortie: 0 } };
     },
   };
   return { port, etat };
 }
 
-describe("Egress-guard art. 9 (AD-13, AC4)", () => {
-  const u = { email: `eg-${t}@exemple.fr`, password: "test-eg-123!", id: "" };
+async function consommer(flux: AsyncIterable<EvenementIa>): Promise<number> {
+  const evts: EvenementIa[] = [];
+  for await (const e of flux) evts.push(e);
+  return evts.length;
+}
+
+describe("Egress-guard sur le flux art. 9 (diffuserSousEgressArt9, AD-13, AC4)", () => {
+  const u = { email: `fe-${t}@exemple.fr`, password: "test-fe-123!", id: "" };
 
   beforeAll(async () => {
     if (!url || !publishable || !secret) {
@@ -64,7 +70,7 @@ describe("Egress-guard art. 9 (AD-13, AC4)", () => {
     if (u.id) await admin.auth.admin.deleteUser(u.id);
   });
 
-  it("consentement valide + ZDR prouvé → l'envoi PROCÈDE (positif)", async () => {
+  it("consentement valide + ZDR prouvé → le flux PROCÈDE (positif)", async () => {
     const c = clientScope();
     await c.auth.signInWithPassword({ email: u.email, password: u.password });
     await c.from("consentement").upsert(
@@ -73,23 +79,27 @@ describe("Egress-guard art. 9 (AD-13, AC4)", () => {
     );
 
     const { port, etat } = espion(true);
-    const r = await envoyerSousEgressArt9({ supabase: c, adaptateur: port, requete });
+    const r = await diffuserSousEgressArt9({ supabase: c, adaptateur: port, requete });
     expect(r.bloque).toBe(false);
-    expect(etat.appels).toBe(1);
+    if (!r.bloque) {
+      const n = await consommer(r.flux);
+      expect(n).toBeGreaterThan(0); // deltas + fin
+    }
+    expect(etat.diffusions).toBe(1);
     await c.auth.signOut();
   });
 
-  it("ZDR NON prouvé → BLOQUÉ (raison zdr), adaptateur jamais appelé (négatif)", async () => {
+  it("ZDR NON prouvé → BLOQUÉ (raison zdr), adaptateur jamais diffusé (négatif)", async () => {
     const c = clientScope();
     await c.auth.signInWithPassword({ email: u.email, password: u.password });
     const { port, etat } = espion(false);
-    const r = await envoyerSousEgressArt9({ supabase: c, adaptateur: port, requete });
+    const r = await diffuserSousEgressArt9({ supabase: c, adaptateur: port, requete });
     expect(r).toEqual({ bloque: true, raison: "zdr" });
-    expect(etat.appels).toBe(0);
+    expect(etat.diffusions).toBe(0);
     await c.auth.signOut();
   });
 
-  it("révocation en vol → BLOQUÉ (raison consentement), rien posté (négatif)", async () => {
+  it("révocation en vol → BLOQUÉ (consentement), rien diffusé (négatif)", async () => {
     const c = clientScope();
     await c.auth.signInWithPassword({ email: u.email, password: u.password });
     await c
@@ -99,44 +109,41 @@ describe("Egress-guard art. 9 (AD-13, AC4)", () => {
       .is("revoked_at", null);
 
     const { port, etat } = espion(true);
-    const r = await envoyerSousEgressArt9({ supabase: c, adaptateur: port, requete });
+    const r = await diffuserSousEgressArt9({ supabase: c, adaptateur: port, requete });
     expect(r).toEqual({ bloque: true, raison: "consentement" });
-    expect(etat.appels).toBe(0);
+    expect(etat.diffusions).toBe(0);
     await c.auth.signOut();
   });
 
-  it("barrière de minorité (consentement VALIDE mais compte suspendu) → BLOQUÉ raison minorite (négatif)", async () => {
+  it("barrière de minorité (consentement VALIDE, compte suspendu) → BLOQUÉ (minorite)", async () => {
     const c = clientScope();
     await c.auth.signInWithPassword({ email: u.email, password: u.password });
-    // Consentement de nouveau valide (le test précédent l'avait révoqué) → on prouve que c'est
-    // bien la BARRIÈRE, pas le consentement, qui bloque (non tautologique).
     await c.from("consentement").upsert(
       { utilisatrice_id: u.id, art9_accorde: true, ia_reconnue: true, cgu_acceptees: true, revoked_at: null },
       { onConflict: "utilisatrice_id" },
     );
-    // Suspension minorité posée côté système (comme appliquer_barriere_minorite).
     await admin
       .from("utilisatrice")
       .update({ barriere_minorite_le: new Date().toISOString(), echeance_suppression: "2099-01-01" })
       .eq("id", u.id);
 
     const { port, etat } = espion(true);
-    const r = await envoyerSousEgressArt9({ supabase: c, adaptateur: port, requete });
+    const r = await diffuserSousEgressArt9({ supabase: c, adaptateur: port, requete });
     expect(r).toEqual({ bloque: true, raison: "minorite" });
-    expect(etat.appels).toBe(0); // rien posté
+    expect(etat.diffusions).toBe(0);
     await c.auth.signOut();
   });
 
-  it("contenu NON-art. 9 → passe sans contrôle consentement/barrière", async () => {
-    // Compte non authentifié + barré au test précédent : contientArt9 false doit tout court-circuiter.
+  it("contenu NON-art. 9 → court-circuite (pas de contrôle consentement/barrière)", async () => {
     const c = clientScope();
     const { port, etat } = espion(true);
-    const r = await envoyerSousEgressArt9({
+    const r = await diffuserSousEgressArt9({
       supabase: c,
       adaptateur: port,
       requete: { ...requete, contientArt9: false },
     });
     expect(r.bloque).toBe(false);
-    expect(etat.appels).toBe(1);
+    if (!r.bloque) await consommer(r.flux);
+    expect(etat.diffusions).toBe(1);
   });
 });

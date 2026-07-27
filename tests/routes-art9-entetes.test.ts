@@ -58,3 +58,34 @@ describe("Routes art. 9 — no-store + CSP stricte + zéro tiers (AC5)", () => {
     }
   });
 });
+
+describe("Route de conversation en streaming (Story 2.2, AC2/AC3/AC4)", () => {
+  const s = lire(ROUTE_ART9);
+
+  it("répond en flux NDJSON (pas une réponse JSON complète)", () => {
+    expect(s).toMatch(/application\/x-ndjson/);
+    expect(s).toMatch(/new ReadableStream/);
+  });
+
+  it("passe par l'egress-guard STREAMING (gardes art. 9 avant le 1er octet)", () => {
+    expect(s).toMatch(/diffuserSousEgressArt9/);
+  });
+
+  it("résout le tier CÔTÉ SERVEUR et ne le lit JAMAIS du corps client (AD-5, anti-injection)", () => {
+    expect(s).toMatch(/tierPour\(/); // la politique unique est appelée dans la route
+    expect(s).toMatch(/CAPACITE[:\s]*(?:CapaciteIa\s*=\s*)?["']echange["']/); // capacité = constante serveur
+    expect(s).toMatch(/tierPour\(CAPACITE/); // le tier dérive de la constante, pas du client
+    // le corps client n'est lu QUE via extraireMessages — jamais un tier/niveau/capacité client :
+    expect(s).toMatch(/extraireMessages\(/);
+    expect(s, "tier lu du corps client").not.toMatch(/corps\s*[.[]\s*["']?tier/);
+    expect(s, "niveau lu du corps client").not.toMatch(/corps\s*[.[]\s*["']?niveauSecurite/);
+    expect(s, "capacité lue du corps client").not.toMatch(/corps\s*[.[]\s*["']?capacite/);
+  });
+
+  it("métré APRÈS la réponse via after() (survit au serverless), source honnête resoudreMetrage (NFR-014)", () => {
+    expect(s).toMatch(/metrerUsageIa/);
+    expect(s).toMatch(/\bafter\(/); // métrage post-réponse, jamais après un close() perdu au gel serverless
+    expect(s).toMatch(/resoudreMetrage/); // décision de métrage honnête (fin.modele autoritaire)
+    expect(s).toMatch(/crypto\.randomUUID/); // clé d'idempotence SERVEUR
+  });
+});

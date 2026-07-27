@@ -16,6 +16,15 @@
 - **CSP des PAGES art. 9 (nonce)** — la Story 2.1 pose la CSP sur la route API art. 9 + le mécanisme (`lib/ai/entetes-art9.ts`) ; la CSP **nonce des pages** (écran de conversation) arrive avec l'UI en **Story 2.2**. [lib/ai/entetes-art9.ts]
 - **Streaming réel + politique de tier complète `(capacité, niveau_sécurité)`** — la 2.1 s'arrête à `completer()` + un résolveur `capacité → tier` minimal ; le streaming et la politique AD-5 relèvent des **Stories 2.2/2.3**. [lib/ai/port.ts, lib/ai/politique-tier.ts]
 
+## Reports Phase B de la Story 2.2 (revue de code Phase A, 2026-07-27)
+
+Différés de la revue du socle streaming serveur — dépendent du **client de conversation** (Phase B), qui n'existe pas encore :
+
+- **Idempotence d'un RETOUR CLIENT** — la clé `usage_ia` est un UUID serveur par requête HTTP → « exactement une fois PAR REQUÊTE ». Un renvoi du **même tour logique** (retry après avortement réseau) crée une 2ᵉ ligne (double-comptage tokens → quota/paywall NFR-014). **Fix Phase B** : le client fournit un **jeton de tour stable** (idempotency token), validé serveur (format UUID, scopé à l'utilisatrice — un spoof ne collisionne que SON propre métrage). [lib/ai/metrage.ts, app/api/anam/message/route.ts]
+- **Contrat client de la trame `erreur`** — le flux NDJSON est `delta* (fin | erreur)` : `erreur` est **terminale** (aucun `fin` ne suit). Le client de la Phase B doit la traiter comme fin d'échec (conserver le texte partiel + « Réessayer »), pas rester en état « en cours ». [lib/ai/flux-ndjson.ts]
+- **Test COMPORTEMENTAL de la route** — le corps du `ReadableStream` (avortement en vol, plancher de latence 400–900 ms, once-in-`after()`) n'a qu'une couverture statique + la décision de métrage en test pur. Ajouter un harness d'exécution du `POST` (undici/jsdom localisé) en Phase B plutôt que basculer tout le runner. [app/api/anam/message/route.ts, tests/]
+- **Adaptateur Mistral : demander l'`usage` en streaming** — vérifier que `chat.stream` renvoie bien `usage` au dernier chunk (option type `include_usage` selon la version SDK) ; sinon le métrage tombe sur l'estimation `estimerTokens`. À valider quand la vraie clé Mistral (porte ZDR/DPA) sera branchée. [lib/ai/adapters/mistral.ts]
+
 ## Chantier « Entrée dans l'app » — retour produit Julian (2026-07-24)
 
 Julian a testé le localhost : l'arrivée (magic link → âge → consentement) est trop abrupte, pas assez « app mobile ». **Cible CONFIRMÉE : web mobile-first (PWA), PAS d'app native App Store** (NFR-018). **Décision : finir d'abord les fondations (epic 1), puis reprendre ce chantier.** À traiter en fin de fondations :

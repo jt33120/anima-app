@@ -1,5 +1,5 @@
 import "server-only";
-import type { AiPort, RequeteIa, ReponseIa } from "../port";
+import type { AiPort, EvenementIa, RequeteIa, ReponseIa } from "../port";
 import { tierPour } from "../politique-tier";
 
 /**
@@ -10,22 +10,41 @@ import { tierPour } from "../politique-tier";
  * in-process), donc l'egress-guard art. 9 peut procéder en dev sans exiger les flags Mistral —
  * pas d'impasse locale pour développer la Story 2.2 dessus.
  */
+const MODELE_FACTICE = "factice"; // JAMAIS un id Mistral sans appel Mistral (métrage honnête, revue 2.1)
+
 export class AdaptateurFactice implements AiPort {
   estZdrProuve(): boolean {
     return true;
   }
 
-  async completer(req: RequeteIa): Promise<ReponseIa> {
-    const tier = tierPour(req.capacite);
+  /** Résout tier + texte + usage EN UN endroit — completer et diffuser ne divergent pas (revue 2.2). */
+  private preparer(req: RequeteIa) {
+    const tier = tierPour(req.capacite, req.niveauSecurite);
     const dernier = req.messages.at(-1)?.content ?? "";
-    const texte = `[factice] Anam a bien reçu ${req.messages.length} message(s).`;
-    return {
-      texte,
-      tier,
-      // JAMAIS un id Mistral réel : le métrage doit rester honnête sur ce qui a (ou n'a pas)
-      // tourné (revue 2.1) — sinon usage_ia enregistrerait « mistral-… » sans appel Mistral.
-      modele: "factice",
-      usage: { tokensEntree: dernier.length, tokensSortie: texte.length },
-    };
+    const texte = reponseFactice(req.messages.length);
+    return { tier, texte, usage: { tokensEntree: dernier.length, tokensSortie: texte.length } };
   }
+
+  async completer(req: RequeteIa): Promise<ReponseIa> {
+    const { tier, texte, usage } = this.preparer(req);
+    return { texte, tier, modele: MODELE_FACTICE, usage };
+  }
+
+  /**
+   * Streaming déterministe (Story 2.2) : émet la même réponse que `completer`, mais fragmentée
+   * par GROUPES DE MOTS (jamais caractère par caractère, NFR-014), puis un `fin` avec l'usage.
+   */
+  async *diffuser(req: RequeteIa): AsyncIterable<EvenementIa> {
+    const { tier, texte, usage } = this.preparer(req);
+    const mots = texte.split(" ");
+    for (let i = 0; i < mots.length; i += 2) {
+      const suite = i + 2 < mots.length ? " " : "";
+      yield { type: "delta", texte: mots.slice(i, i + 2).join(" ") + suite };
+    }
+    yield { type: "fin", tier, modele: MODELE_FACTICE, usage };
+  }
+}
+
+function reponseFactice(nbMessages: number): string {
+  return `[factice] Anam a bien reçu ${nbMessages} message(s).`;
 }

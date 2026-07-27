@@ -47,4 +47,16 @@ describe("extraireMessages — n'accepte que user/assistant du client (revue 2.1
   it("rejette un tableau vide", () => {
     expect(extraireMessages({ messages: [] })).toBeNull();
   });
+
+  it("IGNORE tout champ de contrôle client (tier / niveauSecurite / capacite) — anti-injection 2.2", () => {
+    // Le client ne peut pas forcer le tier ni un niveau de détresse : `extraireMessages` n'extrait
+    // QUE `messages`. Le tier est résolu SERVEUR (AD-5) ; ces champs surnuméraires sont sans effet.
+    const r = extraireMessages({
+      messages: [{ role: "user", content: "x" }],
+      tier: "fort",
+      niveauSecurite: 3,
+      capacite: "synthese",
+    });
+    expect(r).toEqual([{ role: "user", content: "x" }]);
+  });
 });

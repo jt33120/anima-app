@@ -4,12 +4,13 @@ import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
 import { creerAiPort } from "@/lib/ai/fabrique";
 import { envoyerSousEgressArt9 } from "@/lib/ai/egress-guard";
 import { ENTETES_ART9 } from "@/lib/ai/entetes-art9";
-import type { MessageIa, RequeteIa } from "@/lib/ai/port";
+import { extraireMessages } from "@/lib/ai/valider-messages";
+import type { RequeteIa } from "@/lib/ai/port";
 
 /**
  * Route art. 9 (AD-2/AD-4) — le seam d'appel modèle de la Story 2.1 (la Story 2.2 le convertit en
- * streaming + fil de conversation). Ordre : auth → egress-guard (consentement + ZDR) → adaptateur
- * → métrage `usage_ia` (exactement une fois). Aucun SDK fournisseur, aucun analytics ici.
+ * streaming + fil de conversation). Ordre : auth → validation → egress-guard (consentement + ZDR +
+ * barrière mineur) → adaptateur → métrage `usage_ia`. Aucun SDK fournisseur, aucun analytics ici.
  *
  * Segment art. 9 : `no-store`/`dynamic`, runtime Node (secret serveur jamais sur Edge). Ne PAS
  * activer `experimental.cacheComponents` (incompatible avec `export const dynamic`).
@@ -35,58 +36,54 @@ export async function POST(request: NextRequest) {
   const messages = extraireMessages(corps);
   if (!messages) {
     return NextResponse.json(
-      { code: "requete_invalide", message: "Un tableau `messages` est requis." },
+      { code: "requete_invalide", message: "Un tableau `messages` (rôles user/assistant) est requis." },
       { status: 400, headers: ENTETES_ART9 },
     );
   }
 
-  const adaptateur = await creerAiPort();
-  const requete: RequeteIa = { capacite: "echange", messages, contientArt9: true };
-  const resultat = await envoyerSousEgressArt9({ supabase, adaptateur, requete });
+  try {
+    const adaptateur = await creerAiPort();
+    const requete: RequeteIa = { capacite: "echange", messages, contientArt9: true };
+    const resultat = await envoyerSousEgressArt9({ supabase, adaptateur, requete });
 
-  if (resultat.bloque) {
-    // Consentement invalide/révoqué ou ZDR non prouvé → rien n'a été posté au fournisseur.
+    if (resultat.bloque) {
+      // Consentement invalide/révoqué, ZDR non prouvé, ou barrière de minorité → rien posté.
+      return NextResponse.json(
+        { code: `egress_bloque_${resultat.raison}`, message: "Envoi bloqué (consentement / ZDR / barrière)." },
+        { status: 403, headers: ENTETES_ART9 },
+      );
+    }
+
+    // Métrage best-effort, SERVER-AUTHORITATIVE : la clé d'idempotence est générée CÔTÉ SERVEUR
+    // (jamais un en-tête client — revue 2.1), une ligne par requête logique. usage_ia est
+    // deny-by-default → écriture via le client admin (service_role), tâche système non-art. 9
+    // (AD-12). L'échec n'est PAS fatal (l'utilisatrice a déjà sa réponse) : c'est un « au plus une
+    // fois » assumé ici ; la durabilité « exactement une fois » par réconciliation relève du
+    // streaming (Story 2.2, NFR-014).
+    const admin = createSupabaseAdminClient();
+    const { error: erreurMetrage } = await admin.from("usage_ia").upsert(
+      {
+        utilisatrice_id: user.id,
+        cle_idempotence: crypto.randomUUID(),
+        tier: resultat.reponse.tier,
+        modele: resultat.reponse.modele,
+        tokens_entree: resultat.reponse.usage.tokensEntree,
+        tokens_sortie: resultat.reponse.usage.tokensSortie,
+      },
+      { onConflict: "utilisatrice_id,cle_idempotence", ignoreDuplicates: true },
+    );
+    if (erreurMetrage) {
+      console.error("usage_ia métrage échoué", { code: erreurMetrage.code });
+    }
+
+    return NextResponse.json({ texte: resultat.reponse.texte }, { headers: ENTETES_ART9 });
+  } catch (e) {
+    // Boot-guard (misconfig) ou erreur fournisseur : la réponse d'erreur reste une réponse art. 9
+    // CONFORME (no-store + CSP), sans contenu art. 9 ni détail d'erreur en clair (NFR-022).
+    console.error("anam/message : échec serveur", { nom: e instanceof Error ? e.name : "inconnu" });
     return NextResponse.json(
-      { code: `egress_bloque_${resultat.raison}`, message: "Envoi bloqué (consentement/ZDR)." },
-      { status: 403, headers: ENTETES_ART9 },
+      { code: "erreur_serveur", message: "Service indisponible, réessaie." },
+      { status: 500, headers: ENTETES_ART9 },
     );
   }
-
-  // Métrage server-authoritative, exactement une fois (idempotence). usage_ia est deny-by-default
-  // → écriture via le client admin (service_role), tâche système non-art. 9 (AD-12).
-  const cleIdempotence = request.headers.get("x-idempotence") ?? crypto.randomUUID();
-  const admin = createSupabaseAdminClient();
-  const { error: erreurMetrage } = await admin.from("usage_ia").upsert(
-    {
-      utilisatrice_id: user.id,
-      cle_idempotence: cleIdempotence,
-      tier: resultat.reponse.tier,
-      modele: resultat.reponse.modele,
-      tokens_entree: resultat.reponse.usage.tokensEntree,
-      tokens_sortie: resultat.reponse.usage.tokensSortie,
-    },
-    { onConflict: "cle_idempotence", ignoreDuplicates: true },
-  );
-  if (erreurMetrage) {
-    // Le métrage ne doit pas faire échouer la réponse ; il est journalisé (sans art. 9).
-    console.error("usage_ia métrage échoué", { code: erreurMetrage.code });
-  }
-
-  return NextResponse.json({ texte: resultat.reponse.texte }, { headers: ENTETES_ART9 });
-}
-
-/** Valide le corps sans jamais journaliser le contenu (art. 9). */
-function extraireMessages(corps: unknown): MessageIa[] | null {
-  if (typeof corps !== "object" || corps === null || !("messages" in corps)) return null;
-  const brut = (corps as { messages: unknown }).messages;
-  if (!Array.isArray(brut)) return null;
-  const roles = new Set(["user", "assistant", "system"]);
-  const messages: MessageIa[] = [];
-  for (const m of brut) {
-    if (typeof m !== "object" || m === null) return null;
-    const { role, content } = m as { role?: unknown; content?: unknown };
-    if (typeof role !== "string" || !roles.has(role) || typeof content !== "string") return null;
-    messages.push({ role: role as MessageIa["role"], content });
-  }
-  return messages.length > 0 ? messages : null;
 }

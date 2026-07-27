@@ -1,6 +1,6 @@
 import "server-only";
 import type { AiPort, RequeteIa, ReponseIa } from "../port";
-import { modelePour, tierPour } from "../politique-tier";
+import { tierPour } from "../politique-tier";
 
 /**
  * Adaptateur FACTICE — le chemin exercé en dev et en CI (défaut `AI_ADAPTER` hors prod).
@@ -22,7 +22,9 @@ export class AdaptateurFactice implements AiPort {
     return {
       texte,
       tier,
-      modele: modelePour(tier),
+      // JAMAIS un id Mistral réel : le métrage doit rester honnête sur ce qui a (ou n'a pas)
+      // tourné (revue 2.1) — sinon usage_ia enregistrerait « mistral-… » sans appel Mistral.
+      modele: "factice",
       usage: { tokensEntree: dernier.length, tokensSortie: texte.length },
     };
   }

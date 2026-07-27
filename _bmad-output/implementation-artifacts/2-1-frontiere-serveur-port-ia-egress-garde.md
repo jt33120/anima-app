@@ -4,7 +4,7 @@ baseline_commit: c61558e
 
 # Story 2.1 : La frontière serveur, le port IA unique et l'egress gardé
 
-Status: review
+Status: done
 
 <!-- Note: Validation optionnelle. Lance validate-create-story pour un contrôle qualité avant dev-story. -->
 
@@ -235,32 +235,39 @@ Implémenté et testé (255/255, tsc + eslint propres) le socle IA gardé de l'E
 
 **Portes pré-lancement** (consignées dans `deferred-work.md`) : DPA art. 28 + ZDR Mistral (plan Scale) ; `npm audit` 5→9 ; CSP nonce des pages (2.2). **Hors périmètre 2.1, différé 2.2/2.3** : streaming réel + politique de tier complète.
 
+### Revue de code (ultrareview locale, 2026-07-27) — 15 confirmés, tous traités
+
+Revue adversariale multi-agents (10 angles → vérif → sweep, 32 agents). 15 défauts confirmés, dédupliqués en 9 réels + nettoyages. **Tous corrigés** (sauf 1 non-défaut assumé) :
+
+- **🔴 Sécurité — prompt système contrôlable par le client** (route:83) : `extraireMessages` acceptait le rôle `system`. Extrait dans `lib/ai/valider-messages.ts`, n'accepte plus que `user`/`assistant`. Test : `tests/valider-messages.test.ts`.
+- **🔴 Sécurité — mineur barré non bloqué à l'egress** (egress-guard:40) : l'egress ne vérifiait que le consentement, pas `est_barre_minorite()` (la barrière ne révoque pas le consentement). Ajout du contrôle (miroir du write-gate 0006). Test : cas « minorite » dans `tests/egress-guard.test.ts`.
+- **🔴 AD-4 — repli factice silencieux en prod** (fabrique:13) : `AI_ADAPTER != "mistral"` retombait sur le factice sans erreur. Ajout d'un **échec dur en production** (`VERCEL_ENV`/`NODE_ENV`). Le factice déclare désormais `modele:"factice"` (métrage honnête). Tests : `tests/fabrique.test.ts`.
+- **🔴 AD-2 — métrage contournable par le client** (route:57, 0008:26) : clé d'idempotence lue d'un en-tête client + index global. Clé **générée côté serveur** (`crypto.randomUUID()`) ; index scopé `(utilisatrice_id, cle_idempotence)`.
+- **🟠 CSP placebo sur réponse d'API** (entetes-art9) : commentaire honnête — une CSP sur une réponse JSON n'est pas appliquée par le navigateur ; le vrai verrou `connect-src` est la CSP de page (Story 2.2). Seul `no-store` est effectif ici.
+- **🟠 Chemin d'erreur sans en-têtes art. 9** (route:43) : `try/catch` renvoyant `ENTETES_ART9` sur 500 (boot-guard ou erreur fournisseur).
+- **🟠 Métrage best-effort** (route:70) : commentaire rendu honnête (« au plus une fois » assumé ; durabilité « exactement une fois » = réconciliation streaming, Story 2.2).
+- **⚪ Nettoyage** : champ `zdrProuve` redondant (mistral) → `return true` ; barrel `lib/ai/index.ts` mort → supprimé.
+- **⏭️ Non corrigé (assumé)** : pas de singleton d'adaptateur — rejouer le boot-guard art. 9 par requête est un choix défensif, coût négligeable devant l'appel réseau.
+
+266/266 tests après corrections ; la nouvelle garde barrière-mineur a été mutation-vérifiée (rouge quand neutralisée).
+
 ### File List
 
 **Nouveaux :**
 - `supabase/migrations/0008_usage_ia.sql`
-- `lib/ai/port.ts`
-- `lib/ai/politique-tier.ts`
-- `lib/ai/index.ts`
-- `lib/ai/adapters/factice.ts`
-- `lib/ai/adapters/mistral.ts`
-- `lib/ai/fabrique.ts`
-- `lib/ai/egress-guard.ts`
-- `lib/ai/entetes-art9.ts`
+- `lib/ai/port.ts` · `lib/ai/politique-tier.ts` · `lib/ai/fabrique.ts` · `lib/ai/egress-guard.ts` · `lib/ai/entetes-art9.ts` · `lib/ai/valider-messages.ts`
+- `lib/ai/adapters/factice.ts` · `lib/ai/adapters/mistral.ts`
 - `app/api/anam/message/route.ts`
-- `tests/frontiere-serveur.test.ts`
-- `tests/adaptateur-mistral.test.ts`
-- `tests/egress-guard.test.ts`
-- `tests/usage-ia.test.ts`
-- `tests/routes-art9-entetes.test.ts`
+- `tests/frontiere-serveur.test.ts` · `tests/adaptateur-mistral.test.ts` · `tests/egress-guard.test.ts` · `tests/usage-ia.test.ts` · `tests/routes-art9-entetes.test.ts` · `tests/valider-messages.test.ts` · `tests/fabrique.test.ts`
 
 **Modifiés :**
 - `lib/ai/README.md` (stub → doc complète de la couche)
-- `package.json` (+ `@mistralai/mistralai@2.5.0`, épinglé exact)
-- `package-lock.json` (arbre de dépendances)
+- `package.json` (+ `@mistralai/mistralai@2.5.0`, épinglé exact) · `package-lock.json`
 - `vitest.config.ts` (timeouts SQL élargis)
 - `.env.example` (variables IA : `AI_ADAPTER`, `MISTRAL_*`)
 - `_bmad-output/implementation-artifacts/deferred-work.md` (portes pré-lancement 2.1)
+
+**Supprimé (revue) :** `lib/ai/index.ts` (barrel mort).
 
 ## Change Log
 
@@ -268,3 +275,4 @@ Implémenté et testé (255/255, tsc + eslint propres) le socle IA gardé de l'E
 |---|---|---|---|
 | 2026-07-27 | 0.1 | Story créée (context engine : SPINE AD-2/3/4/13, patrons repo, recherche Mistral/Next 16 vérifiée) | Create-Story |
 | 2026-07-27 | 1.0 | Implémentation complète (9 tasks) : AiPort + adaptateurs (Mistral boot-gardé + factice) + egress-guard + `usage_ia` (0008) + route métrée + CSP art. 9 + 5 gardes CI mutation-testées. 255/255 tests, tsc + eslint propres. Statut → review. | Dev-Story |
+| 2026-07-27 | 1.1 | Revue de code (ultrareview locale) : 15 confirmés, tous traités — rôle `system` client rejeté, barrière-mineur ajoutée à l'egress, repli factice interdit en prod, clé de métrage server-side + index scopé, `try/catch` art. 9, commentaires CSP/métrage honnêtes, nettoyages. 266/266 tests. Statut → done. | Code-Review |

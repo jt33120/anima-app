@@ -79,10 +79,10 @@ describe("usage_ia — métrage NON-art. 9, deny-by-default, idempotent (AD-2, A
       tokens_entree: 3,
       tokens_sortie: 4,
     };
-    await admin.from("usage_ia").upsert(ligne, { onConflict: "cle_idempotence", ignoreDuplicates: true });
+    await admin.from("usage_ia").upsert(ligne, { onConflict: "utilisatrice_id,cle_idempotence", ignoreDuplicates: true });
     await admin
       .from("usage_ia")
-      .upsert({ ...ligne, tokens_entree: 999 }, { onConflict: "cle_idempotence", ignoreDuplicates: true });
+      .upsert({ ...ligne, tokens_entree: 999 }, { onConflict: "utilisatrice_id,cle_idempotence", ignoreDuplicates: true });
 
     const { data } = await admin.from("usage_ia").select("tokens_entree").eq("cle_idempotence", cle);
     expect(data).toHaveLength(1);

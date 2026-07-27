@@ -9,8 +9,9 @@
 --   le client admin (service_role), ce qui est une tâche système autorisée (AD-12) puisque
 --   usage_ia n'est pas du contenu art. 9. Une cliente ne peut donc jamais forger ses compteurs.
 --
--- Idempotence : index UNIQUE sur `cle_idempotence` → le serveur écrit les tokens EXACTEMENT
---   une fois par requête logique (`insert ... on conflict do nothing`).
+-- Idempotence : index UNIQUE sur `(utilisatrice_id, cle_idempotence)` — BORNÉ PAR UTILISATRICE
+--   (revue 2.1 : un index global permettrait à une cliente d'annuler le métrage d'une autre en
+--   réutilisant sa clé). Le serveur écrit les tokens une fois par requête logique et par compte.
 
 create table public.usage_ia (
   id              uuid primary key default gen_random_uuid(),
@@ -23,8 +24,9 @@ create table public.usage_ia (
   cree_le         timestamptz not null default now()
 );
 
-create unique index usage_ia_cle_idempotence_unique on public.usage_ia (cle_idempotence);
-create index        usage_ia_utilisatrice_idx       on public.usage_ia (utilisatrice_id);
+create unique index usage_ia_cle_idempotence_unique
+  on public.usage_ia (utilisatrice_id, cle_idempotence);
+create index        usage_ia_utilisatrice_idx on public.usage_ia (utilisatrice_id);
 
 alter table public.usage_ia enable row level security;
 alter table public.usage_ia force  row level security;

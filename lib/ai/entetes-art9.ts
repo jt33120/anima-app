@@ -1,15 +1,15 @@
 import "server-only";
 
 /**
- * En-têtes des réponses art. 9 (AD-4 ; conventions « Routes art. 9 », NFR-002/NFR-020).
+ * En-têtes des réponses art. 9 (AD-4 ; conventions « Routes art. 9 », NFR-020).
  *
- * - `no-store` : jamais de cache CDN d'une réponse art. 9.
- * - CSP stricte : `connect-src 'self'` → le navigateur ne peut exfiltrer vers AUCUN tiers ;
- *   `frame-ancestors 'none'` / `object-src 'none'` / `base-uri 'none'` durcissent la surface.
- *   Aucun moniteur/APM/analytics tiers n'est admis.
- *
- * Le **nonce** (`script-src 'nonce-…' 'strict-dynamic'`) concerne les PAGES art. 9 et arrive avec
- * l'écran de conversation (Story 2.2). Ici, réponses d'API sans script inline → CSP statique.
+ * - `Cache-Control: no-store` : **EFFECTIF ici** — jamais de cache CDN d'une réponse art. 9.
+ * - `Content-Security-Policy` : **DÉCLARATION** de la politique art. 9. ⚠️ Sur une réponse d'API
+ *   JSON (consommée par `fetch`/XHR), le navigateur **N'APPLIQUE PAS** cette CSP — seule la CSP
+ *   d'un **document** (page) est appliquée. Le vrai verrou `connect-src 'self'` anti-exfiltration
+ *   vit donc sur la **PAGE de conversation (Story 2.2)**, pas ici. On envoie quand même l'en-tête
+ *   comme déclaration cohérente d'intention, mais **il ne protège rien sur cette route** : ne pas
+ *   s'y fier (revue 2.1). Le nonce (`script-src 'nonce-…'`) est aussi une affaire de page (2.2).
  */
 export const CSP_ART9 = [
   "default-src 'self'",

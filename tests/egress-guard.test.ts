@@ -101,8 +101,31 @@ describe("Egress-guard art. 9 (AD-13, AC4)", () => {
     await c.auth.signOut();
   });
 
-  it("contenu NON-art. 9 → passe sans contrôle consentement", async () => {
-    const c = clientScope(); // pas besoin d'auth : contientArt9 false court-circuite
+  it("barrière de minorité (consentement VALIDE mais compte suspendu) → BLOQUÉ raison minorite (négatif)", async () => {
+    const c = clientScope();
+    await c.auth.signInWithPassword({ email: u.email, password: u.password });
+    // Consentement de nouveau valide (le test précédent l'avait révoqué) → on prouve que c'est
+    // bien la BARRIÈRE, pas le consentement, qui bloque (non tautologique).
+    await c.from("consentement").upsert(
+      { utilisatrice_id: u.id, art9_accorde: true, ia_reconnue: true, cgu_acceptees: true, revoked_at: null },
+      { onConflict: "utilisatrice_id" },
+    );
+    // Suspension minorité posée côté système (comme appliquer_barriere_minorite).
+    await admin
+      .from("utilisatrice")
+      .update({ barriere_minorite_le: new Date().toISOString(), echeance_suppression: "2099-01-01" })
+      .eq("id", u.id);
+
+    const { port, etat } = espion(true);
+    const r = await envoyerSousEgressArt9({ supabase: c, adaptateur: port, requete });
+    expect(r).toEqual({ bloque: true, raison: "minorite" });
+    expect(etat.appels).toBe(0); // rien posté
+    await c.auth.signOut();
+  });
+
+  it("contenu NON-art. 9 → passe sans contrôle consentement/barrière", async () => {
+    // Compte non authentifié + barré au test précédent : contientArt9 false doit tout court-circuiter.
+    const c = clientScope();
     const { port, etat } = espion(true);
     const r = await envoyerSousEgressArt9({
       supabase: c,

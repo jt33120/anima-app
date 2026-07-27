@@ -33,11 +33,9 @@ function assertConformiteArt9(): void {
 
 export class AdaptateurMistral implements AiPort {
   private readonly client: Mistral;
-  private readonly zdrProuve: boolean;
 
   constructor() {
     assertConformiteArt9(); // lève avant toute construction si non conforme
-    this.zdrProuve = true; // garanti par le boot-guard ci-dessus
     const cle = process.env.MISTRAL_API_KEY;
     if (!cle) {
       throw new Error("MISTRAL_API_KEY absente (secret serveur unique, jamais NEXT_PUBLIC_).");
@@ -46,7 +44,9 @@ export class AdaptateurMistral implements AiPort {
   }
 
   estZdrProuve(): boolean {
-    return this.zdrProuve;
+    // `true` garanti par le boot-guard (assertConformiteArt9) exécuté au constructeur : toute
+    // instance existante a prouvé ZDR/DPA/scale. Aucun état runtime à suivre (revue 2.1).
+    return true;
   }
 
   async completer(req: RequeteIa): Promise<ReponseIa> {

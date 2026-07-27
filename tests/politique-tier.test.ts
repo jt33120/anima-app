@@ -33,6 +33,16 @@ describe("Politique de tier — (capacité, niveau_sécurité) → tier (AD-5)",
     }
   });
 
+  it("DÉTECTION (§5) : la capacité `detection` force le FORT pour TOUT niveau, y compris 0 (AD-5, NFR-012)", () => {
+    // La détection ne peut PAS dépendre du niveau qu'elle est justement en train de calculer :
+    // elle doit résoudre le FORT inconditionnellement, jamais le léger, en aucune circonstance.
+    for (const niveau of [0, 1, 2, 3] as const) {
+      expect(tierPour("detection", niveau), `detection@${niveau}`).toBe("fort");
+    }
+    expect(tierPour("detection")).toBe("fort"); // niveau par défaut absent
+    expect(tierPour("detection", 0)).not.toBe("leger"); // contrôle négatif explicite
+  });
+
   it("mappe chaque tier vers un id de modèle DATÉ (jamais -latest)", () => {
     expect(modelePour("leger")).toBe("mistral-small-2603");
     expect(modelePour("fort")).toBe("mistral-large-2512");

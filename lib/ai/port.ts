@@ -11,7 +11,9 @@ import "server-only";
  * donc jamais choisi par le client : la politique unique (AD-5) le résout côté serveur.
  */
 
-export type CapaciteIa = "echange" | "reconceptualisation" | "synthese";
+// `detection` = la classification de détresse du pipeline sécurité (Story 2.3, §5). Toujours
+// résolue au tier FORT, inconditionnellement (AD-5, NFR-012) — voir `politique-tier`.
+export type CapaciteIa = "echange" | "reconceptualisation" | "synthese" | "detection";
 export type TierIa = "leger" | "fort";
 /** Niveau de détresse (Story 2.3 le PRODUIT ; ici, la politique le CONSOMME — défaut 0). */
 export type NiveauSecurite = 0 | 1 | 2 | 3;

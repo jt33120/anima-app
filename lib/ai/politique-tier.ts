@@ -26,6 +26,10 @@ const MODELE: Record<TierIa, string> = {
  * → léger ; reconceptualisation & synthèse → fort.
  */
 export function tierPour(capacite: CapaciteIa, niveauSecurite: NiveauSecurite = 0): TierIa {
+  // La DÉTECTION de détresse (§5) est TOUJOURS au plus capable, jamais le léger, en aucune
+  // circonstance (AD-5, NFR-012) — et sans dépendre du niveau qu'elle est en train de calculer.
+  // Explicite (pas incident) : un futur repoint de la branche par défaut ne doit pas la casser.
+  if (capacite === "detection") return "fort";
   if (niveauSecurite >= 1) return "fort"; // AD-5 : détresse → le plus capable, jamais le léger
   return capacite === "echange" ? "leger" : "fort";
 }

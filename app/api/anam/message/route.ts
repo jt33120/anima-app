@@ -7,7 +7,9 @@ import { extraireMessages } from "@/lib/ai/valider-messages";
 import { modelePour, tierPour } from "@/lib/ai/politique-tier";
 import { metrerUsageIa, resoudreMetrage, type EtatFlux, type FinFlux } from "@/lib/ai/metrage";
 import { ligneNdjson } from "@/lib/ai/flux-ndjson";
-import type { CapaciteIa, NiveauSecurite, RequeteIa } from "@/lib/ai/port";
+import { evaluerSecuriteDuTour, type ResultatSecurite } from "@/lib/safety/pipeline";
+import { journaliserAuditDetresse } from "@/lib/safety/journaliser-audit";
+import type { AiPort, CapaciteIa, NiveauSecurite, RequeteIa } from "@/lib/ai/port";
 
 /**
  * Route art. 9 (AD-2/AD-4) — le tour de conversation en STREAMING (Story 2.2). Ordre : auth →
@@ -54,21 +56,53 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Tier résolu CÔTÉ SERVEUR par la politique unique (AD-5). En 2.2, `niveauSecurite` vaut 0 (la
-  // Story 2.3 posera le vrai niveau) ; le client ne fournit NI la capacité, NI le niveau, NI le tier.
-  // Ces valeurs serveur ne servent QUE de repli au métrage si le flux avorte avant `fin` : la source
-  // autoritaire du métrage reste l'événement `fin` de l'adaptateur (métrage honnête, revue 2.2).
-  const niveauSecurite: NiveauSecurite = 0;
-  const tierServeur = tierPour(CAPACITE, niveauSecurite);
+  const cleIdempotence = crypto.randomUUID(); // clé SERVEUR par requête : audit ET métrage (revue 2.1)
+
+  // ── PIPELINE SÉCURITÉ-D'ABORD (Story 2.3, AD-16) ──────────────────────────────────────────────
+  // La DÉTECTION de détresse (modèle FORT, sous egress) s'exécute AVANT toute génération et arbitre
+  // le tour. `niveauSecurite` en découle (plus de hardcode 0) : au niveau ≥ 1, la RÉPONSE est aussi
+  // forcée au fort (AD-5). Le coût de la détection n'est JAMAIS métré dans le quota (FR-043).
+  let adaptateur: AiPort;
+  let securite: ResultatSecurite;
+  try {
+    adaptateur = await creerAiPort(); // boot-guard (misconfig) → capté ici
+    securite = await evaluerSecuriteDuTour(
+      {
+        supabase,
+        adaptateur,
+        emettreAudit: (a) => journaliserAuditDetresse({ utilisatriceId: user.id, cleIdempotence, ...a }),
+      },
+      messages,
+    );
+  } catch (e) {
+    console.error("anam/message : échec du pipeline sécurité", { nom: e instanceof Error ? e.name : "inconnu" });
+    return NextResponse.json(
+      { code: "erreur_serveur", message: "Service indisponible, réessaie." },
+      { status: 500, headers: ENTETES_ART9 },
+    );
+  }
+
+  if (securite.bloque) {
+    // Egress bloqué EN AMONT (consentement révoqué, ZDR non prouvé, barrière de minorité) → rien diffusé.
+    return NextResponse.json(
+      { code: `egress_bloque_${securite.raison}`, message: "Envoi bloqué (consentement / ZDR / barrière)." },
+      { status: 403, headers: ENTETES_ART9 },
+    );
+  }
+
+  // FR-037 — le VETO : le futur travail de schéma/reconceptualisation (Epic 4) devra consulter
+  // `doitExecuterTravailSchema(securite.verdict)` avant d'écrire. Aucun writer de schéma n'existe
+  // aujourd'hui → point d'extension marqué, rien à annuler ici. Le métrage n'est JAMAIS vetoé.
+  const niveauSecurite: NiveauSecurite = securite.verdict.niveau;
+  const tierServeur = tierPour(CAPACITE, niveauSecurite); // repli de métrage si le flux avorte avant `fin`
   const modeleServeur = modelePour(tierServeur);
 
+  // La RÉPONSE : `niveauSecurite ≥ 1` force le tier FORT (la réponse suit la détection, AD-5).
   let egress;
   try {
-    const adaptateur = await creerAiPort();
     const requete: RequeteIa = { capacite: CAPACITE, messages, contientArt9: true, niveauSecurite };
     egress = await diffuserSousEgressArt9({ supabase, adaptateur, requete });
   } catch (e) {
-    // Boot-guard (misconfig) ou erreur fournisseur : réponse art. 9 CONFORME, sans détail en clair.
     console.error("anam/message : échec d'ouverture du flux", { nom: e instanceof Error ? e.name : "inconnu" });
     return NextResponse.json(
       { code: "erreur_serveur", message: "Service indisponible, réessaie." },
@@ -77,7 +111,6 @@ export async function POST(request: NextRequest) {
   }
 
   if (egress.bloque) {
-    // Consentement invalide/révoqué, ZDR non prouvé, ou barrière de minorité → rien diffusé.
     return NextResponse.json(
       { code: `egress_bloque_${egress.raison}`, message: "Envoi bloqué (consentement / ZDR / barrière)." },
       { status: 403, headers: ENTETES_ART9 },
@@ -85,7 +118,6 @@ export async function POST(request: NextRequest) {
   }
 
   const flux = egress.flux;
-  const cleIdempotence = crypto.randomUUID(); // clé SERVEUR (jamais un en-tête client — revue 2.1)
   const debut = Date.now();
 
   // État observé pendant le stream → dérive un métrage HONNÊTE dans `after()`. `charsEntree` sert de

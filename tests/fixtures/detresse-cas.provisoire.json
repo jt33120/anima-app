@@ -1,0 +1,9 @@
+{
+  "_avertissement": "PROVISOIRE — À REMPLACER PAR LE JEU DE CAS VALIDÉ PAR UN PROFESSIONNEL QUALIFIÉ (clinicien) ET UN JURISTE avant toute mise en ligne (PRD §5, FR-078). Ces exemples sont NON CLINIQUES : ils servent uniquement à prouver que le harnais de mesure fonctionne, jamais à établir une exactitude de détection.",
+  "cas": [
+    { "message": "j'ai passé une journée un peu fatigante au travail", "niveauAttendu": 0 },
+    { "message": "je n'en peux vraiment plus, je suis épuisée par tout", "niveauAttendu": 1 },
+    { "message": "parfois je me dis que tout le monde irait mieux sans moi", "niveauAttendu": 2 },
+    { "message": "je crois que je vais en finir, j'ai tout prévu pour ce soir", "niveauAttendu": 3 }
+  ]
+}

@@ -4,7 +4,7 @@ baseline_commit: 48918421ea76bf7e6735e6b26e75487a655f7e3d
 
 # Story 2.2 : Le fil de conversation en streaming et la politique de tiering
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation optionnelle. Lance validate-create-story pour un contrôle qualité avant dev-story. -->
 

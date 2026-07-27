@@ -15,5 +15,10 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // Les tests SQL-réels frappent un Supabase local (Docker : auth + Postgres). Sous charge
+    // parallèle, une requête peut dépasser les 5 s par défaut → marge élargie pour fiabiliser
+    // la suite sans masquer d'erreur de logique (les assertions sont inchangées).
+    testTimeout: 15000,
+    hookTimeout: 20000,
   },
 });

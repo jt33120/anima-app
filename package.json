@@ -15,6 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mistralai/mistralai": "2.5.0",
     "@supabase/ssr": "0.12.3",
     "@supabase/supabase-js": "2.110.8",
     "next": "16.2.11",

@@ -37,9 +37,11 @@ export default function ImageAnam({
       role="img"
       aria-label={alt}
     >
-      {/* Présence plumeuse de repli — DERRIÈRE l'image (z-index), visible si l'asset manque. */}
-      <span className={s.imageAnamRepli} aria-hidden />
-      {!absent && (
+      {/* Les assets sont des PNG DÉTOURÉS (fond transparent) : le repli plumeux ne s'affiche QUE si
+          l'image manque (sinon il transparaîtrait à travers l'alpha = halo indésirable, revue). */}
+      {absent ? (
+        <span className={s.imageAnamRepli} aria-hidden />
+      ) : (
         <picture>
           <source type="image/avif" srcSet={`${base}.avif 1x, ${base}@2x.avif 2x`} />
           <source type="image/webp" srcSet={`${base}.webp 1x, ${base}@2x.webp 2x`} />

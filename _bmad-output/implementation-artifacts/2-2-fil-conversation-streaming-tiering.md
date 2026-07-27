@@ -130,9 +130,9 @@ afin que **l'échange soit vivant sans jamais trahir la machine ni me presser**.
 
 ### PHASE C — Assets visuels du personnage (production Gemini, hors code)
 
-- [ ] **Task C1 — Produire les assets Présence & Veille (Julian, via Gemini)**
-  - [ ] À partir des planches de référence `images/anam-gemini/`, produire **Présence** (buste émergeant de la nuit, lotus près des cheveux, **fond transparent, bord plumeux ~16–24px**, ~560px + @2x) et **Veille** (de dos/profil/estompée, fond transparent). Déposer en `public/scene/{presence,veille}/anam-*.{avif,webp,png}`.
-  - [ ] Je (l'agent) **fournis les prompts Gemini** dans les Completion Notes ; **non bloquant pour le build** (repli gracieux Task B5). Cohérent avec la charte : personnage jamais dans icône/notif/multitâche.
+- [x] **Task C1 — Produire les assets Présence & Veille (Julian, via Gemini)**
+  - [x] Prompts Gemini fournis (`2-2-phase-c-prompts-gemini.md`) ; **Présence** (buste, lotus près des cheveux) et **Veille** (de dos, lotus en main) générées par Julian, cohérentes avec la bible `images/anam-gemini/`. Fond nuit `#0C0A1E` (les bords se dissolvent dans le fond du panneau, + masque plumeux du rendu → aucun détourage).
+  - [x] Pipeline `scripts/generer-assets-anam.mjs` (sharp) : 12 fichiers produits — `{avif,webp,png}` × `{1x,@2x}` en `public/scene/{presence,veille}/`. Repli gracieux du composant désormais couvert par de vrais assets (les 3 formats présents → pas de piège `<picture>`). Personnage jamais dans icône/notif/multitâche (garanti par le code, pas l'asset).
 
 ### Transverse
 

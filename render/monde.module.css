@@ -160,7 +160,7 @@
   text-align: center;
   color: var(--texte-doux);
 }
-.titreConversation:focus {
+.titreConversation:focus-visible {
   outline: 2px solid var(--bordure-forte);
   outline-offset: 4px;
   border-radius: var(--rayon-sm);
@@ -186,10 +186,12 @@
 .bloc h1 {
   scroll-margin-top: calc(var(--cible-tactile) + var(--esp-6));
 }
-/* Entêtes de région : focus déplacé PAR PROGRAMME (tabindex=-1) → cibler :focus, pas
-   seulement :focus-visible (qui peut ne pas s'armer sur un focus programmatique). */
-.seuilTexte h1:focus,
-.bloc h1:focus {
+/* Entêtes de région : le focus déplacé PAR PROGRAMME (tabindex=-1, à l'entrée de région) ne doit
+   PAS dessiner de boîte (ça ressemblait à un bouton — retour produit). On cible :focus-visible :
+   l'anneau ne paraît qu'au focus CLAVIER réel ; le lecteur d'écran, lui, annonce l'entête au
+   déplacement programmatique (aucune régression a11y). */
+.seuilTexte h1:focus-visible,
+.bloc h1:focus-visible {
   outline: 2px solid var(--bordure-forte);
   outline-offset: 4px;
   border-radius: var(--rayon-sm);

@@ -1,5 +1,5 @@
 import "./styles/globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { policeAnam, policeUi } from "./styles/polices";
 
@@ -15,6 +15,16 @@ export const metadata: Metadata = {
     description: "Un espace calme pour faire le point.",
     type: "website",
   },
+};
+
+// UX-DR-42 / Story 2.2 (AC8) : `interactive-widget=resizes-content` → à l'ouverture du clavier
+// virtuel (surtout Android), le viewport de mise en page rétrécit et le composeur reste visible
+// (iOS s'appuie en plus sur `visualViewport`, câblé dans la conversation). On NE fixe NI
+// maximumScale NI userScalable=no : le zoom 200 %/400 % doit rester possible (AC8, WCAG 1.4.4).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
 };
 
 // UX-DR-36 : lang="fr" sur le document.

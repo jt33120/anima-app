@@ -1,0 +1,213 @@
+/*
+ * conversation.module.css — Le rendu de la région conversation (Story 2.2, B2→B5). MUET (AD-7) :
+ * du dessin, aucune logique. Consomme les tokens (app/styles/tokens.ts + globals.css) — jamais de
+ * valeur « à l'œil ». Le fondu de personnage réutilise la classe globale `.fondu-personnage`
+ * (donc la neutralisation reduced-motion de globals.css s'applique : opacité seule, jamais retiré).
+ */
+
+/* ── Le shell : colonne pleine hauteur de la région ; le fil défile, le composeur reste en bas ── */
+.conversation {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0; /* autorise le fil enfant à défiler au lieu de pousser le composeur hors écran */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--contenu-max);
+  margin: 0 auto;
+}
+
+/* ── Le fil : flux vertical UNIQUE, sans bulles opposées (AC1). Gap = respiration. ── */
+.fil {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--respiration);
+  padding: var(--esp-4) var(--esp-2) var(--esp-5);
+  /* JAMAIS smooth : défilement instantané → cohérent reduced-motion ET suivi du bas non captif. */
+  scroll-behavior: auto;
+}
+
+/* Voix d'Anam — Fraunces (t-anam), SANS fond / bulle / bordure. */
+.tourAnam {
+  max-width: var(--mesure);
+}
+.tourAnam p {
+  margin: 0;
+  color: var(--texte);
+}
+
+/* Mots de l'utilisatrice — PLEINE VALEUR (jamais --texte-doux), filet gauche + retrait 16px.
+   Pas une bulle, pas l'extinction (AC1, FR-021). */
+.tourUtilisatrice {
+  max-width: var(--mesure);
+  border-left: 1px solid var(--bordure-forte);
+  padding-left: var(--esp-4);
+}
+.tourUtilisatrice p {
+  margin: 0;
+  color: var(--texte);
+}
+
+/* Échec — registre SYSTÈME (jamais signé Anam), le partiel reste au-dessus, « Réessayer ». */
+.echec {
+  margin-top: var(--esp-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-3);
+}
+.reessayer {
+  min-height: var(--cible-tactile);
+  padding: var(--esp-2) var(--esp-4);
+  background: transparent;
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  color: var(--texte);
+  cursor: pointer;
+}
+.reessayer:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
+/* Région d'annonce a11y — présente dans le DOM mais hors flux visuel (jamais display:none, sinon
+   non annoncée). Remplie UNE fois à la fin (aria-atomic) → annonce unique fiable. */
+.annonce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Composeur : bande basse, ne DISPARAÎT jamais (AC5). Remonte au-dessus du clavier virtuel via
+      --decalage-clavier (posé par visualViewport ; 0 par défaut → aucun effet sur desktop). ── */
+.composeur {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--esp-3);
+  padding: var(--esp-3) var(--esp-2);
+  padding-bottom: max(var(--esp-3), env(safe-area-inset-bottom));
+  transform: translateY(calc(-1 * var(--decalage-clavier, 0px)));
+  transition: transform var(--duree-courte) var(--courbe);
+  background: linear-gradient(to top, var(--fond) 62%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .composeur {
+    transition: none;
+  }
+}
+
+.champ {
+  flex: 1 1 auto;
+  min-height: var(--cible-tactile);
+  resize: none;
+  padding: var(--esp-3) var(--esp-4);
+  background: var(--surface-elevee);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon-md);
+  color: var(--texte);
+  font-family: var(--pile-ui);
+  line-height: 1.5;
+}
+.champ::placeholder {
+  color: var(--texte-doux);
+}
+.champ:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
+.envoi {
+  flex: none;
+  min-height: var(--cible-tactile);
+  min-width: var(--cible-tactile);
+  padding: var(--esp-3) var(--esp-5);
+  background: transparent;
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  color: var(--texte);
+  cursor: pointer;
+  transition: border-color var(--duree-standard) var(--courbe);
+}
+.envoi:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.envoi:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.envoi:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
+/* ── Apparition d'Anam (format Présence) — aux beats seulement, en tête du fil, sans cadre. ── */
+.apparition {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding: var(--esp-4) 0 var(--esp-2);
+}
+
+/* ── Système d'assets — présence PLUMEUSE, sans cadre / cercle / vignette (AC6/AC9). ── */
+.imageAnam {
+  position: relative;
+  display: inline-block;
+}
+.imageAnam.presence {
+  width: clamp(96px, 30vw, 140px);
+  aspect-ratio: 4 / 5;
+}
+.imageAnam.seuil {
+  width: min(58vw, 19rem);
+  aspect-ratio: 4 / 5;
+}
+.imageAnam.veille {
+  width: clamp(80px, 24vw, 120px);
+  aspect-ratio: 2 / 3;
+}
+.imageAnamImg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* bord plumeux : l'image se dissout dans la nuit, aucun cadre (AC6/AC9) */
+  -webkit-mask-image: radial-gradient(118% 96% at 50% 46%, #000 55%, transparent 82%);
+  mask-image: radial-gradient(118% 96% at 50% 46%, #000 55%, transparent 82%);
+}
+/* Repli gracieux : un halo doux, plumeux, dissous dans le fond — jamais d'image cassée. */
+.imageAnamRepli {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: var(--rayon-full);
+  background: radial-gradient(60% 55% at 50% 42%, var(--accent-doux) 0%, transparent 72%);
+  opacity: 0.7;
+}
+/* En accessibilité (-clair), l'imagerie cède aux aplats. On masque l'apparition ENTIÈRE (pas juste
+   l'image) : sinon une boîte vide ~120px + une annonce fantôme « Illustration nocturne » subsistent
+   (revue 2.2). Aucune info perdue : la présence est aussi portée par le signe de la surimpression. */
+:global(:root[data-a11y="contraste"]) .apparition,
+:global(:root[data-a11y="contraste"]) .imageAnamImg,
+:global(:root[data-a11y="contraste"]) .imageAnamRepli {
+  display: none;
+}
+@media (prefers-contrast: more) {
+  :global(:root:not([data-a11y="nuit"])) .apparition,
+  :global(:root:not([data-a11y="nuit"])) .imageAnamImg,
+  :global(:root:not([data-a11y="nuit"])) .imageAnamRepli {
+    display: none;
+  }
+}

@@ -22,11 +22,17 @@ import s from "./monde.module.css";
 /**
  * Fragment abstrait tronc/branche — PLACEHOLDER du signe d'Anam (l'asset peint final viendra).
  * Décoratif (`aria-hidden`) : la transparence est portée par la mention IA (texte + lien), pas
- * par le glyphe. Statique — l'épaississement « Anam prépare » est différé (Epic 2 / Story 2.1).
+ * par le glyphe. « Anam prépare » (Story 2.2, AC2) : le trait S'ÉPAISSIT (attribut statique piloté
+ * par `prepare`), SANS animation cyclique — jamais trois points qui rebondissent.
  */
-function SigneAnam() {
+function SigneAnam({ prepare }: { prepare: boolean }) {
   return (
-    <svg className={s.signeAnam} viewBox="0 0 24 24" aria-hidden focusable="false">
+    <svg
+      className={`${s.signeAnam} ${prepare ? s.signeAnamPrepare : ""}`}
+      viewBox="0 0 24 24"
+      aria-hidden
+      focusable="false"
+    >
       <path d="M12 22 V7" />
       <path d="M12 12.5 L7 8.5" />
       <path d="M12 14.5 L17 9.5" />
@@ -34,13 +40,19 @@ function SigneAnam() {
   );
 }
 
-export default function Surimpression({ modele }: { modele: Surimpression }) {
+export default function Surimpression({
+  modele,
+  prepare = false,
+}: {
+  modele: Surimpression;
+  prepare?: boolean;
+}) {
   return (
     <div className={s.surimpression}>
       {/* Le voile : dense là où flotte le texte, se dissout vers le bas. Pas une bande. */}
       <div className={s.surimpressionVoile} aria-hidden />
 
-      {modele.signeAnam && <SigneAnam />}
+      {modele.signeAnam && <SigneAnam prepare={prepare} />}
 
       {modele.mentionIA && (
         <Link className={s.mentionIa} href={`${URL_AIDE}#transparence`}>

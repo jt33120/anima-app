@@ -29,6 +29,7 @@ import {
 } from "@/lib/scene";
 import ArbreVivant from "./arbre-vivant";
 import Surimpression from "./surimpression";
+import Conversation from "./conversation/Conversation";
 import s from "./monde.module.css";
 
 export interface ProprietesSceneRendue {
@@ -83,7 +84,7 @@ function Etoiles() {
 const CORPS: Record<IdRegion, string> = {
   seuil: "",
   accueil: "La bibliothèque de tes repères prendra place ici.",
-  anam: "Ici s'ouvrira ta conversation avec Anam.",
+  anam: "", // la région anam rend <Conversation/>, jamais ce placeholder (Story 2.2)
   arbre: "Ton arbre grandira à mesure que tu avances.",
 };
 
@@ -91,6 +92,10 @@ export default function SceneDom({ projection }: ProprietesSceneRendue) {
   const [etat, dispatch] = useReducer(reducteurVue, etatInitial);
   const region = etat.regionCourante;
   const aller = (cible: IdRegion) => dispatch({ type: "aller", cible });
+
+  // État « Anam prépare » (AC2) remonté de la conversation → épaissit le signe de la surimpression.
+  // Présentation pure (pas de domaine) ; SceneDom, hôte du view-state, le porte (AD-7).
+  const [anamPrepare, setAnamPrepare] = useState(false);
 
   // Focus déplacé vers l'entête de la région ACTIVÉE (AC3), jamais au montage initial.
   // On compare à la région précédente (robuste au double-montage de React StrictMode,
@@ -112,7 +117,7 @@ export default function SceneDom({ projection }: ProprietesSceneRendue) {
           de secours est parmi les tout premiers arrêts de tabulation (AC3). Couche constante,
           jamais dans une région → jamais masquée/dissoute au changement de région (AC1). Le
           MODÈLE décide quoi porter (surimpressionPour) ; ce rendu ne fait que dessiner (AD-7). */}
-      <Surimpression modele={surimpressionPour(region)} />
+      <Surimpression modele={surimpressionPour(region)} prepare={anamPrepare} />
 
       {/* Fond persistant — la scène est une, seul le premier plan se fond. */}
       <div className={s.ciel} aria-hidden>
@@ -163,21 +168,37 @@ export default function SceneDom({ projection }: ProprietesSceneRendue) {
       {/* ─────────── Régions : les destinations, DÉRIVÉES du modèle (ordre + libellés) ─────────── */}
       {REGIONS.map((r) => {
         const actif = region === r.id;
+        const estConversation = r.id === "anam";
         return (
           <section
             key={r.id}
-            className={`${s.region} ${s.panneau} ${actif ? s.regionActive : ""}`}
+            className={`${s.region} ${estConversation ? s.regionConversation : s.panneau} ${actif ? s.regionActive : ""}`}
             aria-label={r.nom}
             aria-hidden={actif ? undefined : true}
             inert={actif ? undefined : true}
           >
-            <div className={s.bloc}>
-              {/* h1 par région : une seule est non-inert à la fois → une seule h1 exposée. */}
-              <h1 className="t-titre" tabIndex={-1} ref={(el) => void (entetes.current[r.id] = el)}>
-                {r.nom}
-              </h1>
-              <p className="t-corps">{CORPS[r.id]}</p>
-            </div>
+            {estConversation ? (
+              <>
+                {/* h1 unique de la vue (cible du focus programmatique) — quiet, la conversation suit. */}
+                <h1
+                  className={`t-titre-sm ${s.titreConversation}`}
+                  tabIndex={-1}
+                  ref={(el) => void (entetes.current[r.id] = el)}
+                >
+                  {r.nom}
+                </h1>
+                {/* Rendu de la conversation (AD-7 : adaptateur muet, ne parle qu'à app/api). */}
+                <Conversation onPreparation={setAnamPrepare} />
+              </>
+            ) : (
+              <div className={s.bloc}>
+                {/* h1 par région : une seule est non-inert à la fois → une seule h1 exposée. */}
+                <h1 className="t-titre" tabIndex={-1} ref={(el) => void (entetes.current[r.id] = el)}>
+                  {r.nom}
+                </h1>
+                <p className="t-corps">{CORPS[r.id]}</p>
+              </div>
+            )}
           </section>
         );
       })}

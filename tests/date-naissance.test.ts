@@ -7,22 +7,22 @@ import { etapeOnboarding } from "@/app/(auth)/onboarding";
 
 describe("Décision d'onboarding — barrière mineur + étapes consentement/révocation (revue 1.4, étendue 1.5/1.6)", () => {
   it("mineur signalé → 'mineur' (prime sur tout, refusé à chaque connexion)", () => {
-    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: true }, "aucun")).toBe("mineur");
-    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: true }, "valide")).toBe("mineur");
+    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: true, barriere_minorite_le: null }, "aucun")).toBe("mineur");
+    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: true, barriere_minorite_le: null }, "valide")).toBe("mineur");
   });
   it("pas de date → 'naissance'", () => {
-    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: false }, "aucun")).toBe("naissance");
+    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: false, barriere_minorite_le: null }, "aucun")).toBe("naissance");
   });
   it("date posée mais pas de consentement → 'consentement'", () => {
-    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false }, "aucun")).toBe("consentement");
+    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false, barriere_minorite_le: null }, "aucun")).toBe("consentement");
   });
   it("date posée + consentement valide → 'suite' (la scène)", () => {
-    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false }, "valide")).toBe("suite");
+    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false, barriere_minorite_le: null }, "valide")).toBe("suite");
   });
   it("consentement révoqué → 'revoque' (prioritaire, même sans date, jamais renvoyée re-consentir)", () => {
-    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false }, "revoque")).toBe("revoque");
+    expect(etapeOnboarding({ date_naissance: "1990-01-01", mineur_detecte: false, barriere_minorite_le: null }, "revoque")).toBe("revoque");
     // Priorité sur l'absence de date (revue 1.6) : une révoquée ne repasse jamais par le tunnel.
-    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: false }, "revoque")).toBe("revoque");
+    expect(etapeOnboarding({ date_naissance: null, mineur_detecte: false, barriere_minorite_le: null }, "revoque")).toBe("revoque");
   });
   it("ligne absente (cas défensif) → 'naissance' : jamais la scène sans état confirmé", () => {
     expect(etapeOnboarding(null, "aucun")).toBe("naissance");

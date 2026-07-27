@@ -20,7 +20,7 @@ export async function etapeOnboardingPour(
 ): Promise<EtapeOnboarding> {
   const { data: ligne, error: erreurLigne } = await supabase
     .from("utilisatrice")
-    .select("date_naissance, mineur_detecte")
+    .select("date_naissance, mineur_detecte, barriere_minorite_le")
     .eq("id", userId)
     .maybeSingle();
   // Fail LOUD sur une vraie erreur de lecture : ne jamais confondre « lecture impossible »

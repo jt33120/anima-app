@@ -34,6 +34,7 @@ export async function donnerConsentement(
   // un POST direct de persister une preuve (+ « 18 ans confirmé ») pour un compte sans date
   // ou mineur — l'action est un endpoint indépendant, non protégé par le middleware.
   const etape = await etapeOnboardingPour(supabase, user.id);
+  if (etape === "barre") redirect("/barriere"); // minorité détectée (1.9) : suspendu, sans signOut. Prime.
   if (etape === "mineur") {
     await supabase.auth.signOut();
     redirect("/entrer?refus=age");
@@ -117,6 +118,7 @@ export async function revoquerConsentement(): Promise<void> {
   // valide (étape "suite"). Empêche un POST direct de poser revoked_at sur une ligne non
   // consentie / inexistante (état incohérent ou faux succès).
   const etape = await etapeOnboardingPour(supabase, user.id);
+  if (etape === "barre") redirect("/barriere"); // minorité détectée (1.9) : suspendu, sans signOut. Prime.
   if (etape === "mineur") {
     await supabase.auth.signOut();
     redirect("/entrer?refus=age");

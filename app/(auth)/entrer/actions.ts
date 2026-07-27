@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
+import { appliquerBarriereMinorite } from "@/lib/safety/appliquer-barriere";
 
 export type EtatEntree = { ok: boolean; message?: string };
 
@@ -49,9 +50,9 @@ export async function envoyerLien(
  * La démo est ensuite pré-onboardée SOUS RLS (elle se consent à elle-même) → elle arrive
  * DIRECTEMENT dans la scène, sans repasser par le tunnel.
  */
-export async function entreeDemo(): Promise<void> {
-  if (process.env.NODE_ENV === "production") redirect("/entrer");
-  const email = process.env.DEMO_EMAIL || "demo@anam.local";
+async function assurerSessionDemoConsentie(
+  email = process.env.DEMO_EMAIL || "demo@anam.local",
+): Promise<string> {
   const password = process.env.DEMO_PASSWORD || "demo-anam-local-000";
 
   // 1. Garantir le compte démo AVEC ce mot de passe (idempotent).
@@ -77,7 +78,7 @@ export async function entreeDemo(): Promise<void> {
 
   // 3. Pré-onboarder la démo SOUS RLS (jamais l'admin sur du contenu → AD-12) : elle pose
   //    sa propre date (seulement si nulle — immuable ensuite, AD-6) et son consentement
-  //    (idempotent). Résultat : état « suite » → la scène directement.
+  //    (idempotent). Résultat : état « suite ».
   const uid = sign.user.id;
   await supabase
     .from("utilisatrice")
@@ -95,5 +96,35 @@ export async function entreeDemo(): Promise<void> {
     { onConflict: "utilisatrice_id" },
   );
 
+  return uid;
+}
+
+/**
+ * DEV UNIQUEMENT — Entrée sans email (le magic link built-in de Supabase ne délivre pas
+ * sans SMTP ; en local, aucun mail réel n'est envoyé). Neutralisée en production : le
+ * bouton n'est pas rendu ET l'action se dérobe. La démo pré-onboardée arrive DIRECTEMENT
+ * dans la scène, sans repasser par le tunnel.
+ */
+export async function entreeDemo(): Promise<void> {
+  if (process.env.NODE_ENV === "production") redirect("/entrer");
+  await assurerSessionDemoConsentie();
   redirect("/"); // → la scène
+}
+
+/**
+ * DEV UNIQUEMENT (Story 1.9) — Entrer dans un compte SUSPENDU pour minorité détectée, afin de
+ * VOIR l'écran /barriere sans attendre le classifieur (Epic 2). Neutralisée en production.
+ * On applique la barrière sur SON PROPRE compte (self) : `appliquerBarriereMinorite` n'est jamais
+ * exposée avec un uid arbitraire côté client (elle est `server-only`).
+ */
+export async function entreeDemoSuspendue(): Promise<void> {
+  if (process.env.NODE_ENV === "production") redirect("/entrer");
+  // Compte démo DÉDIÉ (jamais le compte démo normal) : la barrière n'étant jamais levée en Epic 1
+  // (le moteur de rétention = Story 6.8), suspendre le compte partagé le laisserait « barre » à
+  // vie et le bouton « démo » normal atterrirait ensuite toujours sur /barriere (revue 1.9).
+  const uid = await assurerSessionDemoConsentie(
+    process.env.DEMO_EMAIL_SUSPENDU || "demo-suspendu@anam.local",
+  );
+  await appliquerBarriereMinorite(uid); // injection contrôlée du drapeau (le vrai détecteur = Epic 2)
+  redirect("/barriere"); // → l'écran de suspension
 }

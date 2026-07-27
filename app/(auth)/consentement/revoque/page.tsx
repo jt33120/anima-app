@@ -25,6 +25,7 @@ export default async function PageRevoque({
   if (!user) redirect("/entrer");
 
   const etape = await etapeOnboardingPour(supabase, user.id);
+  if (etape === "barre") redirect("/barriere"); // minorité détectée (1.9) : suspendu, sans signOut. Prime.
   if (etape === "mineur") {
     await supabase.auth.signOut();
     redirect("/entrer?refus=age");

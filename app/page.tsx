@@ -19,6 +19,9 @@ export default async function Page() {
   if (!user) redirect("/entrer");
 
   const etape = await etapeOnboardingPour(supabase, user.id);
+  // Minorité DÉTECTÉE après coup (1.9, FR-071) : compte suspendu → /barriere. On NE signOut PAS
+  // (l'export a besoin de la session RLS) ; cet état prime sur tout le reste.
+  if (etape === "barre") redirect("/barriere");
   // Mineur signalé : refusé même avec une session (barrière persistante, FR-070).
   if (etape === "mineur") {
     await supabase.auth.signOut();

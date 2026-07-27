@@ -21,6 +21,9 @@ async function destinationApresAuth(
   if (!user) return next;
 
   const etape = await etapeOnboardingPour(supabase, user.id);
+  // Minorité DÉTECTÉE après coup (1.9, FR-071) : compte suspendu → /barriere, sans signOut
+  // (l'export a besoin de la session). Prime sur tout.
+  if (etape === "barre") return "/barriere";
   if (etape === "mineur") {
     // Barrière persistante : un mineur signalé est refusé à CHAQUE connexion (FR-070).
     await supabase.auth.signOut();

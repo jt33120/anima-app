@@ -1,5 +1,5 @@
 import FormulaireEntree from "./formulaire-entree";
-import { entreeDemo } from "./actions";
+import { entreeDemo, entreeDemoSuspendue } from "./actions";
 import s from "./entrer.module.css";
 
 // NFR-015 / AC7 (1.7) — identité uniforme : « Anam » sur toutes les routes.
@@ -32,14 +32,21 @@ export default async function PageEntrer({
           </>
         )}
         {process.env.NODE_ENV !== "production" && (
-          <form action={entreeDemo} style={{ marginTop: "var(--esp-7)" }}>
+          <div style={{ marginTop: "var(--esp-7)" }}>
             <p className="t-meta" style={{ marginBottom: "var(--esp-2)" }}>
               Dev — accès sans email (n&apos;existe pas en production)
             </p>
-            <button type="submit" className={s.bouton}>
-              <span className="t-bouton">Entrer directement (démo)</span>
-            </button>
-          </form>
+            <form action={entreeDemo}>
+              <button type="submit" className={s.bouton}>
+                <span className="t-bouton">Entrer directement (démo)</span>
+              </button>
+            </form>
+            <form action={entreeDemoSuspendue} style={{ marginTop: "var(--esp-2)" }}>
+              <button type="submit" className={s.bouton}>
+                <span className="t-bouton">Entrer en compte suspendu (démo minorité)</span>
+              </button>
+            </form>
+          </div>
         )}
       </div>
     </main>

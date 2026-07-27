@@ -25,6 +25,7 @@ export default async function PageConsentement({
   if (!user) redirect("/entrer");
 
   const etape = await etapeOnboardingPour(supabase, user.id);
+  if (etape === "barre") redirect("/barriere"); // minorité détectée (1.9) : suspendu, sans signOut. Prime.
   if (etape === "mineur") {
     // Barrière persistante : un mineur signalé est refusé à chaque connexion (FR-070).
     await supabase.auth.signOut();

@@ -1,0 +1,84 @@
+/*
+ * barriere.module.css — Écran « Minorité détectée » (Story 1.9). Sobre, calme, JAMAIS
+ * alarmant : ni rouge, ni --alerte, ni modale, ni pictogramme de danger (AD-9). Calqué sur
+ * aide.module.css (1.8) : la présentation « fiche » formalisée est la Story 2.5.
+ */
+.page {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  padding: var(--esp-8) var(--marge-mobile);
+  background: var(--fond);
+}
+.contenu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-6);
+  width: 100%;
+  max-width: var(--mesure);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
+/* Ressources — même patron que /aide : liste sobre, numéros lisibles, énoncés chiffre par
+   chiffre par le lecteur d'écran (aria-label sur le lien). */
+.ressources {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+.ressource {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+  padding-left: var(--esp-4);
+  border-left: 2px solid var(--bordure-forte);
+}
+.numero {
+  align-self: flex-start;
+  min-height: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  color: var(--texte);
+  text-decoration: none;
+}
+.numero:hover {
+  color: var(--accent);
+}
+.numero:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+  border-radius: var(--rayon-sm);
+}
+.desc {
+  color: var(--texte-doux);
+}
+
+/* Export — action unique, sobre (surface, jamais alerte). Cible tactile respectée. */
+.exporter {
+  align-self: flex-start;
+  min-height: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  padding: var(--esp-2) var(--esp-4);
+  color: var(--texte);
+  text-decoration: none;
+  background: var(--surface-elevee);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon-sm);
+}
+.exporter:hover {
+  color: var(--accent);
+}
+.exporter:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+  border-radius: var(--rayon-sm);
+}

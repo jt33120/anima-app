@@ -29,10 +29,13 @@ et peut **annuler** tout le reste du tour (AD-16). Aucune infra dans les modules
   branche née d'un épisode » (FR-042). Exposée par `branche_bloquee_par_detresse()` (keyée `auth.uid()`,
   granted `authenticated`) — **couture Epic 4** : le write-gate de `branche` l'appellera dans son WITH CHECK.
 
-**Extinction possédée** : `enregistrer_tour_detresse` (SQL, atomique, race-safe) ferme l'épisode ssi
-**N tours sûrs consécutifs ET délai minimal écoulé** — jamais levé à vie, jamais éteint trop tôt. Les
-**seuils** (`SEUIL_TOURS_SURS`, `DUREE_MIN_EPISODE_MS`, provisoires) vivent dans le **pur**
-`episode-detresse.ts` et sont **passés en arguments** au SQL (jamais figés — AD-14).
+**Extinction possédée** : `enregistrer_tour_detresse` (SQL, atomique, race-safe — 0010 + correctifs
+0011) ferme l'épisode ssi **N tours sûrs consécutifs ET délai minimal écoulé DEPUIS LE DERNIER TOUR
+ÉLEVÉ** (`dernier_niveau_eleve_le`, réarmé à chaque rehausse — jamais mesuré depuis `debut`, sinon un
+pic tardif s'éteint trop tôt) — jamais levé à vie, jamais éteint trop tôt. Les **seuils**
+(`SEUIL_TOURS_SURS`, `DUREE_MIN_EPISODE_MS`, provisoires) vivent dans le **pur** `episode-detresse.ts`
+et sont **passés en arguments** au SQL (jamais figés — AD-14). La transition est l'**unique** vérité
+(le modèle TS n'en est PAS une réimplémentation — seuls les seuils y vivent).
 
 **Posture RLS (AC3)** : server-authoritative, **deny-by-default** (RLS + FORCE, aucune policy —
 patron `usage_ia`/`audit_securite`). Un épisode est une **décision serveur** : la cliente ne l'écrit
@@ -64,8 +67,8 @@ juriste** avant toute mise en ligne sur données réelles (PRD §5). On code la 
 - `classer-detresse.ts` — **pur** : niveau (0-3) → `VerdictSecurite` ; entrée illisible → repli sûr.
 - `detecteur-detresse.ts` — serveur : classification au fort sous egress ; repli sûr ; prompt placeholder.
 - `pipeline.ts` — sécurité-d'abord ; **seul appelant du détecteur** ; audit ; épisode ; veto.
-- `episode-detresse.ts` — **pur** (Story 2.4) : machine d'état d'extinction + dérivations (`limitesLevees`,
-  `ecritureBrancheBloquee`) ; seuils provisoires (porte clinique).
+- `episode-detresse.ts` — **pur** (Story 2.4) : les **seuils** d'extinction (source unique, passés en
+  arguments au SQL) ; provisoires (porte clinique). La LOGIQUE de transition vit dans le SQL (unique vérité).
 - `depot-episode.ts` — serveur (Story 2.4) : dépôt réel `episode_detresse` via fonctions security definer ;
   **seul appelant** de `enregistrer_tour_detresse` ; repli sûr sur panne.
 - `journaliser-audit.ts` — écriture de l'audit détresse (service_role, best-effort, ne lève jamais).

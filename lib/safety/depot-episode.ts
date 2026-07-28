@@ -17,10 +17,11 @@ import { DUREE_MIN_EPISODE_MS, FENETRE_POST_EPISODE_MS, SEUIL_TOURS_SURS } from 
  *   • `episodeOuvert` en échec → `true` (suppose ouvert → force le fort, AD-5).
  */
 
-/** Seuils d'extinction en unités SQL (secondes), lus une fois depuis le pur. */
+/** Seuils d'extinction en unités SQL (secondes entières — un seuil clinique non-multiple de 1000 ms
+ *  ne doit jamais produire un float pour un paramètre Postgres `int`). */
 const P_SEUIL_TOURS = SEUIL_TOURS_SURS;
-const P_DUREE_MIN_S = DUREE_MIN_EPISODE_MS / 1000;
-const P_FENETRE_S = FENETRE_POST_EPISODE_MS / 1000;
+const P_DUREE_MIN_S = Math.round(DUREE_MIN_EPISODE_MS / 1000);
+const P_FENETRE_S = Math.round(FENETRE_POST_EPISODE_MS / 1000);
 
 function journaliserIncidentSecurite(motif: string, e?: unknown): void {
   console.error("securite: indisponibilité du dépôt d'épisode — repli sûr (AD-15)", {
@@ -29,42 +30,57 @@ function journaliserIncidentSecurite(motif: string, e?: unknown): void {
   });
 }
 
+/**
+ * Appelle une RPC sous le client admin et RETOMBE sur `defautSurEchec` à la moindre panne (erreur
+ * Supabase OU exception), en journalisant un incident sans art. 9. Le repli sûr des deux méthodes.
+ */
+async function rpcAvecRepli<T>(
+  nomRpc: string,
+  args: Record<string, unknown>,
+  interpreter: (data: unknown) => T,
+  defautSurEchec: T,
+  motif: string,
+): Promise<T> {
+  try {
+    const admin = createSupabaseAdminClient();
+    const { data, error } = await admin.rpc(nomRpc, args);
+    if (error) {
+      journaliserIncidentSecurite(`${motif}_echoue`);
+      return defautSurEchec;
+    }
+    return interpreter(data);
+  } catch (e) {
+    journaliserIncidentSecurite(`${motif}_exception`, e);
+    return defautSurEchec;
+  }
+}
+
 export function creerDepotEpisode(utilisatriceId: string): DepotEpisode {
   return {
-    async episodeOuvert(): Promise<boolean> {
-      try {
-        const admin = createSupabaseAdminClient();
-        const { data, error } = await admin.rpc("episode_detresse_ouvert", { cible: utilisatriceId });
-        if (error) {
-          journaliserIncidentSecurite("episode_ouvert_echoue");
-          return true; // repli : suppose ouvert → force le fort
-        }
-        return data === true;
-      } catch (e) {
-        journaliserIncidentSecurite("episode_ouvert_exception", e);
-        return true;
-      }
-    },
+    // Repli : suppose ouvert → force le fort (le doute protège).
+    episodeOuvert: () =>
+      rpcAvecRepli(
+        "episode_detresse_ouvert",
+        { cible: utilisatriceId },
+        (data) => data === true,
+        true,
+        "episode_ouvert",
+      ),
 
-    async enregistrerTour(niveauDetecte: NiveauSecurite): Promise<EtatLimites> {
-      try {
-        const admin = createSupabaseAdminClient();
-        const { data, error } = await admin.rpc("enregistrer_tour_detresse", {
+    // Repli : le doute lève les limites (jamais de paywall en détresse).
+    enregistrerTour: (niveauDetecte: NiveauSecurite): Promise<EtatLimites> =>
+      rpcAvecRepli(
+        "enregistrer_tour_detresse",
+        {
           cible: utilisatriceId,
           p_niveau: niveauDetecte,
           p_seuil_tours: P_SEUIL_TOURS,
           p_duree_min_s: P_DUREE_MIN_S,
           p_fenetre_s: P_FENETRE_S,
-        });
-        if (error) {
-          journaliserIncidentSecurite("enregistrer_tour_echoue");
-          return { limitesLevees: true }; // le doute lève les limites (jamais de paywall en détresse)
-        }
-        return { limitesLevees: data === true };
-      } catch (e) {
-        journaliserIncidentSecurite("enregistrer_tour_exception", e);
-        return { limitesLevees: true };
-      }
-    },
+        },
+        (data) => ({ limitesLevees: data === true }),
+        { limitesLevees: true },
+        "enregistrer_tour",
+      ),
   };
 }

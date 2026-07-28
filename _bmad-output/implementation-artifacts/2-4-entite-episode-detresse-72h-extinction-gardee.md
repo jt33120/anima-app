@@ -4,7 +4,7 @@ baseline_commit: 39e81ae853ee451b57503972ce8e9826431496aa
 
 # Story 2.4: L'entité `episode_detresse`, la fenêtre 72 h et l'extinction gardée
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -213,26 +213,43 @@ Opus 4.8 (1M context) — dev-story TDD.
 - **T7** — route `anam/message` : dépôt RÉEL câblé (`creerDepotEpisode(user.id)`) ; `limitesLevees` disponible, **non consommé** (garde de montage = Story 2.5, marquée). Gardes d'architecture 2.4 (pur sans infra, transition appelée que par le dépôt, table RLS+FORCE sans policy, seuils non figés). `README.md` + `deferred-work.md` mis à jour (coutures branche Epic 4 / limites_levees 2.5 / exclusion FR-046).
 - **T8** — **453 tests verts (48 fichiers)** · `tsc --noEmit` propre · `eslint` propre · `next build` propre.
 - **AC couverts** : AC1 (entité + 2 dérivations + extinction gardée) ✅ · AC2 (prédicat de garde de branche possédé, seam Epic 4) ✅ · AC3 (deny-by-default art. 9, casse-le-build via test hand-written) ✅ · AC4 (couture 2.3 réelle, aucune régression) ✅.
-- **Décision d'archi posée (à confirmer par Julian)** : posture `episode_detresse` = server-authoritative deny-by-default (recommandation de la story). La cliente ne lit pas ses épisodes. Si transparence-lecture souhaitée → ajouter une policy SELECT `auth.uid()` (ajout simple, non fait).
+- **Décision d'archi confirmée par Julian** : posture `episode_detresse` = server-authoritative deny-by-default. La cliente ne lit pas ses épisodes.
+- **Cloud** : migrations 0008→0011 déployées sur le projet `zlhlzoalmszohrxrnsmo` (API Management), objets vérifiés (RLS+FORCE, fonctions, index, grants).
+
+### Revue de code max-effort (2026-07-28) — 10 angles, vérif adversariale, sweep (30 agents, 1,66M tokens)
+
+**17 candidats → 14 survivants** (3 réfutés). Corrigés dans la **migration 0011** (forward-only — 0010 déjà déployée) + refactors TS :
+
+- **F1 [CONFIRMED, least-privilege]** `branche_bloquee_par_detresse` ne révoquait que `from public` → le grant `anon` auto-posé par Supabase survivait (régression 0007). → `revoke from anon` (0011). Test anon ajouté.
+- **F2/F4 [CONFIRMED, concurrence]** course d'ouverture : le perdant du `ON CONFLICT DO NOTHING` renvoyait sans fusionner `niveau_max` (update perdu, latent). → `ON CONFLICT DO UPDATE` (greatest) (0011).
+- **F3 [CONFIRMED, safety-logic]** délai min mesuré depuis `debut` → pic tardif éteint trop tôt. → colonne `dernier_niveau_eleve_le` (réarmée à l'ouverture/rehausse), délai mesuré depuis elle (0011). 2 tests ajoutés.
+- **F5/F9/F14 [duplication, 3 angles]** le modèle pur `episode-detresse.ts` (machine d'état) réimplémentait le SQL sans être appelé en prod. → **supprimé** (machine d'état + `tests/episode-detresse-modele.test.ts`), constantes conservées. Le SQL race-safe est l'unique vérité (couvert par les tests SQL réels).
+- **F6 [language-coercion]** `/1000` flottant → param `int`. → `Math.round`.
+- **F10 [simplification]** squelette `try/rpc/repli` dupliqué dans le dépôt. → helper `rpcAvecRepli`.
+- **Différés avec raison (F7, F8, F12, F13, F15)** — voir `deferred-work.md` (fail-safe voulu, idempotence liée au jeton client déjà différé, micro-opts hors périmètre, nettoyages transverses pré-existants).
+- **Post-fix** : **438 tests verts** (47 fichiers), tsc/eslint/build propres, 0011 déployée + vérifiée sur le cloud.
 
 ### File List
 
 **Nouveaux**
-- `lib/safety/episode-detresse.ts` — modèle pur (machine d'état + dérivations + seuils provisoires)
-- `lib/safety/depot-episode.ts` — dépôt serveur réel (RPC security definer, repli sûr)
+- `lib/safety/episode-detresse.ts` — seuils d'extinction (source unique ; machine d'état pure retirée en revue)
+- `lib/safety/depot-episode.ts` — dépôt serveur réel (RPC security definer, repli sûr, helper `rpcAvecRepli`)
 - `supabase/migrations/0010_episode_detresse.sql` — table + transition + 2 dérivations gardées
-- `tests/episode-detresse-modele.test.ts` — 18 tests purs
-- `tests/episode-detresse.test.ts` — 17 tests SQL réels
+- `supabase/migrations/0011_episode_detresse_corrections.sql` — correctifs de revue (F1/F2-F4/F3), forward-only
+- `tests/episode-detresse.test.ts` — tests SQL réels (dont F1 anon + F3 délai depuis dernier pic)
 - `tests/depot-episode.test.ts` — 6 tests (mock admin)
 - `tests/pipeline-episode.test.ts` — 6 tests (câblage épisode)
+
+**Supprimés (revue)**
+- `tests/episode-detresse-modele.test.ts` — testait la machine d'état pure retirée (F5/F9/F14 ; SQL = unique vérité)
 
 **Modifiés**
 - `lib/safety/pipeline.ts` — contrat `DepotEpisode`/`EtatLimites`, `ResultatSecurite.limitesLevees`, `enregistrerTour` chaque tour (niveau brut)
 - `app/api/anam/message/route.ts` — dépôt réel `creerDepotEpisode(user.id)` câblé
 - `tests/pipeline-securite.test.ts` — migration `signaler`→`enregistrerTour` + `limitesLevees`
-- `tests/pipeline-securite-architecture.test.ts` — gardes d'architecture 2.4
-- `lib/safety/README.md` — l'entité épisode + dérivations + posture RLS
-- `_bmad-output/implementation-artifacts/deferred-work.md` — coutures 2.4
+- `tests/pipeline-securite-architecture.test.ts` — gardes d'architecture 2.4 (+ scan 0011)
+- `lib/safety/README.md` — l'entité épisode + dérivations + posture RLS + délai depuis dernier pic
+- `_bmad-output/implementation-artifacts/deferred-work.md` — coutures 2.4 + différés de revue
 
 ## Change Log
 
@@ -240,3 +257,4 @@ Opus 4.8 (1M context) — dev-story TDD.
 |---|---|---|---|
 | 2026-07-27 | v0.1 | create-story — contexte d'implémentation complet (entité `episode_detresse`, transition possédée, dérivations, couture 2.3 rendue réelle, seam branche Epic 4). Story `ready-for-dev`. | Julian (create-story) |
 | 2026-07-28 | v1.0 | dev-story — implémentation TDD complète (T1-T8). Migration 0010, modèle pur + dépôt serveur, pipeline câblé (niveau brut, limitesLevees), gardes d'architecture. 453 tests verts, tsc/eslint/build propres. Status `review`. | Opus 4.8 (dev-story) |
+| 2026-07-28 | v1.1 | revue max-effort (30 agents) : 14 trouvailles. Correctifs migration 0011 (F1 anon fermé, F2/F4 ON CONFLICT DO UPDATE, F3 délai depuis dernier pic) + suppression de la machine d'état pure dupliquée (F5/9/14) + Math.round (F6) + helper dépôt (F10) ; 5 différés motivés. 438 tests verts, tsc/eslint/build propres. 0011 déployée+vérifiée cloud. | Opus 4.8 (revue) |

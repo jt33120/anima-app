@@ -82,6 +82,7 @@ describe("Pipeline sécurité-d'abord — invariants d'architecture (AD-16)", ()
 const MODELE_EPISODE = resolve(racine, "lib/safety/episode-detresse.ts");
 const DEPOT_EPISODE = resolve(racine, "lib/safety/depot-episode.ts");
 const MIGRATION_0010 = resolve(racine, "supabase/migrations/0010_episode_detresse.sql");
+const MIGRATION_0011 = resolve(racine, "supabase/migrations/0011_episode_detresse_corrections.sql");
 
 describe("Story 2.4 — épisode de détresse : invariants d'architecture (AD-17, AD-12, AD-14)", () => {
   it("le modèle d'épisode (`episode-detresse`) reste PUR : aucun import runtime, pas de server-only, pas d'infra", () => {
@@ -109,11 +110,17 @@ describe("Story 2.4 — épisode de détresse : invariants d'architecture (AD-17
   });
 
   it("les SEUILS d'extinction ne sont PAS figés dans le SQL : durées reçues en arguments (AD-14)", () => {
-    const sql = readFileSync(MIGRATION_0010, "utf-8");
-    // Aucune durée littérale d'intervalle : ni fenêtre 72 h, ni délai min codés en dur.
-    expect(sql, "la fenêtre 72 h ne doit pas être un littéral").not.toMatch(/interval\s+'/i);
-    // Les durées viennent des paramètres (le pur `episode-detresse` en est la source unique).
-    expect(sql).toMatch(/make_interval\(secs => p_duree_min_s\)/);
-    expect(sql).toMatch(/make_interval\(secs => p_fenetre_s\)/);
+    // La transition autoritaire vit dans 0010 puis 0011 (correctif) : ni l'une ni l'autre ne code de
+    // durée en dur ; les deux passent par des paramètres (`episode-detresse` en est la source unique).
+    for (const [f, sql] of [
+      [MIGRATION_0010, readFileSync(MIGRATION_0010, "utf-8")],
+      [MIGRATION_0011, readFileSync(MIGRATION_0011, "utf-8")],
+    ] as const) {
+      expect(sql, `aucun littéral d'intervalle dans ${f}`).not.toMatch(/interval\s+'/i);
+    }
+    // La version FAISANT AUTORITÉ est celle de 0011 (CREATE OR REPLACE) : elle reçoit les durées en args.
+    const sql11 = readFileSync(MIGRATION_0011, "utf-8");
+    expect(sql11).toMatch(/make_interval\(secs => p_duree_min_s\)/);
+    expect(sql11).toMatch(/make_interval\(secs => p_fenetre_s\)/);
   });
 });

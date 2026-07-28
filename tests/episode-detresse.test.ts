@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { FENETRE_POST_EPISODE_MS } from "@/lib/safety/episode-detresse";
+import { FENETRE_POST_EPISODE_MS, SEUIL_TOURS_SURS } from "@/lib/safety/episode-detresse";
 
 /**
  * Story 2.4 — l'entité `episode_detresse` (migration 0010) contre un vrai Supabase local. Preuves :
@@ -201,6 +201,39 @@ describe("episode_detresse — entité possédée, deny-by-default, transition g
     expect(r.data).toBe(false); // éteint
   });
 
+  it("F3 — le délai part du DERNIER tour élevé, pas de `debut` : un pic tardif ne s'éteint pas trop tôt", async () => {
+    // Épisode très ancien (debut il y a 10 j) MAIS pic récent (dernier_niveau_eleve_le = maintenant),
+    // au seuil de tours. Avant le correctif, le délai partait de `debut` (≫ 1 h) → extinction immédiate.
+    const vieuxDebut = new Date(Date.now() - 10 * 24 * 3600 * 1000);
+    await admin.from("episode_detresse").insert({
+      utilisatrice_id: u.id,
+      niveau_max: 3,
+      debut: vieuxDebut.toISOString(),
+      dernier_niveau_eleve_le: new Date().toISOString(), // rehausse à l'instant
+      tours_surs_consecutifs: SEUIL_TOURS_SURS - 1,
+    });
+    const r = await tour(admin, u.id, 0, { seuil: SEUIL_TOURS_SURS, dureeMinS: 3600 }); // délai min 1 h
+    expect(r.data, "encore ouvert : le délai se mesure depuis le pic récent, pas le vieux debut").toBe(true);
+    const { data: ep } = await admin
+      .from("episode_detresse")
+      .select("fin")
+      .eq("utilisatrice_id", u.id)
+      .single();
+    expect(ep!.fin).toBeNull();
+  });
+
+  it("F3 — une rehausse RÉARME l'horloge : un tour ≥ 1 repousse l'extinction", async () => {
+    await tour(admin, u.id, 2, { seuil: 1, dureeMinS: 0 }); // ouvre
+    await tour(admin, u.id, 3, { seuil: 1, dureeMinS: 0 }); // rehausse → dernier_niveau_eleve_le = maintenant
+    const { data: ep } = await admin
+      .from("episode_detresse")
+      .select("dernier_niveau_eleve_le, debut")
+      .eq("utilisatrice_id", u.id)
+      .single();
+    // La rehausse a bien avancé l'horloge au-delà de l'ouverture.
+    expect(new Date(ep!.dernier_niveau_eleve_le).getTime()).toBeGreaterThanOrEqual(new Date(ep!.debut).getTime());
+  });
+
   it("réservée à service_role : une session cliente ne peut pas appeler enregistrer_tour_detresse", async () => {
     const c = clientScope();
     await c.auth.signInWithPassword({ email: u.email, password: u.password });
@@ -270,5 +303,11 @@ describe("episode_detresse — entité possédée, deny-by-default, transition g
     const { data, error } = await admin.rpc("branche_bloquee_par_detresse");
     expect(error).toBeNull();
     expect(data).toBe(false); // keyée sur auth.uid() (null ici) → pas d'oracle inter-utilisatrices
+  });
+
+  it("F1 — branche_bloquee_par_detresse : un client ANON (non authentifié) ne peut PLUS l'appeler (0011)", async () => {
+    const anon = clientScope(); // pas de signIn → rôle anon
+    const { error } = await anon.rpc("branche_bloquee_par_detresse");
+    expect(error, "grant anon retiré en 0011 (surface anon fermée, patron 0007)").not.toBeNull();
   });
 });

@@ -130,6 +130,10 @@ const AIDE_PAGE = resolve(racine, "app/aide/page.tsx");
 const GARDE_COMMERCIALE = resolve(racine, "app/_commerce/GardeCommerciale.tsx");
 const LIMITES = resolve(racine, "lib/safety/limites-commerciales.ts");
 const LECTURE = resolve(racine, "lib/safety/episode-lecture.ts");
+const CONSIGNE = resolve(racine, "lib/safety/consigne-detresse.ts");
+const BLOC = resolve(racine, "lib/safety/bloc-ressources-detresse.ts");
+const FLUX_NDJSON = resolve(racine, "lib/ai/flux-ndjson.ts");
+const LENDEMAIN = resolve(racine, "lib/safety/lendemain.ts");
 
 describe("Story 2.5 — filet hors-IA + garde de montage : invariants d'architecture (AD-9, AD-15, AD-7)", () => {
   it("le modèle `ressources-aide` reste PUR : aucun import runtime, pas de server-only, pas d'infra", () => {
@@ -152,5 +156,64 @@ describe("Story 2.5 — filet hors-IA + garde de montage : invariants d'architec
     // …et la garde de rendu NE parle jamais à la base ni ne dérive l'état elle-même (render muet).
     expect(lire(GARDE_COMMERCIALE)).not.toMatch(/episode_detresse_ouvert|@\/lib\/data\/supabase/);
     expect(lire(GARDE_COMMERCIALE)).toMatch(/limitesCommercialesLevees/);
+  });
+});
+
+describe("Story 2.6 — réponse par niveaux : câblage serveur (AD-16, AD-5, AD-15)", () => {
+  it("les modules de décision restent PURS (pas d'infra/IO) ; leurs imports runtime sont des purs siblings de lib/safety", () => {
+    const consigne = lire(CONSIGNE);
+    const bloc = lire(BLOC);
+    const lendemain = lire(LENDEMAIN);
+    // lendemain : AUCUN import runtime (type-only) — ne dépend d'aucune donnée.
+    expect(lendemain, "lendemain : type-only").not.toMatch(/^\s*import\s+(?!type\b)/m);
+    // bloc consomme la SOURCE UNIQUE des ressources ; consigne consomme `numeroEnTete` (voix ↔ carte, R1) —
+    // des purs siblings de lib/safety, jamais une liste/un numéro inline.
+    expect(bloc).toMatch(/import\s*\{\s*RESSOURCES_AIDE\s*\}\s*from\s*["']\.\/ressources-aide["']/);
+    expect(consigne).toMatch(/import\s*\{[^}]*numeroEnTete[^}]*\}\s*from\s*["']\.\/bloc-ressources-detresse["']/);
+    // tous : pas de server-only, pas d'infra ; aucun import RUNTIME d'infra ai/next (un `import type` reste permis).
+    for (const src of [consigne, bloc, lendemain]) {
+      expect(src).not.toMatch(/server-only/);
+      expect(src).not.toMatch(/@supabase|@\/lib\/data/);
+      expect(src, "aucun import RUNTIME d'infra ai/next").not.toMatch(
+        /^\s*import\s+(?!type\b)[^;]*from\s*["'](?:next|@\/lib\/ai)/m,
+      );
+    }
+  });
+
+  it("la route INJECTE la consigne (system) dérivée du verdict, AVANT la génération (jamais reçue du client)", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/@\/lib\/safety\/consigne-detresse/);
+    expect(src).toMatch(/consigneReponse\s*\(/);
+    expect(src).toMatch(/consigne\s*\?\s*\[\s*consigne/); // préfixée aux messages, server-authoritative
+  });
+
+  it("la route ÉMET le bloc ressources par une trame, placé avant/après selon le niveau (AC4)", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/@\/lib\/safety\/bloc-ressources-detresse/);
+    expect(src).toMatch(/blocRessourcesDetresse\s*\(/);
+    expect(src).toMatch(/t:\s*"ressources"/);
+    expect(src).toMatch(/"avant"/);
+    expect(src).toMatch(/"apres"/);
+  });
+
+  it("no-leak : la trame ressources ne sérialise NI niveau NI décision NI tier NI usage (seuls position/verifieLe/présentationnel)", () => {
+    const src = lire(ROUTE);
+    // Fenêtre couvrant TOUTE la construction de l'objet trame (jusqu'au `: null` du ternaire) — pas une
+    // tranche fixe qui s'arrêterait avant un champ fuitant ajouté en fin d'objet (revue 2.6, R8).
+    const fenetre = src.match(/t:\s*"ressources"[\s\S]*?:\s*null/)?.[0] ?? "";
+    expect(fenetre, "la construction de la trame ressources doit être trouvée (garde non vacue)").not.toBe("");
+    expect(fenetre, "aucune fuite niveau/decision/verdict/tier/usage dans la trame").not.toMatch(
+      /niveau|decision|verdict|tier|usage/,
+    );
+  });
+
+  it("le transport NDJSON : la trame `ressources` n'autorise QUE des champs présentationnels (contrat de type verrouillé, R8)", () => {
+    const src = lire(FLUX_NDJSON);
+    const variant = src.match(/t:\s*"ressources"[\s\S]*?\};/)?.[0] ?? "";
+    expect(variant, "le variant `ressources` doit être trouvé").not.toBe("");
+    for (const clef of ["position", "verifieLe", "ressources"]) expect(variant).toMatch(new RegExp(clef));
+    expect(variant, "aucun champ fuitant niveau/decision/tier/usage dans le type de trame").not.toMatch(
+      /niveau|decision|tier|usage/,
+    );
   });
 });

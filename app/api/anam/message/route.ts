@@ -10,6 +10,9 @@ import { ligneNdjson } from "@/lib/ai/flux-ndjson";
 import { evaluerSecuriteDuTour, type ResultatSecurite } from "@/lib/safety/pipeline";
 import { journaliserAuditDetresse } from "@/lib/safety/journaliser-audit";
 import { creerDepotEpisode } from "@/lib/safety/depot-episode";
+import { consigneReponse } from "@/lib/safety/consigne-detresse";
+import { blocRessourcesDetresse } from "@/lib/safety/bloc-ressources-detresse";
+import { verifieLeLibelle } from "@/lib/safety/ressources-aide";
 import type { AiPort, CapaciteIa, NiveauSecurite, RequeteIa } from "@/lib/ai/port";
 
 /**
@@ -104,10 +107,32 @@ export async function POST(request: NextRequest) {
   const tierServeur = tierPour(CAPACITE, niveauSecurite); // repli de métrage si le flux avorte avant `fin`
   const modeleServeur = modelePour(tierServeur);
 
+  // ── RÉPONSE PAR NIVEAUX (Story 2.6, AD-16/AD-5) ───────────────────────────────────────────────
+  // La FORME de la réponse dérive du verdict (jamais une 2ᵉ classification). La consigne système est
+  // PRÉFIXÉE aux messages CÔTÉ SERVEUR (le client ne peut pas forger `system`, `valider-messages`) et
+  // ne transite JAMAIS jusqu'au client. Le bloc ressources (niveaux 2-3) part par une trame dédiée.
+  const consigne = consigneReponse(securite.verdict);
+  const messagesReponse = consigne ? [consigne, ...messages] : messages;
+  const bloc = blocRessourcesDetresse(securite.verdict);
+  const trameRessources = bloc
+    ? {
+        t: "ressources" as const,
+        position: bloc.position, // "avant" (niv. 3 vital) ou "apres" (niv. 2) — placement UX-DR
+        verifieLe: verifieLeLibelle(), // « Vérifié le … » (FR-044) porté par la trame (frontière AD-7)
+        ressources: bloc.ressources.map((r) => ({
+          numero: r.numero,
+          tel: r.tel,
+          aria: r.aria,
+          service: r.service,
+          desc: r.desc,
+        })),
+      }
+    : null;
+
   // La RÉPONSE : `niveauSecurite ≥ 1` force le tier FORT (la réponse suit la détection, AD-5).
   let egress;
   try {
-    const requete: RequeteIa = { capacite: CAPACITE, messages, contientArt9: true, niveauSecurite };
+    const requete: RequeteIa = { capacite: CAPACITE, messages: messagesReponse, contientArt9: true, niveauSecurite };
     egress = await diffuserSousEgressArt9({ supabase, adaptateur, requete });
   } catch (e) {
     console.error("anam/message : échec d'ouverture du flux", { nom: e instanceof Error ? e.name : "inconnu" });
@@ -148,6 +173,9 @@ export async function POST(request: NextRequest) {
           /* contrôleur déjà fermé (client parti) — rien à signaler */
         }
       };
+      // Bloc ressources AVANT le tour d'Anam (niveau 3 vital, AC4) : émis IMMÉDIATEMENT, avant même le
+      // plancher de latence — l'urgence prime. Le placement "apres" (niveau 2) sort juste avant `fin`.
+      if (trameRessources && trameRessources.position === "avant") emettre(trameRessources);
       let premierDelta = true;
       try {
         for await (const ev of flux) {
@@ -166,9 +194,18 @@ export async function POST(request: NextRequest) {
             etat.finRecu = fin; // source AUTORITAIRE du métrage (tier/modele/usage réels)
           }
         }
-        if (!request.signal.aborted) emettre({ t: "fin" });
+        if (!request.signal.aborted) {
+          // Bloc ressources APRÈS le tour d'Anam (niveau 2, AC4) : juste avant la trame terminale.
+          if (trameRessources && trameRessources.position === "apres") emettre(trameRessources);
+          emettre({ t: "fin" });
+        }
       } catch (e) {
         console.error("anam/message : flux interrompu", { nom: e instanceof Error ? e.name : "inconnu" });
+        // Le filet de sécurité ne dépend pas d'un flux propre : le bloc « apres » (niveau 2) est émis
+        // AVANT la trame d'échec, même si le modèle a coupé en cours de route (revue 2.6, R5).
+        if (!request.signal.aborted && trameRessources && trameRessources.position === "apres") {
+          emettre(trameRessources);
+        }
         emettre({ t: "erreur" });
       } finally {
         try {

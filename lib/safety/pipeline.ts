@@ -84,7 +84,9 @@ export async function evaluerSecuriteDuTour(
   // Niveau inchangé → on préserve le verdict tel quel (dont la décision `repli_sur`). Bumped par un
   // épisode ouvert → on re-dérive un verdict cohérent au niveau effectif.
   const verdict: VerdictSecurite =
-    niveauEffectif === detection.verdict.niveau ? detection.verdict : classerDetresse(niveauEffectif);
+    niveauEffectif === detection.verdict.niveau
+      ? detection.verdict
+      : classerDetresse(niveauEffectif, detection.verdict.famille); // bump : préserve la famille détectée (2.6)
 
   // 3. Audit sans art.9, juste après la classification (pas conditionné à la fin du stream).
   await deps.emettreAudit({ niveau: verdict.niveau, decision: verdict.decision, tier: "fort" });

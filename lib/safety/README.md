@@ -79,6 +79,12 @@ juriste** avant toute mise en ligne sur données réelles (PRD §5). On code la 
   (dérive de `episode_detresse.fin IS NULL` ; repli sûr → `true`, le doute suspend le commerce).
 - `rpc-repli.ts` — serveur (Story 2.5) : le squelette partagé « RPC de sécurité sous admin + repli sûr + incident
   sans art. 9 » (DRY, consommé par `depot-episode` et `limites-commerciales`).
+- `consigne-detresse.ts` — **pur** (Story 2.6) : `verdict.decision` → **consigne système** de la réponse d'Anam
+  (douceur non annoncée au niv. 1, nomme+demande au 2/3, interdits durs FR-039/041/075/076). Contenu PROVISOIRE.
+- `bloc-ressources-detresse.ts` — **pur** (Story 2.6) : `verdict` → **bloc ressources** placé (niv. 2 après / niv. 3
+  vital avant, `15/112` en tête) et ordonné par **famille de danger** (FR-074). Consomme `ressources-aide` (source unique).
+- `lendemain.ts` — **pur** (Story 2.6) : le prédicat de récence `estLendemainDEpisode` (FR-045). **Couture inerte** :
+  le comportement de reprise est déféré (Epic 4 mémoire + Ordonnanceur).
 
 ## Le filet hors-IA + la garde de montage (Story 2.5 ; AD-9, AD-15)
 
@@ -95,8 +101,47 @@ juriste** avant toute mise en ligne sur données réelles (PRD §5). On code la 
   la garde (aucun consommateur sauvage), garde **prospective** qui rejette toute future UI commerciale non enveloppée.
 
 **Dégradation gracieuse (AC5, AD-15).** Modèle fort indisponible → le repli sûr (2.3/2.4) pose déjà `limites_levees`
-+ journalise un incident sans art. 9 ; le filet non-IA reste inconditionnel → **Anam ne quitte jamais**. L'insertion
-VISIBLE des haltes DANS la conversation (niveaux 2-3, `15/112` en tête, **sortie rapide** FR-074) est la Story 2.6.
++ journalise un incident sans art. 9 ; le filet non-IA reste inconditionnel → **Anam ne quitte jamais**.
 
 **Gouvernance FR-044 (hybride)** : la cadence trimestrielle est enforçée *structurellement* (test déterministe) ; la
 **péremption réelle** logue un avertissement pendant le dev et devient **hard-break sous `PRELANCEMENT=1`** (CI de prod).
+
+## La réponse de détresse par niveaux (Story 2.6 ; AD-16, AD-5, AD-15)
+
+La **forme** de la réponse d'Anam DÉRIVE du verdict déjà produit (`verdict.decision`) — jamais une seconde
+classification, jamais une seconde horloge (AD-16/AD-17). Trois pièces pures + un câblage serveur + le rendu client :
+
+- **La consigne (`consigne-detresse.ts`)** — `consigneReponse(verdict)` → un `{ role: "system" }` (ou `null` au niv. 0).
+  Bascule **non annoncée** au niv. 1 (plus douce, ne pousse plus, aucun dispositif nommé) ; **nomme + demande
+  directement** au niv. 2/3 (donne le 3114) ; interdits durs partout : **ne quitte jamais** (FR-039), **jamais
+  soignante** (FR-041), **jamais le plan ni les moyens** (FR-075), **cherche un humain proche** (FR-076).
+- **La famille de danger** — le détecteur émet aussi `FAMILLE: X` (PROVISOIRE) ; `VerdictSecurite.famille?` la porte
+  (réutilise l'enum `FamilleDanger` de 2.5). Le défaut protecteur (**suicide** au niv. ≥ 2 sans famille) vit dans le
+  sélecteur de bloc, jamais dans le détecteur (le repli ne fabrique pas de danger).
+- **Le bloc (`bloc-ressources-detresse.ts`)** — `blocRessourcesDetresse(verdict)` → `{ position, ressources }` ou
+  `null` (niv. 0-1 : **aucun élément ajouté au DOM**, AC1). **Niv. 2 → APRÈS** le tour d'Anam ; **niv. 3 → AVANT**,
+  `15/112` **en tête** si danger vital (FR-074).
+
+**Câblage serveur (`app/api/anam/message/route.ts`).** Entre le verdict et la requête : la consigne est **préfixée**
+aux messages **côté serveur** (le client ne peut pas forger `system`, `valider-messages`) et **ne transite jamais** au
+client ; le bloc part par une **trame NDJSON `{ t:"ressources" }`** — émise **avant** le 1ᵉʳ delta (position `avant`)
+ou juste avant `fin` (position `apres`). **No-leak** : la trame ne porte NI niveau NI décision — seulement `position`,
+`verifieLe` et les champs présentationnels (le bloc est un artefact **destiné** à l'utilisatrice ; le métrage, lui,
+reste serveur).
+
+**Rendu client (`render/conversation/`).** `analyserTrame` reconnaît la trame (les inconnues restent ignorées —
+forward-compat) ; `insererTour` (pur) place un tour `ressource` avant/après le tour d'Anam ; `BlocRessources` le
+dessine en **`<article>`** calme (`surface-elevee`/`bordure-forte`, `tel:` chiffre par chiffre, « Vérifié le … »),
+**jamais modale, jamais rouge**, apparition en `fondu-texte`. Le rendu reste **muet** (AD-7) : aucun import `lib/safety`
+(type de vue **local** `RessourceVue`). Le **composeur reste actif au focus** (AC2 — le `<textarea>` n'est jamais
+désactivé), et le bloc s'insère **sans voler le focus**.
+
+**Le lendemain (FR-045, AC5) — couture inerte.** `lendemain.ts` livre le prédicat pur `estLendemainDEpisode` ; le
+**comportement** (reprise en une phrase + suppression de la notif du socle) est **déféré** (Epic 4 mémoire +
+Ordonnanceur). Invariant tenu : le lendemain, **aucun bandeau / carte « comment vas-tu » / « suivi »**.
+
+**Sortie rapide (FR-074).** `app/aide/SortieRapide.tsx` (`"use client"`) : « Quitter » en tête de `/aide`, navigue
+vers un site neutre en **remplaçant l'entrée d'historique** — sans introduire session/IA/traceur (étanchéité 2.5).
+
+**⚠️ Tout contenu textuel de détresse, l'étiquetage niveau/famille et la sortie rapide sont PROVISOIRES** — porte
+pré-lancement clinique + juridique (PRD §5) : à valider par un professionnel qualifié et un juriste avant mise en ligne.

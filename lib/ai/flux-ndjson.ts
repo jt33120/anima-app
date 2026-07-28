@@ -14,7 +14,21 @@
 export type TrameClient =
   | { t: "delta"; c: string }
   | { t: "fin" }
-  | { t: "erreur" };
+  | { t: "erreur" }
+  /**
+   * Bloc ressources de détresse (Story 2.6, AC4) : inséré dans le fil AVANT (niveau 3 vital) ou
+   * APRÈS (niveau 2) le tour d'Anam. Seuls `position` + les champs présentationnels partent — NI
+   * niveau, NI décision, NI tier (no-leak, AD-2). Type STRUCTUREL (aucun import `lib/safety` : le
+   * sens de dépendance reste `safety → ai`, jamais l'inverse).
+   */
+  | {
+      t: "ressources";
+      position: "avant" | "apres";
+      /** Libellé « Vérifié le … » (gouvernance FR-044) — porté par la trame : le rendu ne peut pas
+       *  le tirer de `lib/safety` (frontière AD-7). */
+      verifieLe: string;
+      ressources: ReadonlyArray<{ numero: string; tel: string; aria: string; service: string; desc: string }>;
+    };
 
 /** Sérialise une trame en une ligne NDJSON (JSON compact + `\n` terminal). */
 export function ligneNdjson(trame: TrameClient): string {

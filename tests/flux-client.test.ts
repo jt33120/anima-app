@@ -5,6 +5,8 @@ import {
   detacherMotsComplets,
   type TrameRecue,
 } from "@/render/conversation/flux-ndjson-client";
+import { insererTour } from "@/render/conversation/fil-ops";
+import type { Tour } from "@/render/conversation/types";
 import { ligneNdjson } from "@/lib/ai/flux-ndjson";
 
 /**
@@ -57,6 +59,42 @@ describe("analyserTrame — ligne JSON → trame typée (AC3)", () => {
     const trame = analyserTrame('{"t":"delta","c":42}') as TrameRecue;
     expect(trame).toEqual({ t: "delta", c: "" }); // dégénère en vide, jamais 42
   });
+
+  it("reconnaît la trame `ressources` (bloc de détresse 2.6) et valide sa forme", () => {
+    const brut = {
+      t: "ressources",
+      position: "avant",
+      verifieLe: "28 juillet 2026",
+      ressources: [{ numero: "15", tel: "15", aria: "1 5", service: "SAMU", desc: "urgence vitale" }],
+    };
+    expect(analyserTrame(JSON.stringify(brut))).toEqual(brut);
+  });
+
+  it("rejette une trame `ressources` MALFORMÉE → null (forward-compat sûr ; la sécurité ne dépend pas du bloc)", () => {
+    expect(analyserTrame('{"t":"ressources","position":"ailleurs","verifieLe":"d","ressources":[]}')).toBeNull();
+    expect(analyserTrame('{"t":"ressources","position":"avant","ressources":[]}')).toBeNull(); // verifieLe manquant
+    expect(analyserTrame('{"t":"ressources","position":"avant","verifieLe":"d","ressources":"nope"}')).toBeNull();
+    expect(
+      analyserTrame('{"t":"ressources","position":"avant","verifieLe":"d","ressources":[{"numero":15}]}'),
+    ).toBeNull(); // champ non-chaîne
+    expect(analyserTrame('{"t":"ressources","position":"avant","verifieLe":"d","ressources":[]}')).toBeNull(); // vide (R9)
+  });
+});
+
+describe("insererTour — placement du bloc ressources relativement au tour d'Anam (2.6, AC4)", () => {
+  const user: Tour = { id: "u1", role: "utilisatrice", texte: "coucou" };
+  const anam: Tour = { id: "a1", role: "anam", texte: "…", etat: "flux" };
+  const bloc: Tour = { id: "r1", role: "ressource", ancreId: "a1", ressources: [], verifieLe: "28 juillet 2026" };
+
+  it("« avant » place le bloc juste AVANT le tour ancre (niveau 3 vital)", () => {
+    expect(insererTour([user, anam], "a1", "avant", bloc).map((t) => t.id)).toEqual(["u1", "r1", "a1"]);
+  });
+  it("« apres » place le bloc juste APRÈS le tour ancre (niveau 2)", () => {
+    expect(insererTour([user, anam], "a1", "apres", bloc).map((t) => t.id)).toEqual(["u1", "a1", "r1"]);
+  });
+  it("ancre absente (tour retiré entre-temps) → liste inchangée, jamais un crash", () => {
+    expect(insererTour([user, anam], "zzz", "avant", bloc).map((t) => t.id)).toEqual(["u1", "a1"]);
+  });
 });
 
 describe("detacherMotsComplets — révélation PAR GROUPES DE MOTS, jamais lettre par lettre (AC3, NFR-014)", () => {
@@ -99,5 +137,17 @@ describe("Contrat NDJSON serveur ↔ client ALIGNÉ (revue 2.2)", () => {
     const { lignes } = extraireLignes(ligne);
     expect(lignes).toHaveLength(1);
     expect(analyserTrame(lignes[0])).toEqual({ t: "delta", c: "para 1\npara 2" });
+  });
+
+  it("la trame `ressources` sérialisée serveur est relue à l'identique par le client (contrat 2.6)", () => {
+    const trame = {
+      t: "ressources" as const,
+      position: "apres" as const,
+      verifieLe: "28 juillet 2026",
+      ressources: [
+        { numero: "3114", tel: "3114", aria: "3 1 1 4", service: "Prévention du suicide", desc: "24 h/24" },
+      ],
+    };
+    expect(relire(trame)).toEqual(trame);
   });
 });

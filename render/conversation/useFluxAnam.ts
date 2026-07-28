@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { analyserTrame, detacherMotsComplets, extraireLignes } from "./flux-ndjson-client";
+import type { RessourceVue } from "./types";
 
 /**
  * useFluxAnam — l'état de STREAMING côté client (Story 2.2, B4). Consomme le flux NDJSON de
@@ -34,6 +35,8 @@ export interface RappelsFlux {
   onFin: (texteComplet: string) => void;
   /** Échec (erreur fournisseur ou coupure) : garder le partiel + proposer « Réessayer ». */
   onEchec: (textePartiel: string) => void;
+  /** Bloc ressources de détresse (Story 2.6) : à insérer AVANT/APRÈS le tour d'Anam (le serveur décide). */
+  onRessources?: (position: "avant" | "apres", ressources: readonly RessourceVue[], verifieLe: string) => void;
 }
 
 export function useFluxAnam() {
@@ -113,6 +116,10 @@ export function useFluxAnam() {
             if (trame.t === "delta") {
               motsBuffer += trame.c;
               reveler(false);
+            } else if (trame.t === "ressources") {
+              // Bloc de détresse (2.6), NON terminal : on l'insère et on CONTINUE de lire les deltas.
+              // Ne vole jamais le focus (le composeur reste au focus, AC2) — l'insertion est passive.
+              rappels.onRessources?.(trame.position, trame.ressources, trame.verifieLe);
             } else {
               // `fin` OU `erreur` : trame TERMINALE → on cesse de lire (aucune trame ne suit).
               if (trame.t === "fin") finPropre = true;

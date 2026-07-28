@@ -1,4 +1,5 @@
 import type { NiveauSecurite } from "@/lib/ai/port";
+import type { FamilleDanger } from "./ressources-aide";
 
 /**
  * Classifieur de détresse — logique PURE (Story 2.3, AC1/AC3 ; §5). Aucune I/O, aucun import infra
@@ -19,10 +20,17 @@ export type DecisionSecurite = "poursuivre" | "adoucir" | "intervenir" | "urgenc
 export interface VerdictSecurite {
   /** Niveau §5 : 0 journée difficile · 1 détresse marquée · 2 idéation passive · 3 idéation active. */
   niveau: NiveauSecurite;
-  /** Étiquette de décision (non clinique) — la formulation réelle d'Anam relève de la Story 2.6. */
+  /** Étiquette de décision (non clinique) → la FORME de la réponse d'Anam (`consigne-detresse`, 2.6). */
   decision: DecisionSecurite;
   /** FR-037 : dès niveau ≥ 1, tout travail de schéma/contradiction/reconceptualisation est suspendu. */
   supprimerTravailSchema: boolean;
+  /**
+   * Famille de danger (Story 2.6, FR-074) — pilote les RESSOURCES correspondantes et leur ordre
+   * (`bloc-ressources-detresse`). OPTIONNELLE : le repli sûr ne fabrique pas de danger précis, et le
+   * DÉFAUT protecteur (suicide au niveau ≥ 2) vit dans le sélecteur de bloc, jamais ici. Le PROMPT
+   * qui la produit est PROVISOIRE (même porte clinique que le niveau — cf. `detecteur-detresse`).
+   */
+  famille?: FamilleDanger;
 }
 
 /**
@@ -37,18 +45,19 @@ export function repliSur(): VerdictSecurite {
   return { niveau: NIVEAU_REPLI, decision: "repli_sur", supprimerTravailSchema: true };
 }
 
-/** Traduit un niveau (issu du modèle) en verdict. Entrée illisible / hors 0-3 → repli sûr. */
-export function classerDetresse(niveau: unknown): VerdictSecurite {
+/** Traduit un niveau (issu du modèle) en verdict, en portant la `famille` détectée (Story 2.6, FR-074).
+ *  Entrée illisible / hors 0-3 → repli sûr. `famille` est propagée telle quelle (undefined si absente). */
+export function classerDetresse(niveau: unknown, famille?: FamilleDanger): VerdictSecurite {
   switch (niveau) {
     case 0:
-      return { niveau: 0, decision: "poursuivre", supprimerTravailSchema: false };
+      return { niveau: 0, decision: "poursuivre", supprimerTravailSchema: false, famille };
     case 1:
-      return { niveau: 1, decision: "adoucir", supprimerTravailSchema: true };
+      return { niveau: 1, decision: "adoucir", supprimerTravailSchema: true, famille };
     case 2:
-      return { niveau: 2, decision: "intervenir", supprimerTravailSchema: true };
+      return { niveau: 2, decision: "intervenir", supprimerTravailSchema: true, famille };
     case 3:
-      return { niveau: 3, decision: "urgence", supprimerTravailSchema: true };
+      return { niveau: 3, decision: "urgence", supprimerTravailSchema: true, famille };
     default:
-      return repliSur(); // le doute penche vers la sécurité (jamais niveau 0)
+      return repliSur(); // le doute penche vers la sécurité (jamais niveau 0), sans famille fabriquée
   }
 }

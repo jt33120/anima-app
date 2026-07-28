@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import TourAnam from "./TourAnam";
 import TourUtilisatrice from "./TourUtilisatrice";
+import BlocRessources from "./BlocRessources";
 import { estAncreEnBas } from "./composeur-clavier";
 import type { Tour } from "./types";
 import s from "./conversation.module.css";
@@ -58,6 +59,8 @@ export default function Fil({
             etat={t.etat}
             onReessayer={t.etat === "echec" && onReessayer ? () => onReessayer(t.id) : undefined}
           />
+        ) : t.role === "ressource" ? (
+          <BlocRessources key={t.id} ressources={t.ressources} verifieLe={t.verifieLe} />
         ) : (
           <TourUtilisatrice key={t.id} texte={t.texte} />
         ),

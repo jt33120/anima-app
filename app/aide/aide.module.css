@@ -19,6 +19,25 @@
   max-width: var(--mesure);
 }
 
+/* Sortie rapide (FR-074) — en tête, alignée à droite, discrète. Cible ≥ 44px, jamais alarmante. */
+.sortieRapide {
+  align-self: flex-end;
+  min-height: var(--cible-tactile);
+  padding: var(--esp-2) var(--esp-4);
+  background: transparent;
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  color: var(--texte-doux);
+  cursor: pointer;
+}
+.sortieRapide:hover {
+  color: var(--texte);
+}
+.sortieRapide:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
 .section {
   display: flex;
   flex-direction: column;

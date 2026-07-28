@@ -46,4 +46,13 @@ describe("Classifieur de détresse — niveau → verdict (pur)", () => {
     expect(repliSur()).toEqual({ niveau: NIVEAU_REPLI, decision: "repli_sur", supprimerTravailSchema: true });
     expect(NIVEAU_REPLI).toBeGreaterThanOrEqual(1); // limites_levees dérive de niveau ≥ 1 (AD-17)
   });
+
+  it("porte la FAMILLE de danger quand fournie (Story 2.6), sinon absente", () => {
+    // FR-074 : les ressources correspondantes exigent un signal de famille. Optionnel : le repli ne
+    // fabrique pas de danger précis ; le défaut protecteur vit dans le sélecteur de bloc (T3).
+    expect(classerDetresse(2, "violences_femmes").famille).toBe("violences_femmes");
+    expect(classerDetresse(3, "urgence_vitale").famille).toBe("urgence_vitale");
+    expect(classerDetresse(2).famille).toBeUndefined();
+    expect(repliSur().famille).toBeUndefined();
+  });
 });

@@ -57,9 +57,11 @@ describe("/aide — consomme la SOURCE UNIQUE des ressources (AC3, 2.5)", () => 
     expect(src, "3114 ne doit plus être inline dans la page").not.toContain('"3114"');
   });
 
-  it("génère les liens tel: et le nom accessible (service + chiffres) depuis la donnée", () => {
+  it("génère les liens tel: et le nom accessible (numéro visible EN TÊTE + service + chiffres) depuis la donnée", () => {
     expect(src).toMatch(/href=\{`tel:\$\{[^}]+\.tel\}`\}/);
-    expect(src).toMatch(/aria-label=\{`\$\{[^}]+\.service\}, \$\{[^}]+\.aria\}`\}/);
+    // WCAG 2.5.3 (Label in Name) : le nom accessible COMMENCE par le numéro visible (revue 2.6, R7),
+    // puis le service, puis la lecture chiffre par chiffre.
+    expect(src).toMatch(/aria-label=\{`\$\{[^}]+\.numero\}, \$\{[^}]+\.service\}, \$\{[^}]+\.aria\}`\}/);
   });
 
   it("groupe par FAMILLE de danger (en-têtes de groupe)", () => {
@@ -98,5 +100,24 @@ describe("/aide — le bloc ressources en FICHE, JAMAIS alarmant (AC3)", () => {
 
   it("n'est jamais modal / bloquant", () => {
     expect(src).not.toMatch(/role="dialog"|aria-modal|<dialog/);
+  });
+});
+
+describe("/aide — sortie rapide (FR-074, Story 2.6)", () => {
+  const sortie = readFileSync(resolve(racine, "app/aide/SortieRapide.tsx"), "utf-8");
+
+  it("la page monte le contrôle « Quitter » en tête", () => {
+    expect(src).toMatch(/SortieRapide/);
+  });
+
+  it("navigue vers un site NEUTRE en REMPLAÇANT l'entrée d'historique (pratique standard violences)", () => {
+    expect(sortie).toMatch(/"use client"/);
+    expect(sortie).toMatch(/location\.replace/); // remplace l'historique (le retour ne revient pas)
+    expect(sortie).toMatch(/https?:\/\//); // une URL neutre absolue
+  });
+
+  it("préserve l'étanchéité de /aide : aucune session, aucune IA, aucun traceur", () => {
+    expect(sortie).not.toMatch(/@\/lib\/(data|ai)|supabase|getUser/);
+    expect(sortie).not.toMatch(/analytics|gtag|mixpanel|posthog|plausible/i);
   });
 });

@@ -5,6 +5,7 @@ import ApparitionAnam, { type Beat } from "./ApparitionAnam";
 import Composeur from "./Composeur";
 import Fil from "./Fil";
 import { useFluxAnam, type MessageEnvoi } from "./useFluxAnam";
+import { insererTour } from "./fil-ops";
 import type { Tour } from "./types";
 import s from "./conversation.module.css";
 
@@ -94,6 +95,23 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
           );
           setAnnonce(MESSAGE_ECHEC); // l'ÉCHEC aussi est annoncé au lecteur d'écran (revue 2.2)
         },
+        // Bloc ressources de détresse (2.6, AC4) : le SERVEUR décide le placement (avant/après le tour
+        // d'Anam) ; on insère passivement, sans jamais déplacer le focus (le composeur reste au focus).
+        // Ancré à `idAnam` → « Réessayer » les purge ensemble (R2). Annonce POLIE de son arrivée au
+        // lecteur d'écran (R3) — sinon le filet de secours est inséré muet pour l'AT.
+        onRessources: (position, ressources, verifieLe) => {
+          const idRes = nouvelId();
+          setTours((prev) =>
+            insererTour(prev, idAnam, position, {
+              id: idRes,
+              role: "ressource",
+              ancreId: idAnam,
+              ressources,
+              verifieLe,
+            }),
+          );
+          setAnnonce("Des ressources d’aide sont affichées.");
+        },
       });
     },
     [envoyer],
@@ -102,7 +120,11 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
   const surEnvoi = useCallback(
     (texte: string) => {
       const histo: MessageEnvoi[] = tours
-        .filter((t) => t.role === "utilisatrice" || (t.role === "anam" && t.etat === "complet"))
+        // Garde de type : le bloc `ressource` (sans `texte`) n'entre jamais dans l'historique envoyé.
+        .filter(
+          (t): t is Exclude<Tour, { role: "ressource" }> =>
+            t.role === "utilisatrice" || (t.role === "anam" && t.etat === "complet"),
+        )
         .map((t) => ({ role: t.role === "utilisatrice" ? "user" : "assistant", content: t.texte }));
       setTours((prev) => [...prev, { id: nouvelId(), role: "utilisatrice", texte }]);
       lancer([...histo, { role: "user", content: texte }]);
@@ -119,7 +141,11 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
       const messages = envoisParTour.current.get(idAnam);
       if (!messages) return;
       envoisParTour.current.delete(idAnam);
-      setTours((prev) => prev.filter((t) => t.id !== idAnam));
+      // Retire le tour d'Anam ET tout bloc ressources rattaché (ancreId) — sinon le rejeu laisserait un
+      // bloc orphelin et en insérerait un second (double 15/112 en urgence — revue 2.6, R2).
+      setTours((prev) =>
+        prev.filter((t) => t.id !== idAnam && !(t.role === "ressource" && t.ancreId === idAnam)),
+      );
       lancer(messages);
       // Le bouton « Réessayer » vient d'être démonté : redéplacer le focus vers le composeur, jamais
       // le laisser retomber sur <body> (WCAG 2.4.3).

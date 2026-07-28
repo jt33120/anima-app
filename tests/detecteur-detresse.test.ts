@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AiPort, ReponseIa, RequeteIa } from "@/lib/ai/port";
-import { detecterDetresse, extraireNiveau } from "@/lib/safety/detecteur-detresse";
+import { detecterDetresse, extraireNiveau, extraireFamille } from "@/lib/safety/detecteur-detresse";
 
 /**
  * Story 2.3 — le détecteur de détresse au modèle FORT, sous egress art.9 (AC2). On teste la MACHINE
@@ -70,7 +70,38 @@ describe("extraireNiveau — parseur pur de la sortie du détecteur", () => {
   });
 });
 
+describe("extraireFamille — parseur pur de la famille de danger (Story 2.6, FR-074)", () => {
+  it("mappe la sortie du modèle vers une FamilleDanger connue", () => {
+    expect(extraireFamille("NIVEAU: 3\nFAMILLE: suicide")).toBe("suicide");
+    expect(extraireFamille("FAMILLE: violences")).toBe("violences_femmes");
+    expect(extraireFamille("famille = vital")).toBe("urgence_vitale");
+    expect(extraireFamille("FAMILLE: enfance")).toBe("enfance");
+    expect(extraireFamille("FAMILLE: ecoute")).toBe("ecoute");
+  });
+  it("undefined si absente / illisible (le sélecteur de bloc appliquera le défaut protecteur)", () => {
+    expect(extraireFamille("NIVEAU: 2")).toBeUndefined();
+    expect(extraireFamille("FAMILLE: bizarre")).toBeUndefined();
+    expect(extraireFamille("")).toBeUndefined();
+  });
+
+  it("MULTI-occurrence : retient la DERNIÈRE ligne conforme (la conclusion), pas une mention parasite en amont (R4)", () => {
+    // Un raisonnement verbeux mentionne « violences » avant sa conclusion « suicide » : ne pas mal-router.
+    expect(extraireFamille("Famille: violences en cours ? Non retenu.\nNIVEAU: 3\nFAMILLE: suicide")).toBe("suicide");
+    // Une famille inconnue en fin ne doit pas écraser une famille valide en amont (on garde la dernière VALIDE).
+    expect(extraireFamille("FAMILLE: violences\nremarque: famille = bizarre")).toBe("violences_femmes");
+  });
+});
+
 describe("detecterDetresse — au modèle fort, sous egress (AC2)", () => {
+  it("propage la FAMILLE détectée dans le verdict (Story 2.6)", async () => {
+    const a = adaptateurFactice({ texte: "NIVEAU: 3\nFAMILLE: violences" });
+    const r = await detecterDetresse({ supabase: supabaseFactice(), adaptateur: a.port }, messages);
+    expect(r).toEqual({
+      bloque: false,
+      verdict: { niveau: 3, decision: "urgence", supprimerTravailSchema: true, famille: "violences_femmes" },
+    });
+  });
+
   it("force la capacité `detection` (⇒ tier fort) et le drapeau art.9", async () => {
     const a = adaptateurFactice({ texte: "NIVEAU: 0" });
     await detecterDetresse({ supabase: supabaseFactice(), adaptateur: a.port }, messages);

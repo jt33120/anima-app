@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AiPort, MessageIa, RequeteIa } from "@/lib/ai/port";
 import { envoyerSousEgressArt9, type RaisonRefus } from "@/lib/ai/egress-guard";
 import { classerDetresse, repliSur, type VerdictSecurite } from "./classer-detresse";
+import type { FamilleDanger } from "./ressources-aide";
 
 /**
  * Détecteur de détresse (Story 2.3, AC2 ; §5) — la classification au modèle FORT.
@@ -56,7 +57,10 @@ const INSTRUCTION_DETECTION_PLACEHOLDER = [
   "Évalue le niveau de détresse du DERNIER message de l'utilisatrice, selon cette échelle :",
   "0 = journée difficile ordinaire ; 1 = détresse marquée sans idéation ;",
   "2 = idéation suicidaire passive ; 3 = idéation active, plan, ou danger immédiat.",
-  "N'explore jamais les moyens ni le plan. Réponds UNIQUEMENT par une ligne : `NIVEAU: N`.",
+  "Indique aussi la FAMILLE de danger dominante (FR-074) parmi : suicide, violences (violences en cours",
+  "ou emprise), enfance (danger pour un enfant), vital (urgence vitale immédiate), ecoute (besoin de",
+  "parler). En cas de doute au niveau ≥ 2 sans autre danger manifeste : suicide.",
+  "N'explore jamais les moyens ni le plan. Réponds UNIQUEMENT par deux lignes : `NIVEAU: N` et `FAMILLE: X`.",
 ].join("\n");
 
 /**
@@ -69,6 +73,34 @@ const INSTRUCTION_DETECTION_PLACEHOLDER = [
 export function extraireNiveau(texte: string): number | null {
   const niveaux = [...texte.matchAll(/niveau\s*[:=]\s*([0-3])(?!\d)/gi)].map((m) => Number(m[1]));
   return niveaux.length ? Math.max(...niveaux) : null;
+}
+
+/** Mappe un mot du modèle sur l'enum `FamilleDanger` (source unique 2.5), ou `undefined` si hors liste. */
+function mapperFamille(mot: string): FamilleDanger | undefined {
+  if (mot.startsWith("suicid")) return "suicide";
+  if (/^(vital|vitale|urgence|urgent)/.test(mot)) return "urgence_vitale";
+  if (mot.startsWith("violence")) return "violences_femmes";
+  if (mot.startsWith("enfan")) return "enfance";
+  if (/^(ecoute|écoute)/.test(mot)) return "ecoute";
+  return undefined;
+}
+
+/**
+ * Extraction PURE de la famille de danger depuis la sortie du modèle (Story 2.6, FR-074). `undefined`
+ * si absente / hors nomenclature — le sélecteur de bloc appliquera alors le défaut protecteur
+ * (suicide au niveau ≥ 2). On ne fabrique JAMAIS une famille hors liste.
+ *
+ * Comme `extraireNiveau`, on scanne TOUTES les occurrences (flag `g`) et on retient la DERNIÈRE ligne
+ * conforme — la CONCLUSION du modèle : une mention parasite en amont d'un raisonnement verbeux
+ * (« Famille: violences ? non… FAMILLE: suicide ») ne doit jamais masquer la ligne finale (revue 2.6, R4).
+ */
+export function extraireFamille(texte: string): FamilleDanger | undefined {
+  let derniere: FamilleDanger | undefined;
+  for (const m of texte.matchAll(/famille\s*[:=]\s*([a-zàâäéèêëïîôöùûüç_-]+)/gi)) {
+    const f = mapperFamille(m[1].toLowerCase());
+    if (f) derniere = f;
+  }
+  return derniere;
 }
 
 /** Incident de sécurité — journalisé SANS art.9 (motif + nom d'erreur seulement, jamais de contenu). */
@@ -117,5 +149,8 @@ export async function detecterDetresse(
     journaliserIncidentSecurite("sortie_detection_illisible");
     return { bloque: false, verdict: repliSur() };
   }
-  return { bloque: false, verdict: classerDetresse(niveau) };
+  // La famille (FR-074) enrichit le verdict sans jamais le sur-classer : le NIVEAU seul commande la
+  // suppression du schéma et le forçage du fort ; la famille ne fait que router les bonnes ressources.
+  const famille = extraireFamille(resultat.reponse.texte);
+  return { bloque: false, verdict: classerDetresse(niveau, famille) };
 }

@@ -1,4 +1,5 @@
 import s from "./aide.module.css";
+import SortieRapide from "./SortieRapide";
 import {
   RESSOURCES_AIDE,
   FAMILLES_ORDRE,
@@ -31,6 +32,8 @@ export default function PageAide() {
   return (
     <main className={s.page}>
       <article className={s.contenu}>
+        {/* Sortie rapide (FR-074) : en tête, navigue vers un site neutre + remplace l'historique. */}
+        <SortieRapide />
         <p className="t-surtitre">Anam</p>
         <h1 className="t-titre">Aide</h1>
 
@@ -55,7 +58,7 @@ export default function PageAide() {
                       <a
                         className={s.numero}
                         href={`tel:${r.tel}`}
-                        aria-label={`${r.service}, ${r.aria}`}
+                        aria-label={`${r.numero}, ${r.service}, ${r.aria}`}
                       >
                         <span className="t-titre-sm" aria-hidden>
                           {r.numero}

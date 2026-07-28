@@ -8,8 +8,17 @@
  * `app/api` (et ici, même pas : il ne manipule que des chaînes).
  */
 
-/** Trame reçue du serveur. `delta` = fragment ; `fin`/`erreur` = terminales (contrat delta* (fin|erreur)). */
-export type TrameRecue = { t: "delta"; c: string } | { t: "fin" } | { t: "erreur" };
+import type { RessourceVue } from "./types";
+
+/**
+ * Trame reçue du serveur. `delta` = fragment ; `fin`/`erreur` = terminales (contrat delta* (fin|erreur)).
+ * `ressources` (Story 2.6) = bloc de détresse, NON terminal, inséré avant/après le tour d'Anam.
+ */
+export type TrameRecue =
+  | { t: "delta"; c: string }
+  | { t: "fin" }
+  | { t: "erreur" }
+  | { t: "ressources"; position: "avant" | "apres"; verifieLe: string; ressources: RessourceVue[] };
 
 /**
  * Découpe un tampon NDJSON en lignes complètes, en RENDANT la dernière ligne partielle (un chunk
@@ -42,7 +51,36 @@ export function analyserTrame(ligne: string): TrameRecue | null {
   }
   if (t === "fin") return { t: "fin" };
   if (t === "erreur") return { t: "erreur" };
+  if (t === "ressources") return analyserRessources(obj);
   return null;
+}
+
+/**
+ * Valide STRICTEMENT une trame `ressources` (Story 2.6). Toute forme inattendue → `null` : une trame
+ * malformée est simplement ignorée (forward-compat), et la sécurité NE dépend jamais de ce bloc — le
+ * filet hors-IA (`/aide`, porte de secours) reste la garantie inconditionnelle (AD-15).
+ */
+function analyserRessources(obj: object): TrameRecue | null {
+  const o = obj as { position?: unknown; verifieLe?: unknown; ressources?: unknown };
+  const position = o.position === "avant" || o.position === "apres" ? o.position : null;
+  // Tableau vide REFUSÉ : un bloc d'aide sans aucune ressource (juste la date) n'a pas de sens (R9).
+  if (!position || typeof o.verifieLe !== "string" || !Array.isArray(o.ressources) || o.ressources.length === 0) {
+    return null;
+  }
+  const ressources: RessourceVue[] = [];
+  for (const r of o.ressources) {
+    if (typeof r !== "object" || r === null) return null;
+    const { numero, tel, aria, service, desc } = r as Record<string, unknown>;
+    if ([numero, tel, aria, service, desc].some((v) => typeof v !== "string")) return null;
+    ressources.push({
+      numero: numero as string,
+      tel: tel as string,
+      aria: aria as string,
+      service: service as string,
+      desc: desc as string,
+    });
+  }
+  return { t: "ressources", position, verifieLe: o.verifieLe, ressources };
 }
 
 /**

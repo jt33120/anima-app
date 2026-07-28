@@ -40,16 +40,16 @@ function adaptateur(texte: string): AiPort {
 
 const messages = [{ role: "user" as const, content: "coucou" }];
 
-function depotFactice(ouvert: boolean) {
-  const signaler = vi.fn(async () => {});
-  const depot: DepotEpisode = { episodeOuvert: async () => ouvert, signaler };
-  return { depot, signaler };
+function depotFactice(ouvert: boolean, limitesApres = ouvert) {
+  const enregistrerTour = vi.fn(async () => ({ limitesLevees: limitesApres }));
+  const depot: DepotEpisode = { episodeOuvert: async () => ouvert, enregistrerTour };
+  return { depot, enregistrerTour };
 }
 
 describe("evaluerSecuriteDuTour — pipeline sécurité-d'abord", () => {
-  it("niveau 0 : verdict poursuivre, audit émis (tier fort), épisode NON signalé", async () => {
+  it("niveau 0 : verdict poursuivre, audit émis (tier fort), enregistrerTour(0) appelé (chaque tour, 2.4)", async () => {
     const audits: AuditDetresse[] = [];
-    const { depot, signaler } = depotFactice(false);
+    const { depot, enregistrerTour } = depotFactice(false);
     const r = await evaluerSecuriteDuTour(
       {
         supabase: supabaseFactice(),
@@ -59,14 +59,18 @@ describe("evaluerSecuriteDuTour — pipeline sécurité-d'abord", () => {
       },
       messages,
     );
-    expect(r).toEqual({ bloque: false, verdict: { niveau: 0, decision: "poursuivre", supprimerTravailSchema: false } });
+    expect(r).toEqual({
+      bloque: false,
+      verdict: { niveau: 0, decision: "poursuivre", supprimerTravailSchema: false },
+      limitesLevees: false,
+    });
     expect(audits).toEqual([{ niveau: 0, decision: "poursuivre", tier: "fort" }]);
-    expect(signaler).not.toHaveBeenCalled();
+    expect(enregistrerTour).toHaveBeenCalledWith(0);
   });
 
-  it("niveau 2 : verdict intervenir, audit émis, épisode signalé au niveau 2", async () => {
+  it("niveau 2 : verdict intervenir, audit émis, enregistrerTour(2)", async () => {
     const audits: AuditDetresse[] = [];
-    const { depot, signaler } = depotFactice(false);
+    const { depot, enregistrerTour } = depotFactice(false, true);
     const r = await evaluerSecuriteDuTour(
       { supabase: supabaseFactice(), adaptateur: adaptateur("NIVEAU: 2"), depotEpisode: depot, emettreAudit: async (a) => void audits.push(a) },
       messages,
@@ -74,12 +78,12 @@ describe("evaluerSecuriteDuTour — pipeline sécurité-d'abord", () => {
     expect(r.bloque).toBe(false);
     if (!r.bloque) expect(r.verdict.niveau).toBe(2);
     expect(audits[0]).toEqual({ niveau: 2, decision: "intervenir", tier: "fort" });
-    expect(signaler).toHaveBeenCalledWith(2);
+    expect(enregistrerTour).toHaveBeenCalledWith(2);
   });
 
-  it("ÉPISODE OUVERT + tour classé 0 → niveauEffectif = 1 (forçage pour TOUT l'épisode, couture 2.4)", async () => {
+  it("ÉPISODE OUVERT + tour classé 0 → niveauEffectif = 1 (forçage), mais enregistrerTour reçoit le BRUT 0", async () => {
     const audits: AuditDetresse[] = [];
-    const { depot, signaler } = depotFactice(true); // épisode ouvert
+    const { depot, enregistrerTour } = depotFactice(true); // épisode ouvert
     const r = await evaluerSecuriteDuTour(
       { supabase: supabaseFactice(), adaptateur: adaptateur("NIVEAU: 0"), depotEpisode: depot, emettreAudit: async (a) => void audits.push(a) },
       messages,
@@ -89,29 +93,32 @@ describe("evaluerSecuriteDuTour — pipeline sécurité-d'abord", () => {
       expect(r.verdict.niveau).toBe(1);
       expect(r.verdict.supprimerTravailSchema).toBe(true);
     }
-    expect(audits[0].niveau).toBe(1);
-    expect(signaler).toHaveBeenCalledWith(1);
+    expect(audits[0].niveau).toBe(1); // l'audit reflète l'effectif
+    expect(enregistrerTour).toHaveBeenCalledWith(0); // le comptage voit le BRUT (2.4 : sinon inextinguible)
   });
 
   it("BLOCAGE d'egress → propagé, AUCUN audit émis (rien n'a été classé)", async () => {
     const audits: AuditDetresse[] = [];
-    const { depot, signaler } = depotFactice(false);
+    const { depot, enregistrerTour } = depotFactice(false);
     const r = await evaluerSecuriteDuTour(
       { supabase: supabaseFactice(false), adaptateur: adaptateur("NIVEAU: 3"), depotEpisode: depot, emettreAudit: async (a) => void audits.push(a) },
       messages,
     );
     expect(r).toEqual({ bloque: true, raison: "consentement" });
     expect(audits).toHaveLength(0);
-    expect(signaler).not.toHaveBeenCalled();
+    expect(enregistrerTour).not.toHaveBeenCalled();
   });
 
-  it("sans depotEpisode injecté : placeholder honnête (aucun épisode ouvert) → le tour vaut son niveau détecté", async () => {
+  it("sans depotEpisode injecté : placeholder honnête (aucun épisode ouvert) → le tour vaut son niveau détecté, limites non levées", async () => {
     const r = await evaluerSecuriteDuTour(
       { supabase: supabaseFactice(), adaptateur: adaptateur("NIVEAU: 0"), emettreAudit: async () => {} },
       messages,
     );
     expect(r.bloque).toBe(false);
-    if (!r.bloque) expect(r.verdict.niveau).toBe(0);
+    if (!r.bloque) {
+      expect(r.verdict.niveau).toBe(0);
+      expect(r.limitesLevees).toBe(false);
+    }
   });
 });
 

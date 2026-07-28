@@ -78,3 +78,42 @@ describe("Pipeline sécurité-d'abord — invariants d'architecture (AD-16)", ()
     expect(lire(POLITIQUE)).toMatch(/capacite\s*===\s*"detection"/);
   });
 });
+
+const MODELE_EPISODE = resolve(racine, "lib/safety/episode-detresse.ts");
+const DEPOT_EPISODE = resolve(racine, "lib/safety/depot-episode.ts");
+const MIGRATION_0010 = resolve(racine, "supabase/migrations/0010_episode_detresse.sql");
+
+describe("Story 2.4 — épisode de détresse : invariants d'architecture (AD-17, AD-12, AD-14)", () => {
+  it("le modèle d'épisode (`episode-detresse`) reste PUR : aucun import runtime, pas de server-only, pas d'infra", () => {
+    const src = lire(MODELE_EPISODE);
+    expect(src, "aucun runtime import (seul `import type` est permis)").not.toMatch(/^\s*import\s+(?!type\b)/m);
+    expect(src).not.toMatch(/server-only/);
+    expect(src).not.toMatch(/@supabase|next\/|@\/lib\/data/);
+  });
+
+  it("la transition `enregistrer_tour_detresse` n'est appelée QUE par le dépôt (jamais ailleurs)", () => {
+    const autres = tousSource.filter((f) => f !== DEPOT_EPISODE);
+    for (const f of autres) {
+      expect(lire(f), `réf transition hors dépôt : ${f}`).not.toMatch(/enregistrer_tour_detresse/);
+    }
+    expect(lire(DEPOT_EPISODE)).toMatch(/enregistrer_tour_detresse/); // contrôle positif
+  });
+
+  it("la table `episode_detresse` naît deny-by-default (RLS + FORCE, AUCUNE policy) — art. 9 (AC3)", () => {
+    const sql = readFileSync(MIGRATION_0010, "utf-8");
+    expect(sql).toMatch(/enable row level security/i);
+    expect(sql).toMatch(/force\s+row level security/i);
+    expect(sql, "server-authoritative : aucune policy cliente (comme usage_ia/audit_securite)").not.toMatch(
+      /create policy/i,
+    );
+  });
+
+  it("les SEUILS d'extinction ne sont PAS figés dans le SQL : durées reçues en arguments (AD-14)", () => {
+    const sql = readFileSync(MIGRATION_0010, "utf-8");
+    // Aucune durée littérale d'intervalle : ni fenêtre 72 h, ni délai min codés en dur.
+    expect(sql, "la fenêtre 72 h ne doit pas être un littéral").not.toMatch(/interval\s+'/i);
+    // Les durées viennent des paramètres (le pur `episode-detresse` en est la source unique).
+    expect(sql).toMatch(/make_interval\(secs => p_duree_min_s\)/);
+    expect(sql).toMatch(/make_interval\(secs => p_fenetre_s\)/);
+  });
+});

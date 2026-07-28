@@ -4,7 +4,7 @@ baseline_commit: 53aa9ef44c8b579ee2a9dff48aeb982ab3545340
 
 # Story 2.3 : Le pipeline serveur sécurité-d'abord
 
-Status: review
+Status: done
 
 <!-- Note: Validation optionnelle. Lance validate-create-story pour un contrôle qualité avant dev-story. -->
 

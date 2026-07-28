@@ -17,23 +17,28 @@ import { classerDetresse, type DecisionSecurite, type VerdictSecurite } from "./
  * détecteur n'est invoqué hors de ce pipeline.
  */
 
+/** État des limites APRÈS le tour (Story 2.4). `limites_levees` dérive de `episode_detresse.fin IS NULL`. */
+export interface EtatLimites {
+  limitesLevees: boolean;
+}
+
 /**
- * Couture vers Story 2.4 : l'état d'épisode CROSS-TOUR (`episode_detresse`). En 2.3, cette entité
- * n'existe pas encore → `depotEpisodePlaceholder` (honnête : aucun état persistant). En construisant
- * `max(niveau, episodeOuvert ? 1 : 0)` dès maintenant, la 2.4 n'aura qu'à rendre `episodeOuvert()`
- * réel — le forçage « fort pour tout l'épisode » marchera sans refactor.
+ * État d'épisode CROSS-TOUR (`episode_detresse`, Story 2.4). `episodeOuvert()` (lu AVANT le tour)
+ * pilote le forçage « fort pour tout l'épisode » ; `enregistrerTour(niveauDetecte)` est appelé à
+ * CHAQUE tour avec le niveau DÉTECTÉ BRUT — il ouvre/rehausse (≥ 1), compte les tours sûrs et éteint
+ * (= 0), puis renvoie l'état des limites. Le placeholder reste honnête (aucun épisode) pour les tests.
  */
 export interface DepotEpisode {
   episodeOuvert(): Promise<boolean>;
-  signaler(niveau: NiveauSecurite): Promise<void>;
+  enregistrerTour(niveauDetecte: NiveauSecurite): Promise<EtatLimites>;
 }
 
 export const depotEpisodePlaceholder: DepotEpisode = {
   async episodeOuvert() {
-    return false; // Story 2.4 : dérive de `episode_detresse.fin IS NULL`
+    return false; // dérive de `episode_detresse.fin IS NULL`
   },
-  async signaler() {
-    /* Story 2.4 : ouvrir / mettre à jour `episode_detresse` (début, niveau_max, fenêtre 72 h) */
+  async enregistrerTour() {
+    return { limitesLevees: false }; // aucun épisode persistant côté placeholder
   },
 };
 
@@ -54,7 +59,7 @@ export interface DepsPipeline {
 }
 
 export type ResultatSecurite =
-  | { bloque: false; verdict: VerdictSecurite }
+  | { bloque: false; verdict: VerdictSecurite; limitesLevees: boolean }
   | { bloque: true; raison: RaisonRefus };
 
 export async function evaluerSecuriteDuTour(
@@ -71,7 +76,8 @@ export async function evaluerSecuriteDuTour(
     return detection;
   }
 
-  // 2. niveauEffectif : le forçage vaut pour TOUT l'épisode (couture 2.4), pas seulement ce tour.
+  // 2. niveauEffectif : le forçage vaut pour TOUT l'épisode (Story 2.4), pas seulement ce tour.
+  // `episodeOuvert()` est lu AVANT l'enregistrement (état au début du tour) → pilote le forçage.
   const depot = deps.depotEpisode ?? depotEpisodePlaceholder;
   const ouvert = await depot.episodeOuvert();
   const niveauEffectif = Math.max(detection.verdict.niveau, ouvert ? 1 : 0) as NiveauSecurite;
@@ -83,10 +89,12 @@ export async function evaluerSecuriteDuTour(
   // 3. Audit sans art.9, juste après la classification (pas conditionné à la fin du stream).
   await deps.emettreAudit({ niveau: verdict.niveau, decision: verdict.decision, tier: "fort" });
 
-  // 4. Signaler l'épisode (persisté en 2.4 ; placeholder no-op en 2.3).
-  if (verdict.niveau >= 1) await depot.signaler(verdict.niveau);
+  // 4. Enregistre le tour avec le niveau DÉTECTÉ BRUT (jamais l'effectif forcé) — à CHAQUE tour, pour
+  // compter les tours sûrs et éteindre. Piège : compter l'effectif rendrait l'épisode inextinguible
+  // (paywall à vie). Renvoie l'état des limites APRÈS le tour (Story 2.5 : garde de montage paywall).
+  const { limitesLevees } = await depot.enregistrerTour(detection.verdict.niveau);
 
-  return { bloque: false, verdict };
+  return { bloque: false, verdict, limitesLevees };
 }
 
 /**

@@ -9,6 +9,7 @@ import { metrerUsageIa, resoudreMetrage, type EtatFlux, type FinFlux } from "@/l
 import { ligneNdjson } from "@/lib/ai/flux-ndjson";
 import { evaluerSecuriteDuTour, type ResultatSecurite } from "@/lib/safety/pipeline";
 import { journaliserAuditDetresse } from "@/lib/safety/journaliser-audit";
+import { creerDepotEpisode } from "@/lib/safety/depot-episode";
 import type { AiPort, CapaciteIa, NiveauSecurite, RequeteIa } from "@/lib/ai/port";
 
 /**
@@ -71,6 +72,9 @@ export async function POST(request: NextRequest) {
         supabase,
         adaptateur,
         emettreAudit: (a) => journaliserAuditDetresse({ utilisatriceId: user.id, cleIdempotence, ...a }),
+        // Story 2.4 : le dépôt RÉEL d'épisode remplace le placeholder. Ouvre/rehausse/compte/éteint
+        // `episode_detresse` à chaque tour, et rend `episodeOuvert()` réel (forçage cross-tour).
+        depotEpisode: creerDepotEpisode(user.id),
       },
       messages,
     );
@@ -93,6 +97,9 @@ export async function POST(request: NextRequest) {
   // FR-037 — le VETO : le futur travail de schéma/reconceptualisation (Epic 4) devra consulter
   // `doitExecuterTravailSchema(securite.verdict)` avant d'écrire. Aucun writer de schéma n'existe
   // aujourd'hui → point d'extension marqué, rien à annuler ici. Le métrage n'est JAMAIS vetoé.
+  //
+  // Story 2.4 : `securite.limitesLevees` (dérivé de `episode_detresse.fin IS NULL`) est DISPONIBLE
+  // ici — la garde de MONTAGE (paywall/quota/bilan refusent de se monter, FR-043) est la Story 2.5.
   const niveauSecurite: NiveauSecurite = securite.verdict.niveau;
   const tierServeur = tierPour(CAPACITE, niveauSecurite); // repli de métrage si le flux avorte avant `fin`
   const modeleServeur = modelePour(tierServeur);

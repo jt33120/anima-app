@@ -10,11 +10,34 @@ et peut **annuler** tout le reste du tour (AD-16). Aucune infra dans les modules
 1. **Détection d'abord** (`detecteur-detresse.ts`) : classification au modèle **FORT** (capacité
    `detection` ⇒ tier fort inconditionnel, AD-5/NFR-012), sous l'**egress art. 9 unique** (AD-13).
 2. **Niveau effectif** = `max(niveau détecté, épisode ouvert ? 1 : 0)` — le forçage vaut pour **tout
-   l'épisode** (couture `DepotEpisode` → Story 2.4, qui posera l'entité `episode_detresse`).
+   l'épisode** (`DepotEpisode.episodeOuvert()`, lu AVANT le tour).
 3. **Audit sans art. 9** (`journaliser-audit.ts` → `audit_securite`, migration 0009) : niveau,
    décision, tier, horodatage — pour mesurer le rappel et les **faux négatifs** (FR-078).
-4. **Veto** (`doitExecuterTravailSchema`) : dès niveau ≥ 1, tout travail de schéma/reconceptualisation
+4. **Enregistrement de l'épisode** (`DepotEpisode.enregistrerTour(niveauDetecte)`) : appelé à **chaque
+   tour** avec le niveau **DÉTECTÉ BRUT** (jamais l'effectif forcé — sinon un épisode ouvert ne s'éteint
+   jamais). Ouvre / rehausse (≥ 1), compte les tours sûrs et éteint (= 0). Renvoie `limitesLevees`.
+5. **Veto** (`doitExecuterTravailSchema`) : dès niveau ≥ 1, tout travail de schéma/reconceptualisation
    est suspendu (FR-037). Le point d'extension attend le writer de reconceptualisation (Epic 4).
+
+## L'entité `episode_detresse` (Story 2.4 ; AD-17, migration 0010)
+
+**Source unique de vérité** des règles vitales de détresse. Deux dérivations **distinctes** :
+
+- **`limites_levees` = `fin IS NULL`** (épisode **ouvert**) → gouverne paywall/quota/bilan (AD-9). Le
+  pipeline la retourne (`ResultatSecurite.limitesLevees`) ; la garde de **montage** est la Story 2.5.
+- **garde de branche = ouvert OU `now() < fenetre_expire_at`** (72 h après extinction) → « aucune
+  branche née d'un épisode » (FR-042). Exposée par `branche_bloquee_par_detresse()` (keyée `auth.uid()`,
+  granted `authenticated`) — **couture Epic 4** : le write-gate de `branche` l'appellera dans son WITH CHECK.
+
+**Extinction possédée** : `enregistrer_tour_detresse` (SQL, atomique, race-safe) ferme l'épisode ssi
+**N tours sûrs consécutifs ET délai minimal écoulé** — jamais levé à vie, jamais éteint trop tôt. Les
+**seuils** (`SEUIL_TOURS_SURS`, `DUREE_MIN_EPISODE_MS`, provisoires) vivent dans le **pur**
+`episode-detresse.ts` et sont **passés en arguments** au SQL (jamais figés — AD-14).
+
+**Posture RLS (AC3)** : server-authoritative, **deny-by-default** (RLS + FORCE, aucune policy —
+patron `usage_ia`/`audit_securite`). Un épisode est une **décision serveur** : la cliente ne l'écrit
+ni ne le lit jamais. Accès uniquement via fonctions `security definer`. **Repli sûr** (`depot-episode.ts`) :
+une panne RPC ne plante jamais le tour et penche vers la protection (`limitesLevees = true` par défaut).
 
 ### Règle d'architecture (gardée par un test)
 
@@ -40,6 +63,10 @@ juriste** avant toute mise en ligne sur données réelles (PRD §5). On code la 
 - `barriere-minorite.ts` / `appliquer-barriere.ts` — barrière de minorité (Story 1.9, FR-071).
 - `classer-detresse.ts` — **pur** : niveau (0-3) → `VerdictSecurite` ; entrée illisible → repli sûr.
 - `detecteur-detresse.ts` — serveur : classification au fort sous egress ; repli sûr ; prompt placeholder.
-- `pipeline.ts` — sécurité-d'abord ; **seul appelant du détecteur** ; audit ; veto ; couture épisode.
+- `pipeline.ts` — sécurité-d'abord ; **seul appelant du détecteur** ; audit ; épisode ; veto.
+- `episode-detresse.ts` — **pur** (Story 2.4) : machine d'état d'extinction + dérivations (`limitesLevees`,
+  `ecritureBrancheBloquee`) ; seuils provisoires (porte clinique).
+- `depot-episode.ts` — serveur (Story 2.4) : dépôt réel `episode_detresse` via fonctions security definer ;
+  **seul appelant** de `enregistrer_tour_detresse` ; repli sûr sur panne.
 - `journaliser-audit.ts` — écriture de l'audit détresse (service_role, best-effort, ne lève jamais).
 - `mesure-rappel.ts` — **pur** : machine de mesure du rappel / des faux négatifs (FR-078).

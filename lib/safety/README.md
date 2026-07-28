@@ -73,3 +73,30 @@ juriste** avant toute mise en ligne sur données réelles (PRD §5). On code la 
   **seul appelant** de `enregistrer_tour_detresse` ; repli sûr sur panne.
 - `journaliser-audit.ts` — écriture de l'audit détresse (service_role, best-effort, ne lève jamais).
 - `mesure-rappel.ts` — **pur** : machine de mesure du rappel / des faux négatifs (FR-078).
+- `ressources-aide.ts` — **pur** (Story 2.5) : la **source unique** des ressources d'aide (groupées par
+  famille de danger) + la gouvernance FR-044 (« Vérifié le », revue trimestrielle assignée). PROVISOIRE (porte clinique).
+- `limites-commerciales.ts` — serveur (Story 2.5) : le prédicat de **garde de montage** `limitesCommercialesLevees`
+  (dérive de `episode_detresse.fin IS NULL` ; repli sûr → `true`, le doute suspend le commerce).
+- `rpc-repli.ts` — serveur (Story 2.5) : le squelette partagé « RPC de sécurité sous admin + repli sûr + incident
+  sans art. 9 » (DRY, consommé par `depot-episode` et `limites-commerciales`).
+
+## Le filet hors-IA + la garde de montage (Story 2.5 ; AD-9, AD-15)
+
+**Le filet ne dépend JAMAIS du classifieur ni du fournisseur IA.** Deux garanties indépendantes de toute détection :
+
+- **`/aide` (halte statique, `app/aide`)** — publique, sans compte, sans paywall, sans traceur, **sans import
+  `lib/ai`** (garde de test). Les ressources viennent de `ressources-aide.ts` (source unique), en fiches sobres
+  (`surface-elevee`/`bordure-forte`) **jamais alarmantes**, groupées par famille de danger, énoncées chiffre par
+  chiffre. La **porte de secours** (surimpression, Story 1.8) y mène en 2 gestes, `porteSecours: true` au type.
+- **La garde de montage `limites_levees`** — dès un épisode ouvert (`fin IS NULL`), `limitesCommercialesLevees`
+  renvoie vrai et le composant **`<GardeCommerciale>`** (`app/_commerce`) **refuse de monter** paywall / bandeau
+  de quota / carte d'abonnement / **bilan** (FR-043), y compris sur un compte gratuit à quota épuisé. La **décision**
+  vit dans `lib/safety` ; `render/` la **consomme** sans la dériver (muet, AD-7). Prédicat appelé **uniquement** par
+  la garde (aucun consommateur sauvage), garde **prospective** qui rejette toute future UI commerciale non enveloppée.
+
+**Dégradation gracieuse (AC5, AD-15).** Modèle fort indisponible → le repli sûr (2.3/2.4) pose déjà `limites_levees`
++ journalise un incident sans art. 9 ; le filet non-IA reste inconditionnel → **Anam ne quitte jamais**. L'insertion
+VISIBLE des haltes DANS la conversation (niveaux 2-3, `15/112` en tête, **sortie rapide** FR-074) est la Story 2.6.
+
+**Gouvernance FR-044 (hybride)** : la cadence trimestrielle est enforçée *structurellement* (test déterministe) ; la
+**péremption réelle** logue un avertissement pendant le dev et devient **hard-break sous `PRELANCEMENT=1`** (CI de prod).

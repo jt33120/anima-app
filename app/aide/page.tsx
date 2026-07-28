@@ -1,43 +1,32 @@
 import s from "./aide.module.css";
+import {
+  RESSOURCES_AIDE,
+  FAMILLES_ORDRE,
+  LIBELLE_FAMILLE,
+  verifieLeLibelle,
+} from "@/lib/safety/ressources-aide";
 
 // NFR-015 / identité de route — « Anam » partout (garde : identite-route.test.ts).
 export const metadata = { title: "Anam" };
 
 /**
- * /aide — la halte ressources + transparence (Story 1.8).
+ * /aide — la halte ressources + transparence (Story 1.8, formalisée en Story 2.5).
  *
- * PAGE STATIQUE et PUBLIQUE : aucun appel d'auth/session, aucun traceur → atteignable
- * SANS COMPTE, SANS PAYWALL, connectée ou non, indépendamment de toute détection
- * (AD-15, FR-077, NFR-002). C'est le filet de sécurité HORS-IA : il ne dépend d'aucun modèle.
- * (Ne JAMAIS y lire la session ni router selon l'état — cela romprait « connectée ou non ».)
+ * PAGE STATIQUE et PUBLIQUE : aucun appel d'auth/session, aucun traceur, AUCUNE dépendance au
+ * fournisseur IA → atteignable SANS COMPTE, SANS PAYWALL, connectée ou non, indépendamment de
+ * toute détection (AD-9, AD-15, FR-077, NFR-002). C'est le filet de sécurité HORS-IA : il ne
+ * dépend d'aucun modèle. (Ne JAMAIS y lire la session ni router selon l'état — cela romprait
+ * « connectée ou non ».)
+ *
+ * Story 2.5 : les ressources viennent de la SOURCE UNIQUE `lib/safety/ressources-aide` (jamais
+ * inline), groupées par FAMILLE de danger (le danger vital d'abord), mises en forme en FICHE
+ * sobre (`surface-elevee` + `bordure-forte`) — JAMAIS rouge, JAMAIS modale, JAMAIS bloquante
+ * (le filet rassure, il n'alarme pas). En-tête « Vérifié le … » (gouvernance FR-044 trimestrielle).
+ * La sélection DYNAMIQUE de la ressource adaptée au danger DÉTECTÉ en conversation est la Story 2.6.
  *
  * Ordre : les RESSOURCES d'abord (la porte de secours « Aide » atterrit ici — crise d'abord),
  * puis la TRANSPARENCE (ancre #transparence, cible de la mention « Anam est une IA »).
- *
- * SCOPE 1.8 : la page existe, réelle et joignable, avec la transparence (art. 50) et les
- * numéros essentiels en tel: (doublage vocal chiffre par chiffre). La mise en forme « fiche »
- * (surface-elevee + bordure-forte), la date « vérifié le … », la revue périodique (FR-044),
- * l'adaptation aux niveaux 2-3, la SORTIE RAPIDE (FR-074) et la garde limites_levees → Story 2.5.
  */
-
-// `aria` = le numéro énoncé chiffre par chiffre ; `service` = le nom lu AVANT les chiffres, pour
-// que le lecteur d'écran en mode « liste des liens » annonce « Prévention du suicide, 3 1 1 4 »
-// et pas seulement des chiffres nus (revue 1.8, trouvaille [11]).
-const RESSOURCES: ReadonlyArray<{
-  numero: string;
-  tel: string;
-  aria: string;
-  service: string;
-  desc: string;
-}> = [
-  { numero: "3114", tel: "3114", aria: "3 1 1 4", service: "Prévention du suicide", desc: "Prévention du suicide — gratuit, à toute heure, tous les jours." },
-  { numero: "15", tel: "15", aria: "1 5", service: "SAMU", desc: "SAMU — urgence vitale immédiate." },
-  { numero: "112", tel: "112", aria: "1 1 2", service: "Urgence européenne", desc: "Numéro d'urgence européen." },
-  { numero: "3919", tel: "3919", aria: "3 9 1 9", service: "Violences faites aux femmes", desc: "Violences faites aux femmes — anonyme et gratuit." },
-  { numero: "119", tel: "119", aria: "1 1 9", service: "Enfance en danger", desc: "Enfance en danger." },
-  { numero: "09 72 39 40 50", tel: "0972394050", aria: "0 9 7 2 3 9 4 0 5 0", service: "SOS Amitié", desc: "SOS Amitié — une écoute, tous les jours." },
-];
-
 export default function PageAide() {
   return (
     <main className={s.page}>
@@ -50,18 +39,35 @@ export default function PageAide() {
             Si tu es en danger ou en détresse, tu n&apos;as pas à passer par Anam. Ces lignes
             sont tenues par des personnes, joignables directement.
           </p>
-          <ul className={s.ressources}>
-            {RESSOURCES.map((r) => (
-              <li key={r.tel} className={s.ressource}>
-                <a className={s.numero} href={`tel:${r.tel}`} aria-label={`${r.service}, ${r.aria}`}>
-                  <span className="t-titre-sm" aria-hidden>
-                    {r.numero}
-                  </span>
-                </a>
-                <span className={`t-corps ${s.desc}`}>{r.desc}</span>
-              </li>
-            ))}
-          </ul>
+          <p className={`t-meta ${s.verifie}`}>Vérifié le {verifieLeLibelle()}</p>
+
+          {FAMILLES_ORDRE.map((famille) => {
+            const ressources = RESSOURCES_AIDE.filter((r) => r.famille === famille);
+            if (ressources.length === 0) return null;
+            // Pas d'aria-label sur la section de groupe : le <h2> nomme déjà le groupe. Un aria-label
+            // en ferait un landmark « region » redondant (double annonce au lecteur d'écran).
+            return (
+              <section key={famille} className={s.groupe}>
+                <h2 className="t-titre-sm">{LIBELLE_FAMILLE[famille]}</h2>
+                <ul className={s.ressources}>
+                  {ressources.map((r) => (
+                    <li key={r.tel} className={s.ressource}>
+                      <a
+                        className={s.numero}
+                        href={`tel:${r.tel}`}
+                        aria-label={`${r.service}, ${r.aria}`}
+                      >
+                        <span className="t-titre-sm" aria-hidden>
+                          {r.numero}
+                        </span>
+                      </a>
+                      <span className={`t-corps ${s.desc}`}>{r.desc}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
         </section>
 
         <section className={s.section} id="transparence" aria-label="Transparence">

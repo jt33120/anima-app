@@ -1,7 +1,8 @@
 /*
- * aide.module.css — La halte ressources + transparence (Story 1.8). Sobre, lisible, JAMAIS
- * alarmant : ni rouge, ni --alerte, ni fiche bloquante (la mise en forme « fiche »
- * surface-elevee/bordure-forte est la Story 2.5). Calqué sur le patron des pages statiques.
+ * aide.module.css — La halte ressources + transparence (Story 1.8, formalisée en 2.5). Le bloc
+ * ressources est une FICHE : surface elevée + bordure forte, coins arrondis — sobre, lisible,
+ * JAMAIS alarmant (ni couleur d'alerte, ni fiche modale/bloquante : le filet rassure, AD-9).
+ * Les numéros restent des liens tel:, énoncés chiffre par chiffre (aria, source unique du module).
  */
 .page {
   min-height: 100dvh;
@@ -24,26 +25,41 @@
   gap: var(--esp-3);
 }
 
-/* Liste des ressources — statique, non alarmante. Numéros lisibles ; le lecteur d'écran les
-   énonce chiffre par chiffre (aria-label). */
+/* Date de vérification (gouvernance FR-044) — discrète, jamais alarmante. */
+.verifie {
+  color: var(--texte-doux);
+}
+
+/* Un groupe = une famille de danger : en-tête + fiches. */
+.groupe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
 .ressources {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--esp-4);
+  gap: var(--esp-3);
 }
+
+/* La FICHE : surface elevée + bordure forte, coins arrondis. Sobre, jamais alarmante. */
 .ressource {
   display: flex;
   flex-direction: column;
   gap: var(--esp-1);
-  padding-left: var(--esp-4);
-  border-left: 2px solid var(--bordure-forte);
+  padding: var(--esp-4);
+  background: var(--surface-elevee);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon-md);
 }
 .numero {
   align-self: flex-start;
   min-height: var(--cible-tactile);
+  min-width: var(--cible-tactile); /* cible ≥ 44px même sur un numéro court (« 15 », « 119 ») */
   display: inline-flex;
   align-items: center;
   color: var(--texte);

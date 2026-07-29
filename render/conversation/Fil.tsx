@@ -5,6 +5,7 @@ import TourAnam from "./TourAnam";
 import TourUtilisatrice from "./TourUtilisatrice";
 import BlocRessources from "./BlocRessources";
 import BlocDocument from "./BlocDocument";
+import CarteAbonnement from "./CarteAbonnement";
 import { estAncreEnBas } from "./composeur-clavier";
 import type { Tour } from "./types";
 import s from "./conversation.module.css";
@@ -25,10 +26,12 @@ export default function Fil({
   tours,
   annonce,
   onReessayer,
+  onRefuserAbonnement,
 }: {
   tours: Tour[];
   annonce: string;
   onReessayer?: (idAnam: string) => void;
+  onRefuserAbonnement?: (id: string) => void;
 }) {
   const conteneur = useRef<HTMLDivElement>(null);
   const etaitEnBas = useRef(true);
@@ -64,6 +67,8 @@ export default function Fil({
           <BlocRessources key={t.id} ressources={t.ressources} verifieLe={t.verifieLe} />
         ) : t.role === "bilan" ? (
           <BlocDocument key={t.id} titre={t.titre} points={t.points} />
+        ) : t.role === "paywall" ? (
+          <CarteAbonnement key={t.id} onRefuser={() => onRefuserAbonnement?.(t.id)} />
         ) : (
           <TourUtilisatrice key={t.id} texte={t.texte} />
         ),

@@ -20,6 +20,8 @@ import { consignePhaseArc } from "@/lib/domain/consigne-phase";
 import { consigneVoixAnam } from "@/lib/domain/consigne-voix";
 import { consigneBilan } from "@/lib/domain/consigne-bilan";
 import { structurerBilan } from "@/lib/domain/bilan";
+import { doitProposerAbonnement } from "@/lib/domain/proposer-abonnement";
+import { estPremiumCourante } from "@/lib/data/lire-abonnement";
 import { absorberDelta, etatTroncatureInitial } from "@/lib/domain/voix-anam";
 import type { AiPort, CapaciteIa, MessageIa, NiveauSecurite, RequeteIa, TierIa } from "@/lib/ai/port";
 
@@ -163,6 +165,22 @@ export async function POST(request: NextRequest) {
   // hors détresse. `arc.beat === "cloture"` = ce tour EST la clôture (idempotent : la machine ne
   // ré-émet pas le beat une fois EN clore → un tour ultérieur dans clore ne reproduit pas de bilan).
   const doitProduireBilan = arc?.beat === "cloture" && clotureAutorisee;
+
+  // Story 3.2 — la carte d'abonnement se propose APRÈS le bilan (AC1), UNIQUEMENT si l'utilisatrice
+  // n'est pas déjà premium. Entitlement lu SOUS JWT/RLS (source de vérité unique 3.1) et SEULEMENT
+  // quand un bilan est attendu (aucun surcoût DB les autres tours). Repli en cas de DOUTE (lecture en
+  // échec) : on RETIENT la carte (`premium = true`) — le doute suspend le commerce. C'est un choix
+  // PRODUIT, jamais de sécurité : le verrou AD-9 (aucun paywall en détresse) est DÉJÀ tenu par
+  // `doitProduireBilan` (pas de bilan en détresse → pas de trame `paywall`, émise sous le bilan).
+  let premium = false;
+  if (doitProduireBilan) {
+    try {
+      premium = await estPremiumCourante();
+    } catch (e) {
+      console.error("anam/message : lecture premium en repli (carte retenue)", { nom: e instanceof Error ? e.name : "inconnu" });
+      premium = true;
+    }
+  }
 
   // La capacité de génération SUIT la phase : en NOMMER, la formulation est une reconceptualisation
   // (fort, AD-5) ; sinon échange. La VOIX qui exploite réellement l'arc relève de la Story 2.8.
@@ -328,6 +346,10 @@ export async function POST(request: NextRequest) {
               if (!bilan.bloque) {
                 const structure = structurerBilan(bilan.reponse.texte);
                 if (structure) emettre({ t: "bilan", titre: structure.titre, points: structure.points });
+                // Story 3.2 — la carte s'ancre SOUS le bilan : jamais de trame `paywall` si la
+                // structuration a échoué (pas de bilan → pas de carte), ni si premium (gate serveur,
+                // AD-9). Prédicat PUR (source unique — pas de 2ᵉ dérivation de `limites_levees`, AD-17).
+                if (doitProposerAbonnement({ bilanEmis: !!structure, premium })) emettre({ t: "paywall" });
                 const u = bilan.reponse.usage; // produit → métré à part (clé distincte), jamais exempté
                 usageBilan = { tier: bilan.reponse.tier, modele: bilan.reponse.modele, tokensEntree: u.tokensEntree, tokensSortie: u.tokensSortie };
               }

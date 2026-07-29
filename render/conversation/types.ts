@@ -43,4 +43,19 @@ export type Tour =
    * (trame `bilan`) — le rendu ne parse aucun markdown, il dessine (AD-7). Registre document : titres
    * et listes autorisés, contrairement à la voix d'Anam (FR-084).
    */
-  | { readonly id: string; readonly role: "bilan"; readonly titre: string; readonly points: readonly string[] };
+  | {
+      readonly id: string;
+      readonly role: "bilan";
+      /** Id du tour d'Anam qui a produit ce bilan → « Réessayer » purge les deux ensemble (jamais un
+       *  bilan orphelin ni doublé au rejeu — même patron que le bloc `ressource`, revue 2.6/3.2). */
+      readonly ancreId: string;
+      readonly titre: string;
+      readonly points: readonly string[];
+    }
+  /**
+   * La carte d'abonnement (Story 3.2). Tour CLIENT présentationnel inséré SOUS le bilan (AC1). Ne
+   * porte aucune donnée : prix et copie sont des constantes (`render/conversation/offre-abonnement`), la
+   * décision (proposer ou non) est SERVEUR (trame `paywall` retenue en détresse/premium, AD-9). `ancreId`
+   * = le tour d'Anam producteur → « Réessayer » purge la carte avec lui (jamais une carte orpheline).
+   */
+  | { readonly id: string; readonly role: "paywall"; readonly ancreId: string };

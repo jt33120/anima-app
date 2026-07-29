@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   extraireLignes,
   analyserTrame,
@@ -105,6 +107,12 @@ describe("analyserTrame — ligne JSON → trame typée (AC3)", () => {
     expect(analyserTrame('{"t":"bilan","titre":"T","points":[42]}')).toBeNull(); // point non-chaîne
     expect(analyserTrame('{"t":"bilan","titre":"T","points":[""]}')).toBeNull(); // point vide
   });
+
+  it("reconnaît la trame `paywall` (proposition d'abonnement 3.2) : signal PUR sans payload", () => {
+    expect(analyserTrame('{"t":"paywall"}')).toEqual({ t: "paywall" });
+    // Des champs parasites sont ignorés (signal pur) — jamais une donnée injectée dans le fil.
+    expect(analyserTrame('{"t":"paywall","x":42}')).toEqual({ t: "paywall" });
+  });
 });
 
 describe("insererTour — placement du bloc ressources relativement au tour d'Anam (2.6, AC4)", () => {
@@ -184,5 +192,23 @@ describe("Contrat NDJSON serveur ↔ client ALIGNÉ (revue 2.2)", () => {
   it("la trame `bilan` sérialisée serveur est relue à l'identique par le client (contrat 2.9)", () => {
     const trame = { t: "bilan" as const, titre: "Ce qu'on a vu", points: ["ligne un", "ligne\ndeux"] };
     expect(relire(trame)).toEqual(trame);
+  });
+
+  it("la trame `paywall` sérialisée serveur est relue à l'identique par le client (contrat 3.2)", () => {
+    expect(relire({ t: "paywall" })).toEqual({ t: "paywall" });
+  });
+});
+
+describe("Story 3.2 — la trame `paywall` est NON TERMINALE (le fil continue jusqu'à `fin`)", () => {
+  // Le hook `useFluxAnam` n'est pas invocable en env node (fetch/reader). Garde de lecture de source :
+  // `paywall` est traité AVANT la branche terminale `fin|erreur` → jamais une coupure prématurée.
+  const racine = process.cwd();
+  const hook = readFileSync(resolve(racine, "render/conversation/useFluxAnam.ts"), "utf-8");
+  it("`onPaywall` est dispatché AVANT le test terminal `fin|erreur`", () => {
+    const iPaywall = hook.indexOf('trame.t === "paywall"');
+    const iTerminal = hook.indexOf('trame.t === "fin"');
+    expect(iPaywall, "branche paywall présente").toBeGreaterThan(-1);
+    expect(iTerminal, "branche terminale présente").toBeGreaterThan(-1);
+    expect(iPaywall, "paywall traité AVANT le terminal (non terminale)").toBeLessThan(iTerminal);
   });
 });

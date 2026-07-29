@@ -41,6 +41,8 @@ export interface RappelsFlux {
   onBeat?: (beat: BeatRecu) => void;
   /** Bilan de clôture (Story 2.9) : bloc document à insérer dans le fil. NON terminal, passif (pas de focus). */
   onBilan?: (titre: string, points: readonly string[]) => void;
+  /** Proposition d'abonnement (Story 3.2) : carte à insérer SOUS le bilan. NON terminal, passif (pas de focus). */
+  onPaywall?: () => void;
 }
 
 export function useFluxAnam() {
@@ -132,6 +134,10 @@ export function useFluxAnam() {
               // Bilan de clôture (2.9), NON terminal : bloc document inséré dans le fil, on CONTINUE de
               // lire jusqu'à `fin`. Passif : ne vole jamais le focus (le composeur reste actif).
               rappels.onBilan?.(trame.titre, trame.points);
+            } else if (trame.t === "paywall") {
+              // Proposition d'abonnement (3.2), NON terminale : la carte s'insère SOUS le bilan, on
+              // CONTINUE de lire jusqu'à `fin`. Passive : ne vole jamais le focus (composeur actif).
+              rappels.onPaywall?.();
             } else if (trame.t === "fin" || trame.t === "erreur") {
               // SEULES `fin` et `erreur` sont TERMINALES → on cesse de lire (aucune trame ne suit). Toute
               // autre trame reconnue mais NON terminale (bilan ci-dessus ; un futur variant) NE DOIT PAS

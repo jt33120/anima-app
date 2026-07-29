@@ -88,6 +88,12 @@ migration `0013`) vivent HORS du domaine.
   (idempotente par `provider_event_id`, verrou de ligne, anti-régression d'ordre `source_maj_le`).
 - **`retour-paiement.ts`** — `ligneRetourPaiement(resultat)` : la ligne système sobre au retour de
   Stripe (registre PRODUIT, jamais la voix d'Anam, jamais dramatisé). **PROVISOIRE**. Le rendu in-fil = 3.2.
+- **`proposer-abonnement.ts`** (Story 3.2) — `doitProposerAbonnement({bilanEmis, premium})` : le prédicat
+  PUR du gate de la carte d'abonnement (elle ne se propose que SOUS un bilan émis — donc hors détresse par
+  construction, AD-9 — et si NON premium ; aucune 2ᵉ dérivation de `limites_levees`, AD-17). La route émet
+  la trame `paywall` en conséquence. La COPIE de la carte (prix affiché, garantie FR-089, périmètres) vit
+  RENDER-LOCAL (`render/conversation/offre-abonnement.ts`) : le rendu ne connaît pas `lib/domain` (AD-7) ;
+  le prix affiché est couplé PAR TEST au prix facturé (`lib/stripe/config`).
 
 Tables `abonnement` + `evenements_traites` server-authoritative : lecture propriétaire de l'abonnement
 (l'entitlement en dérive, `lib/data/lire-abonnement`), écriture réservée à la RPC. La clé secrète Stripe

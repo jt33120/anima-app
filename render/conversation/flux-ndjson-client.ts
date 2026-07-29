@@ -20,7 +20,10 @@ export type TrameRecue =
   | { t: "erreur" }
   | { t: "ressources"; position: "avant" | "apres"; verifieLe: string; ressources: RessourceVue[] }
   | { t: "beat"; beat: BeatRecu }
-  | { t: "bilan"; titre: string; points: string[] };
+  | { t: "bilan"; titre: string; points: string[] }
+  /** Proposition d'abonnement (Story 3.2) : signal PUR, aucun payload. NON terminale — la carte
+   *  s'insère sous le bilan, on continue de lire jusqu'à `fin`. */
+  | { t: "paywall" };
 
 /** Beat d'apparition d'Anam (Story 2.7). Miroir client du variant serveur `flux-ndjson.ts`. */
 export type BeatRecu = "ouverture" | "nommer" | "cloture";
@@ -59,6 +62,7 @@ export function analyserTrame(ligne: string): TrameRecue | null {
   if (t === "ressources") return analyserRessources(obj);
   if (t === "beat") return analyserBeat(obj);
   if (t === "bilan") return analyserBilan(obj);
+  if (t === "paywall") return { t: "paywall" }; // signal pur (Story 3.2), aucun champ à valider
   return null;
 }
 

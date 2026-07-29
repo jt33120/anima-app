@@ -261,3 +261,61 @@
 .blocVerifie {
   color: var(--texte-doux);
 }
+
+/* ── Carte d'abonnement DANS le fil, SOUS le bilan (Story 3.2). Réutilise la fiche `.bloc` (surface
+      elevée, bordure forte, coins arrondis) → cohérente avec le bilan/les ressources. ZÉRO dark
+      pattern : prix unique sans barré, deux actions d'ÉGALE lisibilité. ── */
+.carteTarif {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--esp-2);
+  color: var(--texte);
+}
+.carteGarantie {
+  margin: 0;
+  color: var(--texte-doux);
+}
+.cartePerimetres {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+.cartePerimetre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+.cartePerimetreTitre {
+  margin: 0;
+  color: var(--texte-doux);
+}
+/* Deux actions, MÊME taille de cible et MÊME rôle typo — seule la couleur de remplissage distingue la
+   primaire (jamais la taille/graisse/retrait, qui dévaloriseraient le refus — FR-061, AC2). */
+.carteActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-3);
+}
+.carteActionForm {
+  margin: 0;
+}
+.carteAction {
+  min-height: var(--cible-tactile);
+  min-width: var(--cible-tactile);
+  padding: var(--esp-3) var(--esp-5);
+  background: transparent;
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  color: var(--texte);
+  cursor: pointer;
+}
+.carteActionPrimaire {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--sur-accent);
+}
+.carteAction:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}

@@ -11,14 +11,17 @@ import { GardeCommerciale } from "./GardeCommerciale";
  * bilan en détresse (`clotureAutorisee = niveauSecurite === 0 && !securite.limitesLevees`) → pas de
  * bilan, donc pas de paywall (AC5). `<GardeCommerciale>` est la seconde couche.
  *
- * ⚠️ VIDE en 2.9 : la CARTE d'abonnement (le prix, « M'abonner »/« Pas maintenant », la garantie
- * FR-089) et Stripe Checkout relèvent de l'Epic 3 / Story 3.2, qui remplit ce point de montage et
- * finalise son positionnement DANS le fil, sous le tour bilan. 2.9 ne pose QUE le placement gardé.
+ * PIVOT Story 3.2 : la carte d'abonnement DANS le fil est finalement un composant CLIENT inséré sous
+ * le bilan streamé (`render/conversation/CarteAbonnement.tsx`) — un composant SERVEUR ne s'insère pas
+ * dans un fil client éphémère. Sa garde AD-9 est le GATE SERVEUR (la route retient la trame `paywall`
+ * en détresse/premium), pas cette balise. `MontagePaywall` RESTE donc la couture gardée pour une future
+ * surface paywall RENDUE SERVEUR (menu de compte, 3.3+ : « l'abonnement reste atteignable depuis le
+ * menu de compte ») — inerte tant que cette surface n'existe pas.
  */
 export async function MontagePaywall({ utilisatriceId }: { utilisatriceId: string }) {
   return (
     <GardeCommerciale utilisatriceId={utilisatriceId}>
-      {/* Carte d'abonnement (prix, boutons, garantie) — Epic 3 / Story 3.2 remplit ce point de montage. */}
+      {/* Surface paywall rendue serveur (menu de compte, 3.3+) — inerte tant qu'elle n'existe pas. */}
       {null}
     </GardeCommerciale>
   );

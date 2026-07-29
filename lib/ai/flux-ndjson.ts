@@ -42,7 +42,15 @@ export type TrameClient =
    * No-leak — la trame ne porte QUE le contenu à l'écran (jamais phase, niveau, tier, usage). Émise
    * uniquement hors détresse (gate `niveauSecurite === 0 && !limitesLevees`, route T4).
    */
-  | { t: "bilan"; titre: string; points: ReadonlyArray<string> };
+  | { t: "bilan"; titre: string; points: ReadonlyArray<string> }
+  /**
+   * Proposition d'abonnement (Story 3.2, AC1) : SIGNAL pur — aucun payload, aucune donnée art. 9, ni
+   * prix ni copie (tout vit en constantes CLIENT, `render/conversation/offre-abonnement`). Émise APRÈS la trame
+   * `bilan` et AVANT `fin`, UNIQUEMENT hors détresse (elle SUIT le bilan, lui-même produit ssi
+   * `clotureAutorisee`) et si l'utilisatrice n'est pas déjà premium (gate serveur, route). NON
+   * terminale : le client insère la carte comme tour SOUS le bilan, puis continue de lire jusqu'à `fin`.
+   */
+  | { t: "paywall" };
 
 /** Sérialise une trame en une ligne NDJSON (JSON compact + `\n` terminal). */
 export function ligneNdjson(trame: TrameClient): string {

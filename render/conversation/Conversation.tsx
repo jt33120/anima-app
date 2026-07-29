@@ -43,6 +43,11 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
   // Historique envoyé PAR tour d'Anam (id → messages) : « Réessayer » rejoue le BON tour, pas le
   // dernier envoi global (revue 2.2). Éphémère en session.
   const envoisParTour = useRef<Map<string, MessageEnvoi[]>>(new Map());
+  // « Pas maintenant » (3.2, AC5/FR-057) : une SEULE sollicitation par session. Le fil est éphémère
+  // (aucune persistance — Epic 4), et la trame `paywall` n'est émise qu'une fois (beat cloture
+  // idempotent) → la sollicitation unique est structurellement tenue ; ce verrou est la ceinture
+  // (si la trame se re-présentait, aucune ré-insertion). La persistance serveur du refus est différée.
+  const abonnementRefuse = useRef(false);
 
   // Remonte « Anam prépare » au SceneDom (→ signe épaissi). Effet, pas de setState pendant le rendu.
   useEffect(() => {
@@ -72,6 +77,9 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
   const lancer = useCallback(
     (messages: MessageEnvoi[]) => {
       const idAnam = nouvelId();
+      // Id du bilan de CE tour (ancre de la carte d'abonnement 3.2). Capturé dans la même clôture que
+      // les rappels de flux → `onPaywall` insère la carte sous le bon bilan, sans état partagé.
+      let idBilanCourant: string | null = null;
       envoisParTour.current.set(idAnam, messages);
       setTours((prev) => [...prev, { id: idAnam, role: "anam", texte: "", etat: "flux" }]);
       setAnnonce("");
@@ -121,10 +129,23 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
         // modale). Passif — ne vole pas le focus (le composeur reste actif). Annonce polie au lecteur d'écran.
         onBilan: (titre, points) => {
           const idBilan = nouvelId();
+          idBilanCourant = idBilan; // ancre de POSITION de la carte d'abonnement (3.2)
           setTours((prev) =>
-            insererTour(prev, idAnam, "apres", { id: idBilan, role: "bilan", titre, points }),
+            insererTour(prev, idAnam, "apres", { id: idBilan, role: "bilan", ancreId: idAnam, titre, points }),
           );
           setAnnonce("Le bilan de la séance est affiché.");
+        },
+        // Proposition d'abonnement (3.2, AC1) : le SERVEUR a décidé de proposer (trame `paywall`,
+        // retenue en détresse/premium — AD-9). On insère la carte SOUS le bilan. Passive : ne vole
+        // jamais le focus (le composeur reste actif) et ne s'annonce pas (l'annonce du bilan prime ;
+        // la carte reste navigable). Ne se réinsère pas si l'utilisatrice a déjà dit « Pas maintenant ».
+        onPaywall: () => {
+          if (abonnementRefuse.current || !idBilanCourant) return; // refus session, ou pas de bilan-ancre
+          const ancre = idBilanCourant;
+          const idPaywall = nouvelId();
+          // Position : SOUS le bilan (`ancre`). `ancreId: idAnam` = le tour producteur → « Réessayer »
+          // purge la carte avec lui (jamais une carte orpheline doublée au rejeu, comme le bloc ressource).
+          setTours((prev) => insererTour(prev, ancre, "apres", { id: idPaywall, role: "paywall", ancreId: idAnam }));
         },
       });
     },
@@ -156,10 +177,16 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
       const messages = envoisParTour.current.get(idAnam);
       if (!messages) return;
       envoisParTour.current.delete(idAnam);
-      // Retire le tour d'Anam ET tout bloc ressources rattaché (ancreId) — sinon le rejeu laisserait un
-      // bloc orphelin et en insérerait un second (double 15/112 en urgence — revue 2.6, R2).
+      // Retire le tour d'Anam ET tout bloc rattaché par `ancreId` (ressources 2.6, bilan + carte 3.2) —
+      // sinon un tour de clôture qui échoue APRÈS avoir émis bilan/carte laisserait ceux-ci orphelins, et
+      // le rejeu en insérerait un SECOND (double bilan / double paywall — même patron que le double 15/112,
+      // revue 2.6 R2 / 3.2).
       setTours((prev) =>
-        prev.filter((t) => t.id !== idAnam && !(t.role === "ressource" && t.ancreId === idAnam)),
+        prev.filter(
+          (t) =>
+            t.id !== idAnam &&
+            !((t.role === "ressource" || t.role === "bilan" || t.role === "paywall") && t.ancreId === idAnam),
+        ),
       );
       lancer(messages);
       // Le bouton « Réessayer » vient d'être démonté : redéplacer le focus vers le composeur, jamais
@@ -169,10 +196,19 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
     [lancer],
   );
 
+  // « Pas maintenant » (3.2, AC5) : retire la carte, arme le verrou d'unique sollicitation, et
+  // redéplace le focus vers le composeur (le bouton retiré ne doit jamais laisser le focus sur <body>,
+  // WCAG 2.4.3). L'abonnement reste ensuite atteignable depuis le menu de compte (surface différée).
+  const refuserAbonnement = useCallback((id: string) => {
+    abonnementRefuse.current = true;
+    setTours((prev) => prev.filter((t) => t.id !== id));
+    requestAnimationFrame(() => champRef.current?.focus());
+  }, []);
+
   return (
     <div className={s.conversation} ref={shell}>
       <ApparitionAnam beat={beat} />
-      <Fil tours={tours} annonce={annonce} onReessayer={reessayer} />
+      <Fil tours={tours} annonce={annonce} onReessayer={reessayer} onRefuserAbonnement={refuserAbonnement} />
       <Composeur onEnvoyer={surEnvoi} occupe={enCours} champRef={champRef} />
     </div>
   );

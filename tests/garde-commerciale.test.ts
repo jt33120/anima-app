@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
@@ -91,9 +91,29 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     expect(estRoute("/repo/app/api/stripe/checkout/route.ts"), "matcher de route API cassé").toBe(true);
     expect(estRoute("/repo/app/(scene)/abonnement/page.tsx"), "une page n'est pas une route API").toBe(false);
 
+    // UI commerciale GARDÉE PAR LE GATE SERVEUR (raffinement Story 3.2) : la carte d'abonnement in-fil
+    // (`CarteAbonnement`) est un composant CLIENT inséré SOUS le bilan dans le fil streamé — elle ne
+    // peut pas s'auto-envelopper de la balise SERVEUR `<GardeCommerciale>` (async, lit `lib/safety`).
+    // Sa garde AD-9 est le GATE SERVEUR : la route RETIENT la trame `paywall` en détresse (pas de bilan
+    // → pas de carte) et si premium — prouvé par tests/proposer-abonnement.test.ts. Même patron que la
+    // route Checkout (gardée serveur, dérogée ci-dessus). Dérogation NOMMÉE, non un fichier générique.
+    // La surface = le composant client `CarteAbonnement.tsx` ET son module de COPIE `offre-abonnement.ts`
+    // (pures constantes, aucun JSX — rien à envelopper). Dérogation ancrée au CHEMIN EXACT `render/conversation/`
+    // — jamais au seul basename : un futur homonyme ailleurs (ex. une surface paywall SERVEUR sous
+    // `app/.../compte/CarteAbonnement.tsx`, VRAIE UI commerciale à envelopper) NE doit PAS hériter de la
+    // dérogation (sinon angle mort : il passerait non gardé). La dérogation ne vaut QUE pour la carte in-fil.
+    const estCarteGardeeParGateServeur = (f: string) =>
+      /[/\\]render[/\\]conversation[/\\](CarteAbonnement\.tsx|offre-abonnement\.ts)$/.test(f);
+    expect(estCarteGardeeParGateServeur("/repo/render/conversation/CarteAbonnement.tsx"), "matcher de carte cassé").toBe(true);
+    expect(estCarteGardeeParGateServeur("/repo/render/conversation/offre-abonnement.ts"), "matcher de copie cassé").toBe(true);
+    expect(estCarteGardeeParGateServeur("/repo/render/conversation/BlocDocument.tsx"), "faux positif dérogation carte").toBe(false);
+    // ANGLE MORT fermé : un homonyme AILLEURS (future surface paywall serveur) n'est PAS dérogé → devra être gardé.
+    expect(estCarteGardeeParGateServeur("/repo/app/(scene)/compte/CarteAbonnement.tsx"), "dérogation basename non ancrée — angle mort").toBe(false);
+
     const uiCommerciales = [...fichiersSource("app"), ...fichiersSource("render")]
       .filter(estCommerciale)
-      .filter((f) => !estRoute(f));
+      .filter((f) => !estRoute(f))
+      .filter((f) => !estCarteGardeeParGateServeur(f)); // gardée par le gate serveur, pas par la balise
     for (const f of uiCommerciales) {
       // Exige la BALISE `<GardeCommerciale`, pas une simple mention d'import (tripwire, pas preuve
       // formelle : un placement en frère reste possible — l'enveloppement réel relève de la revue).
@@ -114,8 +134,20 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     // Non-vacuité : depuis 3.1, la route Checkout EXISTE et doit être gardée (sinon la garde ne prouve rien).
     expect(routesCommerciales.length, "aucune route commerciale détectée — la garde serveur est vide").toBeGreaterThan(0);
 
+    // Non-vacuité de la dérogation « gate serveur » (3.2) : la carte in-fil EXISTE et sa garde
+    // COMPORTEMENTALE aussi — sinon la dérogation serait un trou (allowlist morte qui laisserait passer
+    // une future carte non gardée). La preuve réelle que la carte est retenue en détresse/premium vit là.
+    expect(
+      existsSync(resolve(racine, "render/conversation/CarteAbonnement.tsx")),
+      "carte in-fil absente — la dérogation `gate serveur` est morte",
+    ).toBe(true);
+    expect(
+      existsSync(resolve(racine, "tests/proposer-abonnement.test.ts")),
+      "garde comportementale du gate serveur absente — la dérogation ne prouve rien",
+    ).toBe(true);
+
     console.info(
-      `[garde-commerciale] ${uiCommerciales.length} UI + ${routesCommerciales.length} route(s) commerciale(s) gardée(s).`,
+      `[garde-commerciale] ${uiCommerciales.length} UI + ${routesCommerciales.length} route(s) commerciale(s) + 1 carte gardée par gate serveur.`,
     );
   });
 });

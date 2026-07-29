@@ -4,7 +4,7 @@ baseline_commit: 55083669fb22438b44dbc28c6db856e5ceeb0f24
 
 # Story 3.2 : Le paywall à la clôture de la première séance
 
-**Épic 3 — Devenir premium · Statut : review**
+**Épic 3 — Devenir premium · Statut : done**
 
 ## Story
 

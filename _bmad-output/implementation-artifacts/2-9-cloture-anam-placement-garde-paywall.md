@@ -4,7 +4,7 @@ baseline_commit: 5ba9b50c60eee0ca253d56e6c31c4084abd8a8b6
 
 # Story 2.9: La clôture par Anam et le placement gardé du paywall
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

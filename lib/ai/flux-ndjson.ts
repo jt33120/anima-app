@@ -34,7 +34,15 @@ export type TrameClient =
        *  le tirer de `lib/safety` (frontière AD-7). */
       verifieLe: string;
       ressources: ReadonlyArray<{ numero: string; tel: string; aria: string; service: string; desc: string }>;
-    };
+    }
+  /**
+   * Bilan de clôture (Story 2.9, AC2) : BLOC DOCUMENT inséré dans le fil APRÈS le drain de la phrase
+   * de clôture et AVANT `fin`. Registre document — titres et listes autorisés (l'inverse de la voix).
+   * La STRUCTURE est décidée SERVEUR (`{titre, points}`) : le rendu ne parse rien, il affiche (AD-7).
+   * No-leak — la trame ne porte QUE le contenu à l'écran (jamais phase, niveau, tier, usage). Émise
+   * uniquement hors détresse (gate `niveauSecurite === 0 && !limitesLevees`, route T4).
+   */
+  | { t: "bilan"; titre: string; points: ReadonlyArray<string> };
 
 /** Sérialise une trame en une ligne NDJSON (JSON compact + `\n` terminal). */
 export function ligneNdjson(trame: TrameClient): string {

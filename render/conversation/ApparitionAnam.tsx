@@ -18,10 +18,14 @@ export type Beat = "ouverture" | "nommer" | "cloture" | null;
 
 export default function ApparitionAnam({ beat }: { beat: Beat }) {
   if (!beat) return null;
+  // À la CLÔTURE (Story 2.9), Anam passe en format VEILLE — de dos / effacée, le retrait (« le silence
+  // a un traitement visuel »). Aux autres beats (ouverture, nommer), elle paraît en Présence. Le rendu
+  // ne décide RIEN : le beat vient du serveur (arc de séance) ; ici on ne fait que choisir l'asset.
+  const format = beat === "cloture" ? "veille" : "presence";
   return (
     <div className={`${s.apparition} fondu-personnage`} data-beat={beat}>
       {/* `alt` sobre non-révélateur (UX-DR-15) : « illustration nocturne », jamais « femme au lotus ». */}
-      <ImageAnam format="presence" alt="Illustration nocturne" />
+      <ImageAnam format={format} alt="Illustration nocturne" />
     </div>
   );
 }

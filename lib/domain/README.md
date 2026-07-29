@@ -52,3 +52,24 @@ Trois cœurs PURS ; le câblage (injection de consigne, troncature sur flux) vit
   `anam-voice.md` §11. Anti-faux-positif (frontières de mots, casse/accents insensibles). Alimente le
   **contrôle bloquant transversal** `tests/lexique-voix.test.ts` (scan récursif de tout le contenu
   utilisateur, exclusion des consignes, contrôle positif + garde non-vacue). **PROVISOIRE**.
+
+## La clôture et le bilan (Story 2.9) — Anam clôt, le bilan se pose
+
+La machine d'arc (2.7) émet désormais le beat `"cloture"` sur la transition `nommer → clore` et pose le
+latch `finProposee` (l'arc ne rouvre jamais — idempotence gratuite : `clore` sans transition sortante).
+Deux nouveaux cœurs PURS ; le câblage (gate de sécurité, 2ᵉ passe de génération, émission de trame) vit
+dans la route.
+
+- **`consigne-bilan.ts`** — `consigneBilan()` : la consigne système de génération du **bilan**, un
+  **registre DOCUMENT** (titres et listes **autorisés** — l'inverse de la voix). Reprend les mots de
+  l'utilisatrice, sans inventer ; pas de médical/« soin », jamais signé d'un affect. Générée en **passe
+  fort séparée** (capacité `synthese`), hors troncature. **PROVISOIRE**. Contient le lexique interdit en
+  instructions inverses → **exclue** du contrôle bloquant.
+- **`bilan.ts`** — `structurerBilan(texte)` : transforme la prose générée en bloc document `{titre,
+  points}` (la STRUCTURE est décidée serveur ; le rendu reste muet, AD-7). Fail-safe : rien de
+  structurable → `null` → la route n'émet pas de bilan. Parseur **PROVISOIRE** (à durcir / passer en
+  sortie structurée du modèle).
+
+Garde de sécurité (route) : le beat Veille + le bilan + le point de montage du paywall ne se produisent
+QUE hors détresse (`clotureAutorisee = niveauSecurite === 0 && !securite.limitesLevees`, AD-9). En
+détresse, la séance cesse d'être une séance : le protocole de détresse prend le relais.

@@ -318,3 +318,72 @@ describe("Story 2.8 — voix + troncature : câblage serveur (FR-083/084, AD-1/A
     }
   });
 });
+
+describe("Story 2.9 — clôture + bilan + placement gardé : câblage serveur (AD-9, AD-16, AD-5, AD-7)", () => {
+  const CONSIGNE_BILAN = resolve(racine, "lib/domain/consigne-bilan.ts");
+  const BILAN = resolve(racine, "lib/domain/bilan.ts");
+
+  it("CONSOMME securite.limitesLevees : la clôture n'est autorisée qu'hors détresse (gate AD-9)", () => {
+    const src = lire(ROUTE);
+    // `limitesLevees` n'était qu'un COMMENTAIRE en 2.4 → prouver qu'il est désormais LU (hors commentaires).
+    expect(src, "securite.limitesLevees est consommé, pas seulement documenté").toMatch(/!\s*securite\.limitesLevees/);
+    expect(src, "gate = niveau 0 ET pas d'épisode ouvert").toMatch(
+      /clotureAutorisee\s*=\s*niveauSecurite\s*===\s*0\s*&&\s*!\s*securite\.limitesLevees/,
+    );
+  });
+
+  it("le beat « cloture » est SUPPRIMÉ en détresse (la séance cesse d'être une séance, AC5)", () => {
+    const src = lire(ROUTE);
+    expect(src, "le beat cloture est gardé par clotureAutorisee").toMatch(
+      /beat\s*!==\s*"cloture"\s*\|\|\s*clotureAutorisee/,
+    );
+  });
+
+  it("le bilan est produit UNE fois, au tour de clôture et seulement hors détresse", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/doitProduireBilan\s*=\s*arc\?\.beat\s*===\s*"cloture"\s*&&\s*clotureAutorisee/);
+    expect(src, "le bilan n'est généré que si doitProduireBilan").toMatch(/if\s*\(\s*doitProduireBilan\s*\)/);
+  });
+
+  it("le bilan est une passe FORT séparée (consigne document, capacité synthese), HORS troncature", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/@\/lib\/domain\/consigne-bilan/);
+    expect(src).toMatch(/consigneBilan\s*\(/);
+    expect(src).toMatch(/structurerBilan\s*\(/);
+    expect(src, "capacité synthese → tier fort (AD-5)").toMatch(/capacite:\s*"synthese"/);
+    // le bilan NE passe PAS par la troncature : il est STRUCTURÉ (structurerBilan) APRÈS la boucle de
+    // deltas — donc hors du chemin `absorberDelta` (par-delta). Garde STRUCTURELLE (non tautologique) :
+    // structurerBilan apparaît après `for await` (la 2ᵉ passe suit le drain, pas dans la boucle).
+    expect(src.match(/emettre\(\{\s*t:\s*"bilan"/), "émission de la trame bilan trouvée (garde non vacue)").not.toBeNull();
+    expect(
+      src.indexOf("structurerBilan("),
+      "le bilan est généré/structuré APRÈS le drain des deltas (hors troncature)",
+    ).toBeGreaterThan(src.indexOf("for await"));
+  });
+
+  it("no-leak : la trame `bilan` n'a QUE t + titre + points (allowlist)", () => {
+    const src = lire(ROUTE);
+    const emission = src.match(/emettre\(\{\s*t:\s*"bilan"[\s\S]*?\}\)/)?.[0] ?? "";
+    expect(emission, "l'émission de la trame bilan doit être trouvée (garde non vacue)").not.toBe("");
+    const champs = [...emission.matchAll(/(\w+)\s*:/g)].map((m) => m[1]);
+    expect(champs.length).toBeGreaterThan(0);
+    for (const c of champs) expect(["t", "titre", "points"].includes(c), `champ inattendu (fuite) : ${c}`).toBe(true);
+  });
+
+  it("le bilan est MÉTRÉ sous une clé distincte (produit, jamais exempté comme la détresse)", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/:bilan/);
+    expect(src).toMatch(/usageBilan/);
+    expect(src).toMatch(/metrerUsageIa/);
+  });
+
+  it("les cœurs de clôture restent PURS (AD-1) : consigne-bilan + structuration, aucun import infra", () => {
+    for (const f of [CONSIGNE_BILAN, BILAN]) {
+      const src = lire(f);
+      expect(src, `server-only interdit : ${f}`).not.toMatch(/server-only/);
+      expect(src, `import runtime infra interdit : ${f}`).not.toMatch(
+        /^\s*import\s+(?!type\b)[^;]*from\s*["'](?:@supabase|next|next\/|@\/lib\/data|@\/lib\/ai|@\/app|@\/render)/m,
+      );
+    }
+  });
+});

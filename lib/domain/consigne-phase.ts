@@ -23,7 +23,10 @@ const CONSIGNES: Record<Phase, string | null> = {
     "légèrement inconfortable, ce que la personne est prête à entendre. (La forme complète — hypothèse " +
     "réfutable, brièveté — relève de la voix, Story 2.8.)",
   clore:
-    "[Consigne de phase — PROVISOIRE] La séance se referme : tu accompagnes doucement vers la fin.",
+    "[Consigne de phase — PROVISOIRE] C'est TOI qui clos la séance, en un seul tour, dans ton registre " +
+    "normal — l'utilisatrice n'a jamais à s'extraire (FR-008). Pas de récapitulatif, pas de conclusion " +
+    "enveloppante : tu proposes simplement d'en rester là, sans dramatiser. Repère de ton : « on en a " +
+    "assez fait pour ce soir ». Le bilan est posé séparément, comme un document — ne le rédige pas ici.",
 };
 
 /** Dérive la consigne système de la phase, ou `null` s'il n'y a rien à contraindre (construire). */

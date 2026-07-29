@@ -91,6 +91,20 @@ describe("analyserTrame — ligne JSON → trame typée (AC3)", () => {
     expect(analyserTrame('{"t":"beat"}')).toBeNull(); // beat manquant
     expect(analyserTrame('{"t":"beat","beat":42}')).toBeNull(); // non-chaîne
   });
+
+  it("reconnaît la trame `bilan` (bloc document 2.9) et valide sa forme structurée", () => {
+    const brut = { t: "bilan", titre: "Ce qu'on a vu ce soir", points: ["tu portes beaucoup", "tu veux souffler"] };
+    expect(analyserTrame(JSON.stringify(brut))).toEqual(brut);
+  });
+
+  it("rejette une trame `bilan` MALFORMÉE → null (forward-compat ; le rendu reste muet)", () => {
+    expect(analyserTrame('{"t":"bilan","titre":"","points":["a"]}')).toBeNull(); // titre vide
+    expect(analyserTrame('{"t":"bilan","points":["a"]}')).toBeNull(); // titre manquant
+    expect(analyserTrame('{"t":"bilan","titre":"T","points":[]}')).toBeNull(); // aucun point (vide, cf. R9)
+    expect(analyserTrame('{"t":"bilan","titre":"T","points":"nope"}')).toBeNull(); // points non-tableau
+    expect(analyserTrame('{"t":"bilan","titre":"T","points":[42]}')).toBeNull(); // point non-chaîne
+    expect(analyserTrame('{"t":"bilan","titre":"T","points":[""]}')).toBeNull(); // point vide
+  });
 });
 
 describe("insererTour — placement du bloc ressources relativement au tour d'Anam (2.6, AC4)", () => {
@@ -165,5 +179,10 @@ describe("Contrat NDJSON serveur ↔ client ALIGNÉ (revue 2.2)", () => {
 
   it("la trame `beat` sérialisée serveur est relue à l'identique par le client (contrat 2.7)", () => {
     expect(relire({ t: "beat", beat: "nommer" })).toEqual({ t: "beat", beat: "nommer" });
+  });
+
+  it("la trame `bilan` sérialisée serveur est relue à l'identique par le client (contrat 2.9)", () => {
+    const trame = { t: "bilan" as const, titre: "Ce qu'on a vu", points: ["ligne un", "ligne\ndeux"] };
+    expect(relire(trame)).toEqual(trame);
   });
 });

@@ -87,9 +87,26 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
         `UI commerciale montée sans <GardeCommerciale> : ${f}`,
       ).toMatch(/<GardeCommerciale/);
     }
-    // Aujourd'hui : aucune UI commerciale (Epic 3 / 2.9). La garde est ARMÉE, pas tautologique.
     console.info(
       `[garde-commerciale] ${uiCommerciales.length} UI commerciale(s) détectée(s) — garde en attente de consommateur.`,
     );
+  });
+});
+
+describe("Story 2.9 — point de montage gardé du paywall (placement, PAS la carte)", () => {
+  const MONTAGE = resolve(racine, "app/_commerce/MontagePaywall.tsx");
+  const src = sansCommentaires(readFileSync(MONTAGE, "utf-8"));
+
+  it("le point de montage EXISTE et enveloppe son contenu dans <GardeCommerciale utilisatriceId> (AD-9)", () => {
+    expect(src).toMatch(/<GardeCommerciale\s+utilisatriceId=/);
+  });
+
+  it("2.9 pose le PLACEMENT, jamais la carte : aucun prix / Stripe / bouton d'abonnement (= Epic 3)", () => {
+    // Périmètre dur : la carte (prix 69 €, « M'abonner », Stripe Checkout, garantie) relève de la 3.2.
+    expect(src, "le tarif est Epic 3").not.toMatch(/69|abonner|stripe|checkout|€/i);
+  });
+
+  it("le montage vit dans app/ (composition), jamais dans render/ (muet) — server-only", () => {
+    expect(src).toMatch(/server-only/);
   });
 });

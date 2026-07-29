@@ -39,6 +39,8 @@ export interface RappelsFlux {
   onRessources?: (position: "avant" | "apres", ressources: readonly RessourceVue[], verifieLe: string) => void;
   /** Beat d'apparition d'Anam (Story 2.7) : Anam paraît en Présence. NON terminal, ne vole jamais le focus. */
   onBeat?: (beat: BeatRecu) => void;
+  /** Bilan de clôture (Story 2.9) : bloc document à insérer dans le fil. NON terminal, passif (pas de focus). */
+  onBilan?: (titre: string, points: readonly string[]) => void;
 }
 
 export function useFluxAnam() {
@@ -126,8 +128,14 @@ export function useFluxAnam() {
               // Beat d'apparition (2.7), NON terminal : Anam paraît en Présence, on CONTINUE de lire.
               // Passif : ne déplace jamais le focus (le composeur reste actif, acquis AC2 de 2.6).
               rappels.onBeat?.(trame.beat);
-            } else {
-              // `fin` OU `erreur` : trame TERMINALE → on cesse de lire (aucune trame ne suit).
+            } else if (trame.t === "bilan") {
+              // Bilan de clôture (2.9), NON terminal : bloc document inséré dans le fil, on CONTINUE de
+              // lire jusqu'à `fin`. Passif : ne vole jamais le focus (le composeur reste actif).
+              rappels.onBilan?.(trame.titre, trame.points);
+            } else if (trame.t === "fin" || trame.t === "erreur") {
+              // SEULES `fin` et `erreur` sont TERMINALES → on cesse de lire (aucune trame ne suit). Toute
+              // autre trame reconnue mais NON terminale (bilan ci-dessus ; un futur variant) NE DOIT PAS
+              // tomber ici (sinon coupure prématurée + faux échec) — elle est gérée au-dessus, ou ignorée.
               if (trame.t === "fin") finPropre = true;
               break boucle;
             }

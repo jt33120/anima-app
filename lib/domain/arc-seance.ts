@@ -90,8 +90,12 @@ export interface ResultatArc {
   transition: Transition | null;
   /** FR-007 : la conjonction est-elle réunie pour nommer ? (gate de la sortie observer). */
   peutNommer: boolean;
-  /** Le beat à faire paraître (2.7 n'émet que « nommer », sur la transition observer → nommer). */
-  beat: "nommer" | null;
+  /**
+   * Le beat à faire paraître. « nommer » naît sur la transition observer → nommer (2.7) ; « cloture »
+   * naît sur la transition nommer → clore (2.9, Anam passe en Veille et le bilan s'insère). Émis UNE
+   * seule fois — un tour déjà EN clore ne le rejoue pas (idempotence : clore n'a aucune transition).
+   */
+  beat: "nommer" | "cloture" | null;
 }
 
 /** Signaux neutres (tous faux) — repli quand aucun signal n'est extractible : l'arc n'avance pas. */
@@ -161,7 +165,7 @@ export function avancerArc(
   // 3. TRANSITION — au plus une par tour. Aucune forcée par le TEMPS (FR-002).
   let phase: Phase = etat.phase;
   let transition: Transition | null = null;
-  let beat: "nommer" | null = null;
+  let beat: "nommer" | "cloture" | null = null;
 
   if (etat.phase === "construire") {
     // FR-004 : ≥ 3 sujets de vie distincts ET ≥ 1 réponse longue.
@@ -184,12 +188,25 @@ export function avancerArc(
     // FR-004 (observation délivrée ET l'utilisatrice y a répondu) ET FR-003 (≥ 3 restitutions avant
     // clore). « observation délivrée ET répondu » = observationDelivree vrai à l'ENTRÉE de ce tour
     // (posée par le serveur au tour précédent, après livraison) + un nouveau tour arrive ici.
-    if (etat.observationDelivree && compteurs.restitutions >= SEUIL_RESTITUTIONS) {
+    // La clôture est GATÉE par la sécurité au MÊME titre que l'entrée en nommer (`peutNommer`) : si la
+    // détresse tombe PILE sur ce tour, on DIFFÈRE la clôture (l'arc ne transite pas) — un tour sûr
+    // ultérieur la rejouera (restitutions/observationDelivree sont déjà acquis), sans perdre le bilan ni
+    // le beat Veille (revue 2.9). `niveauSecurite` incorpore déjà l'épisode ouvert (max, pipeline 2.3).
+    if (
+      etat.observationDelivree &&
+      compteurs.restitutions >= SEUIL_RESTITUTIONS &&
+      niveauSecurite < NIVEAU_DETRESSE_BLOQUANT
+    ) {
       phase = "clore";
       transition = { de: "nommer", vers: "clore" };
+      // Le beat de clôture naît ICI (2.9) : Anam passe en Veille et le bilan (bloc document) s'insère.
+      // La route ajoute une garde de montage (niveauSecurite === 0 && !limitesLevees) en défense en profondeur.
+      beat = "cloture";
     }
   }
-  // clore : aucune transition en 2.7 — la clôture RENDUE (bilan, beat Veille, paywall) est la 2.9.
+  // clore : aucune transition sortante — l'arc ne rouvre jamais (AC1). Un tour déjà EN clore ne
+  // reçoit ni transition ni beat → le bilan ne se ré-émet pas (idempotence), l'utilisatrice réécrit
+  // dans l'allocation résiduelle (FR-079) sans nouvelle observation ni nouvelle phase.
 
   // 4. FR-005 (INVARIANT DUR) — `observationDelivree` : l'observation a été délivrée dès qu'on ENTRE
   //    ce tour déjà en nommer/clore (elle a été livrée au tour de transition PRÉCÉDENT — la génération
@@ -199,8 +216,12 @@ export function avancerArc(
   //    La sortie nommer→clore lit `etat.observationDelivree` (l'état persisté) → clore n'advient qu'au
   //    tour SUIVANT l'entrée en nommer : « observation délivrée ET l'utilisatrice y a répondu ».
   const observationDelivree = etat.phase === "nommer" || etat.phase === "clore";
-  //    `finProposee` ne vit que dans clore (Anam propose la fin — clôture rendue en 2.9).
-  const finProposee = phase === "clore" ? etat.finProposee : false;
+  //    `finProposee` (2.9) : la machine POSSÈDE le latch (AD-8). Vrai dès l'entrée en clore et le
+  //    reste (clore est terminal). C'est le signal PERSISTÉ « Anam a proposé la fin » (trace, export,
+  //    consommateurs futurs) ; l'idempotence de la clôture, elle, tient à l'ABSENCE de transition
+  //    sortante de clore + au beat émis seulement sur la transition entrante — pas à une lecture de ce
+  //    champ. Dérivé de la phase, jamais posé à la main par le serveur (revue 2.7).
+  const finProposee = phase === "clore";
 
   const etatSuivant: EtatArc = {
     phase,

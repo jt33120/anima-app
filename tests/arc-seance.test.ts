@@ -174,7 +174,7 @@ describe("FR-003 / FR-004 — nommer → clore : observation délivrée ET ≥ 3
     expect(r.etat.restitutions).toBe(SEUIL_RESTITUTIONS);
     expect(r.etat.phase).toBe("clore");
     expect(r.transition).toEqual({ de: "nommer", vers: "clore" });
-    expect(r.beat, "le beat « nommer » ne se rejoue pas à la clôture").toBeNull();
+    expect(r.beat, "2.9 : le beat de clôture naît sur la transition nommer → clore").toBe("cloture");
   });
 
   it("3 restitutions mais observation PAS délivrée → reste nommer (FR-004)", () => {
@@ -313,5 +313,57 @@ describe("Régression (revue 2.7) — observationDelivree dérivé : l'arc n'est
     const r = avancerArc(presque, sig({ reformulationConfirmee: true }), 0, 0);
     expect(r.etat.phase).toBe("nommer");
     expect(r.etat.observationDelivree, "false au tour de transition — délivré au tour SUIVANT").toBe(false);
+  });
+});
+
+describe("Story 2.9 — clôture : beat « cloture » + latch finProposee (idempotence)", () => {
+  const enNommer = (): EtatArc => etat({ phase: "nommer", observationDelivree: true, restitutions: 2 });
+
+  it("la transition nommer → clore émet beat « cloture » ET pose finProposee = true", () => {
+    const r = avancerArc(enNommer(), sig({ restitution: true }), 0, 0);
+    expect(r.etat.phase).toBe("clore");
+    expect(r.transition).toEqual({ de: "nommer", vers: "clore" });
+    expect(r.beat).toBe("cloture");
+    expect(r.etat.finProposee, "Anam a proposé la fin dès l'entrée en clore").toBe(true);
+  });
+
+  it("IDEMPOTENCE : un tour déjà EN clore ne ré-émet PAS le beat, ne transite pas, garde finProposee", () => {
+    // L'utilisatrice réécrit après la clôture : Anam répond (allocation résiduelle) mais l'arc ne rouvre pas.
+    const dejaClose = etat({ phase: "clore", observationDelivree: true, finProposee: true, restitutions: 5 });
+    const r = avancerArc(dejaClose, sig({ restitution: true }), 0, 0);
+    expect(r.etat.phase, "clore est terminal — l'arc ne rouvre jamais").toBe("clore");
+    expect(r.transition, "aucune nouvelle transition").toBeNull();
+    expect(r.beat, "le bilan ne se ré-émet pas").toBeNull();
+    expect(r.etat.finProposee, "le latch reste posé").toBe(true);
+  });
+
+  it("CONTRÔLE NÉGATIF : nommer non satisfaite → aucun beat cloture, finProposee reste false", () => {
+    const r = avancerArc({ ...enNommer(), restitutions: 1 }, sig({}), 0, 0); // < SEUIL_RESTITUTIONS
+    expect(r.etat.phase).toBe("nommer");
+    expect(r.beat).toBeNull();
+    expect(r.etat.finProposee).toBe(false);
+  });
+
+  it("finProposee n'est JAMAIS posé hors clore (observer/nommer restent false)", () => {
+    expect(avancerArc(etat({ phase: "observer" }), sig({}), 0, 0).etat.finProposee).toBe(false);
+    expect(
+      avancerArc(etat({ phase: "nommer", observationDelivree: true }), sig({}), 0, 0).etat.finProposee,
+    ).toBe(false);
+  });
+
+  it("DÉTRESSE pile au tour de clôture → transition DIFFÉRÉE (le bilan n'est pas perdu), rejouée au tour sûr", () => {
+    // Revue 2.9 : sans ce gate, la machine persistait `clore`, la route supprimait le bilan, et l'arc
+    // ne rejouait jamais le beat → bilan perdu à vie sur une détresse (même un faux positif) transitoire.
+    const pret = { ...enNommer(), restitutions: 2 }; // 3e restitution ce tour comblerait le seuil
+    const enDetresse = avancerArc(pret, sig({ restitution: true }), 1, 0); // niveau ≥ 1 pile ce tour
+    expect(enDetresse.etat.phase, "clôture DIFFÉRÉE en détresse (l'arc ne transite pas)").toBe("nommer");
+    expect(enDetresse.transition).toBeNull();
+    expect(enDetresse.beat).toBeNull();
+    expect(enDetresse.etat.finProposee).toBe(false);
+    // Tour SÛR suivant (la détresse s'est dissipée) : la clôture se rejoue (acquis déjà là) → bilan préservé.
+    const auSecuriser = avancerArc(enDetresse.etat, sig({ restitution: true }), 0, 0);
+    expect(auSecuriser.etat.phase).toBe("clore");
+    expect(auSecuriser.beat).toBe("cloture");
+    expect(auSecuriser.etat.finProposee).toBe(true);
   });
 });

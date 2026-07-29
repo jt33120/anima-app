@@ -19,7 +19,8 @@ export type TrameRecue =
   | { t: "fin" }
   | { t: "erreur" }
   | { t: "ressources"; position: "avant" | "apres"; verifieLe: string; ressources: RessourceVue[] }
-  | { t: "beat"; beat: BeatRecu };
+  | { t: "beat"; beat: BeatRecu }
+  | { t: "bilan"; titre: string; points: string[] };
 
 /** Beat d'apparition d'Anam (Story 2.7). Miroir client du variant serveur `flux-ndjson.ts`. */
 export type BeatRecu = "ouverture" | "nommer" | "cloture";
@@ -57,7 +58,22 @@ export function analyserTrame(ligne: string): TrameRecue | null {
   if (t === "erreur") return { t: "erreur" };
   if (t === "ressources") return analyserRessources(obj);
   if (t === "beat") return analyserBeat(obj);
+  if (t === "bilan") return analyserBilan(obj);
   return null;
+}
+
+/**
+ * Valide STRICTEMENT une trame `bilan` (Story 2.9) : un titre non vide ET au moins un point, tous
+ * des chaînes non vides. Toute forme inattendue → `null` (forward-compat : un vieux client ignore la
+ * trame ; le rendu reste muet). Le bilan est déjà STRUCTURÉ par le serveur — le client ne parse aucun
+ * markdown, il ne fait que valider et transporter.
+ */
+function analyserBilan(obj: object): TrameRecue | null {
+  const o = obj as { titre?: unknown; points?: unknown };
+  if (typeof o.titre !== "string" || o.titre.length === 0) return null;
+  if (!Array.isArray(o.points) || o.points.length === 0) return null;
+  if (o.points.some((p) => typeof p !== "string" || p.length === 0)) return null;
+  return { t: "bilan", titre: o.titre, points: o.points as string[] };
 }
 
 /**

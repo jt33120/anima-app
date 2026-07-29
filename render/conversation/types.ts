@@ -37,4 +37,10 @@ export type Tour =
       readonly ancreId: string;
       readonly ressources: readonly RessourceVue[];
       readonly verifieLe: string;
-    };
+    }
+  /**
+   * Le BILAN de clôture (Story 2.9). Bloc DOCUMENT : titre + points, DÉJÀ structuré par le serveur
+   * (trame `bilan`) — le rendu ne parse aucun markdown, il dessine (AD-7). Registre document : titres
+   * et listes autorisés, contrairement à la voix d'Anam (FR-084).
+   */
+  | { readonly id: string; readonly role: "bilan"; readonly titre: string; readonly points: readonly string[] };

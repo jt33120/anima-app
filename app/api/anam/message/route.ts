@@ -18,6 +18,8 @@ import { avancerArc, SIGNAUX_NEUTRES } from "@/lib/domain/arc-seance";
 import { requeteExtractionArc, extraireSignauxArc } from "@/lib/domain/signaux-arc";
 import { consignePhaseArc } from "@/lib/domain/consigne-phase";
 import { consigneVoixAnam } from "@/lib/domain/consigne-voix";
+import { consigneBilan } from "@/lib/domain/consigne-bilan";
+import { structurerBilan } from "@/lib/domain/bilan";
 import { absorberDelta, etatTroncatureInitial } from "@/lib/domain/voix-anam";
 import type { AiPort, CapaciteIa, MessageIa, NiveauSecurite, RequeteIa, TierIa } from "@/lib/ai/port";
 
@@ -108,8 +110,16 @@ export async function POST(request: NextRequest) {
   // aujourd'hui → point d'extension marqué, rien à annuler ici. Le métrage n'est JAMAIS vetoé.
   //
   // Story 2.4 : `securite.limitesLevees` (dérivé de `episode_detresse.fin IS NULL`) est DISPONIBLE
-  // ici — la garde de MONTAGE (paywall/quota/bilan refusent de se monter, FR-043) est la Story 2.5.
+  // ici — la garde de MONTAGE (paywall/quota/bilan refusent de se monter, FR-043).
   const niveauSecurite: NiveauSecurite = securite.verdict.niveau;
+
+  // Story 2.9 — la GARDE DE MONTAGE de la clôture (AD-9). Le beat Veille et le bilan (et, sous le
+  // bilan, le point de montage du paywall) ne se produisent QUE hors détresse : `niveauSecurite === 0`
+  // (pas de détresse CE tour) ET `!securite.limitesLevees` (pas d'épisode ouvert cross-tour — repli
+  // sûr protecteur, dérivé de `episode_detresse.fin IS NULL`, AD-17). En détresse la séance CESSE
+  // d'être une séance : le protocole de détresse (2.3–2.6) prend le relais, aucun bilan (AC5). La
+  // machine d'arc ne recule pas de clore/nommer → ce gate est EXPLICITE ici, réévalué à chaque tour.
+  const clotureAutorisee = niveauSecurite === 0 && !securite.limitesLevees;
 
   // ── ÉTAGE ARC DE SÉANCE (Story 2.7, AD-16 : APRÈS la sécurité ; AD-1 : machine PURE) ───────────
   // Charge la trace → extrait les signaux (modèle FORT, passe SÉPARÉE sous egress art. 9, D1) → la
@@ -145,7 +155,14 @@ export async function POST(request: NextRequest) {
     console.error("anam/message : étage arc en repli", { nom: e instanceof Error ? e.name : "inconnu" });
     arc = null;
   }
-  const beatArc = arc?.beat ?? null; // capturé pour la trame (évite un re-narrowing dans le stream)
+  // Le beat remonte de la machine (2.7 « nommer », 2.9 « cloture »). Le beat « cloture » est SUPPRIMÉ
+  // en détresse (la séance cesse d'être une séance, AC5) ; le beat « nommer » ne peut pas y survenir
+  // (peutNommer gate l'entrée en nommer). No-leak : la trame ne portera QUE l'identifiant.
+  const beatArc = arc?.beat && (arc.beat !== "cloture" || clotureAutorisee) ? arc.beat : null;
+  // Le bilan est produit UNE seule fois, au tour de TRANSITION vers clore (beat cloture) et seulement
+  // hors détresse. `arc.beat === "cloture"` = ce tour EST la clôture (idempotent : la machine ne
+  // ré-émet pas le beat une fois EN clore → un tour ultérieur dans clore ne reproduit pas de bilan).
+  const doitProduireBilan = arc?.beat === "cloture" && clotureAutorisee;
 
   // La capacité de génération SUIT la phase : en NOMMER, la formulation est une reconceptualisation
   // (fort, AD-5) ; sinon échange. La VOIX qui exploite réellement l'arc relève de la Story 2.8.
@@ -174,7 +191,12 @@ export async function POST(request: NextRequest) {
   // toujours vrais (forme, hypothèses, corpus Anima, interdit d'affect) qui valent aussi en détresse.
   // Toutes sont `{role:"system"}`, jamais reçues du client, jamais renvoyées au client.
   const consigneVoix = consigneVoixAnam();
-  const consignePhase = arc ? consignePhaseArc(arc.etat.phase) : null;
+  // En détresse au moment d'une clôture, on NE demande PAS au modèle de clore (la séance cesse d'être
+  // une séance, AC5) : la consigne de phase `clore` (« c'est toi qui clos… ») est supprimée — seul
+  // l'overlay détresse régit le tour. Les autres phases restent injectées (bénignes en détresse ;
+  // `nommer` est de toute façon inatteignable en détresse via `peutNommer`).
+  const consignePhase =
+    arc && (arc.etat.phase !== "clore" || clotureAutorisee) ? consignePhaseArc(arc.etat.phase) : null;
   const consigneDetresse = consigneReponse(securite.verdict);
   const prefixes = [consigneVoix, consignePhase, consigneDetresse].filter((c): c is MessageIa => c !== null);
   const messagesReponse = prefixes.length ? [...prefixes, ...messages] : messages;
@@ -227,6 +249,10 @@ export async function POST(request: NextRequest) {
     tierServeur,
     modeleServeur,
   };
+
+  // Métrage du bilan de clôture (2.9) — rempli DANS le stream (passe fort séparée), relevé par le
+  // after() final. Produit → jamais exempté (FR-043 n'exempte QUE la détresse), clé distincte.
+  let usageBilan: { tier: TierIa; modele: string; tokensEntree: number; tokensSortie: number } | null = null;
 
   const corpsFlux = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -286,6 +312,29 @@ export async function POST(request: NextRequest) {
           // FR-084 : « au-delà de trois phrases, c'est un défaut de génération » → manquement journalisé
           // (serveur uniquement, aucun art. 9 ni verbatim — patron du log d'erreur qui ne porte que `e.name`).
           if (voixTronquee) console.warn("anam/message : voix tronquée à 3 phrases (manquement de voix, FR-084)");
+          // ── BILAN DE CLÔTURE (Story 2.9, AC2) — passe FORT séparée, registre document ─────────────
+          // Le bilan « reprend ses mots, en clair » : généré À PART (consigne document, capacité
+          // `synthese` → tier fort AD-5), HORS troncature 3 phrases, dans une trame `bilan` dédiée
+          // (titres/listes autorisés). Émis UNIQUEMENT si la clôture est autorisée (hors détresse,
+          // `doitProduireBilan`) et une seule fois (beat cloture). Fail-safe : structuration vide →
+          // PAS de bilan (jamais un bloc malformé) ; la clôture reste valide (Anam a clos, le fil continue).
+          if (doitProduireBilan) {
+            try {
+              const bilan = await envoyerSousEgressArt9({
+                supabase,
+                adaptateur,
+                requete: { capacite: "synthese", messages: [consigneBilan(), ...messages], contientArt9: true, niveauSecurite: 0 },
+              });
+              if (!bilan.bloque) {
+                const structure = structurerBilan(bilan.reponse.texte);
+                if (structure) emettre({ t: "bilan", titre: structure.titre, points: structure.points });
+                const u = bilan.reponse.usage; // produit → métré à part (clé distincte), jamais exempté
+                usageBilan = { tier: bilan.reponse.tier, modele: bilan.reponse.modele, tokensEntree: u.tokensEntree, tokensSortie: u.tokensSortie };
+              }
+            } catch (e) {
+              console.error("anam/message : bilan de clôture en repli", { nom: e instanceof Error ? e.name : "inconnu" });
+            }
+          }
           // Bloc ressources APRÈS le tour d'Anam (niveau 2, AC4) : juste avant la trame terminale.
           if (trameRessources && trameRessources.position === "apres") emettre(trameRessources);
           emettre({ t: "fin" });
@@ -314,6 +363,8 @@ export async function POST(request: NextRequest) {
   after(async () => {
     const usage = resoudreMetrage(etat);
     if (usage) await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence, ...usage });
+    // Story 2.9 : le bilan de clôture (passe fort séparée) est métré à part — clé distincte, jamais exempté.
+    if (usageBilan) await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence: `${cleIdempotence}:bilan`, ...usageBilan });
   });
 
   return new Response(corpsFlux, {

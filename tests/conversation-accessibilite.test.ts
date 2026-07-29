@@ -126,6 +126,62 @@ describe("Apparition d'Anam : instantanée sous reduced-motion, jamais supprimé
     // le conteneur .apparition n'est JAMAIS masqué (seul le peint cède aux aplats en -clair) :
     expect(bloc(css, ".apparition"), "conteneur apparition masqué").not.toMatch(/display:\s*none/);
   });
+
+  it("2.9 : au beat « cloture », Anam passe en format VEILLE (le retrait), sinon Présence", () => {
+    const app = lire("render/conversation/ApparitionAnam.tsx");
+    expect(app, "le format dérive du beat cloture → veille").toMatch(
+      /beat\s*===\s*"cloture"\s*\?\s*"veille"\s*:\s*"presence"/,
+    );
+  });
+});
+
+describe("Bilan de clôture : bloc document dans le fil (2.9, AC2)", () => {
+  const doc = lire("render/conversation/BlocDocument.tsx");
+  const types = lire("render/conversation/types.ts");
+
+  it("le modèle de vue porte un rôle « bilan » (titre + points) — structuré par le serveur (rendu muet)", () => {
+    expect(types).toMatch(/role:\s*"bilan"/);
+    expect(types).toMatch(/titre:\s*string/);
+    expect(types).toMatch(/points:\s*readonly\s+string\[\]/);
+  });
+
+  it("le Fil rend une branche pour le rôle « bilan » (BlocDocument)", () => {
+    expect(fil).toMatch(/role\s*===\s*"bilan"/);
+    expect(fil).toMatch(/<BlocDocument/);
+  });
+
+  it("REGISTRE DOCUMENT : titre Fraunces (t-titre-sm) + liste AUTORISÉE (l'inverse de la voix, FR-084)", () => {
+    expect(doc).toMatch(/t-titre-sm/); // titre document en Fraunces
+    expect(doc).toMatch(/<ul/); // liste autorisée dans un document
+    expect(doc).toMatch(/points\.map/);
+  });
+
+  it("bloc document = <article> DANS le fil (jamais modale) ; apparition en fondu-texte (reduced-motion sûr)", () => {
+    expect(doc).toMatch(/<article/);
+    expect(doc).toMatch(/fondu-texte/);
+    expect(doc, "jamais une modale/dialog").not.toMatch(/role=["']dialog["']|aria-modal/i);
+  });
+
+  // Revue 2.9 (bug CRITIQUE rattrapé) : la trame `bilan` tombait dans un `else` fourre-tout traité
+  // comme TERMINAL → coupure prématurée + faux échec à la clôture ; et aucun `onBilan` n'insérait de
+  // tour → BlocDocument était du code MORT. Ces gardes verrouillent le câblage client de bout en bout.
+  const hook = lire("render/conversation/useFluxAnam.ts");
+
+  it("le hook DISPATCHE la trame bilan (onBilan) — pas de code mort", () => {
+    expect(hook).toMatch(/trame\.t\s*===\s*"bilan"/);
+    expect(hook).toMatch(/onBilan/);
+  });
+
+  it("SEULES fin/erreur cassent la boucle (une trame NON terminale ne provoque jamais de faux échec)", () => {
+    expect(hook, "la coupure est gardée par fin|erreur explicites (jamais un else fourre-tout)").toMatch(
+      /trame\.t\s*===\s*"fin"\s*\|\|\s*trame\.t\s*===\s*"erreur"/,
+    );
+  });
+
+  it("Conversation INSÈRE un tour role:\"bilan\" via onBilan (le bilan s'affiche réellement)", () => {
+    expect(conversation).toMatch(/onBilan/);
+    expect(conversation).toMatch(/role:\s*"bilan"/);
+  });
 });
 
 describe("Échec : registre SYSTÈME, jamais signé Anam (AC3, B4)", () => {

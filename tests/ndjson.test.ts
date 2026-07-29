@@ -30,4 +30,11 @@ describe("ligneNdjson — cadrage une-ligne-par-événement (revue 2.2)", () => 
     expect(l.split("\n").filter((x) => x.length > 0)).toHaveLength(1);
     expect((JSON.parse(l.trimEnd()) as { c: string }).c).toBe(c);
   });
+
+  it("une trame `bilan` (bloc document 2.9) reste UNE seule ligne, points multi-lignes échappés", () => {
+    const l = ligneNdjson({ t: "bilan", titre: "Ce soir", points: ["un point", "deux\nlignes"] });
+    expect(l.split("\n").filter((x) => x.length > 0)).toHaveLength(1);
+    expect(l.endsWith("\n")).toBe(true);
+    expect(JSON.parse(l.trimEnd())).toEqual({ t: "bilan", titre: "Ce soir", points: ["un point", "deux\nlignes"] });
+  });
 });

@@ -116,6 +116,16 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
         // Beat d'apparition (2.7) : Anam paraît en Présence au moment décidé par l'arc (serveur).
         // Passif — jamais de vol de focus (le composeur reste actif).
         onBeat: (b) => setBeat(b),
+        // Bilan de clôture (2.9, AC2) : le SERVEUR a structuré le bilan (titre + points) et l'émet dans
+        // le MÊME flux, avant `fin`. Bloc document inséré APRÈS le tour d'Anam, dans le fil (jamais une
+        // modale). Passif — ne vole pas le focus (le composeur reste actif). Annonce polie au lecteur d'écran.
+        onBilan: (titre, points) => {
+          const idBilan = nouvelId();
+          setTours((prev) =>
+            insererTour(prev, idAnam, "apres", { id: idBilan, role: "bilan", titre, points }),
+          );
+          setAnnonce("Le bilan de la séance est affiché.");
+        },
       });
     },
     [envoyer],
@@ -124,9 +134,10 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
   const surEnvoi = useCallback(
     (texte: string) => {
       const histo: MessageEnvoi[] = tours
-        // Garde de type : le bloc `ressource` (sans `texte`) n'entre jamais dans l'historique envoyé.
+        // Garde de type : seuls les tours PORTEURS DE TEXTE entrent dans l'historique envoyé. Les blocs
+        // `ressource` et `bilan` (2.9, sans `texte`) en sont exclus — par le rôle, pas juste par Exclude.
         .filter(
-          (t): t is Exclude<Tour, { role: "ressource" }> =>
+          (t): t is Extract<Tour, { role: "utilisatrice" | "anam" }> =>
             t.role === "utilisatrice" || (t.role === "anam" && t.etat === "complet"),
         )
         .map((t) => ({ role: t.role === "utilisatrice" ? "user" : "assistant", content: t.texte }));

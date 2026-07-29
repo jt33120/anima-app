@@ -27,10 +27,19 @@ jobs:
       - run: supabase start
 
       - name: Exporter les clés Supabase locales
+        # `eval` charge la sortie `NOM="valeur"` de la CLI en variables shell (guillemets retirés par
+        # le shell), puis on réémet sous les noms EXACTS attendus par le code (cf. .env.example) :
+        # PUBLISHABLE_KEY / SECRET_KEY (nouveau vocabulaire Supabase), + les variantes NEXT_PUBLIC_*
+        # lues côté client. Repli sur ANON_KEY / SERVICE_ROLE_KEY si une CLI plus ancienne ne les sort pas.
         run: |
-          echo "SUPABASE_URL=$(supabase status -o env | grep '^API_URL=' | cut -d= -f2-)" >> "$GITHUB_ENV"
-          echo "SUPABASE_ANON_KEY=$(supabase status -o env | grep '^ANON_KEY=' | cut -d= -f2-)" >> "$GITHUB_ENV"
-          echo "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o env | grep '^SERVICE_ROLE_KEY=' | cut -d= -f2-)" >> "$GITHUB_ENV"
+          eval "$(supabase status -o env)"
+          {
+            echo "SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}"
+            echo "SUPABASE_SECRET_KEY=${SECRET_KEY:-$SERVICE_ROLE_KEY}"
+          } >> "$GITHUB_ENV"
 
       # Bloque le build si un test échoue — dont la preuve RLS (AD-12) et le smoke test.
       - name: Tests (bloquants)

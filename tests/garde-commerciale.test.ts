@@ -56,11 +56,16 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     expect(guardSrc).not.toMatch(/@\/lib\/data\/supabase|episode_detresse|fin IS NULL/);
   });
 
-  it("le prédicat n'est appelé QUE par la garde (aucun consommateur sauvage)", () => {
+  it("le prédicat n'est appelé QUE par la garde ou une route commerciale autorisée (aucun consommateur sauvage)", () => {
     const DEF = resolve(racine, "lib/safety/limites-commerciales.ts");
+    // Consommateurs AUTORISÉS : la garde de montage (render) + toute ROUTE commerciale app/api/** qui
+    // applique la même garde AD-9 côté serveur (raffinement Story 3.1 — ex. checkout). Tout autre appel
+    // serait une 2ᵉ dérivation sauvage de limites_levees (interdit : source unique, AD-17).
+    const MARQUEURS = /(paywall|abonnement|quota|bilan|checkout|premium)/i;
+    const estRouteCommercialeAutorisee = (f: string) => /[/\\]app[/\\]api[/\\]/.test(f) && MARQUEURS.test(f);
     const tous = [...fichiersSource("app"), ...fichiersSource("render"), ...fichiersSource("lib")];
     for (const f of tous) {
-      if (f === guard || f === DEF) continue;
+      if (f === guard || f === DEF || estRouteCommercialeAutorisee(f)) continue;
       expect(
         sansCommentaires(readFileSync(f, "utf-8")),
         `appel sauvage du prédicat : ${f}`,
@@ -78,7 +83,17 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     expect(estCommerciale("app/bilan/page.tsx")).toBe(true);
     expect(estCommerciale("app/aide/page.tsx"), "faux positif sur une route non commerciale").toBe(false);
 
-    const uiCommerciales = [...fichiersSource("app"), ...fichiersSource("render")].filter(estCommerciale);
+    // Une ROUTE handler (app/api/**) n'est PAS de l'UI React : elle ne peut pas être enveloppée d'une
+    // balise `<GardeCommerciale>`. Elle applique la garde AD-9 CÔTÉ SERVEUR (limitesCommercialesLevees).
+    // On sépare donc les deux surfaces (raffinement Story 3.1 : `checkout/route.ts` matche `checkout`).
+    // `fichiersSource` renvoie des chemins ABSOLUS → `app` y est toujours précédé d'un séparateur.
+    const estRoute = (f: string) => /[/\\]app[/\\]api[/\\]/.test(f);
+    expect(estRoute("/repo/app/api/stripe/checkout/route.ts"), "matcher de route API cassé").toBe(true);
+    expect(estRoute("/repo/app/(scene)/abonnement/page.tsx"), "une page n'est pas une route API").toBe(false);
+
+    const uiCommerciales = [...fichiersSource("app"), ...fichiersSource("render")]
+      .filter(estCommerciale)
+      .filter((f) => !estRoute(f));
     for (const f of uiCommerciales) {
       // Exige la BALISE `<GardeCommerciale`, pas une simple mention d'import (tripwire, pas preuve
       // formelle : un placement en frère reste possible — l'enveloppement réel relève de la revue).
@@ -87,8 +102,20 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
         `UI commerciale montée sans <GardeCommerciale> : ${f}`,
       ).toMatch(/<GardeCommerciale/);
     }
+
+    // Les ROUTES commerciales (app/api/**) appliquent la garde côté serveur, pas via la balise.
+    const routesCommerciales = fichiersSource("app").filter(estCommerciale).filter(estRoute);
+    for (const f of routesCommerciales) {
+      expect(
+        sansCommentaires(readFileSync(f, "utf-8")),
+        `route commerciale sans garde serveur limites_levees : ${f}`,
+      ).toMatch(/limitesCommercialesLevees/);
+    }
+    // Non-vacuité : depuis 3.1, la route Checkout EXISTE et doit être gardée (sinon la garde ne prouve rien).
+    expect(routesCommerciales.length, "aucune route commerciale détectée — la garde serveur est vide").toBeGreaterThan(0);
+
     console.info(
-      `[garde-commerciale] ${uiCommerciales.length} UI commerciale(s) détectée(s) — garde en attente de consommateur.`,
+      `[garde-commerciale] ${uiCommerciales.length} UI + ${routesCommerciales.length} route(s) commerciale(s) gardée(s).`,
     );
   });
 });

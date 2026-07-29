@@ -73,3 +73,22 @@ dans la route.
 Garde de sécurité (route) : le beat Veille + le bilan + le point de montage du paywall ne se produisent
 QUE hors détresse (`clotureAutorisee = niveauSecurite === 0 && !securite.limitesLevees`, AD-9). En
 détresse, la séance cesse d'être une séance : le protocole de détresse prend le relais.
+
+## L'abonnement (Story 3.1) — l'ossature de paiement
+
+Deux cœurs PURS de projection (aucun import SDK/infra) ; l'interprétation des events Stripe (couche
+infra `lib/stripe/`) et la persistance (`lib/data/depot-abonnement`, RPC `traiter_evenement_abonnement`,
+migration `0013`) vivent HORS du domaine.
+
+- **`abonnement.ts`** — `etatDepuisStatutStripe(statut)` : projette le `subscription.status` Stripe
+  (autorité canonique de l'état) en `EtatAbonnement` (`actif|resilie|expire`) ; `estPremium(abonnement)`
+  : l'ENTITLEMENT (source de vérité unique, AC4) — premium ⟺ `actif`. Aucun couplage au SDK Stripe.
+- **`depot-abonnement.ts`** — le PORT `DepotAbonnement` + le type `EvenementAbonnementProjete` (événement
+  normalisé, déjà mappé en état). L'infra l'implémente en `service_role` via la RPC écrivain-unique
+  (idempotente par `provider_event_id`, verrou de ligne, anti-régression d'ordre `source_maj_le`).
+- **`retour-paiement.ts`** — `ligneRetourPaiement(resultat)` : la ligne système sobre au retour de
+  Stripe (registre PRODUIT, jamais la voix d'Anam, jamais dramatisé). **PROVISOIRE**. Le rendu in-fil = 3.2.
+
+Tables `abonnement` + `evenements_traites` server-authoritative : lecture propriétaire de l'abonnement
+(l'entitlement en dérive, `lib/data/lire-abonnement`), écriture réservée à la RPC. La clé secrète Stripe
+et le SDK sont confinés à `lib/stripe/` (garde `tests/frontiere-stripe.test.ts`).

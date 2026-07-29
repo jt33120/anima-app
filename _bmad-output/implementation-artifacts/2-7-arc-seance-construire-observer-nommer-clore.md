@@ -4,7 +4,7 @@ baseline_commit: 59271ee041d0b96c22e4d3f9375c59b5fe830a7e
 
 # Story 2.7: L'arc de séance construire → observer → nommer → clore
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

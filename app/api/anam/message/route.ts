@@ -17,6 +17,8 @@ import { creerDepotSeance } from "@/lib/data/depot-seance";
 import { avancerArc, SIGNAUX_NEUTRES } from "@/lib/domain/arc-seance";
 import { requeteExtractionArc, extraireSignauxArc } from "@/lib/domain/signaux-arc";
 import { consignePhaseArc } from "@/lib/domain/consigne-phase";
+import { consigneVoixAnam } from "@/lib/domain/consigne-voix";
+import { absorberDelta, etatTroncatureInitial } from "@/lib/domain/voix-anam";
 import type { AiPort, CapaciteIa, MessageIa, NiveauSecurite, RequeteIa, TierIa } from "@/lib/ai/port";
 
 /**
@@ -166,12 +168,15 @@ export async function POST(request: NextRequest) {
   // La FORME de la réponse dérive du verdict (jamais une 2ᵉ classification). La consigne système est
   // PRÉFIXÉE aux messages CÔTÉ SERVEUR (le client ne peut pas forger `system`, `valider-messages`) et
   // ne transite JAMAIS jusqu'au client. Le bloc ressources (niveaux 2-3) part par une trame dédiée.
-  // Ordre d'injection : [consignePhase (2.7), consigneDetresse (2.6), …messages]. La consigne de
-  // détresse reste au plus PRÈS des messages → l'overlay sécurité garde la priorité. La voix (2.8)
-  // se préfixera avant la consigne de phase. Toutes sont `{role:"system"}`, jamais reçues du client.
+  // Ordre d'injection : [voix (2.8), consignePhase (2.7), consigneDetresse (2.6), …messages]. La
+  // consigne de détresse reste au plus PRÈS des messages → l'overlay sécurité garde la priorité ; la
+  // VOIX de base (Story 2.8) se préfixe EN TÊTE (la plus loin des messages) : elle porte les invariants
+  // toujours vrais (forme, hypothèses, corpus Anima, interdit d'affect) qui valent aussi en détresse.
+  // Toutes sont `{role:"system"}`, jamais reçues du client, jamais renvoyées au client.
+  const consigneVoix = consigneVoixAnam();
   const consignePhase = arc ? consignePhaseArc(arc.etat.phase) : null;
   const consigneDetresse = consigneReponse(securite.verdict);
-  const prefixes = [consignePhase, consigneDetresse].filter((c): c is MessageIa => c !== null);
+  const prefixes = [consigneVoix, consignePhase, consigneDetresse].filter((c): c is MessageIa => c !== null);
   const messagesReponse = prefixes.length ? [...prefixes, ...messages] : messages;
   const bloc = blocRessourcesDetresse(securite.verdict);
   const trameRessources = bloc
@@ -241,6 +246,16 @@ export async function POST(request: NextRequest) {
       if (beatArc) emettre({ t: "beat", beat: beatArc });
       if (trameRessources && trameRessources.position === "avant") emettre(trameRessources);
       let premierDelta = true;
+      // ── VOIX : troncature déterministe à 3 phrases (Story 2.8, FR-084) ──────────────────────────
+      // GATE DE SÉCURITÉ DURE : on ne tronque QUE hors détresse. À `niveauSecurite ≥ 1`, la réponse
+      // (orienter, donner le 3114, rester) dépasse légitimement 3 phrases et ne doit JAMAIS être coupée
+      // avant l'orientation. `pointDeCoupe` (pur) localise la fin du 3ᵉ groupe de ponctuation finale sur
+      // le texte ACCUMULÉ serveur ; une fois coupé, on cesse d'émettre mais on continue de DRAINER le
+      // flux (pour recevoir `fin` = usage réel, sinon le métrage sous-compte). Le manquement est
+      // journalisé SERVEUR uniquement (jamais une trame, jamais de verbatim art. 9).
+      const tronquerVoix = niveauSecurite === 0;
+      let voixEtat = etatTroncatureInitial(); // cœur pur de troncature sur flux (texte accumulé jamais loggé)
+      let voixTronquee = false; // vrai dès la coupe → on n'émet plus, on draine
       try {
         for await (const ev of flux) {
           if (request.signal.aborted) break; // l'utilisatrice a quitté : on cesse de consommer
@@ -251,14 +266,26 @@ export async function POST(request: NextRequest) {
               if (reste > 0) await attendre(reste); // tenir la latence AVANT le 1er fragment (AC2)
               premierDelta = false;
             }
-            etat.charsSortie += ev.texte.length; // repli si `fin` n'arrive jamais (avortement)
-            emettre({ t: "delta", c: ev.texte });
+            etat.charsSortie += ev.texte.length; // repli honnête : compte TOUT le texte généré, même coupé
+            if (!tronquerVoix) {
+              emettre({ t: "delta", c: ev.texte }); // détresse : jamais de coupe
+            } else {
+              // Cœur pur : accumule, localise la coupe, n'émet que le texte autorisé. Une fois `termine`,
+              // n'émet plus rien mais la boucle poursuit le drain jusqu'à `fin` (métrage honnête).
+              const r = absorberDelta(voixEtat, ev.texte);
+              voixEtat = r.etat;
+              if (r.aEmettre) emettre({ t: "delta", c: r.aEmettre });
+              if (r.tronque) voixTronquee = true;
+            }
           } else {
             const fin: FinFlux = { tier: ev.tier, modele: ev.modele, usage: ev.usage };
             etat.finRecu = fin; // source AUTORITAIRE du métrage (tier/modele/usage réels)
           }
         }
         if (!request.signal.aborted) {
+          // FR-084 : « au-delà de trois phrases, c'est un défaut de génération » → manquement journalisé
+          // (serveur uniquement, aucun art. 9 ni verbatim — patron du log d'erreur qui ne porte que `e.name`).
+          if (voixTronquee) console.warn("anam/message : voix tronquée à 3 phrases (manquement de voix, FR-084)");
           // Bloc ressources APRÈS le tour d'Anam (niveau 2, AC4) : juste avant la trame terminale.
           if (trameRessources && trameRessources.position === "apres") emettre(trameRessources);
           emettre({ t: "fin" });

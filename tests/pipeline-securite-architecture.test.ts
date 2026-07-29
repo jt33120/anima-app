@@ -254,8 +254,9 @@ describe("Story 2.7 — arc de séance : câblage serveur (AD-16, AD-1, AD-5)", 
     const src = lire(ROUTE);
     expect(src).toMatch(/@\/lib\/domain\/consigne-phase/);
     expect(src).toMatch(/consignePhaseArc\s*\(/);
-    // Ordre [consignePhase, consigneDetresse] → la consigne de détresse (2.6) est la DERNIÈRE avant messages.
-    expect(src).toMatch(/\[\s*consignePhase\s*,\s*consigneDetresse\s*\]/);
+    // Ordre [voix (2.8), consignePhase, consigneDetresse] → la consigne de détresse (2.6) reste la
+    // DERNIÈRE avant messages (overlay sécurité prioritaire) ; la voix (2.8) se préfixe en tête.
+    expect(src).toMatch(/\[\s*consigneVoix\s*,\s*consignePhase\s*,\s*consigneDetresse\s*\]/);
   });
 
   it("no-leak : la trame `beat` émise n'a QUE t + beat (allowlist — revue 2.7)", () => {
@@ -271,5 +272,49 @@ describe("Story 2.7 — arc de séance : câblage serveur (AD-16, AD-1, AD-5)", 
     const src = lire(ROUTE);
     expect(src).toMatch(/usageExtractionArc/);
     expect(src).toMatch(/metrerUsageIa/);
+  });
+});
+
+describe("Story 2.8 — voix + troncature : câblage serveur (FR-083/084, AD-1/AD-2, garde de sécurité)", () => {
+  const VOIX = resolve(racine, "lib/domain/consigne-voix.ts");
+  const TRONCATURE = resolve(racine, "lib/domain/voix-anam.ts");
+
+  it("la consigne de VOIX est injectée EN TÊTE des préfixes (voix la plus loin des messages)", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/@\/lib\/domain\/consigne-voix/);
+    expect(src).toMatch(/consigneVoixAnam\s*\(/);
+    expect(src, "ordre [voix, phase, détresse, …messages]").toMatch(
+      /\[\s*consigneVoix\s*,\s*consignePhase\s*,\s*consigneDetresse\s*\]/,
+    );
+  });
+
+  it("la troncature à 3 phrases est GATÉE hors détresse (jamais couper une réponse de sécurité)", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/@\/lib\/domain\/voix-anam/);
+    expect(src).toMatch(/absorberDelta\s*\(/); // cœur pur de troncature sur flux (testé comportementalement)
+    // La garde DURE : la troncature ne s'active qu'à niveau 0 (sinon une orientation détresse serait
+    // coupée avant le 3114). On prouve le gate structurellement : le booléen dérive de `niveauSecurite
+    // === 0` et conditionne l'émission des deltas.
+    expect(src, "gate de sécurité : troncature seulement à niveau 0").toMatch(
+      /tronquerVoix\s*=\s*niveauSecurite\s*===\s*0/,
+    );
+    expect(src, "le gate conditionne bien la coupe").toMatch(/if\s*\(\s*!?tronquerVoix\b/);
+  });
+
+  it("no-leak : le manquement de troncature est journalisé SERVEUR, jamais émis en trame", () => {
+    const src = lire(ROUTE);
+    expect(src, "le manquement est journalisé côté serveur (aucun art. 9)").toMatch(/console\.\w+\([^)]*tronqu/i);
+    // aucune trame NDJSON ne porte la troncature/le manquement (allowlist des variants intacte)
+    expect(src, "jamais de fuite de la troncature au client").not.toMatch(/emettre\([^)]*(?:tronqu|manquement)/i);
+  });
+
+  it("les cœurs de voix restent PURS (AD-1) : aucun import runtime infra", () => {
+    for (const f of [VOIX, TRONCATURE, resolve(racine, "lib/domain/lexique-interdit.ts")]) {
+      const src = lire(f);
+      expect(src, `server-only interdit : ${f}`).not.toMatch(/server-only/);
+      expect(src, `import runtime infra interdit : ${f}`).not.toMatch(
+        /^\s*import\s+(?!type\b)[^;]*from\s*["'](?:@supabase|next|next\/|@\/lib\/data|@\/lib\/ai|@\/app|@\/render)/m,
+      );
+    }
   });
 });

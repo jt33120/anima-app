@@ -33,3 +33,22 @@ la séance ; il consomme toute la sécurité (2.1→2.6) sans rien re-détecter 
 
 La **trace** (état persisté cross-tour) vit dans la table `seance` (migration `0012`, server-authoritative,
 RLS deny-by-default), écrite/lue par `lib/data/depot-seance` via des fonctions `security definer`.
+
+## La voix d'Anam (Story 2.8) — la couche qui fait parler l'arc
+
+Trois cœurs PURS ; le câblage (injection de consigne, troncature sur flux) vit dans la route.
+
+- **`consigne-voix.ts`** — `consigneVoixAnam()` : la consigne système de la **voix de base** (forme,
+  hypothèses réfutables « je me trompe ? », anti-flatterie, corpus Anima, interdit d'affect). Injectée
+  serveur **EN TÊTE** des préfixes `[voix, phase, détresse, …messages]` (la détresse reste au plus près
+  des messages → overlay prioritaire). **PROVISOIRE**. Contient volontairement le lexique interdit en
+  instructions inverses → **exclue** du contrôle bloquant.
+- **`voix-anam.ts`** — `pointDeCoupe` / `tronquerATroisPhrases` : la **troncature déterministe à 3
+  phrases** (FR-084), même définition de « ponctuation finale » qu'`estReponseLongue`. Appliquée sur le
+  FLUX côté route, **GATÉE hors détresse** (`niveauSecurite === 0`) : en détresse la réponse dépasse
+  légitimement 3 phrases et n'est jamais coupée avant l'orientation (garde de sécurité).
+- **`lexique-interdit.ts`** — `chercherInterdits(texte)` : la **source unique** des interdits (médical
+  NFR-008, « soigner » FR-023, formulations bannies FR-085, affect FR-087, emoji), miroir de
+  `anam-voice.md` §11. Anti-faux-positif (frontières de mots, casse/accents insensibles). Alimente le
+  **contrôle bloquant transversal** `tests/lexique-voix.test.ts` (scan récursif de tout le contenu
+  utilisateur, exclusion des consignes, contrôle positif + garde non-vacue). **PROVISOIRE**.

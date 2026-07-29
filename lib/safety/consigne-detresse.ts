@@ -28,6 +28,9 @@ const PREAMBULE = [
   "- N’explore jamais le plan ni les moyens : ni comment, ni avec quoi, ni quand.",
   "- Cherche s’il y a quelqu’un qu’elle peut appeler ou rejoindre maintenant, et encourage-la à le faire.",
   "- Aucune promesse creuse, aucune formule creuse, aucun jargon.",
+  // Préséance sur la voix de base (Story 2.8, revue) : la voix ≤ 3 phrases / hypothèse réfutable ne
+  // doit jamais diluer l'orientation. Ici, on nomme et on oriente DIRECTEMENT.
+  "- Ces règles priment sur toute consigne de style : tu nommes et tu orientes directement, tu ne formules pas la question de sécurité en hypothèse (« je me trompe ? ») et tu ne la compresses pas pour tenir en trois phrases.",
 ].join("\n");
 
 /** Niveau 1 (et repli sûr) : la bascule n’est PAS annoncée — Anam devient plus douce, rien de plus. */

@@ -79,6 +79,18 @@ describe("analyserTrame — ligne JSON → trame typée (AC3)", () => {
     ).toBeNull(); // champ non-chaîne
     expect(analyserTrame('{"t":"ressources","position":"avant","verifieLe":"d","ressources":[]}')).toBeNull(); // vide (R9)
   });
+
+  it("reconnaît la trame `beat` (apparition d'Anam 2.7) et valide son identifiant", () => {
+    expect(analyserTrame('{"t":"beat","beat":"nommer"}')).toEqual({ t: "beat", beat: "nommer" });
+    expect(analyserTrame('{"t":"beat","beat":"ouverture"}')).toEqual({ t: "beat", beat: "ouverture" });
+    expect(analyserTrame('{"t":"beat","beat":"cloture"}')).toEqual({ t: "beat", beat: "cloture" });
+  });
+
+  it("rejette une trame `beat` d'identifiant inconnu ou malformée → null (forward-compat)", () => {
+    expect(analyserTrame('{"t":"beat","beat":"autre"}')).toBeNull();
+    expect(analyserTrame('{"t":"beat"}')).toBeNull(); // beat manquant
+    expect(analyserTrame('{"t":"beat","beat":42}')).toBeNull(); // non-chaîne
+  });
 });
 
 describe("insererTour — placement du bloc ressources relativement au tour d'Anam (2.6, AC4)", () => {
@@ -149,5 +161,9 @@ describe("Contrat NDJSON serveur ↔ client ALIGNÉ (revue 2.2)", () => {
       ],
     };
     expect(relire(trame)).toEqual(trame);
+  });
+
+  it("la trame `beat` sérialisée serveur est relue à l'identique par le client (contrat 2.7)", () => {
+    expect(relire({ t: "beat", beat: "nommer" })).toEqual({ t: "beat", beat: "nommer" });
   });
 });

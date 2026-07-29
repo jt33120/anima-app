@@ -152,9 +152,11 @@ describe("Refus → suppression immédiate du compte (AC6)", () => {
 
 describe("Frontière art. 9 : le gabarit du write-gate existe, les vraies tables de contenu non (AC7 / AD-4 / FR-072)", () => {
   // Le write-gate art. 9 est désormais posé (Story 1.6) : le gabarit `art9_temoin` existe et est
-  // gardé (comportement prouvé dans write-gate-art9.test.ts). Les VRAIES tables de contenu art. 9,
-  // elles, n'existent toujours pas — elles arriveront dans leurs epics et copieront la policy du gabarit.
-  const tablesContenu = ["journal", "seance", "tirage", "socle"];
+  // gardé (comportement prouvé dans write-gate-art9.test.ts). Les VRAIES tables de contenu art. 9
+  // (verbatim) n'existent toujours pas — elles arriveront dans leurs epics et copieront la policy du
+  // gabarit. NB : `seance` (Story 2.7) existe désormais mais ne porte AUCUN verbatim (signaux
+  // structurés, server-authoritative deny-by-default, comme `episode_detresse`) → hors de cette liste.
+  const tablesContenu = ["journal", "tirage", "socle"];
   it("le gabarit `art9_temoin` existe (sonde vivante du write-gate)", async () => {
     const { error } = await admin.from("art9_temoin").select("*").limit(1);
     expect(error).toBeNull();

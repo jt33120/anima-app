@@ -18,7 +18,11 @@ export type TrameRecue =
   | { t: "delta"; c: string }
   | { t: "fin" }
   | { t: "erreur" }
-  | { t: "ressources"; position: "avant" | "apres"; verifieLe: string; ressources: RessourceVue[] };
+  | { t: "ressources"; position: "avant" | "apres"; verifieLe: string; ressources: RessourceVue[] }
+  | { t: "beat"; beat: BeatRecu };
+
+/** Beat d'apparition d'Anam (Story 2.7). Miroir client du variant serveur `flux-ndjson.ts`. */
+export type BeatRecu = "ouverture" | "nommer" | "cloture";
 
 /**
  * Découpe un tampon NDJSON en lignes complètes, en RENDANT la dernière ligne partielle (un chunk
@@ -52,6 +56,17 @@ export function analyserTrame(ligne: string): TrameRecue | null {
   if (t === "fin") return { t: "fin" };
   if (t === "erreur") return { t: "erreur" };
   if (t === "ressources") return analyserRessources(obj);
+  if (t === "beat") return analyserBeat(obj);
+  return null;
+}
+
+/**
+ * Valide STRICTEMENT une trame `beat` (Story 2.7) : seul un identifiant connu passe ; tout autre →
+ * `null` (forward-compat, un futur beat ne casse pas le client). No-leak : la trame ne porte QUE le beat.
+ */
+function analyserBeat(obj: object): TrameRecue | null {
+  const b = (obj as { beat?: unknown }).beat;
+  if (b === "ouverture" || b === "nommer" || b === "cloture") return { t: "beat", beat: b };
   return null;
 }
 

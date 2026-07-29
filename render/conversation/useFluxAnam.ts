@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { analyserTrame, detacherMotsComplets, extraireLignes } from "./flux-ndjson-client";
+import { analyserTrame, detacherMotsComplets, extraireLignes, type BeatRecu } from "./flux-ndjson-client";
 import type { RessourceVue } from "./types";
 
 /**
@@ -37,6 +37,8 @@ export interface RappelsFlux {
   onEchec: (textePartiel: string) => void;
   /** Bloc ressources de détresse (Story 2.6) : à insérer AVANT/APRÈS le tour d'Anam (le serveur décide). */
   onRessources?: (position: "avant" | "apres", ressources: readonly RessourceVue[], verifieLe: string) => void;
+  /** Beat d'apparition d'Anam (Story 2.7) : Anam paraît en Présence. NON terminal, ne vole jamais le focus. */
+  onBeat?: (beat: BeatRecu) => void;
 }
 
 export function useFluxAnam() {
@@ -120,6 +122,10 @@ export function useFluxAnam() {
               // Bloc de détresse (2.6), NON terminal : on l'insère et on CONTINUE de lire les deltas.
               // Ne vole jamais le focus (le composeur reste au focus, AC2) — l'insertion est passive.
               rappels.onRessources?.(trame.position, trame.ressources, trame.verifieLe);
+            } else if (trame.t === "beat") {
+              // Beat d'apparition (2.7), NON terminal : Anam paraît en Présence, on CONTINUE de lire.
+              // Passif : ne déplace jamais le focus (le composeur reste actif, acquis AC2 de 2.6).
+              rappels.onBeat?.(trame.beat);
             } else {
               // `fin` OU `erreur` : trame TERMINALE → on cesse de lire (aucune trame ne suit).
               if (trame.t === "fin") finPropre = true;

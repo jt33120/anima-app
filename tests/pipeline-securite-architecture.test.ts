@@ -183,8 +183,8 @@ describe("Story 2.6 — réponse par niveaux : câblage serveur (AD-16, AD-5, AD
   it("la route INJECTE la consigne (system) dérivée du verdict, AVANT la génération (jamais reçue du client)", () => {
     const src = lire(ROUTE);
     expect(src).toMatch(/@\/lib\/safety\/consigne-detresse/);
-    expect(src).toMatch(/consigneReponse\s*\(/);
-    expect(src).toMatch(/consigne\s*\?\s*\[\s*consigne/); // préfixée aux messages, server-authoritative
+    expect(src).toMatch(/consigneDetresse\s*=\s*consigneReponse\s*\(/); // dérivée du verdict
+    expect(src).toMatch(/\[\s*\.\.\.prefixes\s*,\s*\.\.\.messages\s*\]/); // préfixée aux messages (server-authoritative, 2.7)
   });
 
   it("la route ÉMET le bloc ressources par une trame, placé avant/après selon le niveau (AC4)", () => {
@@ -215,5 +215,61 @@ describe("Story 2.6 — réponse par niveaux : câblage serveur (AD-16, AD-5, AD
     expect(variant, "aucun champ fuitant niveau/decision/tier/usage dans le type de trame").not.toMatch(
       /niveau|decision|tier|usage/,
     );
+  });
+});
+
+describe("Story 2.7 — arc de séance : câblage serveur (AD-16, AD-1, AD-5)", () => {
+  it("l'arc s'exécute APRÈS la sécurité et AVANT la génération (sécurité → avancerArc → diffuser)", () => {
+    const src = lire(ROUTE);
+    const iSecurite = src.indexOf("evaluerSecuriteDuTour(");
+    const iArc = src.indexOf("avancerArc(");
+    const iFlux = src.indexOf("diffuserSousEgressArt9(");
+    expect(iSecurite, "la route doit APPELER evaluerSecuriteDuTour").toBeGreaterThanOrEqual(0);
+    expect(iArc, "la route doit APPELER avancerArc").toBeGreaterThanOrEqual(0);
+    expect(iFlux, "la route doit ouvrir le flux de génération").toBeGreaterThanOrEqual(0);
+    expect(iSecurite, "sécurité AVANT l'arc (AD-16)").toBeLessThan(iArc);
+    expect(iArc, "arc AVANT la génération").toBeLessThan(iFlux);
+  });
+
+  it("l'arc CHARGE puis RÉÉCRIT la trace (dépôt réel service_role)", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/creerDepotSeance\s*\(/);
+    expect(src).toMatch(/\.charger\s*\(/);
+    expect(src).toMatch(/\.ecrire\s*\(/);
+  });
+
+  it("l'extraction de signaux passe par l'egress art. 9 (jamais l'adaptateur nu), puis le parser pur", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/requeteExtractionArc\s*\(/);
+    expect(src).toMatch(/envoyerSousEgressArt9\s*\(/);
+    expect(src).toMatch(/extraireSignauxArc\s*\(/);
+  });
+
+  it("l'arc LIT le niveau du verdict (une seule horloge, jamais une 2e détection)", () => {
+    const src = lire(ROUTE);
+    expect(src, "avancerArc reçoit niveauSecurite, dérivé du verdict").toMatch(/avancerArc\([^;]*niveauSecurite/);
+  });
+
+  it("la consigne de PHASE est injectée (system) avant la génération ; la détresse reste au plus près des messages", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/@\/lib\/domain\/consigne-phase/);
+    expect(src).toMatch(/consignePhaseArc\s*\(/);
+    // Ordre [consignePhase, consigneDetresse] → la consigne de détresse (2.6) est la DERNIÈRE avant messages.
+    expect(src).toMatch(/\[\s*consignePhase\s*,\s*consigneDetresse\s*\]/);
+  });
+
+  it("no-leak : la trame `beat` ne porte QUE l'identifiant du beat (aucune phase/signal/compteur)", () => {
+    const src = lire(ROUTE);
+    const emission = src.match(/emettre\(\{\s*t:\s*"beat"[\s\S]*?\}\)/)?.[0] ?? "";
+    expect(emission, "l'émission de la trame beat doit être trouvée (garde non vacue)").not.toBe("");
+    expect(emission, "aucune fuite phase/signal/compteur dans la trame beat").not.toMatch(
+      /phase|signaux|peutNommer|sujets|reformulation|confirmation|restitution|niveau/i,
+    );
+  });
+
+  it("l'extraction d'arc est MÉTRÉE sous une clé distincte (jamais exemptée comme la détresse)", () => {
+    const src = lire(ROUTE);
+    expect(src).toMatch(/usageExtractionArc/);
+    expect(src).toMatch(/metrerUsageIa/);
   });
 });

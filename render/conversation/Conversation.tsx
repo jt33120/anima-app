@@ -34,8 +34,9 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
   const [annonce, setAnnonce] = useState("");
   const { prepare, enCours, envoyer } = useFluxAnam();
 
-  // Beat « ouverture » câblé au montage (AC6). « nommer »/« clôture » = seams 2.7/2.9.
-  const [beat] = useState<Beat>("ouverture");
+  // Beat « ouverture » monté au démarrage (2.2, AC6) ; « nommer » piloté par l'arc de séance (2.7,
+  // via onBeat) ; « cloture » = seam 2.9. Passif : l'apparition ne vole jamais le focus au composeur.
+  const [beat, setBeat] = useState<Beat>("ouverture");
 
   const shell = useRef<HTMLDivElement>(null);
   const champRef = useRef<HTMLTextAreaElement>(null);
@@ -112,6 +113,9 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
           );
           setAnnonce("Des ressources d’aide sont affichées.");
         },
+        // Beat d'apparition (2.7) : Anam paraît en Présence au moment décidé par l'arc (serveur).
+        // Passif — jamais de vol de focus (le composeur reste actif).
+        onBeat: (b) => setBeat(b),
       });
     },
     [envoyer],

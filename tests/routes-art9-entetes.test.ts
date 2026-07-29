@@ -74,7 +74,10 @@ describe("Route de conversation en streaming (Story 2.2, AC2/AC3/AC4)", () => {
   it("résout le tier CÔTÉ SERVEUR et ne le lit JAMAIS du corps client (AD-5, anti-injection)", () => {
     expect(s).toMatch(/tierPour\(/); // la politique unique est appelée dans la route
     expect(s).toMatch(/CAPACITE[:\s]*(?:CapaciteIa\s*=\s*)?["']echange["']/); // capacité = constante serveur
-    expect(s).toMatch(/tierPour\(CAPACITE/); // le tier dérive de la constante, pas du client
+    // Le tier dérive d'une capacité SERVEUR (`capaciteGeneration`), jamais du client. Depuis 2.7 elle
+    // vaut la constante `CAPACITE` sauf en phase nommer (reconceptualisation) — décidée serveur.
+    expect(s).toMatch(/tierPour\(capaciteGeneration/);
+    expect(s).toMatch(/capaciteGeneration[^=]*=[^;]*CAPACITE/); // retombe sur la constante serveur
     // le corps client n'est lu QUE via extraireMessages — jamais un tier/niveau/capacité client :
     expect(s).toMatch(/extraireMessages\(/);
     expect(s, "tier lu du corps client").not.toMatch(/corps\s*[.[]\s*["']?tier/);

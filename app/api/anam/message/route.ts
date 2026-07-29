@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse, after } from "next/server";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { creerAiPort } from "@/lib/ai/fabrique";
-import { diffuserSousEgressArt9 } from "@/lib/ai/egress-guard";
+import { diffuserSousEgressArt9, envoyerSousEgressArt9 } from "@/lib/ai/egress-guard";
 import { ENTETES_ART9 } from "@/lib/ai/entetes-art9";
 import { extraireMessages } from "@/lib/ai/valider-messages";
 import { modelePour, tierPour } from "@/lib/ai/politique-tier";
@@ -13,7 +13,11 @@ import { creerDepotEpisode } from "@/lib/safety/depot-episode";
 import { consigneReponse } from "@/lib/safety/consigne-detresse";
 import { blocRessourcesDetresse } from "@/lib/safety/bloc-ressources-detresse";
 import { verifieLeLibelle } from "@/lib/safety/ressources-aide";
-import type { AiPort, CapaciteIa, NiveauSecurite, RequeteIa } from "@/lib/ai/port";
+import { creerDepotSeance } from "@/lib/data/depot-seance";
+import { avancerArc, SIGNAUX_NEUTRES } from "@/lib/domain/arc-seance";
+import { requeteExtractionArc, extraireSignauxArc } from "@/lib/domain/signaux-arc";
+import { consignePhaseArc } from "@/lib/domain/consigne-phase";
+import type { AiPort, CapaciteIa, MessageIa, NiveauSecurite, RequeteIa, TierIa } from "@/lib/ai/port";
 
 /**
  * Route art. 9 (AD-2/AD-4) — le tour de conversation en STREAMING (Story 2.2). Ordre : auth →
@@ -104,15 +108,60 @@ export async function POST(request: NextRequest) {
   // Story 2.4 : `securite.limitesLevees` (dérivé de `episode_detresse.fin IS NULL`) est DISPONIBLE
   // ici — la garde de MONTAGE (paywall/quota/bilan refusent de se monter, FR-043) est la Story 2.5.
   const niveauSecurite: NiveauSecurite = securite.verdict.niveau;
-  const tierServeur = tierPour(CAPACITE, niveauSecurite); // repli de métrage si le flux avorte avant `fin`
+
+  // ── ÉTAGE ARC DE SÉANCE (Story 2.7, AD-16 : APRÈS la sécurité ; AD-1 : machine PURE) ───────────
+  // Charge la trace → extrait les signaux (modèle FORT, passe SÉPARÉE sous egress art. 9, D1) → la
+  // machine pure fait avancer l'arc → réécrit la trace. Le niveau de détresse est LU du verdict
+  // (jamais re-détecté — une seule horloge, AD-16/AD-17). L'arc ne plante JAMAIS le tour (repli sûr).
+  const depotSeance = creerDepotSeance(user.id);
+  let arc: ReturnType<typeof avancerArc> | null = null;
+  let usageExtractionArc: { tier: TierIa; modele: string; tokensEntree: number; tokensSortie: number } | null = null;
+  try {
+    const etatArc = await depotSeance.charger();
+    const extraction = await envoyerSousEgressArt9({
+      supabase,
+      adaptateur,
+      requete: requeteExtractionArc(messages),
+    });
+    let signaux = SIGNAUX_NEUTRES; // egress bloqué (rare, race) → aucun signal : l'arc n'avance pas
+    if (!extraction.bloque) {
+      const dernierTourUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+      signaux = extraireSignauxArc(extraction.reponse.texte, dernierTourUser);
+      // L'extraction d'arc EST métrée (produit — FR-043 n'exempte QUE la détresse) : clé DISTINCTE.
+      const u = extraction.reponse.usage;
+      usageExtractionArc = {
+        tier: extraction.reponse.tier,
+        modele: extraction.reponse.modele,
+        tokensEntree: u.tokensEntree,
+        tokensSortie: u.tokensSortie,
+      };
+    }
+    arc = avancerArc(etatArc, signaux, niveauSecurite, Date.now());
+    await depotSeance.ecrire(arc.etat);
+  } catch (e) {
+    // L'arc ne quitte jamais le tour : en repli, on génère sans consigne de phase (Anam répond).
+    console.error("anam/message : étage arc en repli", { nom: e instanceof Error ? e.name : "inconnu" });
+    arc = null;
+  }
+  const beatArc = arc?.beat ?? null; // capturé pour la trame (évite un re-narrowing dans le stream)
+
+  // La capacité de génération SUIT la phase : en NOMMER, la formulation est une reconceptualisation
+  // (fort, AD-5) ; sinon échange. La VOIX qui exploite réellement l'arc relève de la Story 2.8.
+  const capaciteGeneration: CapaciteIa = arc?.etat.phase === "nommer" ? "reconceptualisation" : CAPACITE;
+  const tierServeur = tierPour(capaciteGeneration, niveauSecurite); // repli de métrage si le flux avorte avant `fin`
   const modeleServeur = modelePour(tierServeur);
 
   // ── RÉPONSE PAR NIVEAUX (Story 2.6, AD-16/AD-5) ───────────────────────────────────────────────
   // La FORME de la réponse dérive du verdict (jamais une 2ᵉ classification). La consigne système est
   // PRÉFIXÉE aux messages CÔTÉ SERVEUR (le client ne peut pas forger `system`, `valider-messages`) et
   // ne transite JAMAIS jusqu'au client. Le bloc ressources (niveaux 2-3) part par une trame dédiée.
-  const consigne = consigneReponse(securite.verdict);
-  const messagesReponse = consigne ? [consigne, ...messages] : messages;
+  // Ordre d'injection : [consignePhase (2.7), consigneDetresse (2.6), …messages]. La consigne de
+  // détresse reste au plus PRÈS des messages → l'overlay sécurité garde la priorité. La voix (2.8)
+  // se préfixera avant la consigne de phase. Toutes sont `{role:"system"}`, jamais reçues du client.
+  const consignePhase = arc ? consignePhaseArc(arc.etat.phase) : null;
+  const consigneDetresse = consigneReponse(securite.verdict);
+  const prefixes = [consignePhase, consigneDetresse].filter((c): c is MessageIa => c !== null);
+  const messagesReponse = prefixes.length ? [...prefixes, ...messages] : messages;
   const bloc = blocRessourcesDetresse(securite.verdict);
   const trameRessources = bloc
     ? {
@@ -132,7 +181,7 @@ export async function POST(request: NextRequest) {
   // La RÉPONSE : `niveauSecurite ≥ 1` force le tier FORT (la réponse suit la détection, AD-5).
   let egress;
   try {
-    const requete: RequeteIa = { capacite: CAPACITE, messages: messagesReponse, contientArt9: true, niveauSecurite };
+    const requete: RequeteIa = { capacite: capaciteGeneration, messages: messagesReponse, contientArt9: true, niveauSecurite };
     egress = await diffuserSousEgressArt9({ supabase, adaptateur, requete });
   } catch (e) {
     console.error("anam/message : échec d'ouverture du flux", { nom: e instanceof Error ? e.name : "inconnu" });
@@ -175,6 +224,10 @@ export async function POST(request: NextRequest) {
       };
       // Bloc ressources AVANT le tour d'Anam (niveau 3 vital, AC4) : émis IMMÉDIATEMENT, avant même le
       // plancher de latence — l'urgence prime. Le placement "apres" (niveau 2) sort juste avant `fin`.
+      // Beat « nommer » (Story 2.7, AC5) : l'apparition d'Anam en Présence encadre la livraison de
+      // l'observation → émis au DÉBUT du tour nommer (décidé par avancerArc). No-leak : la trame ne
+      // porte QUE l'identifiant du beat (jamais phase/signaux/compteurs).
+      if (beatArc) emettre({ t: "beat", beat: beatArc });
       if (trameRessources && trameRessources.position === "avant") emettre(trameRessources);
       let premierDelta = true;
       try {
@@ -221,6 +274,15 @@ export async function POST(request: NextRequest) {
   // s'exécute qu'une fois le flux clos → `etat` est complet. `resoudreMetrage` retourne `null` si
   // rien n'a été produit (pas de ligne fantôme). `metrerUsageIa` ne lève jamais.
   after(async () => {
+    // L'extraction d'arc (Story 2.7) est métrée sous une clé DISTINCTE (jamais confondue avec la
+    // génération) — produit : seule la détresse est exemptée du quota (FR-043).
+    if (usageExtractionArc) {
+      await metrerUsageIa({
+        utilisatriceId: user.id,
+        cleIdempotence: `${cleIdempotence}:arc`,
+        ...usageExtractionArc,
+      });
+    }
     const usage = resoudreMetrage(etat);
     if (usage) await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence, ...usage });
   });

@@ -16,6 +16,12 @@ export type TrameClient =
   | { t: "fin" }
   | { t: "erreur" }
   /**
+   * Beat d'apparition d'Anam en Présence (Story 2.7, AC5) : trame NON terminale, no-leak — elle ne
+   * porte QUE l'identifiant du beat (jamais phase, signaux, compteurs). 2.7 n'émet que « nommer » (au
+   * début du tour où Anam nomme) ; « ouverture » est monté au démarrage (2.2) et « cloture » est 2.9.
+   */
+  | { t: "beat"; beat: "ouverture" | "nommer" | "cloture" }
+  /**
    * Bloc ressources de détresse (Story 2.6, AC4) : inséré dans le fil AVANT (niveau 3 vital) ou
    * APRÈS (niveau 2) le tour d'Anam. Seuls `position` + les champs présentationnels partent — NI
    * niveau, NI décision, NI tier (no-leak, AD-2). Type STRUCTUREL (aucun import `lib/safety` : le

@@ -21,9 +21,12 @@ jobs:
         run: npm run lint
 
       # Supabase local pour prouver la RLS deny-by-default (AD-12).
+      # Version ÉPINGLÉE sur celle du dev local : `latest` (v2.110+) mappe le nouveau secret key
+      # `sb_secret_` à un rôle sans les grants attendus → « permission denied for table » (42501)
+      # sur les fixtures service_role. 2.67.1 est la version de référence du projet.
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.67.1
       - run: supabase start
 
       - name: Exporter les clés Supabase locales

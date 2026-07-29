@@ -103,18 +103,23 @@ describe("Story 2.7 — la table `seance` naît deny-by-default (art. 9, AD-12)"
 });
 
 describe("Story 2.7 — no-leak : la trame `beat` ne porte QUE l'identifiant du beat", () => {
-  const LEAK = /phase|signaux|peutNommer|sujets|reformulation|confirmation|restitution|niveau|decision|tier|usage/i;
+  // ALLOWLIST (revue 2.7) : une blocklist partielle laissait passer observationDelivree/debutMs/
+  // finProposee/aReponseLongue/deuxDernieresPropositions (aucun n'était dans la liste). On prouve que
+  // le variant n'a QUE les champs `t` et `beat` — l'invariant réel, pas « absence de quelques chaînes ».
+  const PERMIS = new Set(["t", "beat"]);
+  const champsDe = (variant: string) => [...variant.matchAll(/(\w+)\s*:/g)].map((m) => m[1]);
 
-  it("le transport NDJSON serveur (`TrameClient`) : le variant beat n'autorise que `beat`", () => {
-    const variant = lire(FLUX_NDJSON).match(/t:\s*"beat"[\s\S]*?\}/)?.[0] ?? "";
-    expect(variant, "le variant beat doit être trouvé (garde non vacue)").not.toBe("");
-    expect(variant).toMatch(/beat/);
-    expect(variant, "aucune fuite dans le type de trame serveur").not.toMatch(LEAK);
+  it("le transport NDJSON serveur (`TrameClient`) : le variant beat n'a QUE t + beat", () => {
+    const variant = lire(FLUX_NDJSON).match(/\{\s*t:\s*"beat"[\s\S]*?\}/)?.[0] ?? "";
+    expect(variant, "le variant beat serveur doit être trouvé (garde non vacue)").not.toBe("");
+    const champs = champsDe(variant);
+    expect(champs.length).toBeGreaterThan(0);
+    for (const c of champs) expect(PERMIS.has(c), `champ inattendu (fuite) dans la trame beat : ${c}`).toBe(true);
   });
 
-  it("le miroir client (`TrameRecue`) : le variant beat n'autorise que `beat`", () => {
-    const variant = lire(FLUX_CLIENT).match(/t:\s*"beat"[\s\S]*?\}/)?.[0] ?? "";
+  it("le miroir client (`TrameRecue`) : le variant beat n'a QUE t + beat", () => {
+    const variant = lire(FLUX_CLIENT).match(/\{\s*t:\s*"beat"[\s\S]*?\}/)?.[0] ?? "";
     expect(variant, "le variant beat client doit être trouvé").not.toBe("");
-    expect(variant, "aucune fuite dans le type de trame client").not.toMatch(LEAK);
+    for (const c of champsDe(variant)) expect(PERMIS.has(c), `champ inattendu (fuite) dans la trame beat : ${c}`).toBe(true);
   });
 });

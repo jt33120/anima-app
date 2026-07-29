@@ -191,9 +191,14 @@ export function avancerArc(
   }
   // clore : aucune transition en 2.7 — la clôture RENDUE (bilan, beat Veille, paywall) est la 2.9.
 
-  // 4. FR-005 (INVARIANT DUR) : `observationDelivree` ne vaut vrai QUE si la phase est nommer/clore.
-  //    Toute tentative de la poser en amont (construire/observer) est REFUSÉE (forcée à false).
-  const observationDelivree = phase === "nommer" || phase === "clore" ? etat.observationDelivree : false;
+  // 4. FR-005 (INVARIANT DUR) — `observationDelivree` : l'observation a été délivrée dès qu'on ENTRE
+  //    ce tour déjà en nommer/clore (elle a été livrée au tour de transition PRÉCÉDENT — la génération
+  //    d'un tour nommer EST la livraison). Jamais vrai avant la clôture d'observer (l'entrée en nommer
+  //    l'atteste). DÉRIVÉ de l'état d'ENTRÉE, pas d'un champ que le serveur devrait poser (revue 2.7) :
+  //    aucun code serveur ne le posait → il restait toujours faux en prod → l'arc bloqué en nommer à vie.
+  //    La sortie nommer→clore lit `etat.observationDelivree` (l'état persisté) → clore n'advient qu'au
+  //    tour SUIVANT l'entrée en nommer : « observation délivrée ET l'utilisatrice y a répondu ».
+  const observationDelivree = etat.phase === "nommer" || etat.phase === "clore";
   //    `finProposee` ne vit que dans clore (Anam propose la fin — clôture rendue en 2.9).
   const finProposee = phase === "clore" ? etat.finProposee : false;
 

@@ -151,6 +151,17 @@ export async function POST(request: NextRequest) {
   const tierServeur = tierPour(capaciteGeneration, niveauSecurite); // repli de métrage si le flux avorte avant `fin`
   const modeleServeur = modelePour(tierServeur);
 
+  // Métrage de l'extraction d'arc — enregistré ICI (PAS dans le after() final) : les returns précoces
+  // de la garde egress de génération (403/500) surviennent APRÈS ce point ; enregistré tôt, le coût FORT
+  // déjà consommé est compté même si la génération avorte (revue 2.7). Clé distincte ; jamais exempté
+  // (FR-043 n'exempte QUE la détresse).
+  if (usageExtractionArc) {
+    const usageArc = usageExtractionArc;
+    after(async () => {
+      await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence: `${cleIdempotence}:arc`, ...usageArc });
+    });
+  }
+
   // ── RÉPONSE PAR NIVEAUX (Story 2.6, AD-16/AD-5) ───────────────────────────────────────────────
   // La FORME de la réponse dérive du verdict (jamais une 2ᵉ classification). La consigne système est
   // PRÉFIXÉE aux messages CÔTÉ SERVEUR (le client ne peut pas forger `system`, `valider-messages`) et
@@ -274,15 +285,6 @@ export async function POST(request: NextRequest) {
   // s'exécute qu'une fois le flux clos → `etat` est complet. `resoudreMetrage` retourne `null` si
   // rien n'a été produit (pas de ligne fantôme). `metrerUsageIa` ne lève jamais.
   after(async () => {
-    // L'extraction d'arc (Story 2.7) est métrée sous une clé DISTINCTE (jamais confondue avec la
-    // génération) — produit : seule la détresse est exemptée du quota (FR-043).
-    if (usageExtractionArc) {
-      await metrerUsageIa({
-        utilisatriceId: user.id,
-        cleIdempotence: `${cleIdempotence}:arc`,
-        ...usageExtractionArc,
-      });
-    }
     const usage = resoudreMetrage(etat);
     if (usage) await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence, ...usage });
   });

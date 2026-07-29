@@ -82,6 +82,24 @@ describe("seance — trace server-authoritative, deny-by-default, accumulée cro
     await c.auth.signInWithPassword({ email: u.email, password: u.password });
     const charge = await c.rpc("charger_seance", { cible: u.id });
     expect(charge.error, "charger_seance révoquée pour authenticated").not.toBeNull();
+    // L'attaque réelle du deny-by-default : un authentifié force sa PROPRE trace (phase nommer,
+    // compteurs gonflés) pour contourner la machine pure → nommage prématuré. ecrire_seance DOIT être
+    // révoquée pour authenticated (contrôle négatif ajouté à la revue 2.7 — sinon la forge passait).
+    const forge = await c.rpc("ecrire_seance", {
+      cible: u.id,
+      p_phase: "nommer",
+      p_sujets_abordes: 9,
+      p_a_reponse_longue: true,
+      p_reformulations: 9,
+      p_confirmations: 9,
+      p_elements_personnels: 9,
+      p_restitutions: 9,
+      p_deux_dernieres_propositions: [false, false],
+      p_observation_delivree: true,
+      p_fin_proposee: false,
+      p_debut: new Date().toISOString(),
+    });
+    expect(forge.error, "ecrire_seance révoquée pour authenticated — pas de forge de trace").not.toBeNull();
     await c.auth.signOut();
   });
 
@@ -145,5 +163,13 @@ describe("seance — trace server-authoritative, deny-by-default, accumulée cro
     expect(trace.reformulationsEmises).toBe(2);
     expect(trace.confirmations).toBe(1);
     expect(trace.elementsPersonnels).toBe(1);
+    // nommer → clore : SANS jamais poser observationDelivree à la main — la machine le DÉRIVE de
+    // l'entrée en nommer (revue 2.7 : sinon l'arc restait bloqué en nommer à vie). 3 restitutions.
+    await tour({ restitution: true });
+    await tour({ restitution: true });
+    await tour({ restitution: true });
+    const clos = await depot.charger();
+    expect(clos.phase, "l'arc se referme, persisté, sans set manuel de observationDelivree").toBe("clore");
+    expect(clos.restitutions).toBe(3);
   });
 });

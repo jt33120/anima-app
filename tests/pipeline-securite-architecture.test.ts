@@ -258,13 +258,13 @@ describe("Story 2.7 — arc de séance : câblage serveur (AD-16, AD-1, AD-5)", 
     expect(src).toMatch(/\[\s*consignePhase\s*,\s*consigneDetresse\s*\]/);
   });
 
-  it("no-leak : la trame `beat` ne porte QUE l'identifiant du beat (aucune phase/signal/compteur)", () => {
+  it("no-leak : la trame `beat` émise n'a QUE t + beat (allowlist — revue 2.7)", () => {
     const src = lire(ROUTE);
     const emission = src.match(/emettre\(\{\s*t:\s*"beat"[\s\S]*?\}\)/)?.[0] ?? "";
     expect(emission, "l'émission de la trame beat doit être trouvée (garde non vacue)").not.toBe("");
-    expect(emission, "aucune fuite phase/signal/compteur dans la trame beat").not.toMatch(
-      /phase|signaux|peutNommer|sujets|reformulation|confirmation|restitution|niveau/i,
-    );
+    const champs = [...emission.matchAll(/(\w+)\s*:/g)].map((m) => m[1]);
+    expect(champs.length).toBeGreaterThan(0);
+    for (const c of champs) expect(["t", "beat"].includes(c), `champ inattendu (fuite) : ${c}`).toBe(true);
   });
 
   it("l'extraction d'arc est MÉTRÉE sous une clé distincte (jamais exemptée comme la détresse)", () => {

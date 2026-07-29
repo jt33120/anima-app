@@ -279,13 +279,39 @@ describe("arc complet construire → observer → nommer → clore (pur, multi-t
     const versNommer = av({ reformulationConfirmee: true });
     expect(e.phase).toBe("nommer");
     expect(versNommer.beat).toBe("nommer");
-    // le serveur livre l'observation → observationDelivree (posé hors machine, T4)
-    e = { ...e, observationDelivree: true };
-    // nommer : 3 restitutions → clore
-    av({ restitution: true });
+    expect(e.observationDelivree, "pas encore délivré au tour de transition").toBe(false);
+    // nommer → clore : la machine DÉRIVE observationDelivree de l'entrée en nommer — AUCUN set manuel.
+    av({ restitution: true }); // 1er tour EN nommer → observationDelivree devient true
+    expect(e.observationDelivree).toBe(true);
     av({ restitution: true });
     const versClore = av({ restitution: true });
     expect(e.phase).toBe("clore");
     expect(versClore.transition).toEqual({ de: "nommer", vers: "clore" });
+  });
+});
+
+describe("Régression (revue 2.7) — observationDelivree dérivé : l'arc n'est jamais bloqué en nommer", () => {
+  it("atteint clore SANS qu'aucun code ne pose observationDelivree à la main", () => {
+    // Bug trouvé en revue : aucun code serveur ne posait observationDelivree=true → sortie nommer→clore
+    // toujours fausse → arc bloqué en nommer à vie. La machine le DÉRIVE de l'entrée en nommer.
+    let e: EtatArc = etat({ phase: "nommer" }); // fraîchement en nommer, observationDelivree false
+    expect(e.observationDelivree).toBe(false);
+    const av = (s: Partial<SignauxTour>) => {
+      const r = avancerArc(e, sig(s), 0, 0);
+      e = r.etat;
+      return r;
+    };
+    av({ restitution: true });
+    expect(e.observationDelivree, "dérivé true dès le 1er tour EN nommer").toBe(true);
+    av({ restitution: true });
+    av({ restitution: true });
+    expect(e.phase).toBe("clore");
+  });
+
+  it("le tour de transition observer→nommer garde observationDelivree false (livraison en cours)", () => {
+    const presque = etat({ phase: "observer", reformulationsEmises: 2, elementsPersonnels: 1 });
+    const r = avancerArc(presque, sig({ reformulationConfirmee: true }), 0, 0);
+    expect(r.etat.phase).toBe("nommer");
+    expect(r.etat.observationDelivree, "false au tour de transition — délivré au tour SUIVANT").toBe(false);
   });
 });

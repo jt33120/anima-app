@@ -11,7 +11,10 @@ import type { DepotSeance } from "@/lib/domain/depot-seance";
  *
  * Repli sûr (AD-15) : une panne RPC ne plante JAMAIS le tour (Anam ne quitte jamais) et penche vers
  * NE PAS franchir un seuil — incident journalisé sans art. 9 (code d'erreur seul, NFR-022) :
- *   • `charger` en échec → état INITIAL (repartir de construire ; jamais fabriquer une progression) ;
+ *   • `charger` en échec de LECTURE → LÈVE (le câblage route capte → SAUTE l'écriture → la trace
+ *     persistée est PRÉSERVÉE). Retomber sur l'état initial ici serait désastreux : un `ecrire` réussi
+ *     au même tour écraserait une séance avancée par un `construire` remis à zéro (revue 2.7). L'état
+ *     initial n'est renvoyé QUE pour une trace réellement absente (première séance) ; le tour ne plante pas ;
  *   • `ecrire` en échec → no-op (l'écriture est perdue ; le prochain tour relira un état antérieur →
  *     l'arc sous-compte, jamais ne sur-avance). Les deux directions protègent : jamais un faux nommer.
  */
@@ -74,21 +77,25 @@ function versParams(cible: string, etat: EtatArc): Record<string, unknown> {
 export function creerDepotSeance(utilisatriceId: string): DepotSeance {
   return {
     async charger() {
+      let data: unknown;
+      let error: unknown;
       try {
         const admin = createSupabaseAdminClient();
-        const { data, error } = await admin.rpc("charger_seance", { cible: utilisatriceId });
-        if (error) {
-          journaliserIncident("charger_seance_echoue", error);
-          return etatArcInitial();
-        }
-        // `setof` → tableau. Vide = aucune trace encore : repartir de construire.
-        const lignes = data as LigneSeance[] | null;
-        if (!lignes || lignes.length === 0) return etatArcInitial();
-        return depuisLigne(lignes[0]);
+        ({ data, error } = await admin.rpc("charger_seance", { cible: utilisatriceId }));
       } catch (e) {
+        // Panne réseau/admin : on LÈVE → la route saute l'écriture → la trace est préservée.
         journaliserIncident("charger_seance_exception", e);
-        return etatArcInitial();
+        throw e instanceof Error ? e : new Error("charger_seance_exception");
       }
+      if (error) {
+        // Erreur RPC : on LÈVE (jamais un état initial de repli qu'un `ecrire` réussi écraserait).
+        journaliserIncident("charger_seance_echoue", error);
+        throw new Error("charger_seance_echoue");
+      }
+      // `setof` → tableau. Vide = aucune trace RÉELLEMENT absente : repartir de construire (1re séance).
+      const lignes = data as LigneSeance[] | null;
+      if (!lignes || lignes.length === 0) return etatArcInitial();
+      return depuisLigne(lignes[0]);
     },
 
     async ecrire(etat: EtatArc) {

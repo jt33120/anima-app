@@ -160,6 +160,9 @@ describe("Frontière art. 9 : le gabarit du write-gate + la première table de c
   // sous JWT + write-gate durci ; anti-résurrection AD-18 ; comportement prouvé dans fait-extrait.test.ts).
   // Le RÉSUMÉ GLISSANT — `resume_glissant` (Story 4.3) — existe désormais (état condensé de la conversation,
   // art. 9 possédé sous JWT + write-gate durci ; AD-14 ; comportement prouvé dans resume-glissant.test.ts).
+  // Le SIGNAL DE RECONCEPTUALISATION — `signal_reconceptualisation` (Story 4.4) — existe désormais (art. 9
+  // possédé sous JWT, POINTEUR-SEUL vers l'entrée exacte, aucun verbatim ; write-gate durci + garde AD-17 au
+  // point d'écriture ; comportement prouvé dans signal-reconceptualisation.test.ts).
   const tablesContenuAVenir = ["tirage", "socle"]; // couches de contenu restantes, pas encore livrées
   it("le gabarit `art9_temoin` existe (sonde vivante du write-gate)", async () => {
     const { error } = await admin.from("art9_temoin").select("*").limit(1);
@@ -175,6 +178,10 @@ describe("Frontière art. 9 : le gabarit du write-gate + la première table de c
   });
   it("le résumé glissant art. 9 `resume_glissant` existe désormais (Story 4.3)", async () => {
     const { error } = await admin.from("resume_glissant").select("*").limit(1);
+    expect(error).toBeNull();
+  });
+  it("le signal de reconceptualisation art. 9 `signal_reconceptualisation` existe désormais (Story 4.4)", async () => {
+    const { error } = await admin.from("signal_reconceptualisation").select("*").limit(1);
     expect(error).toBeNull();
   });
   it("les couches de contenu art. 9 restantes n'existent pas encore", async () => {

@@ -16,6 +16,8 @@ import { blocRessourcesDetresse } from "@/lib/safety/bloc-ressources-detresse";
 import { verifieLeLibelle } from "@/lib/safety/ressources-aide";
 import { creerDepotSeance } from "@/lib/data/depot-seance";
 import { creerDepotJournal } from "@/lib/data/depot-journal";
+import { evaluerReconceptualisationDuTour, fenetreDetresseActive } from "@/lib/safety/reconceptualisation-pipeline";
+import { creerDepotSignalReconcept } from "@/lib/data/depot-reconceptualisation";
 import { avancerArc, SIGNAUX_NEUTRES, type EtatArc } from "@/lib/domain/arc-seance";
 import { requeteExtractionArc, extraireSignauxArc } from "@/lib/domain/signaux-arc";
 import { consignePhaseArc } from "@/lib/domain/consigne-phase";
@@ -47,6 +49,12 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const revalidate = 0;
 export const runtime = "nodejs";
+// L'étage reconceptualisation (Story 4.4) déporte un appel modèle FORT (budget 8 s) + une RPC dans `after()`,
+// APRÈS le flux déjà streamé — le premier `after()` du produit à faire un vrai appel modèle (les autres ne font
+// que des upserts de métrage). `after()` s'exécute sous le plafond de la route (doc Next.js) → on le pose
+// EXPLICITEMENT plutôt que de subir le défaut plateforme (revue 4.4, R5), sinon un dépassement TUE l'invocation
+// en plein appel fort/écriture : ni signal, ni métrage, ni log (le catch ne s'exécute pas). [porte OPS : ajuster au tier Vercel]
+export const maxDuration = 60;
 
 /** Capacité du tour en 2.2 (échange courant). Source UNIQUE : sert au tier ET à la requête adaptateur. */
 const CAPACITE: CapaciteIa = "echange";
@@ -153,10 +161,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // FR-037 — le VETO : le futur travail de schéma/reconceptualisation (Epic 4) devra consulter
-  // `doitExecuterTravailSchema(securite.verdict)` avant d'écrire. Aucun writer de schéma n'existe
-  // aujourd'hui → point d'extension marqué, rien à annuler ici. Le métrage n'est JAMAIS vetoé.
-  //
   // Story 2.4 : `securite.limitesLevees` (dérivé de `episode_detresse.fin IS NULL`) est DISPONIBLE
   // ici — la garde de MONTAGE (paywall/quota/bilan refusent de se monter, FR-043).
   const niveauSecurite: NiveauSecurite = securite.verdict.niveau;
@@ -246,6 +250,37 @@ export async function POST(request: NextRequest) {
         });
       }
     }
+  }
+
+  // ── ÉTAGE RECONCEPTUALISATION (Story 4.4, AD-16 : APRÈS la sécurité ; AD-5 : fort ; AD-17 : supprimé
+  // en détresse + 72 h) ──────────────────────────────────────────────────────────────────────────────
+  // Le VETO FR-037 déjà marqué (`doitExecuterTravailSchema`) a désormais SON writer : la détection de
+  // reconceptualisation. Elle tourne dans `after()` (post-réponse) → AUCUNE latence ajoutée et RIEN à
+  // l'écran ce tour (AC4). Ordonnée après la sécurité (consomme `securite.verdict`) ET APRÈS le gate
+  // d'allocation (un tour COUPÉ par le quota ne dépense AUCUN appel fort — il a déjà `return`, comme
+  // l'extraction d'arc et la génération). On RÉUTILISE le client JWT authentifié (`supabase`) — égress,
+  // fenêtre détresse ET persistance sous la même session (pas de relecture de cookies dans `after()`).
+  // Métré `:reconcept` (produit — FR-043 n'exempte QUE la détresse). Un échec journalise un incident sans
+  // art. 9 ; JAMAIS un 500 (la réponse d'Anam ne dépend pas de la détection).
+  if (dernierMessage?.role === "user") {
+    after(async () => {
+      try {
+        const reconcept = await evaluerReconceptualisationDuTour(
+          {
+            supabase,
+            adaptateur,
+            depotSignal: creerDepotSignalReconcept(supabase),
+            fenetreDetresseActive: () => fenetreDetresseActive(supabase, "reconcept"),
+          },
+          { messages, verdict: securite.verdict, cleTour: cleIdempotence },
+        );
+        if (reconcept.usage) {
+          await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence: `${cleIdempotence}:reconcept`, ...reconcept.usage });
+        }
+      } catch (e) {
+        console.error("anam/message : étage reconceptualisation en repli", { nom: e instanceof Error ? e.name : "inconnu" });
+      }
+    });
   }
 
   // ── ÉTAGE ARC DE SÉANCE (Story 2.7, AD-16 : APRÈS la sécurité ; AD-1 : machine PURE) ───────────

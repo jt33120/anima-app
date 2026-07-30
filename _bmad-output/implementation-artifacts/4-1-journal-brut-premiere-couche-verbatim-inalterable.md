@@ -4,7 +4,7 @@ baseline_commit: 7ab4dcf
 
 # Story 4.1: Le journal brut — la première couche, verbatim et inaltérable
 
-Status: review
+Status: done
 
 ## Story
 

@@ -158,6 +158,8 @@ describe("Frontière art. 9 : le gabarit du write-gate + la première table de c
   // NB : `seance` (2.7) existe mais ne porte AUCUN verbatim (signaux structurés, server-authoritative) → hors liste.
   // La couche 2 — `fait_extrait` (Story 4.2) — existe désormais (profil vivant, corrigeable/supprimable, RLS
   // sous JWT + write-gate durci ; anti-résurrection AD-18 ; comportement prouvé dans fait-extrait.test.ts).
+  // Le RÉSUMÉ GLISSANT — `resume_glissant` (Story 4.3) — existe désormais (état condensé de la conversation,
+  // art. 9 possédé sous JWT + write-gate durci ; AD-14 ; comportement prouvé dans resume-glissant.test.ts).
   const tablesContenuAVenir = ["tirage", "socle"]; // couches de contenu restantes, pas encore livrées
   it("le gabarit `art9_temoin` existe (sonde vivante du write-gate)", async () => {
     const { error } = await admin.from("art9_temoin").select("*").limit(1);
@@ -169,6 +171,10 @@ describe("Frontière art. 9 : le gabarit du write-gate + la première table de c
   });
   it("la couche 2 de contenu art. 9 `fait_extrait` existe désormais (Story 4.2)", async () => {
     const { error } = await admin.from("fait_extrait").select("*").limit(1);
+    expect(error).toBeNull();
+  });
+  it("le résumé glissant art. 9 `resume_glissant` existe désormais (Story 4.3)", async () => {
+    const { error } = await admin.from("resume_glissant").select("*").limit(1);
     expect(error).toBeNull();
   });
   it("les couches de contenu art. 9 restantes n'existent pas encore", async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
@@ -7,17 +7,31 @@ import { resolve } from "node:path";
  *
  * Prouvé par lecture de fichiers (commentaires retirés → la garde ne matche pas sa propre prose) :
  *  - l'unique fonction possédée `fusionner_fait_extrait` n'est référencée QUE dans `lib/data/depot-faits.ts` ;
- *  - le LITTÉRAL DE TABLE `fait_extrait` (entre quotes/backticks) n'apparaît NULLE PART dans app/lib/render.
+ *  - le NOM DE TABLE `fait_extrait` n'apparaît nulle part dans le PÉRIMÈTRE SCANNÉ (défini ci-dessous).
  *
- * (revue 4.2, C) On garde le LITTÉRAL DE TABLE plutôt qu'un regex `.from(...).insert` verbe-par-verbe : ce
- * dernier ratait l'indirection par variable (`const T = "fait_extrait"; supabase.from(T)…`), les template
- * literals, et le chaînage multi-ligne. Interdire le littéral les attrape TOUS — tout accès (lecture OU
- * écriture) à la table doit citer son nom quelque part. Aujourd'hui, TOUT passe par la RPC (`depot-faits.ts`
- * n'écrit même pas `.from("fait_extrait")`), donc AUCUN fichier ne cite le littéral : la garde est un
- * tripwire — une future lecture (Story 4.3) ou édition (Epic 6) devra l'assouplir CONSCIEMMENT.
- * Résidu connu (partagé avec le patron `frontiere-serveur.test.ts`) : un nom construit dynamiquement
+ * PÉRIMÈTRE SCANNÉ (revue 4.3, C) : `app` + `lib` + `render` + `scripts` (récursif, `.ts/.tsx/.mjs/.js/.jsx`)
+ * PLUS les points d'entrée racine exécutés en prod (`proxy.ts` ex-middleware, `instrumentation.ts` s'il existe).
+ * On NE dit plus « nulle part / partout » sans qualificatif : la garde couvre le code applicatif ET
+ * opérationnel réel (y compris un futur `scripts/purge-*.mjs` en service_role, qui BYPASS la RLS — c'est
+ * justement le chemin où la garde CI compte le plus, la base ne rattrapant plus rien).
+ *
+ * (revue 4.2, C) On garde le NOM DE TABLE plutôt qu'un regex `.from(...).insert` verbe-par-verbe : ce dernier
+ * ratait l'indirection par variable (`const T = "fait_extrait"; supabase.from(T)…`), les template literals, et
+ * le chaînage multi-ligne. Interdire le nom les attrape TOUS — tout accès (lecture OU écriture) doit le citer.
+ * (revue 4.3, F) On ancre sur une FRONTIÈRE DE MOT `\bfait_extrait\b` (pas le nom collé entre quotes) : attrape
+ * AUSSI le SQL brut (`from fait_extrait where …`) et le nom qualifié (`"public.fait_extrait"`), tout en excluant
+ * les RPC possédées (`fusionner_fait_extrait`/`charger_faits_actifs` : `fait`/`faits` y est précédé de `_`, pas
+ * de frontière) et la colonne `p_extrait_source`.
+ *
+ * (Story 4.3) La « future lecture » que ce commentaire anticipait est arrivée — le rappel opportun LIT les
+ * faits actifs. On l'a HONORÉE SANS AFFAIBLIR le ban : la lecture passe par une fonction POSSÉDÉE
+ * `charger_faits_actifs()` (security invoker, filtre `statut='actif'` en base), pas par `.from("fait_extrait")`.
+ * Résultat : le nom de table reste banni dans tout le périmètre, et on ajoute juste une seconde RPC possédée
+ * confinée à son dépôt (`charger_faits_actifs` ↔ `depot-rappel.ts`, comme `fusionner_fait_extrait` ↔ `depot-faits.ts`).
+ *
+ * Résidu connu (partagé, dette transverse aux ~7 gardes de source) : un nom construit dynamiquement
  * (`"fait_" + "extrait"`) échapperait — pathologique, non traité ; le vrai rempart reste en base
- * (trigger + clause WHERE + write-gate, tous mutation-vérifiés).
+ * (trigger + clause WHERE + write-gate + filtre de lecture, tous mutation-vérifiés).
  */
 
 const racine = process.cwd();
@@ -28,19 +42,31 @@ function sansCommentaires(src: string): string {
 function lire(f: string): string {
   return sansCommentaires(readFileSync(f, "utf-8"));
 }
-function fichiersTs(dir: string): string[] {
+function fichiersSource(dir: string): string[] {
   return (readdirSync(resolve(racine, dir), { recursive: true, encoding: "utf-8" }) as string[])
-    .filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"))
+    .filter((f) => /\.(ts|tsx|mjs|js|jsx)$/.test(f))
     .map((f) => resolve(racine, dir, f));
 }
+// Points d'entrée racine exécutés en prod (hors app/lib/render) : proxy.ts (ex-middleware), instrumentation.ts.
+const racineEntrees = ["proxy.ts", "instrumentation.ts"].map((f) => resolve(racine, f)).filter((p) => existsSync(p));
 
 const DEPOT = resolve(racine, "lib/data/depot-faits.ts");
-const tousSource = [...fichiersTs("app"), ...fichiersTs("lib"), ...fichiersTs("render")];
+const DEPOT_RAPPEL = resolve(racine, "lib/data/depot-rappel.ts");
+const tousSource = [
+  ...fichiersSource("app"),
+  ...fichiersSource("lib"),
+  ...fichiersSource("render"),
+  ...fichiersSource("scripts"),
+  ...racineEntrees,
+];
 
 const RPC = /fusionner_fait_extrait/;
-// Le NOM DE TABLE nu entre quotes/backticks. Le `["'`]` juste AVANT `fait_extrait` distingue du nom de RPC
-// `fusionner_fait_extrait` (où `fait_extrait` est précédé de `_`, jamais d'un délimiteur de chaîne).
-const TABLE_LITERAL = /["'`]fait_extrait["'`]/;
+// (Story 4.3) la LECTURE possédée des faits actifs — confinée à son dépôt, comme la RPC d'écriture.
+const RPC_LECTURE = /charger_faits_actifs/;
+// (revue 4.3, F) FRONTIÈRE DE MOT : attrape le nom nu ("fait_extrait"), le SQL brut (from fait_extrait),
+// le qualifié ("public.fait_extrait") — mais PAS `fusionner_fait_extrait`/`charger_faits_actifs` (précédés
+// de `_`, donc pas de frontière avant `fait`/`faits`) ni `p_extrait_source`.
+const TABLE_LITERAL = /\bfait_extrait\b/;
 
 describe("fait_extrait — un seul chemin d'écriture possédé (T5/AC4)", () => {
   it("a bien scanné du code applicatif", () => {
@@ -56,13 +82,27 @@ describe("fait_extrait — un seul chemin d'écriture possédé (T5/AC4)", () =>
     expect(lire(DEPOT)).toMatch(RPC);
   });
 
-  it("le littéral de table `fait_extrait` n'apparaît NULLE PART (tout accès passe par la RPC)", () => {
+  it("le nom de table `fait_extrait` n'apparaît nulle part dans le périmètre (tout accès passe par une RPC possédée)", () => {
     for (const f of tousSource) {
-      expect(lire(f), `accès direct à la table fait_extrait (contourne le merge) : ${f}`).not.toMatch(TABLE_LITERAL);
+      expect(lire(f), `accès direct à la table fait_extrait (contourne le merge/la lecture) : ${f}`).not.toMatch(TABLE_LITERAL);
     }
-    // Contrôle positif du regex : il DOIT matcher un vrai littéral (sinon il ne garde rien).
+    // Contrôles positifs : le regex DOIT matcher toutes les formes d'accès (nu, backtick, SQL brut, qualifié).
     expect('supabase.from("fait_extrait")').toMatch(TABLE_LITERAL);
-    expect('supabase.from(`fait_extrait`)').toMatch(TABLE_LITERAL);
-    expect('rpc("fusionner_fait_extrait")').not.toMatch(TABLE_LITERAL); // pas de faux positif sur la RPC
+    expect("supabase.from(`fait_extrait`)").toMatch(TABLE_LITERAL);
+    expect("`select * from fait_extrait where id=${x}`").toMatch(TABLE_LITERAL); // (revue 4.3, F) SQL brut
+    expect('"public.fait_extrait"').toMatch(TABLE_LITERAL); // (revue 4.3, F) nom qualifié
+    // Contrôles négatifs : les RPC possédées et la colonne ne sont PAS des accès table (frontière de mot).
+    expect('rpc("fusionner_fait_extrait")').not.toMatch(TABLE_LITERAL);
+    expect('rpc("charger_faits_actifs")').not.toMatch(TABLE_LITERAL);
+    expect("p_extrait_source").not.toMatch(TABLE_LITERAL);
+  });
+
+  it("(Story 4.3) la RPC de lecture `charger_faits_actifs` n'est référencée QUE dans lib/data/depot-rappel.ts", () => {
+    for (const f of tousSource) {
+      if (f === DEPOT_RAPPEL) continue;
+      expect(lire(f), `réf. à charger_faits_actifs hors depot-rappel : ${f}`).not.toMatch(RPC_LECTURE);
+    }
+    // Contrôle positif : le dépôt de rappel l'appelle bien → la garde n'est pas vide.
+    expect(lire(DEPOT_RAPPEL)).toMatch(RPC_LECTURE);
   });
 });

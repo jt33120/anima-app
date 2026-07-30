@@ -90,6 +90,19 @@
 
 /* ── Composeur : bande basse, ne DISPARAÎT jamais (AC5). Remonte au-dessus du clavier virtuel via
       --decalage-clavier (posé par visualViewport ; 0 par défaut → aucun effet sur desktop). ── */
+/* Zone-colonne : un motif d'arrêt optionnel (quota épuisé, 3.4) au-dessus de la bande de saisie. */
+.composeurZone {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+/* Motif d'arrêt (allocation résiduelle épuisée, 3.4/AC4) — registre système, discret, jamais alarmant. */
+.motifDesactive {
+  margin: 0;
+  padding: var(--esp-2) var(--esp-4) 0;
+  color: var(--texte-doux);
+}
+
 .composeur {
   flex: none;
   display: flex;
@@ -125,6 +138,10 @@
 .champ:focus-visible {
   outline: 2px solid var(--bordure-forte);
   outline-offset: 2px;
+}
+.champ:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .envoi {

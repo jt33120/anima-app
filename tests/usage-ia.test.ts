@@ -101,6 +101,7 @@ describe("usage_ia — métrage NON-art. 9, deny-by-default, idempotent (AD-2, A
       "tokens_entree",
       "tokens_sortie",
       "cree_le",
+      "post_premiere_seance", // Story 3.4 : marque d'allocation résiduelle — booléen de phase, NON-art. 9
     ].sort();
     expect(colonnes).toEqual(permises);
     for (const interdite of ["prompt", "reponse", "contenu", "texte", "message", "messages", "verbatim"]) {

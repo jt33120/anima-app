@@ -97,18 +97,24 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     // Sa garde AD-9 est le GATE SERVEUR : la route RETIENT la trame `paywall` en détresse (pas de bilan
     // → pas de carte) et si premium — prouvé par tests/proposer-abonnement.test.ts. Même patron que la
     // route Checkout (gardée serveur, dérogée ci-dessus). Dérogation NOMMÉE, non un fichier générique.
-    // La surface = le composant client `CarteAbonnement.tsx` ET son module de COPIE `offre-abonnement.ts`
-    // (pures constantes, aucun JSX — rien à envelopper). Dérogation ancrée au CHEMIN EXACT `render/conversation/`
-    // — jamais au seul basename : un futur homonyme ailleurs (ex. une surface paywall SERVEUR sous
-    // `app/.../compte/CarteAbonnement.tsx`, VRAIE UI commerciale à envelopper) NE doit PAS hériter de la
-    // dérogation (sinon angle mort : il passerait non gardé). La dérogation ne vaut QUE pour la carte in-fil.
+    // La surface = le composant client `CarteAbonnement.tsx` + sa COPIE `offre-abonnement.ts` (3.2), ET
+    // la COPIE de l'épuisement de quota `ligne-quota.ts` (3.4). Toutes gardées par le GATE SERVEUR : la
+    // route RETIENT la trame (`paywall` en détresse/premium ; `quota` en détresse via `!limites_levees` —
+    // prouvé par tests/gate-quota.test.ts). Ce sont des surfaces CLIENT dans le fil streamé qui ne peuvent
+    // pas s'auto-envelopper de la balise SERVEUR `<GardeCommerciale>` (async, lit `lib/safety`). Pures
+    // constantes de copie ou composant in-fil — rien à envelopper. Dérogation ancrée au CHEMIN EXACT
+    // `render/conversation/` — jamais au seul basename : un futur homonyme ailleurs (ex. une surface paywall
+    // SERVEUR sous `app/.../compte/CarteAbonnement.tsx`, VRAIE UI commerciale à envelopper) NE doit PAS
+    // hériter de la dérogation (sinon angle mort : il passerait non gardé).
     const estCarteGardeeParGateServeur = (f: string) =>
-      /[/\\]render[/\\]conversation[/\\](CarteAbonnement\.tsx|offre-abonnement\.ts)$/.test(f);
+      /[/\\]render[/\\]conversation[/\\](CarteAbonnement\.tsx|offre-abonnement\.ts|ligne-quota\.ts)$/.test(f);
     expect(estCarteGardeeParGateServeur("/repo/render/conversation/CarteAbonnement.tsx"), "matcher de carte cassé").toBe(true);
     expect(estCarteGardeeParGateServeur("/repo/render/conversation/offre-abonnement.ts"), "matcher de copie cassé").toBe(true);
+    expect(estCarteGardeeParGateServeur("/repo/render/conversation/ligne-quota.ts"), "matcher de copie quota cassé").toBe(true);
     expect(estCarteGardeeParGateServeur("/repo/render/conversation/BlocDocument.tsx"), "faux positif dérogation carte").toBe(false);
     // ANGLE MORT fermé : un homonyme AILLEURS (future surface paywall serveur) n'est PAS dérogé → devra être gardé.
     expect(estCarteGardeeParGateServeur("/repo/app/(scene)/compte/CarteAbonnement.tsx"), "dérogation basename non ancrée — angle mort").toBe(false);
+    expect(estCarteGardeeParGateServeur("/repo/app/(scene)/compte/ligne-quota.ts"), "dérogation quota basename non ancrée — angle mort").toBe(false);
 
     const uiCommerciales = [...fichiersSource("app"), ...fichiersSource("render")]
       .filter(estCommerciale)
@@ -144,6 +150,16 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     expect(
       existsSync(resolve(racine, "tests/proposer-abonnement.test.ts")),
       "garde comportementale du gate serveur absente — la dérogation ne prouve rien",
+    ).toBe(true);
+    // Idem pour la copie de quota (3.4) : la surface EXISTE et le gate serveur qui la retient en détresse
+    // est prouvé (gate-quota.test.ts : le gate condition `!securite.limitesLevees`). Sinon dérogation morte.
+    expect(
+      existsSync(resolve(racine, "render/conversation/ligne-quota.ts")),
+      "copie de quota absente — la dérogation `gate serveur` quota est morte",
+    ).toBe(true);
+    expect(
+      existsSync(resolve(racine, "tests/gate-quota.test.ts")),
+      "garde du gate serveur quota absente — la dérogation ne prouve rien",
     ).toBe(true);
 
     console.info(

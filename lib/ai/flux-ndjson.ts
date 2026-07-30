@@ -50,7 +50,15 @@ export type TrameClient =
    * `clotureAutorisee`) et si l'utilisatrice n'est pas déjà premium (gate serveur, route). NON
    * terminale : le client insère la carte comme tour SOUS le bilan, puis continue de lire jusqu'à `fin`.
    */
-  | { t: "paywall" };
+  | { t: "paywall" }
+  /**
+   * Allocation résiduelle épuisée (Story 3.4, AC4) : SIGNAL pur — aucun payload, aucune donnée art. 9,
+   * aucune copie (la ligne système et le motif vivent en constantes CLIENT, `render/conversation`). La
+   * SEULE trame du flux quand on coupe (aucun `delta`, aucun `fin` — la conversation ne se génère pas
+   * ce tour). Émise UNIQUEMENT hors détresse (jamais si `limites_levees`, AC6), post-séance, non premium,
+   * allocation atteinte (gate serveur, route). Ce n'est PAS un paywall : jamais « Passe au premium ».
+   */
+  | { t: "quota" };
 
 /** Sérialise une trame en une ligne NDJSON (JSON compact + `\n` terminal). */
 export function ligneNdjson(trame: TrameClient): string {

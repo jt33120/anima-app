@@ -68,9 +68,20 @@ describe("Bloc ressources — FICHE sobre, jamais alarmante (AD-9)", () => {
 });
 
 describe("Composeur — reste ACTIF et gardé au focus en détresse (AC2)", () => {
-  it("le <textarea> n'est JAMAIS `disabled` ni conditionnellement démonté (ne DISPARAÎT jamais)", () => {
-    // Seul le BOUTON d'envoi peut être gaté pendant le flux ; le champ reste toujours saisissable.
+  it("le <textarea> n'est désactivé QUE pour le quota épuisé (jamais en détresse — Anam ne quitte jamais)", () => {
+    // En détresse, le champ reste saisissable (AC2 : Anam ne quitte JAMAIS la conversation). La SEULE
+    // désactivation permise est l'épuisement de quota (3.4, `disabled={bloque}`), un état SERVEUR-gaté
+    // HORS détresse : la route retient la trame `quota` si `limites_levees` (prouvé par gate-quota.test).
+    // Ces deux états sont donc mutuellement exclusifs — le champ n'est jamais désactivé en détresse.
     const textarea = composeur.match(/<textarea[\s\S]*?\/>/)?.[0] ?? "";
-    expect(textarea, "le textarea ne doit jamais porter disabled").not.toMatch(/disabled/);
+    const desactivations = textarea.match(/disabled=\{[^}]*\}/g) ?? [];
+    for (const d of desactivations) {
+      expect(d, "le champ n'est désactivé QUE par le quota (`bloque`), jamais en détresse").toBe("disabled={bloque}");
+    }
+    // `bloque` dérive du SEUL motif d'épuisement de quota (jamais d'un niveau de détresse/sécurité).
+    expect(composeur).toMatch(/const bloque = !!motifDesactive/);
+    expect(composeur, "aucune désactivation liée à la détresse/sécurité/niveau").not.toMatch(
+      /disabled=\{[^}]*(detresse|détresse|securite|sécurité|niveau)/i,
+    );
   });
 });

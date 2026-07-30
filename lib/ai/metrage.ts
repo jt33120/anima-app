@@ -12,10 +12,10 @@ import type { TierIa } from "./port";
  * dans `after()` (post-réponse) où un throw serait une promesse rejetée non gérée (revue 2.2).
  *
  * ⚠️ Portée de l'idempotence : `on conflict (utilisatrice_id, cle_idempotence) do nothing` dédoublonne
- * **une même clé**. En 2.2 la clé est un UUID SERVEUR par requête HTTP → « exactement une fois PAR
- * REQUÊTE ». La déduplication d'un **retour client** (même tour logique rejoué) exige un **jeton de
- * tour stable fourni par le client** (validé serveur, scopé à l'utilisatrice) — déféré en Phase B,
- * quand le client (qui peut retenter) existera. [voir deferred-work.md]
+ * **une même clé**. Story 3.4 : la clé est le **jeton de tour stable fourni par le client** (`jetonTour`,
+ * validé serveur par `jetonTourValide`, scopé à l'utilisatrice), réutilisé au « Réessayer » → « exactement
+ * une fois PAR TOUR LOGIQUE » (un retry ne recompte ni tokens ni allocation résiduelle). Repli sur un UUID
+ * serveur par requête si le jeton est absent/mal formé. [dette 2.2/2.4/2.7/2.9 close]
  */
 export interface MetrageUsage {
   utilisatriceId: string;
@@ -24,6 +24,12 @@ export interface MetrageUsage {
   modele: string;
   tokensEntree: number;
   tokensSortie: number;
+  /**
+   * Story 3.4 : `true` = tour d'ALLOCATION RÉSIDUELLE (servi après la clôture de la 1ʳᵉ séance) → compté
+   * dans le quota mensuel gratuit (FR-079). Posé UNIQUEMENT sur la ligne PRINCIPALE d'un tour post-séance ;
+   * la 1ʳᵉ séance et les sous-coûts `:arc`/`:bilan` gardent `false` (défaut). NON-art. 9.
+   */
+  postPremiereSeance?: boolean;
 }
 
 export async function metrerUsageIa(usage: MetrageUsage): Promise<void> {
@@ -37,6 +43,7 @@ export async function metrerUsageIa(usage: MetrageUsage): Promise<void> {
         modele: usage.modele,
         tokens_entree: usage.tokensEntree,
         tokens_sortie: usage.tokensSortie,
+        post_premiere_seance: usage.postPremiereSeance ?? false, // Story 3.4 — marque d'allocation résiduelle
       },
       { onConflict: "utilisatrice_id,cle_idempotence", ignoreDuplicates: true },
     );

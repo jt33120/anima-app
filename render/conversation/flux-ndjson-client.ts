@@ -23,7 +23,10 @@ export type TrameRecue =
   | { t: "bilan"; titre: string; points: string[] }
   /** Proposition d'abonnement (Story 3.2) : signal PUR, aucun payload. NON terminale — la carte
    *  s'insère sous le bilan, on continue de lire jusqu'à `fin`. */
-  | { t: "paywall" };
+  | { t: "paywall" }
+  /** Allocation résiduelle épuisée (Story 3.4) : signal PUR, aucun payload. SEULE trame du flux quand
+   *  on coupe (aucun delta, aucun `fin`) — la copie (ligne système + motif) vit côté client. */
+  | { t: "quota" };
 
 /** Beat d'apparition d'Anam (Story 2.7). Miroir client du variant serveur `flux-ndjson.ts`. */
 export type BeatRecu = "ouverture" | "nommer" | "cloture";
@@ -63,6 +66,7 @@ export function analyserTrame(ligne: string): TrameRecue | null {
   if (t === "beat") return analyserBeat(obj);
   if (t === "bilan") return analyserBilan(obj);
   if (t === "paywall") return { t: "paywall" }; // signal pur (Story 3.2), aucun champ à valider
+  if (t === "quota") return { t: "quota" }; // signal pur (Story 3.4), aucun champ à valider
   return null;
 }
 

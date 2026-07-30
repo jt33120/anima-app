@@ -71,8 +71,9 @@ describe("Ordre de lecture linéaire + composeur jamais masqué (AC3/AC5)", () =
   });
 
   it("le composeur est rendu inconditionnellement (ne disparaît jamais)", () => {
-    // aucun rendu conditionnel juste avant <Composeur (pas de `&&`/ternaire qui le démonterait)
-    expect(conversation).toMatch(/\n\s*<Composeur /);
+    // aucun rendu conditionnel juste avant <Composeur (pas de `&&`/ternaire qui le démonterait).
+    // `\s` (et non un espace littéral) tolère le JSX multi-lignes `<Composeur\n  …props`.
+    expect(conversation).toMatch(/\n\s*<Composeur\s/);
     expect(conversation).not.toMatch(/\?\s*<Composeur/);
     expect(conversation).not.toMatch(/&&\s*<Composeur/);
   });

@@ -6,6 +6,7 @@ import Composeur from "./Composeur";
 import Fil from "./Fil";
 import { useFluxAnam, type MessageEnvoi } from "./useFluxAnam";
 import { insererTour } from "./fil-ops";
+import { LIGNE_QUOTA_EPUISEE } from "./ligne-quota";
 import type { Tour } from "./types";
 import s from "./conversation.module.css";
 
@@ -32,6 +33,9 @@ const MESSAGE_ECHEC = "Je n’ai pas pu répondre. Ton message est gardé.";
 export default function Conversation({ onPreparation }: { onPreparation?: (prepare: boolean) => void }) {
   const [tours, setTours] = useState<Tour[]>([]);
   const [annonce, setAnnonce] = useState("");
+  // Allocation résiduelle épuisée (3.4, AC4) : le composeur passe désactivé-visible avec un motif.
+  // Persistant pour la session (le fil est éphémère ; le mois se réévalue au prochain chargement réel).
+  const [quotaEpuise, setQuotaEpuise] = useState(false);
   const { prepare, enCours, envoyer } = useFluxAnam();
 
   // Beat « ouverture » monté au démarrage (2.2, AC6) ; « nommer » piloté par l'arc de séance (2.7,
@@ -40,9 +44,10 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
 
   const shell = useRef<HTMLDivElement>(null);
   const champRef = useRef<HTMLTextAreaElement>(null);
-  // Historique envoyé PAR tour d'Anam (id → messages) : « Réessayer » rejoue le BON tour, pas le
-  // dernier envoi global (revue 2.2). Éphémère en session.
-  const envoisParTour = useRef<Map<string, MessageEnvoi[]>>(new Map());
+  // Historique envoyé PAR tour d'Anam (id → {messages, jeton}) : « Réessayer » rejoue le BON tour, pas
+  // le dernier envoi global (revue 2.2). Le `jeton` est l'identité STABLE du tour logique (3.4, AC1) :
+  // réutilisé au retry → le métrage et l'allocation résiduelle ne se recomptent pas. Éphémère en session.
+  const envoisParTour = useRef<Map<string, { messages: MessageEnvoi[]; jeton: string }>>(new Map());
   // « Pas maintenant » (3.2, AC5/FR-057) : une SEULE sollicitation par session. Le fil est éphémère
   // (aucune persistance — Epic 4), et la trame `paywall` n'est émise qu'une fois (beat cloture
   // idempotent) → la sollicitation unique est structurellement tenue ; ce verrou est la ceinture
@@ -75,15 +80,15 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
   }, []);
 
   const lancer = useCallback(
-    (messages: MessageEnvoi[]) => {
+    (messages: MessageEnvoi[], jeton: string) => {
       const idAnam = nouvelId();
       // Id du bilan de CE tour (ancre de la carte d'abonnement 3.2). Capturé dans la même clôture que
       // les rappels de flux → `onPaywall` insère la carte sous le bon bilan, sans état partagé.
       let idBilanCourant: string | null = null;
-      envoisParTour.current.set(idAnam, messages);
+      envoisParTour.current.set(idAnam, { messages, jeton });
       setTours((prev) => [...prev, { id: idAnam, role: "anam", texte: "", etat: "flux" }]);
       setAnnonce("");
-      void envoyer(messages, {
+      void envoyer(messages, jeton, {
         onMotsReveles: (mots) =>
           setTours((prev) =>
             prev.map((t) =>
@@ -147,6 +152,17 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
           // purge la carte avec lui (jamais une carte orpheline doublée au rejeu, comme le bloc ressource).
           setTours((prev) => insererTour(prev, ancre, "apres", { id: idPaywall, role: "paywall", ancreId: idAnam }));
         },
+        // Allocation résiduelle épuisée (3.4, AC4) : le SERVEUR a coupé (trame `quota`, retenue en
+        // détresse/premium — gate serveur). Aucun texte d'Anam ne viendra : on RETIRE le placeholder
+        // d'Anam (vide) et on passe le composeur en désactivé-visible. Le message optimiste de
+        // l'utilisatrice RESTE. Jamais « Réessayer », jamais « Passe au premium » — le socle reste ouvert.
+        onQuota: () => {
+          setTours((prev) => prev.filter((t) => t.id !== idAnam));
+          setQuotaEpuise(true);
+          // Pas de `setAnnonce` ici (revue 3.4, F7) : l'annonce a11y est portée UNIQUEMENT par le
+          // `role="status"` du motif dans le Composeur → une seule région live (AC3, jamais une double
+          // annonce de la MÊME phrase dans la région du Fil ET dans le motif).
+        },
       });
     },
     [envoyer],
@@ -163,19 +179,22 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
         )
         .map((t) => ({ role: t.role === "utilisatrice" ? "user" : "assistant", content: t.texte }));
       setTours((prev) => [...prev, { id: nouvelId(), role: "utilisatrice", texte }]);
-      lancer([...histo, { role: "user", content: texte }]);
+      // Nouveau tour LOGIQUE → nouveau jeton stable (3.4, AC1). Dans un handler d'événement (jamais au
+      // rendu) → aucun risque de mismatch d'hydratation.
+      lancer([...histo, { role: "user", content: texte }], crypto.randomUUID());
     },
     [tours, lancer],
   );
 
   // « Réessayer » CE tour précis : retire seulement le tour d'Anam en échec `idAnam` (les partiels
-  // des AUTRES échecs restent dans le fil — revue 2.2) et rejoue l'historique de CE tour. En 2.2 la
-  // clé d'idempotence du métrage est serveur (par requête) → un retry recompte ; la déduplication
-  // d'un retour client (jeton de tour stable) est différée. [deferred-work.md]
+  // des AUTRES échecs restent dans le fil — revue 2.2) et rejoue l'historique de CE tour avec le MÊME
+  // jeton (Story 3.4, AC1) → même clé d'idempotence serveur → un retry ne recompte ni tokens ni
+  // allocation résiduelle (dette du jeton de tour stable close).
   const reessayer = useCallback(
     (idAnam: string) => {
-      const messages = envoisParTour.current.get(idAnam);
-      if (!messages) return;
+      if (quotaEpuise) return; // ceinture (revue 3.4, F9) : l'échange est clos ce mois — aucun rejeu
+      const envoi = envoisParTour.current.get(idAnam);
+      if (!envoi) return;
       envoisParTour.current.delete(idAnam);
       // Retire le tour d'Anam ET tout bloc rattaché par `ancreId` (ressources 2.6, bilan + carte 3.2) —
       // sinon un tour de clôture qui échoue APRÈS avoir émis bilan/carte laisserait ceux-ci orphelins, et
@@ -188,12 +207,14 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
             !((t.role === "ressource" || t.role === "bilan" || t.role === "paywall") && t.ancreId === idAnam),
         ),
       );
-      lancer(messages);
+      // MÊME jeton que l'envoi initial (3.4, AC1) : le retry est le MÊME tour logique → le métrage et
+      // l'allocation résiduelle ne se recomptent pas (clé d'idempotence serveur stable).
+      lancer(envoi.messages, envoi.jeton);
       // Le bouton « Réessayer » vient d'être démonté : redéplacer le focus vers le composeur, jamais
       // le laisser retomber sur <body> (WCAG 2.4.3).
       requestAnimationFrame(() => champRef.current?.focus());
     },
-    [lancer],
+    [lancer, quotaEpuise],
   );
 
   // « Pas maintenant » (3.2, AC5) : retire la carte, arme le verrou d'unique sollicitation, et
@@ -208,8 +229,19 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
   return (
     <div className={s.conversation} ref={shell}>
       <ApparitionAnam beat={beat} />
-      <Fil tours={tours} annonce={annonce} onReessayer={reessayer} onRefuserAbonnement={refuserAbonnement} />
-      <Composeur onEnvoyer={surEnvoi} occupe={enCours} champRef={champRef} />
+      <Fil
+        tours={tours}
+        annonce={annonce}
+        onReessayer={reessayer}
+        onRefuserAbonnement={refuserAbonnement}
+        quotaEpuise={quotaEpuise}
+      />
+      <Composeur
+        onEnvoyer={surEnvoi}
+        occupe={enCours}
+        champRef={champRef}
+        motifDesactive={quotaEpuise ? LIGNE_QUOTA_EPUISEE : undefined}
+      />
     </div>
   );
 }

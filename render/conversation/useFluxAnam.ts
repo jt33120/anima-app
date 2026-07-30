@@ -43,6 +43,9 @@ export interface RappelsFlux {
   onBilan?: (titre: string, points: readonly string[]) => void;
   /** Proposition d'abonnement (Story 3.2) : carte à insérer SOUS le bilan. NON terminal, passif (pas de focus). */
   onPaywall?: () => void;
+  /** Allocation résiduelle épuisée (Story 3.4) : SEULE trame du flux (aucun texte). Ni succès ni échec
+   *  re-tentable → aucun « Réessayer ». Le placeholder d'Anam est retiré, le composeur passe désactivé-visible. */
+  onQuota?: () => void;
 }
 
 export function useFluxAnam() {
@@ -60,7 +63,7 @@ export function useFluxAnam() {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const envoyer = useCallback(
-    async (messages: MessageEnvoi[], rappels: RappelsFlux) => {
+    async (messages: MessageEnvoi[], jetonTour: string, rappels: RappelsFlux) => {
       interrompre();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
@@ -72,6 +75,7 @@ export function useFluxAnam() {
       let motsBuffer = ""; // texte reçu, mot en cours pas encore révélé
       let revele = ""; // texte déjà révélé (= message complet à la fin)
       let finPropre = false;
+      let quotaRecu = false; // allocation épuisée (3.4) : terminal, mais ni succès ni échec re-tentable
       let premierMot = true;
       let lecteur: ReadableStreamDefaultReader<Uint8Array> | null = null;
 
@@ -98,12 +102,14 @@ export function useFluxAnam() {
         }
       };
 
-      let issue: "fin" | "echec" | "avorte" = "echec";
+      let issue: "fin" | "echec" | "avorte" | "quota" = "echec";
       try {
         const reponse = await fetch("/api/anam/message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages }),
+          // `jetonTour` : identité STABLE du tour logique (Story 3.4, AC1) → clé d'idempotence serveur.
+          // Réutilisé au « Réessayer » → un retry ne recompte pas les tokens ni l'allocation résiduelle.
+          body: JSON.stringify({ messages, jetonTour }),
           signal: ctrl.signal,
         });
         if (!reponse.ok || !reponse.body) throw new Error("reponse_non_ok");
@@ -138,6 +144,13 @@ export function useFluxAnam() {
               // Proposition d'abonnement (3.2), NON terminale : la carte s'insère SOUS le bilan, on
               // CONTINUE de lire jusqu'à `fin`. Passive : ne vole jamais le focus (composeur actif).
               rappels.onPaywall?.();
+            } else if (trame.t === "quota") {
+              // Allocation épuisée (3.4) : SEULE trame du flux (aucun delta, aucun `fin`). TERMINALE —
+              // on cesse de lire. Mais NI succès (aucun texte d'Anam) NI échec re-tentable (retenter
+              // n'aide pas) → ni onFin ni onEchec en aval : pas de « Réessayer ».
+              rappels.onQuota?.();
+              quotaRecu = true;
+              break boucle;
             } else if (trame.t === "fin" || trame.t === "erreur") {
               // SEULES `fin` et `erreur` sont TERMINALES → on cesse de lire (aucune trame ne suit). Toute
               // autre trame reconnue mais NON terminale (bilan ci-dessus ; un futur variant) NE DOIT PAS
@@ -148,7 +161,8 @@ export function useFluxAnam() {
           }
         }
         reveler(true); // vider le dernier mot (pas de blanc terminal)
-        issue = finPropre ? "fin" : "echec"; // flux clos sans `fin` (coupure) → échec
+        // quota (3.4) prime : ni succès ni échec. Sinon `fin` = succès ; flux clos sans `fin` = échec.
+        issue = quotaRecu ? "quota" : finPropre ? "fin" : "echec";
       } catch (e) {
         reveler(true); // ne JAMAIS vider le partiel déjà reçu
         issue = (e as { name?: string }).name === "AbortError" ? "avorte" : "echec";
@@ -168,7 +182,9 @@ export function useFluxAnam() {
 
       // Dispatch terminal UNE fois, HORS du try/catch : un rappel consommateur qui jette ne peut plus
       // faire rebasculer un succès en échec. Un envoi avorté (départ) ne dispatche rien (partiel gardé).
-      if (issue === "avorte") return;
+      // `avorte` (départ volontaire) et `quota` (allocation épuisée, 3.4) ne dispatchent AUCUN terminal :
+      // le partiel/optimiste est géré par `onQuota` (déjà fauché dans la boucle) ou conservé tel quel.
+      if (issue === "avorte" || issue === "quota") return;
       if (issue === "fin") rappels.onFin(revele);
       else rappels.onEchec(revele);
     },

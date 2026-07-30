@@ -27,11 +27,14 @@ export default function Fil({
   annonce,
   onReessayer,
   onRefuserAbonnement,
+  quotaEpuise,
 }: {
   tours: Tour[];
   annonce: string;
   onReessayer?: (idAnam: string) => void;
   onRefuserAbonnement?: (id: string) => void;
+  /** Story 3.4 (revue F9) : allocation épuisée → aucun « Réessayer » résiduel (un rejeu serait re-coupé). */
+  quotaEpuise?: boolean;
 }) {
   const conteneur = useRef<HTMLDivElement>(null);
   const etaitEnBas = useRef(true);
@@ -61,7 +64,9 @@ export default function Fil({
             key={t.id}
             texte={t.texte}
             etat={t.etat}
-            onReessayer={t.etat === "echec" && onReessayer ? () => onReessayer(t.id) : undefined}
+            onReessayer={
+              t.etat === "echec" && onReessayer && !quotaEpuise ? () => onReessayer(t.id) : undefined
+            }
           />
         ) : t.role === "ressource" ? (
           <BlocRessources key={t.id} ressources={t.ressources} verifieLe={t.verifieLe} />

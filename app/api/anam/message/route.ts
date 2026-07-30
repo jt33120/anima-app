@@ -6,6 +6,7 @@ import { ENTETES_ART9 } from "@/lib/ai/entetes-art9";
 import { extraireMessages } from "@/lib/ai/valider-messages";
 import { modelePour, tierPour } from "@/lib/ai/politique-tier";
 import { metrerUsageIa, resoudreMetrage, type EtatFlux, type FinFlux } from "@/lib/ai/metrage";
+import { jetonTourValide } from "@/lib/ai/jeton-tour";
 import { ligneNdjson } from "@/lib/ai/flux-ndjson";
 import { evaluerSecuriteDuTour, type ResultatSecurite } from "@/lib/safety/pipeline";
 import { journaliserAuditDetresse } from "@/lib/safety/journaliser-audit";
@@ -14,14 +15,17 @@ import { consigneReponse } from "@/lib/safety/consigne-detresse";
 import { blocRessourcesDetresse } from "@/lib/safety/bloc-ressources-detresse";
 import { verifieLeLibelle } from "@/lib/safety/ressources-aide";
 import { creerDepotSeance } from "@/lib/data/depot-seance";
-import { avancerArc, SIGNAUX_NEUTRES } from "@/lib/domain/arc-seance";
+import { avancerArc, SIGNAUX_NEUTRES, type EtatArc } from "@/lib/domain/arc-seance";
 import { requeteExtractionArc, extraireSignauxArc } from "@/lib/domain/signaux-arc";
 import { consignePhaseArc } from "@/lib/domain/consigne-phase";
 import { consigneVoixAnam } from "@/lib/domain/consigne-voix";
 import { consigneBilan } from "@/lib/domain/consigne-bilan";
 import { structurerBilan } from "@/lib/domain/bilan";
 import { doitProposerAbonnement } from "@/lib/domain/proposer-abonnement";
+import { doitCouperConversation } from "@/lib/domain/allocation-residuelle";
 import { estPremiumCourante } from "@/lib/data/lire-abonnement";
+import { compterToursResiduelsDuMois } from "@/lib/data/lire-allocation";
+import { limiteAllocationResiduelle } from "@/lib/ai/allocation-config";
 import { absorberDelta, etatTroncatureInitial } from "@/lib/domain/voix-anam";
 import type { AiPort, CapaciteIa, MessageIa, NiveauSecurite, RequeteIa, TierIa } from "@/lib/ai/port";
 
@@ -70,7 +74,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const cleIdempotence = crypto.randomUUID(); // clé SERVEUR par requête : audit ET métrage (revue 2.1)
+  // Clé d'idempotence du tour LOGIQUE (Story 3.4, AC1) : le JETON CLIENT stable d'abord (réutilisé au
+  // « Réessayer » → un retry ne recompte ni tokens ni allocation), l'UUID SERVEUR en repli si le jeton
+  // est absent/mal formé. Scopée à l'utilisatrice par l'index unique `usage_ia` → un spoof ne
+  // collisionne que SON propre métrage (revue 2.1). Sert aussi les clés dérivées `:arc`/`:bilan`.
+  const cleIdempotence =
+    jetonTourValide((corps as { jetonTour?: unknown } | null)?.jetonTour) ?? crypto.randomUUID();
 
   // ── PIPELINE SÉCURITÉ-D'ABORD (Story 2.3, AD-16) ──────────────────────────────────────────────
   // La DÉTECTION de détresse (modèle FORT, sous egress) s'exécute AVANT toute génération et arbitre
@@ -123,39 +132,118 @@ export async function POST(request: NextRequest) {
   // machine d'arc ne recule pas de clore/nommer → ce gate est EXPLICITE ici, réévalué à chaque tour.
   const clotureAutorisee = niveauSecurite === 0 && !securite.limitesLevees;
 
-  // ── ÉTAGE ARC DE SÉANCE (Story 2.7, AD-16 : APRÈS la sécurité ; AD-1 : machine PURE) ───────────
-  // Charge la trace → extrait les signaux (modèle FORT, passe SÉPARÉE sous egress art. 9, D1) → la
-  // machine pure fait avancer l'arc → réécrit la trace. Le niveau de détresse est LU du verdict
-  // (jamais re-détecté — une seule horloge, AD-16/AD-17). L'arc ne plante JAMAIS le tour (repli sûr).
+  // Trace de séance chargée UNE fois (Story 2.7) — sert au GATE d'allocation (3.4) PUIS à l'étage arc
+  // (une seule lecture, jamais deux). `charger` LÈVE sur panne (jamais un état initial qu'un `ecrire`
+  // écraserait, 2.7) → repli : arc null ET gate d'allocation neutralisé (seanceClose=false).
   const depotSeance = creerDepotSeance(user.id);
+  let etatArcCharge: EtatArc | null = null;
+  try {
+    etatArcCharge = await depotSeance.charger();
+  } catch (e) {
+    console.error("anam/message : trace de séance illisible (repli)", { nom: e instanceof Error ? e.name : "inconnu" });
+    etatArcCharge = null;
+  }
+  // `seanceClose` = la 1ʳᵉ séance est-elle DÉJÀ close À L'ENTRÉE de ce tour ? (`finProposee` latché, lu
+  // AVANT `avancerArc`). Le tour qui LIVRE le bilan entre `false` → il reste gratuit (non décompté,
+  // FR-059/AC2) ; les tours SUIVANTS entrent `true` → post-séance, soumis à l'allocation résiduelle.
+  const seanceClose = etatArcCharge?.finProposee ?? false;
+
+  // ── GATE ALLOCATION RÉSIDUELLE (Story 3.4, AC2/AC4/AC5/AC6) ────────────────────────────────────
+  // APRÈS la sécurité (la détresse lève TOUTE limite via `limites_levees`, AC6/FR-043) et AVANT
+  // l'extraction FORT + la génération (un tour coupé ne dépense AUCUN appel modèle, ne métré RIEN).
+  // Court-circuité si premium (AC5). Direction du DOUTE : l'ACCÈS — toute panne (lecture premium,
+  // comptage) → on ne coupe pas (FR-058, « jamais coupé à zéro »). Décision = dérivation UNIQUE.
+  //
+  // `tourAllocationResiduelle` : ce tour TIRE-t-il réellement sur l'allocation gratuite ? (non premium,
+  // post-séance, hors détresse). Sert de marque de métrage `post_premiere_seance` (revue 3.4, F10) : un
+  // tour PREMIUM (illimité, AC5) ou de DÉTRESSE (gate non entré) ne doit JAMAIS polluer le décompte —
+  // sinon un downgrade premium→gratuit en cours de mois recompterait rétroactivement des tours illimités.
+  let tourAllocationResiduelle = false;
+  if (!securite.limitesLevees && seanceClose) {
+    let premiumConv = true; // défaut PRUDENT : lecture en échec → premium → aucune coupure (fail-open)
+    try {
+      premiumConv = await estPremiumCourante();
+    } catch (e) {
+      console.error("anam/message : lecture premium (quota) en repli — pas de coupure", { nom: e instanceof Error ? e.name : "inconnu" });
+      premiumConv = true;
+    }
+    if (!premiumConv) {
+      tourAllocationResiduelle = true; // non premium + post-séance + hors détresse → décompte réel
+      let couper = false;
+      try {
+        // Exclut la PROPRE ligne du tour LOGIQUE courant (même `cleIdempotence`) : au « Réessayer », la
+        // ligne écrite par une 1ʳᵉ tentative avortée ne doit pas murer la retentative (revue 3.4, F4/F5 —
+        // le gate devient idempotent par tour logique, comme le métrage ; FR-058 renforcé).
+        const toursConsommes = await compterToursResiduelsDuMois(user.id, cleIdempotence);
+        couper = doitCouperConversation({
+          premium: premiumConv,
+          limitesLevees: securite.limitesLevees,
+          seanceClose,
+          toursConsommes,
+          limite: limiteAllocationResiduelle(),
+        });
+      } catch (e) {
+        console.error("anam/message : comptage allocation en repli — pas de coupure", { nom: e instanceof Error ? e.name : "inconnu" });
+        couper = false; // le doute ne coupe jamais (FR-058)
+      }
+      if (couper) {
+        // Allocation épuisée : le flux ne porte QUE la trame `quota` (aucune génération, aucun appel
+        // FORT, aucune ligne `usage_ia`). Ce n'est PAS un paywall — le client rend une ligne système +
+        // désactive le composeur, jamais « Passe au premium » (AC4). Le socle reste entièrement ouvert.
+        const corpsQuota = new ReadableStream<Uint8Array>({
+          start(controller) {
+            try {
+              controller.enqueue(new TextEncoder().encode(ligneNdjson({ t: "quota" })));
+            } catch {
+              /* client déjà parti */
+            }
+            try {
+              controller.close();
+            } catch {
+              /* déjà fermé */
+            }
+          },
+        });
+        return new Response(corpsQuota, {
+          headers: { ...ENTETES_ART9, "Content-Type": "application/x-ndjson; charset=utf-8" },
+        });
+      }
+    }
+  }
+
+  // ── ÉTAGE ARC DE SÉANCE (Story 2.7, AD-16 : APRÈS la sécurité ; AD-1 : machine PURE) ───────────
+  // Extrait les signaux (modèle FORT, passe SÉPARÉE sous egress art. 9, D1) → la machine pure fait
+  // avancer l'arc → réécrit la trace. Réutilise `etatArcCharge` (partagé avec le gate). Le niveau de
+  // détresse est LU du verdict (jamais re-détecté — une seule horloge, AD-16/AD-17). Ne plante JAMAIS.
   let arc: ReturnType<typeof avancerArc> | null = null;
   let usageExtractionArc: { tier: TierIa; modele: string; tokensEntree: number; tokensSortie: number } | null = null;
-  try {
-    const etatArc = await depotSeance.charger();
-    const extraction = await envoyerSousEgressArt9({
-      supabase,
-      adaptateur,
-      requete: requeteExtractionArc(messages),
-    });
-    let signaux = SIGNAUX_NEUTRES; // egress bloqué (rare, race) → aucun signal : l'arc n'avance pas
-    if (!extraction.bloque) {
-      const dernierTourUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
-      signaux = extraireSignauxArc(extraction.reponse.texte, dernierTourUser);
-      // L'extraction d'arc EST métrée (produit — FR-043 n'exempte QUE la détresse) : clé DISTINCTE.
-      const u = extraction.reponse.usage;
-      usageExtractionArc = {
-        tier: extraction.reponse.tier,
-        modele: extraction.reponse.modele,
-        tokensEntree: u.tokensEntree,
-        tokensSortie: u.tokensSortie,
-      };
+  if (etatArcCharge) {
+    try {
+      const extraction = await envoyerSousEgressArt9({
+        supabase,
+        adaptateur,
+        requete: requeteExtractionArc(messages),
+      });
+      let signaux = SIGNAUX_NEUTRES; // egress bloqué (rare, race) → aucun signal : l'arc n'avance pas
+      if (!extraction.bloque) {
+        const dernierTourUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+        signaux = extraireSignauxArc(extraction.reponse.texte, dernierTourUser);
+        // L'extraction d'arc EST métrée (produit — FR-043 n'exempte QUE la détresse) : clé DISTINCTE.
+        const u = extraction.reponse.usage;
+        usageExtractionArc = {
+          tier: extraction.reponse.tier,
+          modele: extraction.reponse.modele,
+          tokensEntree: u.tokensEntree,
+          tokensSortie: u.tokensSortie,
+        };
+      }
+      arc = avancerArc(etatArcCharge, signaux, niveauSecurite, Date.now());
+      await depotSeance.ecrire(arc.etat);
+    } catch (e) {
+      // L'arc ne quitte jamais le tour : en repli, on génère sans consigne de phase (Anam répond).
+      console.error("anam/message : étage arc en repli", { nom: e instanceof Error ? e.name : "inconnu" });
+      arc = null;
     }
-    arc = avancerArc(etatArc, signaux, niveauSecurite, Date.now());
-    await depotSeance.ecrire(arc.etat);
-  } catch (e) {
-    // L'arc ne quitte jamais le tour : en repli, on génère sans consigne de phase (Anam répond).
-    console.error("anam/message : étage arc en repli", { nom: e instanceof Error ? e.name : "inconnu" });
-    arc = null;
   }
   // Le beat remonte de la machine (2.7 « nommer », 2.9 « cloture »). Le beat « cloture » est SUPPRIMÉ
   // en détresse (la séance cesse d'être une séance, AC5) ; le beat « nommer » ne peut pas y survenir
@@ -384,8 +472,14 @@ export async function POST(request: NextRequest) {
   // rien n'a été produit (pas de ligne fantôme). `metrerUsageIa` ne lève jamais.
   after(async () => {
     const usage = resoudreMetrage(etat);
-    if (usage) await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence, ...usage });
-    // Story 2.9 : le bilan de clôture (passe fort séparée) est métré à part — clé distincte, jamais exempté.
+    // Story 3.4 (revue F10) : la ligne PRINCIPALE est marquée `post_premiere_seance` UNIQUEMENT si ce
+    // tour a réellement tiré sur l'allocation gratuite (`tourAllocationResiduelle` : non premium,
+    // post-séance, hors détresse). Un tour premium/détresse reste `false` → aucun résidu ne pollue le
+    // comptage (un downgrade premium→gratuit ne recompte pas des tours illimités). Le tour de clôture
+    // reste `false` (gate non entré : seanceClose=false à l'entrée) → gratuit (FR-059/AC2).
+    if (usage) await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence, ...usage, postPremiereSeance: tourAllocationResiduelle });
+    // Story 2.9 : le bilan de clôture (passe fort séparée) est métré à part — clé distincte, jamais
+    // exempté ; `postPremiereSeance` reste false (sous-coût, pas un « tour » d'allocation, 3.4).
     if (usageBilan) await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence: `${cleIdempotence}:bilan`, ...usageBilan });
   });
 

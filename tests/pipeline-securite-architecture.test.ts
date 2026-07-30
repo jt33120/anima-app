@@ -125,6 +125,26 @@ describe("Story 2.4 — épisode de détresse : invariants d'architecture (AD-17
   });
 });
 
+describe("Story 2-4b — idempotence de l'extinction au retry : câblage serveur (F4, AD-16/AD-17)", () => {
+  it("la route passe le MÊME jeton `cleIdempotence` (clé partagée journal/métrage/audit) à creerDepotEpisode", () => {
+    const src = lire(ROUTE);
+    // LA JOINTURE qui rend l'idempotence 2-4b RÉELLE : l'épisode DOIT recevoir la clé de tour STABLE
+    // (celle du journal 4.1 et du métrage 3.4), jamais un UUID frais ni une clé DÉRIVÉE (`:episode`,
+    // comme `:arc`/`:bilan`). Une régression en `crypto.randomUUID()` / clé dérivée réintroduirait F4
+    // (extinction prématurée au « Réessayer ») AVEC TOUTE LA SUITE VERTE — d'où cette garde de source
+    // (revue 2-4b, F1 ; même patron que journal-route.test.ts et gate-quota.test.ts).
+    expect(src, "creerDepotEpisode reçoit user.id + cleIdempotence (pas un UUID frais ni une clé dérivée)").toMatch(
+      /creerDepotEpisode\(\s*user\.id\s*,\s*cleIdempotence\s*\)/,
+    );
+  });
+
+  it("le dépôt d'épisode transmet la clé à la RPC comme `p_cle_tour` (idempotence de bout en bout)", () => {
+    // Complète la preuve comportementale de depot-episode.test.ts par une garde structurelle : la clé
+    // baquée à la construction est bien câblée sur l'argument d'idempotence de la RPC possédée.
+    expect(lire(DEPOT_EPISODE)).toMatch(/p_cle_tour:\s*cleTour/);
+  });
+});
+
 const MODELE_RESSOURCES = resolve(racine, "lib/safety/ressources-aide.ts");
 const AIDE_PAGE = resolve(racine, "app/aide/page.tsx");
 const GARDE_COMMERCIALE = resolve(racine, "app/_commerce/GardeCommerciale.tsx");

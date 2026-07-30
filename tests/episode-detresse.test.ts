@@ -25,12 +25,14 @@ const clientScope = () =>
 const FENETRE_S = FENETRE_POST_EPISODE_MS / 1000;
 const t = Date.now();
 
-/** Un tour classé, via la fonction possédée (service_role). Retourne `limites_levees` après le tour. */
+/** Un tour classé, via la fonction possédée (service_role). Retourne `limites_levees` après le tour.
+ *  `cle` = jeton de tour LOGIQUE (idempotence, Story 2-4b) : défaut = UUID FRAIS par appel → chaque
+ *  `tour(...)` est un tour logique DISTINCT (sémantique 2.4 préservée). Un rejeu passe la MÊME clé. */
 async function tour(
   db: SupabaseClient,
   cible: string,
   niveau: number,
-  opts: { seuil?: number; dureeMinS?: number; fenetreS?: number } = {},
+  opts: { seuil?: number; dureeMinS?: number; fenetreS?: number; cle?: string } = {},
 ) {
   return db.rpc("enregistrer_tour_detresse", {
     cible,
@@ -38,6 +40,7 @@ async function tour(
     p_seuil_tours: opts.seuil ?? 2,
     p_duree_min_s: opts.dureeMinS ?? 0,
     p_fenetre_s: opts.fenetreS ?? FENETRE_S,
+    p_cle_tour: opts.cle ?? crypto.randomUUID(),
   });
 }
 
@@ -232,6 +235,97 @@ describe("episode_detresse — entité possédée, deny-by-default, transition g
       .single();
     // La rehausse a bien avancé l'horloge au-delà de l'ouverture.
     expect(new Date(ep!.dernier_niveau_eleve_le).getTime()).toBeGreaterThanOrEqual(new Date(ep!.debut).getTime());
+  });
+
+  // ── Story 2-4b (F4) : idempotence au RETRY — le rejeu d'un tour logique ne rapproche pas l'extinction ─
+  it("F4/AC1 — un RETRY du même tour sûr (même clé) NE re-compte PAS (idempotence, AD-17)", async () => {
+    await tour(admin, u.id, 2, { seuil: 3 }); // ouvre (clé fraîche)
+    const k = crypto.randomUUID();
+    const c1 = await tour(admin, u.id, 0, { seuil: 3, cle: k }); // compte → tours=1
+    expect(c1.data).toBe(true);
+    const rejeu = await tour(admin, u.id, 0, { seuil: 3, cle: k }); // MÊME clé → no-op
+    expect(rejeu.data, "réponse identique au 1ᵉʳ appel : encore ouvert").toBe(true);
+    const { data: ep } = await admin
+      .from("episode_detresse")
+      .select("tours_surs_consecutifs, fin")
+      .eq("utilisatrice_id", u.id)
+      .single();
+    expect(ep!.tours_surs_consecutifs, "le rejeu du même tour ne double-compte pas").toBe(1);
+    expect(ep!.fin).toBeNull();
+  });
+
+  it("F4/AC2 — au bord de l'extinction, un RETRY seul n'éteint PAS ; un tour DISTINCT éteint (AC4)", async () => {
+    await tour(admin, u.id, 2, { seuil: 2, dureeMinS: 0 }); // ouvre
+    const k = crypto.randomUUID();
+    const t1 = await tour(admin, u.id, 0, { seuil: 2, dureeMinS: 0, cle: k }); // tours=1 (= seuil−1)
+    expect(t1.data).toBe(true);
+    const retry = await tour(admin, u.id, 0, { seuil: 2, dureeMinS: 0, cle: k }); // MÊME clé → no-op
+    expect(retry.data, "le retry ne pousse pas au seuil").toBe(true);
+    const { data: mid } = await admin
+      .from("episode_detresse")
+      .select("tours_surs_consecutifs, fin")
+      .eq("utilisatrice_id", u.id)
+      .single();
+    expect(mid!.tours_surs_consecutifs).toBe(1);
+    expect(mid!.fin, "pas d'extinction prématurée au retry").toBeNull();
+    // Un tour LOGIQUE distinct (clé différente) atteint le seuil → extinction LÉGITIME.
+    const t2 = await tour(admin, u.id, 0, { seuil: 2, dureeMinS: 0 });
+    expect(t2.data, "un nouveau tour sûr distinct éteint au seuil réel").toBe(false);
+  });
+
+  it("F4/AC3 — l'ESCALADE n'est JAMAIS court-circuitée : même clé mais niveau ≥ 1 rehausse quand même (AD-15)", async () => {
+    await tour(admin, u.id, 1, { seuil: 3 }); // ouvre niveau 1 (clé fraîche)
+    const k = crypto.randomUUID();
+    await tour(admin, u.id, 0, { seuil: 3, cle: k }); // compte sous k → tours=1, dernier_tour_compte=k
+    // Rejeu du MÊME tour logique mais le modèle classe cette fois niveau 3 (non-déterminisme).
+    const escalade = await tour(admin, u.id, 3, { seuil: 3, cle: k });
+    expect(escalade.data).toBe(true);
+    const { data: ep } = await admin
+      .from("episode_detresse")
+      .select("niveau_max, tours_surs_consecutifs, fin")
+      .eq("utilisatrice_id", u.id)
+      .single();
+    expect(ep!.niveau_max, "l'escalade monte niveau_max même sous une clé déjà vue").toBe(3);
+    expect(ep!.tours_surs_consecutifs, "l'escalade remet le compteur à 0").toBe(0);
+    expect(ep!.fin).toBeNull();
+  });
+
+  it("F4/AC4 — deux tours sûrs DISTINCTS (clés ≠) comptent bien deux (non-régression du comptage)", async () => {
+    await tour(admin, u.id, 2, { seuil: 5 }); // ouvre, seuil haut → pas d'extinction ici
+    await tour(admin, u.id, 0, { seuil: 5 }); // tours=1 (clé fraîche)
+    await tour(admin, u.id, 0, { seuil: 5 }); // tours=2 (clé fraîche)
+    const { data: ep } = await admin
+      .from("episode_detresse")
+      .select("tours_surs_consecutifs")
+      .eq("utilisatrice_id", u.id)
+      .single();
+    expect(ep!.tours_surs_consecutifs, "deux tours logiques distincts = deux incréments").toBe(2);
+  });
+
+  it("F4/rejeu du TOUR D'EXTINCTION lui-même → false, ne ressuscite pas, ne re-compte pas (revue 2-4b F3)", async () => {
+    // Le rejeu du tour ÉTEIGNANT (500 après la RPC réussie, 4.1) est idempotent par `fin IS NULL`, pas par
+    // la clé : l'épisode clos n'est plus re-sélectionné (`where fin is null`) → `not found` → return false.
+    await tour(admin, u.id, 2, { seuil: 2, dureeMinS: 0 }); // ouvre
+    await tour(admin, u.id, 0, { seuil: 2, dureeMinS: 0 }); // tours=1 (clé fraîche)
+    const kExt = crypto.randomUUID();
+    const ext = await tour(admin, u.id, 0, { seuil: 2, dureeMinS: 0, cle: kExt }); // tours=2 ≥ seuil → éteint
+    expect(ext.data).toBe(false);
+    const { data: apres } = await admin
+      .from("episode_detresse")
+      .select("fin, tours_surs_consecutifs")
+      .eq("utilisatrice_id", u.id)
+      .single();
+    expect(apres!.fin).not.toBeNull();
+    // Rejeu du MÊME tour d'extinction (même clé) : cohérent (false), aucune résurrection, aucun re-comptage.
+    const rejeu = await tour(admin, u.id, 0, { seuil: 2, dureeMinS: 0, cle: kExt });
+    expect(rejeu.data, "le rejeu du tour d'extinction reste false (cohérent avec le 1ᵉʳ appel)").toBe(false);
+    const { data: fin2 } = await admin
+      .from("episode_detresse")
+      .select("fin, tours_surs_consecutifs")
+      .eq("utilisatrice_id", u.id)
+      .single();
+    expect(fin2!.fin, "pas de résurrection ni de re-fermeture : fin inchangé").toBe(apres!.fin);
+    expect(fin2!.tours_surs_consecutifs, "aucun re-comptage sur un épisode clos").toBe(apres!.tours_surs_consecutifs);
   });
 
   it("réservée à service_role : une session cliente ne peut pas appeler enregistrer_tour_detresse", async () => {

@@ -24,7 +24,14 @@ const P_SEUIL_TOURS = SEUIL_TOURS_SURS;
 const P_DUREE_MIN_S = Math.round(DUREE_MIN_EPISODE_MS / 1000);
 const P_FENETRE_S = Math.round(FENETRE_POST_EPISODE_MS / 1000);
 
-export function creerDepotEpisode(utilisatriceId: string): DepotEpisode {
+/**
+ * `cleTour` = jeton de tour LOGIQUE (`cleIdempotence`, 3.4), baqué à la construction (patron
+ * `emettreAudit`/`creerDepotJournal` de la route). Rend `enregistrer_tour_detresse` idempotente au
+ * « Réessayer » (Story 2-4b) : un rejeu du même tour SÛR ne re-compte pas → jamais d'extinction
+ * prématurée (AD-16/AD-17). L'interface `DepotEpisode` du pipeline reste inchangée — l'idempotence est
+ * un détail de la couche data (AD-1).
+ */
+export function creerDepotEpisode(utilisatriceId: string, cleTour: string): DepotEpisode {
   return {
     // Repli : suppose ouvert → force le fort (le doute protège). MÊME lecture que la garde de
     // montage commerciale (source unique `episode-lecture`, jamais deux dérivations divergentes).
@@ -40,6 +47,7 @@ export function creerDepotEpisode(utilisatriceId: string): DepotEpisode {
           p_seuil_tours: P_SEUIL_TOURS,
           p_duree_min_s: P_DUREE_MIN_S,
           p_fenetre_s: P_FENETRE_S,
+          p_cle_tour: cleTour, // idempotence au retry (2-4b) : rejeu du même tour sûr → no-op
         },
         (data) => ({ limitesLevees: data === true }),
         { limitesLevees: true },

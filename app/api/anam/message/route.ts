@@ -82,10 +82,13 @@ export async function POST(request: NextRequest) {
   // dérivées `:arc`/`:bilan` ET le journal brut (4.1).
   const jetonValide = jetonTourValide((corps as { jetonTour?: unknown } | null)?.jetonTour);
   if (!jetonValide) {
-    // Repli NON idempotent au retry (revue 4.1) : un tour sans jeton canonique peut dupliquer sa ligne
-    // journal (contenu art. 9 permanent). Le client envoie TOUJOURS le jeton → on rend le chemin dégradé
-    // MESURABLE (jamais d'art. 9 ni de jeton en clair : un simple drapeau, patron NFR-022).
-    console.warn("anam/message : jeton de tour absent/mal formé — repli UUID serveur (idempotence de retry perdue, doublon journal possible)");
+    // Repli NON idempotent au retry (revue 4.1/2-4b) : sans jeton canonique, une clé FRAÎCHE est générée
+    // par tentative → au « Réessayer » (1) le journal (4.1) peut dupliquer sa ligne (contenu art. 9
+    // permanent) ET (2) l'ÉPISODE de détresse (2-4b) peut RE-COMPTER un tour sûr → extinction prématurée
+    // possible (AD-16/AD-17). Résidu SYSTÉMIQUE partagé (métrage 2.1 / journal 4.1 / épisode 2-4b) : sur le
+    // chemin nominal le client réutilise TOUJOURS son jeton stable → l'idempotence tient. On rend le chemin
+    // dégradé MESURABLE (jamais d'art. 9 ni de jeton en clair : un simple drapeau, patron NFR-022).
+    console.warn("anam/message : jeton de tour absent/mal formé — repli UUID serveur (idempotence de retry perdue : doublon journal ET re-comptage épisode possibles)");
   }
   const cleIdempotence = jetonValide ?? crypto.randomUUID();
 
@@ -104,7 +107,9 @@ export async function POST(request: NextRequest) {
         emettreAudit: (a) => journaliserAuditDetresse({ utilisatriceId: user.id, cleIdempotence, ...a }),
         // Story 2.4 : le dépôt RÉEL d'épisode remplace le placeholder. Ouvre/rehausse/compte/éteint
         // `episode_detresse` à chaque tour, et rend `episodeOuvert()` réel (forçage cross-tour).
-        depotEpisode: creerDepotEpisode(user.id),
+        // Story 2-4b : le jeton de tour rend l'enregistrement idempotent au « Réessayer » (un rejeu du
+        // même tour sûr ne rapproche pas l'extinction → jamais de retombée prématurée des limites).
+        depotEpisode: creerDepotEpisode(user.id, cleIdempotence),
       },
       messages,
     );

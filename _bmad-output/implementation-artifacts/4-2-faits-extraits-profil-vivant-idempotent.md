@@ -4,7 +4,7 @@ baseline_commit: 0e40f6f
 
 # Story 4.2: Les faits extraits — profil vivant, idempotent, à l'épreuve des résurrections
 
-Status: review
+Status: done
 
 ## Story
 

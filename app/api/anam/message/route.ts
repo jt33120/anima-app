@@ -15,6 +15,7 @@ import { consigneReponse } from "@/lib/safety/consigne-detresse";
 import { blocRessourcesDetresse } from "@/lib/safety/bloc-ressources-detresse";
 import { verifieLeLibelle } from "@/lib/safety/ressources-aide";
 import { creerDepotSeance } from "@/lib/data/depot-seance";
+import { creerDepotJournal } from "@/lib/data/depot-journal";
 import { avancerArc, SIGNAUX_NEUTRES, type EtatArc } from "@/lib/domain/arc-seance";
 import { requeteExtractionArc, extraireSignauxArc } from "@/lib/domain/signaux-arc";
 import { consignePhaseArc } from "@/lib/domain/consigne-phase";
@@ -75,11 +76,18 @@ export async function POST(request: NextRequest) {
   }
 
   // Clé d'idempotence du tour LOGIQUE (Story 3.4, AC1) : le JETON CLIENT stable d'abord (réutilisé au
-  // « Réessayer » → un retry ne recompte ni tokens ni allocation), l'UUID SERVEUR en repli si le jeton
-  // est absent/mal formé. Scopée à l'utilisatrice par l'index unique `usage_ia` → un spoof ne
-  // collisionne que SON propre métrage (revue 2.1). Sert aussi les clés dérivées `:arc`/`:bilan`.
-  const cleIdempotence =
-    jetonTourValide((corps as { jetonTour?: unknown } | null)?.jetonTour) ?? crypto.randomUUID();
+  // « Réessayer » → un retry ne recompte ni tokens ni allocation, et grave UNE seule entrée journal
+  // 4.1), l'UUID SERVEUR en repli si le jeton est absent/mal formé. Scopée à l'utilisatrice par l'index
+  // unique `usage_ia` → un spoof ne collisionne que SON propre métrage (revue 2.1). Sert aussi les clés
+  // dérivées `:arc`/`:bilan` ET le journal brut (4.1).
+  const jetonValide = jetonTourValide((corps as { jetonTour?: unknown } | null)?.jetonTour);
+  if (!jetonValide) {
+    // Repli NON idempotent au retry (revue 4.1) : un tour sans jeton canonique peut dupliquer sa ligne
+    // journal (contenu art. 9 permanent). Le client envoie TOUJOURS le jeton → on rend le chemin dégradé
+    // MESURABLE (jamais d'art. 9 ni de jeton en clair : un simple drapeau, patron NFR-022).
+    console.warn("anam/message : jeton de tour absent/mal formé — repli UUID serveur (idempotence de retry perdue, doublon journal possible)");
+  }
+  const cleIdempotence = jetonValide ?? crypto.randomUUID();
 
   // ── PIPELINE SÉCURITÉ-D'ABORD (Story 2.3, AD-16) ──────────────────────────────────────────────
   // La DÉTECTION de détresse (modèle FORT, sous egress) s'exécute AVANT toute génération et arbitre
@@ -114,6 +122,30 @@ export async function POST(request: NextRequest) {
       { code: `egress_bloque_${securite.raison}`, message: "Envoi bloqué (consentement / ZDR / barrière)." },
       { status: 403, headers: ENTETES_ART9 },
     );
+  }
+
+  // ── JOURNAL BRUT (Story 4.1, AD-8 couche 1, NFR-017) ──────────────────────────────────────────
+  // Grave le VERBATIM du tour AVANT toute génération et INDÉPENDAMMENT de son issue (échec modèle,
+  // coupure de quota 3.4, détresse) : « capture indépendante du traitement ». Placé APRÈS la garde
+  // `securite.bloque` (un tour mineur/ZDR/consentement révoqué n'est JAMAIS journalisé) et AVANT le
+  // gate d'allocation. Idempotent par le JETON DE TOUR (même clé que le métrage) → réémission au
+  // retour réseau / « Réessayer » = UNE entrée. Échec → 500 : on ne diffuse pas un tour qu'on n'a pas
+  // pu graver ; le client garde le message + « Réessayer » (2.2), la retentative est idempotente.
+  const dernierMessage = messages[messages.length - 1];
+  if (dernierMessage?.role === "user") {
+    try {
+      await creerDepotJournal(user.id).consigner({
+        cleTour: cleIdempotence,
+        role: "utilisatrice",
+        contenu: dernierMessage.content,
+      });
+    } catch (e) {
+      console.error("anam/message : journal brut illisible (tour non gravé)", { nom: e instanceof Error ? e.name : "inconnu" });
+      return NextResponse.json(
+        { code: "erreur_serveur", message: "Service indisponible, réessaie." },
+        { status: 500, headers: ENTETES_ART9 },
+      );
+    }
   }
 
   // FR-037 — le VETO : le futur travail de schéma/reconceptualisation (Epic 4) devra consulter

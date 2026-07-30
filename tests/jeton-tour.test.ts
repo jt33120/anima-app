@@ -55,9 +55,11 @@ const conversation = sansCommentaires(readFileSync(resolve(racine, "render/conve
 describe("Story 3.4 (T1) — la route dérive la clé d'idempotence du JETON CLIENT (AC1)", () => {
   it("la clé d'idempotence PROVIENT du jeton client validé, avec repli sur l'UUID serveur", () => {
     expect(route, "la route valide le jeton client").toMatch(/jetonTourValide/);
-    // `cleIdempotence = jetonTourValide(...) ?? crypto.randomUUID()` : le jeton client d'ABORD, l'UUID
-    // serveur en repli. Un `randomUUID()` INCONDITIONNEL (sans `??` en aval d'un jeton) échouerait.
-    expect(route).toMatch(/cleIdempotence\s*=\s*jetonTourValide\([\s\S]{0,80}?\)\s*\?\?\s*crypto\.randomUUID\(\)/);
+    // `jetonValide = jetonTourValide(...)` puis `cleIdempotence = jetonValide ?? crypto.randomUUID()` :
+    // le jeton client d'ABORD, l'UUID serveur en repli (scindé en 4.1 pour tracer le repli, revue F5). Un
+    // `randomUUID()` INCONDITIONNEL (sans `??` en aval d'un jeton) échouerait.
+    expect(route).toMatch(/jetonValide\s*=\s*jetonTourValide\(/);
+    expect(route).toMatch(/cleIdempotence\s*=\s*jetonValide\s*\?\?\s*crypto\.randomUUID\(\)/);
   });
   it("le jeton n'est PAS de l'art. 9 : aucune donnée sensible ne rejoint `usage_ia` par ce biais", () => {
     // Le jeton est un UUID opaque ; il ne transporte aucun contenu. La colonne d'idempotence reste

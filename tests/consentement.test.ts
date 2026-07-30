@@ -150,19 +150,23 @@ describe("Refus → suppression immédiate du compte (AC6)", () => {
   });
 });
 
-describe("Frontière art. 9 : le gabarit du write-gate existe, les vraies tables de contenu non (AC7 / AD-4 / FR-072)", () => {
-  // Le write-gate art. 9 est désormais posé (Story 1.6) : le gabarit `art9_temoin` existe et est
-  // gardé (comportement prouvé dans write-gate-art9.test.ts). Les VRAIES tables de contenu art. 9
-  // (verbatim) n'existent toujours pas — elles arriveront dans leurs epics et copieront la policy du
-  // gabarit. NB : `seance` (Story 2.7) existe désormais mais ne porte AUCUN verbatim (signaux
-  // structurés, server-authoritative deny-by-default, comme `episode_detresse`) → hors de cette liste.
-  const tablesContenu = ["journal", "tirage", "socle"];
+describe("Frontière art. 9 : le gabarit du write-gate + la première table de contenu (AC7 / AD-4 / FR-072)", () => {
+  // Le write-gate art. 9 est posé (Story 1.6) : le gabarit `art9_temoin` existe et est gardé (prouvé
+  // dans write-gate-art9.test.ts). La PREMIÈRE table de contenu VERBATIM — `entree_journal` (Story 4.1) —
+  // existe désormais et copie le gabarit COURANT (append-only, RLS propriétaire sous JWT + write-gate
+  // a_consenti_art9 + not est_barre_minorite + role épinglé ; comportement prouvé dans entree-journal.test.ts).
+  // NB : `seance` (2.7) existe mais ne porte AUCUN verbatim (signaux structurés, server-authoritative) → hors liste.
+  const tablesContenuAVenir = ["tirage", "socle"]; // couches de contenu restantes, pas encore livrées
   it("le gabarit `art9_temoin` existe (sonde vivante du write-gate)", async () => {
     const { error } = await admin.from("art9_temoin").select("*").limit(1);
     expect(error).toBeNull();
   });
-  it("aucune VRAIE table de contenu art. 9 n'existe encore", async () => {
-    for (const table of tablesContenu) {
+  it("la première table de contenu art. 9 `entree_journal` existe désormais (Story 4.1)", async () => {
+    const { error } = await admin.from("entree_journal").select("*").limit(1);
+    expect(error).toBeNull();
+  });
+  it("les couches de contenu art. 9 restantes n'existent pas encore", async () => {
+    for (const table of tablesContenuAVenir) {
       const { error } = await admin.from(table).select("*").limit(1);
       expect(error, `la table de contenu art. 9 « ${table} » ne devrait pas exister avant son epic`).not.toBeNull();
     }

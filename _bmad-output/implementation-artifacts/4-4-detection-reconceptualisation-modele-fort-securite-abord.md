@@ -4,7 +4,7 @@ baseline_commit: 2018b7d
 
 # Story 4.4: La détection de reconceptualisation — modèle fort, sécurité d'abord
 
-Status: review
+Status: done
 
 ## Story
 

@@ -4,7 +4,7 @@ baseline_commit: af777f8
 
 # Story 2-4b (remédiation) : L'extinction d'un épisode de détresse est idempotente au retry
 
-Status: review
+Status: done
 
 ## Contexte — pourquoi cette story existe
 

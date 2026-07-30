@@ -4,7 +4,7 @@ baseline_commit: cd7f341
 
 # Story 4.3: Le rappel opportun — la franchise par la comparaison
 
-Status: review
+Status: done
 
 ## Story
 

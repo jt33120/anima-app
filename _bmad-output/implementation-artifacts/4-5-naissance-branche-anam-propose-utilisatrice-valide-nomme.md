@@ -4,7 +4,7 @@ baseline_commit: 981d9da9753d924b712036026182a5b395ec2c2d
 
 # Story 4.5: La naissance d'une branche — Anam propose, l'utilisatrice valide et nomme
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

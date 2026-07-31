@@ -7,7 +7,8 @@ import Fil from "./Fil";
 import { useFluxAnam, type MessageEnvoi } from "./useFluxAnam";
 import { insererTour } from "./fil-ops";
 import { LIGNE_QUOTA_EPUISEE } from "./ligne-quota";
-import type { Tour } from "./types";
+import { REPONSE_REFUS, CONFIRME_NAISSANCE, ECHEC_NAISSANCE } from "./copie-proposition";
+import type { Tour, PropositionBrancheData } from "./types";
 import s from "./conversation.module.css";
 
 /**
@@ -30,8 +31,29 @@ const nouvelId = () => `t${++compteur}`;
 // Registre SYSTÈME (jamais signé Anam) — même texte que le tour en échec, pour l'annonce a11y.
 const MESSAGE_ECHEC = "Je n’ai pas pu répondre. Ton message est gardé.";
 
-export default function Conversation({ onPreparation }: { onPreparation?: (prepare: boolean) => void }) {
-  const [tours, setTours] = useState<Tour[]>([]);
+export default function Conversation({
+  onPreparation,
+  propositionBranche,
+}: {
+  onPreparation?: (prepare: boolean) => void;
+  /** Story 4.5 — proposition de branche « le lendemain » (serveur). Amorce le fil au montage si présente. */
+  propositionBranche?: PropositionBrancheData | null;
+}) {
+  // Amorçage au montage (miroir du beat visuel « ouverture ») : si le serveur a trouvé un moment à proposer,
+  // le fil s'ouvre sur le tour de proposition + Oui/Non. Sinon, fil vide (comportement 2.2 inchangé).
+  const [tours, setTours] = useState<Tour[]>(() =>
+    propositionBranche
+      ? [
+          {
+            id: nouvelId(),
+            role: "proposition-branche",
+            signalId: propositionBranche.signalId,
+            phrase: propositionBranche.phrase,
+            etat: "propose",
+          },
+        ]
+      : [],
+  );
   const [annonce, setAnnonce] = useState("");
   // Allocation résiduelle épuisée (3.4, AC4) : le composeur passe désactivé-visible avec un motif.
   // Persistant pour la session (le fil est éphémère ; le mois se réévalue au prochain chargement réel).
@@ -226,6 +248,65 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
     requestAnimationFrame(() => champRef.current?.focus());
   }, []);
 
+  // Story 4.5 — l'état d'un « Nommer » en vol (#12 verrou anti-double-POST ; #3 échec retryable).
+  const [nommage, setNommage] = useState<{ id: string; etat: "envoi" | "echec" } | null>(null);
+
+  // Story 4.5 — Oui/Non sur une proposition de branche. « Oui » ouvre le champ de nommage (etat "nomme") ;
+  // « Non » écarte le germe (jamais rejoué) et remplace la proposition par « Ok. » (AC4).
+  const majEtatProposition = useCallback((id: string, etat: "nomme" | "refuse" | "nee", nom?: string) => {
+    setTours((prev) =>
+      prev.map((t) => (t.id === id && t.role === "proposition-branche" ? { ...t, etat, nom: nom ?? t.nom } : t)),
+    );
+  }, []);
+
+  const repondreProposition = useCallback(
+    (id: string, signalId: string, oui: boolean) => {
+      if (oui) {
+        majEtatProposition(id, "nomme");
+        return; // le focus est posé sur le champ par PropositionBranche (effet au passage en "nomme").
+      }
+      majEtatProposition(id, "refuse");
+      setAnnonce(REPONSE_REFUS); // a11y : « Ok. » annoncé au lecteur d'écran.
+      // #2 (WCAG 2.4.3) : le bouton « Non » vient d'être démonté → redéplacer le focus vers le composeur,
+      // jamais le laisser retomber sur <body> (même convention que reessayer / refuserAbonnement).
+      requestAnimationFrame(() => champRef.current?.focus());
+      // Écriture optimiste : à défaut (réseau/500), le germe reste en attente et pourra être re-proposé (sûr).
+      void fetch("/api/anam/branche", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "refus", signalId }),
+      }).catch(() => {});
+    },
+    [majEtatProposition],
+  );
+
+  // « Nommer » : crée la branche (le nom donné par elle) puis, à confirmation SERVEUR, la marque née (sobre,
+  // sans célébration). #12 : verrou d'envoi (aucun double-POST). #3 : un échec (garde AD-17/consentement/réseau)
+  // n'est JAMAIS silencieux — ligne neutre + annonce, le champ reste (elle peut réessayer) ; jamais un faux « née ».
+  const nommerBranche = useCallback(
+    (id: string, signalId: string, nom: string) => {
+      setNommage({ id, etat: "envoi" });
+      const echoue = () => {
+        setNommage({ id, etat: "echec" });
+        setAnnonce(ECHEC_NAISSANCE);
+      };
+      void fetch("/api/anam/branche", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "creer", signalId, nom }),
+      })
+        .then((r) => {
+          if (!r.ok) return echoue();
+          majEtatProposition(id, "nee", nom);
+          setNommage(null);
+          setAnnonce(CONFIRME_NAISSANCE); // #2 a11y : la naissance est annoncée.
+          requestAnimationFrame(() => champRef.current?.focus()); // #2 focus : jamais sur <body>.
+        })
+        .catch(echoue);
+    },
+    [majEtatProposition],
+  );
+
   return (
     <div className={s.conversation} ref={shell}>
       <ApparitionAnam beat={beat} />
@@ -234,6 +315,9 @@ export default function Conversation({ onPreparation }: { onPreparation?: (prepa
         annonce={annonce}
         onReessayer={reessayer}
         onRefuserAbonnement={refuserAbonnement}
+        onRepondreProposition={repondreProposition}
+        onNommerBranche={nommerBranche}
+        nommage={nommage}
         quotaEpuise={quotaEpuise}
       />
       <Composeur

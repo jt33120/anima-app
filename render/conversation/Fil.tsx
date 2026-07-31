@@ -6,6 +6,7 @@ import TourUtilisatrice from "./TourUtilisatrice";
 import BlocRessources from "./BlocRessources";
 import BlocDocument from "./BlocDocument";
 import CarteAbonnement from "./CarteAbonnement";
+import PropositionBranche from "./PropositionBranche";
 import { estAncreEnBas } from "./composeur-clavier";
 import type { Tour } from "./types";
 import s from "./conversation.module.css";
@@ -27,12 +28,20 @@ export default function Fil({
   annonce,
   onReessayer,
   onRefuserAbonnement,
+  onRepondreProposition,
+  onNommerBranche,
+  nommage,
   quotaEpuise,
 }: {
   tours: Tour[];
   annonce: string;
   onReessayer?: (idAnam: string) => void;
   onRefuserAbonnement?: (id: string) => void;
+  /** Story 4.5 — Oui/Non sur une proposition de branche, et le nommage (le nom donné par elle). */
+  onRepondreProposition?: (id: string, signalId: string, oui: boolean) => void;
+  onNommerBranche?: (id: string, signalId: string, nom: string) => void;
+  /** Story 4.5 — l'état d'un « Nommer » en vol (#12 verrou d'envoi / #3 échec retryable). */
+  nommage?: { id: string; etat: "envoi" | "echec" } | null;
   /** Story 3.4 (revue F9) : allocation épuisée → aucun « Réessayer » résiduel (un rejeu serait re-coupé). */
   quotaEpuise?: boolean;
 }) {
@@ -74,6 +83,18 @@ export default function Fil({
           <BlocDocument key={t.id} titre={t.titre} points={t.points} />
         ) : t.role === "paywall" ? (
           <CarteAbonnement key={t.id} onRefuser={() => onRefuserAbonnement?.(t.id)} />
+        ) : t.role === "proposition-branche" ? (
+          <PropositionBranche
+            key={t.id}
+            phrase={t.phrase}
+            etat={t.etat}
+            nom={t.nom}
+            enCours={nommage?.id === t.id && nommage.etat === "envoi"}
+            echec={nommage?.id === t.id && nommage.etat === "echec"}
+            onOui={() => onRepondreProposition?.(t.id, t.signalId, true)}
+            onNon={() => onRepondreProposition?.(t.id, t.signalId, false)}
+            onNommer={(nom) => onNommerBranche?.(t.id, t.signalId, nom)}
+          />
         ) : (
           <TourUtilisatrice key={t.id} texte={t.texte} />
         ),

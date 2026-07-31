@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
+import { chargerPropositionOuverture } from "@/lib/safety/ouverture-branche";
 import SceneDom from "@/render/scene-dom";
 import { projectionInitiale } from "@/lib/scene";
 
@@ -32,6 +33,9 @@ export default async function Page() {
   if (etape === "revoque") redirect("/consentement/revoque"); // consentement retiré → écran suspendu
 
   // etape === "suite" : le seuil est franchi → la scène (adaptateur DOM/2D, AD-7).
-  // La projection réelle (branches AD-8, lecture DB) arrivera avec l'Epic 4 ; ici, le stub.
-  return <SceneDom projection={projectionInitiale} />;
+  // Story 4.5 : « le lendemain », y a-t-il un moment à proposer en branche ? Lecture sous JWT, repli sûr
+  // (null → aucune proposition ; jamais un 500 qui bloquerait l'ouverture de la scène). Prop générique,
+  // sans art. 9. La projection réelle des branches (arbre, AD-8) reste la Story 4.6 — ici, le stub.
+  const propositionBranche = await chargerPropositionOuverture(supabase);
+  return <SceneDom projection={projectionInitiale} propositionBranche={propositionBranche} />;
 }

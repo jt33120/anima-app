@@ -30,11 +30,14 @@ import {
 import ArbreVivant from "./arbre-vivant";
 import Surimpression from "./surimpression";
 import Conversation from "./conversation/Conversation";
+import type { PropositionBrancheData } from "./conversation/types";
 import s from "./monde.module.css";
 
 export interface ProprietesSceneRendue {
   /** Domain-projection serveur, en lecture seule (AD-7). Le rendu ne l'écrit jamais. */
   projection: ProjectionScene;
+  /** Story 4.5 — proposition de branche « le lendemain » calculée serveur (générique, aucun art. 9), ou null. */
+  propositionBranche?: PropositionBrancheData | null;
 }
 
 /* Étoiles générées côté client APRÈS montage → aucun décalage d'hydratation. */
@@ -88,7 +91,7 @@ const CORPS: Record<IdRegion, string> = {
   arbre: "Ton arbre grandira à mesure que tu avances.",
 };
 
-export default function SceneDom({ projection }: ProprietesSceneRendue) {
+export default function SceneDom({ projection, propositionBranche }: ProprietesSceneRendue) {
   const [etat, dispatch] = useReducer(reducteurVue, etatInitial);
   const region = etat.regionCourante;
   const aller = (cible: IdRegion) => dispatch({ type: "aller", cible });
@@ -188,7 +191,7 @@ export default function SceneDom({ projection }: ProprietesSceneRendue) {
                   {r.nom}
                 </h1>
                 {/* Rendu de la conversation (AD-7 : adaptateur muet, ne parle qu'à app/api). */}
-                <Conversation onPreparation={setAnamPrepare} />
+                <Conversation onPreparation={setAnamPrepare} propositionBranche={propositionBranche} />
               </>
             ) : (
               <div className={s.bloc}>

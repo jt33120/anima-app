@@ -336,3 +336,15 @@
   outline: 2px solid var(--bordure-forte);
   outline-offset: 2px;
 }
+.carteAction:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Story 4.5 — le bloc de nommage d'une branche (champ vide, étiquette visible, sans suggestion). */
+.propositionNommage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  margin: 0;
+}

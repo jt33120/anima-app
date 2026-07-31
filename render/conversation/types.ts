@@ -58,4 +58,28 @@ export type Tour =
    * décision (proposer ou non) est SERVEUR (trame `paywall` retenue en détresse/premium, AD-9). `ancreId`
    * = le tour d'Anam producteur → « Réessayer » purge la carte avec lui (jamais une carte orpheline).
    */
-  | { readonly id: string; readonly role: "paywall"; readonly ancreId: string };
+  | { readonly id: string; readonly role: "paywall"; readonly ancreId: string }
+  /**
+   * La proposition de branche « le lendemain » (Story 4.5). Tour CLIENT amorcé au MONTAGE depuis une prop
+   * serveur (jamais un tour utilisatrice, jamais le pipeline `message`). `signalId` = le germe à consommer /
+   * écarter ; `phrase` = la proposition déterministe d'Anam (générique, aucun art. 9). `etat` porte le petit
+   * cycle local : proposée → (nomme | refuse) → nee. `nom` : une fois née, le nom DONNÉ PAR ELLE (rendu dans
+   * SA police — jamais celle d'Anam : la prise de conscience est la sienne).
+   */
+  | {
+      readonly id: string;
+      readonly role: "proposition-branche";
+      readonly signalId: string;
+      readonly phrase: string;
+      readonly etat: EtatProposition;
+      readonly nom?: string;
+    };
+
+/** Le petit cycle local d'une proposition de branche dans le fil (Story 4.5). */
+export type EtatProposition = "propose" | "nomme" | "refuse" | "nee";
+
+/** La prop serveur→client de la proposition d'ouverture (Story 4.5). Générique : aucun art. 9. */
+export interface PropositionBrancheData {
+  readonly signalId: string;
+  readonly phrase: string;
+}

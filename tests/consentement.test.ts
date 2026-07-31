@@ -184,6 +184,10 @@ describe("Frontière art. 9 : le gabarit du write-gate + la première table de c
     const { error } = await admin.from("signal_reconceptualisation").select("*").limit(1);
     expect(error).toBeNull();
   });
+  it("la troisième couche de contenu art. 9 `branche` existe désormais (Story 4.5)", async () => {
+    const { error } = await admin.from("branche").select("*").limit(1);
+    expect(error).toBeNull();
+  });
   it("les couches de contenu art. 9 restantes n'existent pas encore", async () => {
     for (const table of tablesContenuAVenir) {
       const { error } = await admin.from(table).select("*").limit(1);

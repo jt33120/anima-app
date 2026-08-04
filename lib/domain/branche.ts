@@ -45,9 +45,23 @@ export function phraseProposition({ signalCreeLe, maintenant }: { signalCreeLe: 
 }
 
 /**
- * AC2 [DUR] — miroir applicatif du garde-fou serveur : un nom vide ou fait uniquement d'espaces N'EST PAS un
- * nom. Le doute ne fait naître aucune branche (la vérité atomique reste le CHECK + la policy + la RPC).
+ * AC2 [DUR] — miroir applicatif du garde-fou serveur : un nom fait uniquement de caractères SANS GLYPHE
+ * n'est pas un nom. Le doute ne fait naître aucune branche (la vérité atomique reste le CHECK + la policy).
+ *
+ * R1-bis (revue 4.5, ré-appliqué en 4.6) : cette classe doit rester ÉQUIVALENTE à celle de
+ * `public.branche_nom_significatif` (migration 0023) — ni plus faible (la base laisserait passer ce que
+ * l'app refuse), ni plus stricte (le bouton resterait actif et la RPC lèverait un échec incompréhensible).
+ * `\s` couvre déjà [:space:] + les espaces Unicode ; on y ajoute les invisibles SANS CHASSE, qui ne sont
+ * pas des blancs au sens Unicode mais n'affichent rien : U+00AD (soft hyphen), U+115F/U+1160 (jamo fillers),
+ * U+180E, U+200B–U+200F, U+2060–U+2064, U+2800 (braille blank), U+3164 (hangul filler), U+FEFF (BOM).
  */
+const SANS_GLYPHE = /[\s\u00a0\u00ad\u034f\u061c\u115f-\u1160\u1680\u17b4-\u17b5\u180b-\u180f\u2000-\u200f\u2028-\u2029\u202f\u205f\u2060-\u206f\u2800\u3000\u3164\ufe00-\ufe0f\ufeff\uffa0\ufff9-\ufffb\u{1d173}-\u{1d17a}\u{e0000}-\u{e01ef}]/gu;
+
+/** MIROIR du CHECK `branche_nom_borne` (migration 0023). Sans lui, la base est plus stricte que l'app :
+ *  le bouton reste actif et la RPC lève un échec incompréhensible (asymétrie R1-bis en sens inverse). */
+export const NOM_LONGUEUR_MAX = 300;
+
 export function nomValide(nom: string): boolean {
-  return nom.trim().length > 0;
+  const reste = nom.replace(SANS_GLYPHE, "");
+  return reste.length > 0 && nom.trim().length <= NOM_LONGUEUR_MAX;
 }

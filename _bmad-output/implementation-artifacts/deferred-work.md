@@ -256,3 +256,50 @@ Cadrage PO « câbler le cerveau live » : 4.4 livre le premier cerveau CÂBLÉ 
 
 - **#9 (PLAUSIBLE) — AC1 « jamais sur l'instant » non gardé au point d'écriture.** Le gabarit « le lendemain » (jour civil Paris) ne vit qu'à la LECTURE (`charger_proposition_branche`) ; un `.from("branche").insert()` direct peut créer une branche pour un signal same-day. **Décision PO : NON gardé au write-point par design** — AC1 porte sur le *timing de la proposition* (l'epic), pas sur l'écriture ; un insert direct est l'utilisatrice écrivant sa propre donnée, pas une trahison. Si l'on veut la parité DUR un jour : filtre d'antériorité civile Paris dans `creer_branche_depuis_signal`. [supabase/migrations/0021_branche.sql]
 - **#13 (FAIBLE) — « Non » optimiste avale l'échec réseau.** Si le POST `refus` échoue, le germe reste `en_attente` → re-proposé une autre session. **Décision : trade-off assumé** (la charte §6.3 veut « Ok. » immédiat ; une re-proposition après un échec réseau rare est *sûre*). Si durcissement souhaité : confirmer côté serveur avant de figer « Ok. », ou retry. [render/conversation/Conversation.tsx]
+
+## Story 4.6 — L'arbre (projection muette, fiche, « Voir dans la conversation », renommage, vue liste)
+
+Specs de l'arbre réécrites le 2026-07-31 (**fruit → rayonnement**, arbre de vie) avant cadrage. Périmètre « Voir dans la conversation » = **COMPLET** (décision PO). Portes / différés :
+
+- **🌿 Illumination sémantique — PARQUÉE, décision Sanela.** Idée (Julian, 2026-07-31) : les **racines** s'illuminent pour l'**ancrage**, les **branches** pour la **perspective/liberté** — « encore plus de significations » dans l'arbre. **Risque soul-of-product** : si le **système** classe les prises de conscience, le produit **catalogue** sa vie intérieure (FR-018 « jamais une signification cataloguée », FR-025, charte « rien ne trahit »). Viable **seulement si c'est ELLE** qui choisit la catégorie (au prix d'une friction sur le champ de nommage vide, UX-DR-27). **Additif** sur `BrancheProjetee` (un `categorie` choisi par elle) → **ne bloque pas 4.6**. À trancher avec Sanela ; si retenu = petite story additive. [lib/scene/projection.ts]
+- **⚠️ Chevauchement Epic 5 (lecture-journal).** Le « Voir dans la conversation » COMPLET lit l'**échange source persisté** (`charger_echange_source`, rejeu du fil) — adjacent à la lecture-journal que 0016 range en Epic 5. Viser une lecture **minimale et réutilisable**, pas un moteur de journal complet (à vérifier en revue). [supabase/migrations/0016_entree_journal.sql]
+- **Tronc `incomplet`/`complet` (FR-051) — différé Epic 5.** Le tronc dépend du **socle calculé** (thème natal / heure de naissance), absent avant Epic 5. 4.6 rend `tronc.present` ; l'état incomplet/complet vient avec le socle. [lib/scene/projection.ts]
+- **Greffe du beau moteur Canvas — itération parallèle.** L'asset `images/assets/design_handoff_arbre_lunaire/` (recoloré argent lunaire, illumination par branche, API `branchStates[]`) sera porté dans `render/` **après** l'arbre honnête de 4.6. Prompt de relance « rendu plus fourni sans trahir la charte » disponible si Sanela veut plus de densité. [render/arbre-vivant.tsx]
+- **Bascule vue liste = `localStorage` (v1).** « Persistée par utilisatrice » implémentée en préférence navigateur (pas de migration) ; une préférence serveur (multi-appareils) pourrait la remplacer plus tard. [render/]
+- **Renommage NON gardé sur la détresse (défaut).** AD-17 vise la *naissance*, pas l'édition d'un nom ; à confirmer si Sanela veut le contraire. [supabase/migrations/0022_branche_arbre.sql]
+
+### Revue adversariale 4.6 — 77 findings retenus, TOUS corrigés (migration 0023) ; 2 différés
+
+- **~~Harnais de test COMPOSANT absent (RTL/jsdom)~~ — LEVÉ le 2026-08-04.** Le report a été invalidé par la RE-REVUE, qui a reproduit en dix minutes (jsdom) un arbre INVISIBLE au scénario nominal que les gardes par lecture de source ne pouvaient pas voir. `jsdom` + `@testing-library/react` + `@testing-library/user-event` ajoutés en dépendances de dev, avec un **projet Vitest séparé** (`rendu`, environnement jsdom) pour ne pas ralentir les ~1300 tests `node`. [vitest.config.ts, tests/rendu/]
+- **« Voir dans la conversation » rejoue un MONOLOGUE.** `entree_journal` n'a aujourd'hui **aucun écrivain de tours `anam`** : la policy d'insertion épingle `role='utilisatrice'` (0016) et l'unique appelant écrit ce rôle en dur. Le rejeu ne contient donc que les tours de l'utilisatrice. La colonne `role` existe et est déjà rendue ; le côté Anam attend une RPC serveur-attestée, rangée **Epic 5**. [supabase/migrations/0016_entree_journal.sql]
+- **Ordre de relâchement pour la Story 4.7.** 0023 épingle `etat='naissance' and intensite=0` **dans la policy d'insertion ET dans le trigger** (double défense anti-forge). La 4.7, qui livre les transitions monotones, devra **relâcher les deux au même endroit** — sinon la feuillaison sera refusée. [supabase/migrations/0023_branche_arbre_correctifs.sql]
+- **`app/error.tsx` / `global-error.tsx` manquants (transverse).** Un throw de rendu rend aujourd'hui la page entière inutilisable au lieu d'un repli. Relevé pendant la revue 4.6 mais **hors périmètre** (transverse à tout le produit) — à traiter avec la robustesse client.
+
+### RE-REVUE adversariale 4.6 (2026-08-04) — 30 candidats vérifiés, 24 retenus et corrigés
+
+Menée après la passe de correction des 77 findings, sur les zones RÉÉCRITES par cette passe. 6 angles de
+recherche, vérification **à charge de réfutation** (verdict par défaut « réfuté »), puis balayage de lacunes.
+32 candidats bruts → 30 dédupliqués → 30 vérifiés → **6 réfutés, 24 retenus** (7 HAUTE), tous corrigés.
+
+Le résultat le plus utile n'est aucun des bugs : c'est le constat que **la passe de correction précédente
+n'avait pas réparé ce qu'elle annonçait avoir réparé**. Trois gardes « refaites » survivaient encore à leur
+mutation, dont le correctif PHARE (R1-ter). La cause était subtile et vaut d'être retenue : les tests
+d'insertion passaient par une session JWT, où la **policy ET le trigger** bloquent tous les deux — muter
+l'un laissait l'autre refuser, donc le test restait vert. Ils prouvaient « au moins une des deux moitiés
+existe », jamais l'une NI l'autre. Le chemin `service_role` (que la RLS ne borne pas) isole le trigger seul :
+c'est lui qui tue le mutant.
+
+**Reste ouvert après cette passe :**
+
+- **La densité de l'arbre au-delà d'une quinzaine de branches.** L'éventail de 150° à un seul niveau de
+  ramification divise l'écartement angulaire par deux à chaque niveau de remplissage. Le placement par RANG
+  (permanence) et le raccourcissement par niveau repoussent le problème ; la zone cliquable est désormais
+  bornée à 0,9 × l'écartement réel, ce qui garantit qu'on **n'ouvre jamais la mauvaise branche** — mais à
+  zoom 1 et 25 branches, une cible fait ~10 px. Le zoom la fait regrandir, et la **vue liste** reste
+  l'équivalent non spatial garanti (AC3). La vraie réponse serait de la RAMIFICATION (sous-branches) :
+  c'est un sujet de design, pas de correctif de revue. [render/arbre/geometrie.ts]
+- **Le plafond de `/api/incident` est per-instance.** Il vit dans une `Map` de portée module : sur Vercel,
+  N instances = N × 12/min. Réfuté comme défaut (ce qu'il protège est la LISIBILITÉ d'un flux de journal,
+  pas une donnée), mais à revoir si le journal devient un vrai canal d'alerte. [app/api/incident/route.ts]
+- **`app/error.tsx` / `global-error.tsx`** toujours manquants (déjà relevé plus haut, toujours transverse).
+

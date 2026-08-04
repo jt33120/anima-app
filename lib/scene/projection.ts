@@ -1,28 +1,140 @@
 /**
  * projection.ts — La DOMAIN-PROJECTION serveur, en LECTURE SEULE (SPINE L155 + AD-7 :
- * « lib/scene/ projette l'état max »). Story 1.7.
+ * « lib/scene/ projette l'état max »). Story 1.7, élargie en 4.6 (l'arbre réel).
  *
- * Le rendu ne l'ÉCRIT JAMAIS : il la reçoit en props et la dessine. La monotonie de
- * l'arbre (les branches ne régressent pas — AD-8) est gardée à l'écriture par le SQL,
- * jamais par le rendu. En 1.7 c'est un STUB (tronc présent, aucune branche) : la
- * frontière et le type sont posés ; l'Epic 4 remplira `branches` depuis l'état persisté.
+ * Le rendu ne l'ÉCRIT JAMAIS : il la reçoit en props et la dessine (muet). La monotonie de
+ * l'arbre (les branches ne régressent pas — AD-8/FR-029) est gardée à l'ÉCRITURE par le SQL
+ * (Story 4.7), jamais par le rendu. 4.6 ajoute UNE défense au rendu : `reconcilierProjection`
+ * conserve l'état supérieur déjà connu si une projection ultérieure régresse (AC2 [DUR défensif]).
+ *
+ * PURETÉ (garde scene-architecture) : ce module n'importe RIEN (données pures, testables sans
+ * navigateur) et ne nomme jamais un champ `message` (le concept de conversation ne fuit pas ici).
  */
+
+/** Miroir LITTÉRAL du CHECK SQL `branche.etat` (0021). L'enum reste `'fruit'` en base ; le libellé
+ *  « rayonnement » est un mapping d'AFFICHAGE (render/), jamais une valeur de modèle. */
+export type EtatBranche = "naissance" | "feuillaison" | "fruit";
+
+/** Une branche projetée : ce que le rendu doit dessiner et rendre adressable (le point d'accroche). */
+export interface BrancheProjetee {
+  readonly id: string;
+  readonly etat: EtatBranche;
+  /** Feuillaison progressive 0→1 (câblée 4.7). En 4.6, l'état persisté tel quel. */
+  readonly intensite: number;
+  /** Le message EXACT dont la branche est née (FR-027) — cible de « Voir dans la conversation ». */
+  readonly extraitSourceId: string;
+  /** Nom donné par elle (art. 9). Optionnel dans le type : jamais requis par le rendu géométrique. */
+  readonly nom?: string;
+  /** Date de naissance (ISO) — pour la fiche (« datée », FR-027). */
+  readonly dateNaissance?: string;
+  /** Verbatim de l'extrait source (art. 9) — la fiche le rend « comme un tour d'utilisatrice » (FR-027). */
+  readonly extraitContenu?: string;
+  /** Position déterministe du point d'accroche sur le canevas. En 4.6 le rendu la calcule ; optionnelle ici. */
+  readonly accroche?: { readonly x: number; readonly y: number };
+}
 
 export interface ProjectionScene {
   readonly tronc: { readonly present: true };
-  /** Epic 4 élargira ce type ; en 1.7 la liste est vide et gelée (lecture seule réelle). */
-  readonly branches: readonly [];
+  /** Les branches projetées (état persisté). Vide = arbre sans branche (« rien n'a encore été nommé »). */
+  readonly branches: readonly BrancheProjetee[];
   /**
-   * Niveau d'éveil, 0→100. Scalaire interne qui pilote la croissance de l'arbre.
-   * JAMAIS affiché en chiffre à l'utilisatrice (on ne note pas les gens) — l'arbre EST
-   * le retour. Calculé serveur depuis le parcours (Epic 4) ; STUB en 1.7 (valeur fixe,
-   * ajustable). La monotonie (l'éveil ne régresse pas — AD-8) est garantie côté modèle.
+   * Vrai UNIQUEMENT quand la lecture serveur a échoué (repli sûr). Distingue « elle n'a pas encore de
+   * branche » (vide légitime) de « je n'arrive pas à lire son arbre » (panne) — sans cette distinction, une
+   * panne réseau affichait « Rien n'a encore été nommé » à quelqu'un qui a des branches, ce qui est un
+   * MENSONGE et la pire régression possible au sens de FR-029 (revue 4.6, HAUTE).
    */
-  readonly eveil: number;
+  readonly indisponible?: true;
 }
 
+/** STUB de départ : tronc présent, aucune branche. Gelé (lecture seule réelle, pas seulement au type). */
 export const projectionInitiale: ProjectionScene = Object.freeze({
   tronc: Object.freeze({ present: true as const }),
-  branches: Object.freeze([] as const),
-  eveil: 62, // placeholder : arbre feuillu, calme, sans fruit — à piloter par l'Epic 4
+  branches: Object.freeze([] as BrancheProjetee[]),
 });
+
+/** Ordre monotone des états (naissance < feuillaison < fruit) — sert la défense anti-régression. */
+const ORDRE_ETAT: Record<EtatBranche, number> = { naissance: 0, feuillaison: 1, fruit: 2 };
+
+/**
+ * Normalise une intensité : hors [0,1] ou non finie (NaN/±Infinity) → repli sûr. Sans ça, `NaN > x` étant
+ * faux DANS LES DEUX SENS, un NaN traversait la garde sans incident, la désarmait durablement (il finissait
+ * dans le repère du max) et faisait disparaître le feuillage au rendu (revue 4.6). La base borne aussi la
+ * colonne (0023), mais cette normalisation couvre EN PLUS le repère local, que la base ne voit pas.
+ */
+export function intensiteBornee(v: number): number {
+  return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0;
+}
+
+/**
+ * Faut-il ADOPTER la projection qui arrive, ou garder celle qu'on affiche déjà ?
+ *
+ * Règle : une lecture INDISPONIBLE n'efface JAMAIS un arbre déjà affiché. Le rafraîchissement serveur
+ * (déclenché à chaque entrée dans la région arbre) peut échouer pour une raison passagère ; adopter son
+ * repli remplacerait des branches RÉELLES par « je n'arrive pas à afficher ton arbre » — c'est-à-dire faire
+ * disparaître l'arbre sous les yeux de l'utilisatrice à cause d'un hoquet réseau (re-revue). Tant qu'on a
+ * quelque chose de vrai à montrer, on le montre ; l'écran d'indisponibilité est pour quand on n'a RIEN.
+ *
+ * Cette décision vit ICI et pas dans le rendu : le rendu dessine, il ne tranche pas (AD-7).
+ */
+export function adopterProjection(affichee: ProjectionScene, arrivee: ProjectionScene): ProjectionScene {
+  if (arrivee.indisponible && affichee.branches.length > 0 && !affichee.indisponible) return affichee;
+  return arrivee;
+}
+
+/** Une régression détectée au rendu — ne porte QUE l'id + le champ, JAMAIS le nom art. 9 (NFR-022). */
+export interface IncidentRegression {
+  readonly id: string;
+  /** `disparition` = une branche connue n'est plus servie : la régression la plus grave (FR-029). */
+  readonly champ: "etat" | "intensite" | "disparition";
+}
+
+/**
+ * Défense anti-régression au rendu (AC2 [DUR défensif]) — fonction PURE, sans effet de bord.
+ * Pour chaque branche de `nouvelle` dont l'état/intensité est INFÉRIEUR à ce que `precedente`
+ * connaissait, on CONSERVE le supérieur et on liste l'incident (que l'appelant SERVEUR journalisera —
+ * le rendu ne peut pas logguer). La monotonie d'ÉCRITURE reste garantie par le SQL (Story 4.7) ;
+ * ceci n'est qu'un filet côté client, testable sans navigateur.
+ */
+export function reconcilierProjection(
+  precedente: ProjectionScene,
+  nouvelle: ProjectionScene,
+): { projection: ProjectionScene; incidents: readonly IncidentRegression[] } {
+  // Une lecture INDISPONIBLE n'est pas une régression : c'est une absence d'information. On la propage
+  // telle quelle (le rendu dira « je n'arrive pas à afficher ton arbre », jamais « rien n'a été nommé »)
+  // et SURTOUT on ne conclut rien — sinon la panne se lirait comme un effacement de toutes les branches.
+  if (nouvelle.indisponible) return { projection: nouvelle, incidents: [] };
+
+  const parId = new Map(precedente.branches.map((b) => [b.id, b]));
+  const incidents: IncidentRegression[] = [];
+
+  const branches = nouvelle.branches.map((b) => {
+    const intensiteRecue = intensiteBornee(b.intensite);
+    const avant = parId.get(b.id);
+    if (!avant) return intensiteRecue === b.intensite ? b : { ...b, intensite: intensiteRecue };
+
+    let etat = b.etat;
+    let intensite = intensiteRecue;
+    if (ORDRE_ETAT[avant.etat] > ORDRE_ETAT[b.etat]) {
+      etat = avant.etat;
+      incidents.push({ id: b.id, champ: "etat" });
+    }
+    // Une valeur non finie EST un incident (elle ne peut plus passer en silence), et le repère l'emporte.
+    const intensiteAvant = intensiteBornee(avant.intensite);
+    if (!Number.isFinite(b.intensite) || intensiteAvant > intensiteRecue) {
+      intensite = intensiteAvant;
+      incidents.push({ id: b.id, champ: "intensite" });
+    }
+    return etat === b.etat && intensite === b.intensite ? b : { ...b, etat, intensite };
+  });
+
+  // DISPARITION (revue 4.6, HAUTE) : une branche connue qui n'est plus servie est la régression la plus
+  // grave — l'arbre s'efface. On ne la RÉINJECTE pas depuis le client (le repère local ne porte ni le nom
+  // ni l'extrait, et fabriquer de la donnée de domaine au rendu serait pire), mais on la SIGNALE, pour que
+  // l'appelant serveur journalise au lieu de laisser l'effacement passer inaperçu.
+  const servies = new Set(nouvelle.branches.map((b) => b.id));
+  for (const id of parId.keys()) {
+    if (!servies.has(id)) incidents.push({ id, champ: "disparition" });
+  }
+
+  return { projection: { tronc: nouvelle.tronc, branches }, incidents };
+}

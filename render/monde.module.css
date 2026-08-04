@@ -167,6 +167,26 @@
   color: var(--texte);
 }
 
+/* ── Région arbre (Story 4.6) : l'arbre RÉEL occupe la hauteur disponible ; fond opaque (le canevas et la
+      fiche ne se posent pas sur l'imagerie de fond). Le canevas gère son propre pan/zoom (overflow hidden). ── */
+.regionArbre {
+  align-items: stretch;
+  /* `auto` et non `hidden` : au zoom 200 %/400 % ou en paysage court, le contenu doit rester atteignable
+     par défilement (WCAG 1.4.10 Reflow). Le canevas gère son propre pan/zoom, indépendant (revue 4.6). */
+  overflow-y: auto;
+  background: var(--fond);
+}
+
+/* Garder la Conversation MONTÉE mais hors vue pendant le rejeu de l'échange source : `display: contents`
+   laisse la mise en page intacte quand elle est visible, `display: none` la retire (y compris de l'arbre
+   d'accessibilité) sans la démonter — donc sans détruire le fil de la séance (revue 4.6, HAUTE). */
+.transparent {
+  display: contents;
+}
+.masque {
+  display: none;
+}
+
 /* ── Bloc de texte d'une région (panneau placeholder / voix) ── */
 .panneau {
   align-items: center;

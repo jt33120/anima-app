@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { creerDepotBranche } from "@/lib/data/depot-branche";
 import { creerDepotSignalReconcept } from "@/lib/data/depot-reconceptualisation";
 import { nomValide } from "@/lib/domain/branche";
-import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
+import { journaliserIncidentSecurite, journaliserRefusGarde, estRefusMetier } from "@/lib/safety/rpc-repli";
 
 /**
  * Story 4.5 (T4) — l'écriture de la naissance d'une branche (chemin d'ouverture, distinct du pipeline de
@@ -29,13 +29,18 @@ export async function POST(request: Request): Promise<Response> {
   } catch {
     return NextResponse.json({ code: "corps_invalide" }, { status: 400 });
   }
-  const { action, signalId, nom } = (corps ?? {}) as { action?: string; signalId?: string; nom?: string };
-  if (typeof signalId !== "string" || signalId.length === 0) {
-    return NextResponse.json({ code: "signal_manquant" }, { status: 400 });
-  }
+  const { action, signalId, nom, brancheId } = (corps ?? {}) as {
+    action?: string;
+    signalId?: string;
+    nom?: string;
+    brancheId?: string;
+  };
 
   try {
     if (action === "creer") {
+      if (typeof signalId !== "string" || signalId.length === 0) {
+        return NextResponse.json({ code: "signal_manquant" }, { status: 400 });
+      }
       // [AC2] le nom donné par elle : échec rapide si vide (la RPC + le CHECK + la policy le regardent aussi).
       if (typeof nom !== "string" || !nomValide(nom)) {
         return NextResponse.json({ code: "nom_requis" }, { status: 400 });
@@ -44,12 +49,35 @@ export async function POST(request: Request): Promise<Response> {
       return NextResponse.json({ ok: true });
     }
     if (action === "refus") {
+      if (typeof signalId !== "string" || signalId.length === 0) {
+        return NextResponse.json({ code: "signal_manquant" }, { status: 400 });
+      }
       await creerDepotSignalReconcept(supabase).ecarter({ signalId });
+      return NextResponse.json({ ok: true });
+    }
+    if (action === "renommer") {
+      // Story 4.6 (AC6) : renommer une branche. Le nouveau nom reste donné par elle (AC2, échec rapide si vide).
+      // Les gardes (consentement art. 9, propriétaire, nom non vide, immuabilité etat/intensite) vivent au point
+      // d'écriture (policy branche_renommage + trigger, migration 0022) — l'endpoint ne fait que router/valider.
+      if (typeof brancheId !== "string" || brancheId.length === 0) {
+        return NextResponse.json({ code: "branche_manquante" }, { status: 400 });
+      }
+      if (typeof nom !== "string" || !nomValide(nom)) {
+        return NextResponse.json({ code: "nom_requis" }, { status: 400 });
+      }
+      await creerDepotBranche(supabase).renommer({ brancheId, nom });
       return NextResponse.json({ ok: true });
     }
     return NextResponse.json({ code: "action_invalide" }, { status: 400 });
   } catch (e) {
-    // Repli neutre : la garde (AD-17/consentement/isolation) a refusé, ou panne DB. Incident sans art. 9.
+    // On DISTINGUE le refus d'une garde de la panne. Un refus (consentement retiré, branche non possédée,
+    // AD-17, nom hors forme) est un comportement ATTENDU : il ne doit pas s'annoncer comme une panne de RPC
+    // de sécurité, sinon le canal des vrais incidents — celui où vivent les alertes de détresse — se noie
+    // sous du bruit ordinaire (re-revue). Aucun art. 9 dans la réponse ni dans le journal, dans les deux cas.
+    if (estRefusMetier(e)) {
+      journaliserRefusGarde("branche_endpoint", e);
+      return NextResponse.json({ code: "refuse" }, { status: 403 });
+    }
     journaliserIncidentSecurite("branche_endpoint", e);
     return NextResponse.json({ code: "echec" }, { status: 500 });
   }

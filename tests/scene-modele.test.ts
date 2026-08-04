@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   REGIONS,
   REGION_ENTREE,
@@ -51,7 +53,7 @@ describe("reducteurVue — transition pure, propriétaire unique (AC1/AC2)", () 
   });
 
   it("aller vers la région courante est idempotent (MÊME référence — aucun rerender/fondu inutile)", () => {
-    const etat: EtatVue = { regionCourante: "accueil" };
+    const etat: EtatVue = { ...etatInitial, regionCourante: "accueil" };
     expect(reducteurVue(etat, { type: "aller", cible: "accueil" })).toBe(etat);
   });
 
@@ -67,15 +69,24 @@ describe("projectionInitiale — projection serveur en lecture seule, STUB (AC2)
     expect(projectionInitiale.tronc.present).toBe(true);
   });
 
-  it("aucune branche en 1.7, et la liste est gelée (lecture seule réelle, pas seulement au type)", () => {
+  it("aucune branche au départ, et la liste est gelée (lecture seule réelle, pas seulement au type)", () => {
     expect(Array.isArray(projectionInitiale.branches)).toBe(true);
     expect(projectionInitiale.branches).toHaveLength(0);
     expect(Object.isFrozen(projectionInitiale.branches)).toBe(true);
   });
 
-  it("l'éveil est un scalaire borné 0→100 (pilote l'arbre, jamais affiché en chiffre)", () => {
-    expect(typeof projectionInitiale.eveil).toBe("number");
-    expect(projectionInitiale.eveil).toBeGreaterThanOrEqual(0);
-    expect(projectionInitiale.eveil).toBeLessThanOrEqual(100);
+  it("aucun scalaire de progression globale (FR-031 : l'arbre n'est pas une jauge)", () => {
+    // 4.6 a retiré `eveil`. Revue 4.6 : tester `eveil === undefined` était une assertion VIDE — elle
+    // n'interdisait pas de réintroduire `progression`, `niveau` ou `score` sous un autre nom. On interdit
+    // désormais TOUT champ numérique d'ensemble à la racine de la projection.
+    const racineProjection = projectionInitiale as unknown as Record<string, unknown>;
+    const numeriques = Object.entries(racineProjection).filter(([, v]) => typeof v === "number");
+    expect(numeriques, `un scalaire d'ensemble est une jauge déguisée : ${JSON.stringify(numeriques)}`).toEqual([]);
+    // Et le TYPE lui-même ne doit nommer aucune mesure globale.
+    const src = readFileSync(resolve(process.cwd(), "lib/scene/projection.ts"), "utf-8");
+    const bloc = src.match(/export interface ProjectionScene\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
+    for (const mot of ["eveil", "progression", "niveau", "score", "pourcentage", "total"]) {
+      expect(bloc.toLowerCase(), `« ${mot} » dans ProjectionScene`).not.toContain(mot);
+    }
   });
 });

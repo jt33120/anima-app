@@ -44,7 +44,7 @@ Ce document fournit le découpage complet en épics et stories pour Anam, en dé
 - FR-025 : Anam propose une branche, ne la décrète jamais.
 - FR-026 : L'utilisatrice valide et nomme la branche ; une branche non nommée par elle n'existe pas.
 - FR-027 : Chaque branche est datée et liée à l'extrait exact dont elle provient.
-- FR-028 : Une branche traverse naissance → feuillaison → fruit ; le fruit n'est jamais inféré, confirmé par l'utilisatrice.
+- FR-028 : Une branche traverse naissance → feuillaison → rayonnement (pleine lumière) ; le rayonnement n'est jamais inféré, déclaré par l'utilisatrice.
 - FR-029 : L'arbre ne régresse jamais du fait du produit (exception unique : droit à l'effacement, FR-067).
 - FR-030 : Si plusieurs branches sont ouvertes sans intégration, Anam propose d'en faire vivre une avant d'en ouvrir une autre.
 - FR-031 : Aucun score, aucune note, aucune jauge, aucune série.
@@ -190,7 +190,7 @@ Items UX actionnables extraits de DESIGN.md et EXPERIENCE.md.
 
 - UX-DR-1 : Implémenter le système de tokens « Nuit galactique » : mode sombre natif (tokens sans suffixe) comme mode principal + mode d'accessibilité « contraste renforcé / imagerie atténuée » (tokens -clair, via `prefers-contrast: more` et réglage « Lisibilité renforcée »), jamais un thème jour de confort.
 - UX-DR-2 : Tokens couleur : fond #0C0A1E, surface #16132F, surface-elevee #201C42, texte #EEECF7 (jamais #FFFFFF), texte-doux #ABA6C9 (jamais pour les mots de l'utilisatrice), deux bordures distinctes (bordure décorative #2A2648 exemptée / bordure-forte #77719C ≥ 3:1), accent #8FC1EF réservé à l'action, lueur #CDE4F8 pour les points de lumière (jamais cliquable), succès/alerte en texte seul, aucun rouge ; plus les équivalents -clair.
-- UX-DR-3 : Tokens de l'arbre : tronc #6A6690, branche #9A96BE, feuillage #8FB6D8 (argent lunaire / bleu-lune, aucun brun), fruit en accent avec halo lueur ; états portés par la matière (épaisseur de trait, densité de feuilles), jamais par la couleur seule.
+- UX-DR-3 : Tokens de l'arbre de vie : tronc #6A6690, branche #9A96BE, feuillage #8FB6D8 (argent lunaire / bleu-lune, aucun brun, aucun or), rayonnement = la branche en pleine lumière (lueur nacre), l'accent réservé au point d'accroche cliquable ; états portés par la matière (épaisseur de trait, densité de feuilles, montée de lumière), jamais par la couleur seule.
 - UX-DR-4 : Deux familles typographiques : Fraunces (voix d'Anam — WONK 0, SOFT 20-30, graisse ≤ 500, opsz suivant la taille) et Inter (interface + mots de l'utilisatrice) ; échelle display / titre / titre-sm / anam / corps / meta / surtitre / bouton ; aucune capitale, aucune graisse > 500, interligne ≥ 1.6, ligne ≤ 32rem, tout en rem.
 - UX-DR-5 : Espacements sur base 8px (4-8-12-16-24-32-48-64-96) ; marges 20px mobile / 48px desktop ; respiration 40px entre tours (jamais compressée) ; contenu-max 40rem, mesure 32rem ; cible tactile 44px ; colonne unique toujours, un seul niveau de modale.
 - UX-DR-6 : Mouvement = fondu lent : durées 180 / 320 / 700 / 4200ms, courbe unique cubic-bezier(0.32,0.08,0.24,1), aucun rebond/ressort/overshoot ; primitives de fondu texte/image/personnage/région, dérive verticale ≤ 6px (jamais latérale) ; aucune ombre en mode nuit, grain ≤ 5 % anti-banding.
@@ -224,7 +224,7 @@ Items UX actionnables extraits de DESIGN.md et EXPERIENCE.md.
 - UX-DR-34 : Halte paywall : sous le bilan uniquement, dans le fil (pas de modale, plein écran ni interstitiel), une seule sollicitation jamais rejouée dans la session ; « M'abonner » → Stripe Checkout hébergé, « Pas maintenant » de lisibilité égale ; retour Stripe sobre, sans message d'échec dramatisé ni relance.
 - UX-DR-35 : Halte clôture de séance : Anam clôt en un tour (trois phrases max), respiration double, puis bilan inséré comme bloc document, puis carte d'abonnement dessous ; le composeur reste actif, aucun bouton « Terminer » ni « Reprendre la séance ».
 - UX-DR-36 : Contraste WCAG 2.2 AA vérifié sur toute la surface (ratios mesurés, propriété de DESIGN.md), `lang="fr"` ; mode sombre et mode accessibilité vérifiés au même niveau.
-- UX-DR-37 : Doublage non-spatial de rang égal : chaque région atteignable directement au clavier et au lecteur d'écran par un lien nommé sans traverser la scène, ordre de lecture linéaire garanti ; vue liste de l'arbre équivalente (état écrit en toutes lettres : naissance / feuillaison / fruit).
+- UX-DR-37 : Doublage non-spatial de rang égal : chaque région atteignable directement au clavier et au lecteur d'écran par un lien nommé sans traverser la scène, ordre de lecture linéaire garanti ; vue liste de l'arbre équivalente (état écrit en toutes lettres : naissance / feuillaison / rayonnement).
 - UX-DR-38 : `prefers-reduced-motion` : aucune croissance animée, aucun dépôt de carte, aucun fondu de fil ni de transition de région, aucun épaississement du signe, aucune parallaxe ; transitions instantanées, textes apparaissant complets.
 - UX-DR-39 : Voiles de lisibilité obligatoires sous tout texte blanc posé sur imagerie : mécanisme A (scrim en dégradé de fond, opacité ≥ 85 % sous texte courant / ≥ 70 % sous grand texte, grain anti-banding) ou mécanisme B (panneau surface ≥ 92 %) ; tailles minimales (jamais < 13px ; corps/anam ≥ 15-16px sur image) ; text-shadow interdit comme substitut au voile.
 - UX-DR-40 : Discrétion à la surface exposée (NFR-015) : `<title>` = « Anam » sur toutes les routes, identifiants d'URL opaques, favicon = fragment abstrait tronc/branche, og: neutre, notification titre « Anam » + corps ≤ 6 mots sans contenu ni vocabulaire ésotérique, privacy-cover neutre au multitâche, icône sans lune/lotus/étoile/visage (testée à 40px, en monochrome).
@@ -262,7 +262,7 @@ Chaque exigence fonctionnelle (FR-001 à FR-089) est rattachée à exactement un
 - FR-025 : Epic 4 — branche proposée
 - FR-026 : Epic 4 — validée et nommée
 - FR-027 : Epic 4 — datée et sourcée
-- FR-028 : Epic 4 — naissance feuillaison fruit
+- FR-028 : Epic 4 — naissance feuillaison rayonnement
 - FR-029 : Epic 4 — arbre jamais régressé
 - FR-030 : Epic 4 — intégrer avant d'ouvrir
 - FR-031 : Epic 4 — aucun score
@@ -794,7 +794,7 @@ En tant qu'abonnée, je veux pouvoir résilier aussi simplement que je me suis a
 
 **Objectif.** L'utilisatrice voit naître ses branches — proposées par Anam, validées et **nommées par elle** —, son arbre pousser **sans jamais régresser**, et relit ses prises de conscience datées. La mémoire tient sur **trois couches** (journal brut, faits extraits, branches), avec **rappel opportun**, **synthèse périodique** et **plans d'étapes**. Deux garanties portent tout : rien n'est décrété sur elle, rien ne recule. L'epic **fonde aussi l'ordonnanceur unique** (Story 4.8), sur lequel s'appuient la synthèse et les rappels : il est ainsi livrable sans dépendre d'un epic ultérieur.
 
-**Cadre invariant (rappel).** Anam **propose**, l'utilisatrice **valide et nomme** — une branche non nommée par elle n'existe pas (FR-025/026). L'arbre **ne régresse jamais** sauf effacement (FR-029, FR-067). La feuillaison est **progressive** et le fruit **jamais inféré** (FR-028). **Aucun score, note, jauge ni série** (FR-031). Un fait supprimé **ne ressuscite jamais** (AD-18). La **monotonie est gardée à l'écriture** (contrainte SQL), pas au rendu (AD-8). Aucune branche ne naît **pendant un épisode de détresse ni dans les 72 h** (AD-17). L'arbre est une **projection** du modèle de scène, le rendu reste **muet** (AD-7). Reconceptualisation et synthèse passent par le **modèle fort** (AD-5) ; la détection vit dans le **pipeline sécurité-d'abord** (AD-16).
+**Cadre invariant (rappel).** Anam **propose**, l'utilisatrice **valide et nomme** — une branche non nommée par elle n'existe pas (FR-025/026). L'arbre **ne régresse jamais** sauf effacement (FR-029, FR-067). La feuillaison est **progressive** et le rayonnement (pleine lumière) **jamais inféré, déclaré par elle** (FR-028). **Aucun score, note, jauge ni série** (FR-031). Un fait supprimé **ne ressuscite jamais** (AD-18). La **monotonie est gardée à l'écriture** (contrainte SQL), pas au rendu (AD-8). Aucune branche ne naît **pendant un épisode de détresse ni dans les 72 h** (AD-17). L'arbre est une **projection** du modèle de scène, le rendu reste **muet** (AD-7). Reconceptualisation et synthèse passent par le **modèle fort** (AD-5) ; la détection vit dans le **pipeline sécurité-d'abord** (AD-16).
 
 ---
 
@@ -891,23 +891,23 @@ En tant qu'utilisatrice, je veux voir mes branches sur mon arbre et retrouver d'
 - **[DUR / défensif]** **Étant donné** une branche dont l'état maximal persisté est connu, **Quand** le serveur renvoie un état inférieur, **Alors** le client **conserve l'état supérieur** et journalise un incident — l'arbre ne régresse jamais au rendu, la monotonie d'écriture vivant en Story 4.7.
 - **Étant donné** un point d'accroche de branche (cible ≥ 44 px), **Quand** l'utilisatrice le touche, **Alors** la fiche s'ouvre (nom donné par elle, date, extrait exact rendu **comme un tour d'utilisatrice**), **Et** « Voir dans la conversation » ouvre le fil **positionné sur le message exact** (FR-027), avec retour au même cadrage et au même zoom.
 - **[DUR / FR-031]** **Étant donné** l'arbre et sa fiche, **Quand** ils sont rendus, **Alors** ils ne portent **aucun** compteur de branches, pourcentage, niveau, jauge, série, badge ni score, **Et** l'état d'une branche n'est jamais porté par la couleur seule.
-- **Étant donné** le plancher d'accessibilité, **Quand** l'utilisatrice ouvre la **vue liste** (bascule persistée), **Alors** chaque branche y est listée de **rang égal** au canevas : nom, date, **état écrit en toutes lettres** (naissance / feuillaison / fruit), extrait — atteignable au clavier et au lecteur d'écran, le canevas portant `role="img"` et un `aria-label` court.
+- **Étant donné** le plancher d'accessibilité, **Quand** l'utilisatrice ouvre la **vue liste** (bascule persistée), **Alors** chaque branche y est listée de **rang égal** au canevas : nom, date, **état écrit en toutes lettres** (naissance / feuillaison / rayonnement), extrait — atteignable au clavier et au lecteur d'écran, le canevas portant `role="img"` et un `aria-label` court.
 - **Étant donné** la fiche de branche (étiquette posée sur l'illustration, jamais modale), **Quand** elle est ouverte, **Alors** elle porte les deux actions **« Voir dans la conversation »** et **« Renommer »** — « Renommer » rouvre un champ, le nouveau nom restant donné par l'utilisatrice — **Et** le reste de l'arbre s'estompe sans flou (UX-DR-26).
 - **Étant donné** le canevas de l'arbre, **Quand** l'utilisatrice le manipule, **Alors** il est **déplaçable et zoomable** (pan au doigt ; zoom pincement / molette / boutons +/− au clavier ; double-tap = cadrer), doublé de la vue liste de rang égal, **Et** aucun compteur, pourcentage ni légende permanente n'y figure (UX-DR-24).
 
 ---
 
-### Story 4.7 : Le cycle de vie d'une branche — naissance → feuillaison → fruit, monotone et gardé à l'écriture
+### Story 4.7 : Le cycle de vie d'une branche — naissance → feuillaison → rayonnement, monotone et gardé à l'écriture
 
-En tant qu'utilisatrice, je veux voir une branche s'intégrer par degrés quand j'y reviens, et déclarer moi-même quand elle porte un fruit, afin que ma croissance se lise dans la matière et jamais dans un chiffre, et qu'elle ne recule jamais.
+En tant qu'utilisatrice, je veux voir une branche s'intégrer par degrés quand j'y reviens, et déclarer moi-même quand elle entre en pleine lumière, afin que ma croissance se lise dans la matière et jamais dans un chiffre, et qu'elle ne recule jamais.
 
-**Couvre :** FR-028 (naissance / feuillaison / fruit, feuillaison progressive, fruit jamais inféré), FR-029 (ne régresse jamais) ; AD-8 (transition monotone gardée à la persistance), AD-7.
+**Couvre :** FR-028 (naissance / feuillaison / rayonnement, feuillaison progressive, rayonnement jamais inféré — déclaré par elle), FR-029 (ne régresse jamais) ; AD-8 (transition monotone gardée à la persistance), AD-7.
 
 **Critères d'acceptation :**
 
-- **[DUR]** **Étant donné** les transitions d'état, **Quand** une branche change d'état, **Alors** la transition est strictement monotone `naissance → feuillaison → fruit`, gardée **à l'écriture** par une **fonction de transition unique** dans `lib/domain/` **et** une **contrainte SQL** (CHECK / trigger), **Et** le serveur ne régresse jamais l'état.
+- **[DUR]** **Étant donné** les transitions d'état, **Quand** une branche change d'état, **Alors** la transition est strictement monotone `naissance → feuillaison → rayonnement`, gardée **à l'écriture** par une **fonction de transition unique** dans `lib/domain/` **et** une **contrainte SQL** (CHECK / trigger), **Et** le serveur ne régresse jamais l'état.
 - **[DUR]** **Étant donné** la feuillaison, **Quand** l'utilisatrice revient spontanément sur le thème de la branche au fil des semaines, **Alors** la feuillaison s'amorce et progresse **par degrés** via un champ `intensite` continu (jamais un simple flip d'enum), **Et** aucun seuil, aucune étape numérotée ni « 2 retours sur 3 » n'est affiché, l'utilisatrice n'ayant rien à confirmer.
-- **[DUR]** **Étant donné** le fruit, **Quand** il est acquis, **Alors** c'est **uniquement** parce que l'utilisatrice a **confirmé elle-même** être passée à l'acte (geste explicite depuis la fiche ou en réponse à Anam), **Et** le fruit n'est **jamais** inféré du contenu de la conversation.
+- **[DUR]** **Étant donné** le rayonnement (la pleine lumière), **Quand** il est acquis, **Alors** c'est **uniquement** parce que l'utilisatrice l'a **déclaré elle-même** (elle l'a vécu — passage à l'acte ou sentiment que c'est devenu vrai en elle ; geste explicite depuis la fiche ou en réponse à Anam), **Et** le rayonnement n'est **jamais** inféré du contenu de la conversation.
 - **Étant donné** une régression tentée (mauvais mois, réécriture, état inférieur soumis), **Quand** la transition est soumise, **Alors** la contrainte de persistance la **rejette**, **Et** seule l'exception de l'effacement (FR-067) peut retirer une branche — jamais le produit.
 - **Étant donné** un changement d'état, **Quand** l'utilisatrice ouvre l'arbre, **Alors** le changement est **déjà là**, sans animation de croissance, sans particule, sans confetti ni son, **Et** une phrase sur la fiche dit ce qui a changé et quand.
 

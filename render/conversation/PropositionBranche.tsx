@@ -12,9 +12,10 @@ import {
 import type { EtatProposition } from "./types";
 import s from "./conversation.module.css";
 
-/** Miroir applicatif du garde-fou serveur (AC2) — le doute (chaîne d'espaces) n'est pas un nom. Trivial,
- *  inline : le rendu ne peut pas importer le domaine (AD-7), et l'autorité reste le CHECK/policy/RPC. */
-const nomDonne = (nom: string) => nom.trim().length > 0;
+/** Miroir applicatif du garde-fou serveur (AC2), MUTUALISÉ avec le renommage de 4.6. Il était inline ici et
+ *  ne testait que `.trim()` : le durcissement R1-bis a été appliqué au renommage et PAS à la naissance, si
+ *  bien que ce bouton s'activait pour des noms invisibles que la base refuse toujours (re-revue). */
+import { nomRecevable, rognerNom, NOM_LONGUEUR_MAX } from "@/render/nom-branche";
 
 /**
  * PropositionBranche — la proposition de branche DANS le fil (Story 4.5, AC1/AC2/AC4). Composant CLIENT
@@ -97,7 +98,9 @@ export default function PropositionBranche({
           className={s.propositionNommage}
           onSubmit={(e) => {
             e.preventDefault();
-            if (nomDonne(texte)) onNommer(texte);
+            // On envoie le nom ROGNÉ comme le fait le renommage : sinon un même nom collé était
+            // stocké tel quel à la naissance puis rogné au premier renommage — le nom changeait tout seul.
+            if (nomRecevable(texte)) onNommer(rognerNom(texte));
           }}
         >
           <label htmlFor="branche-nom" className="t-corps">
@@ -112,6 +115,7 @@ export default function PropositionBranche({
             onChange={(e) => setTexte(e.target.value)}
             className={s.champ}
             autoComplete="off"
+            maxLength={NOM_LONGUEUR_MAX}
             aria-describedby={echec ? "branche-echec" : undefined}
           />
           {echec && (
@@ -122,7 +126,7 @@ export default function PropositionBranche({
           <div className={s.carteActions}>
             <button
               type="submit"
-              disabled={!nomDonne(texte) || enCours}
+              disabled={!nomRecevable(texte) || enCours}
               className={`${s.carteAction} ${s.carteActionPrimaire} t-bouton`}
             >
               {ACTION_NOMMER}

@@ -68,6 +68,15 @@ describe("branche — accès confiné aux fonctions possédées (T6a/R6)", () =>
     expect(lire(DEPOT_BRANCHE), "le dépôt appelle bien la RPC (garde non vide)").toMatch(RPC);
   });
 
+  it("les RPC 4.6 `charger_branches_arbre` / `charger_echange_source` / `renommer_branche` n'apparaissent QUE dans depot-branche.ts", () => {
+    const RPCS = /\b(charger_branches_arbre|charger_echange_source|renommer_branche)\b/;
+    for (const f of tousSource) {
+      if (f === DEPOT_BRANCHE) continue;
+      expect(lire(f), `RPC arbre/renommage hors du dépôt possédé : ${f}`).not.toMatch(RPCS);
+    }
+    expect(lire(DEPOT_BRANCHE), "le dépôt appelle bien les RPC 4.6 (garde non vide)").toMatch(RPCS);
+  });
+
   it("les RPC `ecarter_signal_reconceptualisation` / `charger_proposition_branche` n'apparaissent QUE dans depot-reconceptualisation.ts", () => {
     const RPCS = /\b(ecarter_signal_reconceptualisation|charger_proposition_branche)\b/;
     for (const f of tousSource) {

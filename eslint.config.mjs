@@ -7,7 +7,8 @@ import tseslint from "typescript-eslint";
  * (Les règles Next web-vitals sont volontairement hors périmètre de l'échafaudage.)
  */
 export default tseslint.config(
-  { ignores: [".next/**", "node_modules/**", "coverage/**", "next-env.d.ts"] },
+  // `images/**` = assets de design (handoff Claude Design : prototypes .dc.html/support.js de référence, « ne pas porter »).
+  { ignores: [".next/**", "node_modules/**", "coverage/**", "next-env.d.ts", "images/**"] },
 
   ...tseslint.configs.recommended,
 

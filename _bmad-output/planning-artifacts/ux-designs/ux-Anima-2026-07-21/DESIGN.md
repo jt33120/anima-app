@@ -9,7 +9,7 @@ sources:
   - _bmad-output/planning-artifacts/ux-designs/ux-Anima-2026-07-21/.working/color-themes-1.html
   - images/anam-gemini/  # personnage « Anam-la-nuit » — formats Seuil / Présence / Veille + planche du signe (réf. visuelle de la direction)
 name: Anam
-description: Compagne d'introspection francophone. Direction « Nuit galactique » — indigo profond, violet, lotus bleu lumineux, argent lunaire. Sombre natif, très imagé, texte blanc et petit qui apparaît en fondu. Anam a désormais un visage peint qui paraît aux seuils ; l'arbre de nuit au centre. Rien ne mesure, rien ne brille en vain, rien ne trahit.
+description: Compagne d'introspection francophone. Direction « Nuit galactique » — indigo profond, violet, lotus bleu lumineux, argent lunaire. Sombre natif, très imagé, texte blanc et petit qui apparaît en fondu. Anam a désormais un visage peint qui paraît aux seuils ; l'arbre de vie au centre. Rien ne mesure, rien ne brille en vain, rien ne trahit.
 palette: "Nuit galactique — mode sombre natif, ratios WCAG recalculés et vérifiés. Les tokens -clair ne sont PLUS un thème jour : ils portent le mode d'accessibilité « contraste renforcé / imagerie atténuée »."
 colors:
   # ═══ MODE SOMBRE — MODE NATIF ET QUASI UNIQUE ═══
@@ -25,7 +25,7 @@ colors:
   texte-doux: '#ABA6C9'    # pervenche éteinte — méta, dates, aide. JAMAIS le contenu de l'utilisatrice
   bordure: '#2A2648'       # séparateur purement décoratif — exempté WCAG 1.4.11
   bordure-forte: '#77719C' # tout ce qui délimite un contrôle + anneau de focus — doit rester ≥3:1
-  accent: '#8FC1EF'        # LE lotus bleu. Couleur de l'ACTION uniquement (bouton, lien, fruit)
+  accent: '#8FC1EF'        # LE lotus bleu. Couleur de l'ACTION uniquement (bouton, lien, point d'accroche d'une branche)
   accent-doux: '#241F47'   # aplat de mise en avant discret — porte du texte `texte`, jamais du `accent`
   sur-accent: '#0C0A1E'    # encre sur remplissage accent (= fond)
   arbre-tronc: '#6A6690'   # écorce LUNAIRE argentée — aucun brun, c'est un arbre de nuit
@@ -33,7 +33,7 @@ colors:
   arbre-feuillage: '#8FB6D8' # feuillage bleu-lune
   succes: '#86B79E'        # vert-jade éteint — en texte seulement, jamais en fond ni pastille
   alerte: '#D0A05C'        # ambre lunaire — en texte seulement. PAS de rouge dans ce système
-  lueur: '#CDE4F8'         # NOUVEAU — nacre lumineuse : points de lumière, halo du lotus, rosée du fruit, point du signe. N'est PAS l'accent-action
+  lueur: '#CDE4F8'         # NOUVEAU — nacre lumineuse : points de lumière, halo du lotus, pleine lumière d'une branche (le rayonnement), point du signe. N'est PAS l'accent-action
   # ═══ MODE ACCESSIBILITÉ « CONTRASTE RENFORCÉ » — tokens -clair ═══
   # Ce N'EST PAS un thème jour. C'est l'accommodation lisibilité : fond clair,
   # texte quasi-noir (cible AAA quand possible), IMAGERIE ATTÉNUÉE (les fonds
@@ -156,7 +156,7 @@ components:
     tuile: 180px
     portee: 'fonds, surfaces ET sous les dégradés de voile/ciel pour tuer le banding des aplats profonds — jamais sous un bloc de texte long'
   lumiere:
-    portee: 'halo lunaire derrière le personnage/lotus, lueur du fruit, base de l arbre — jamais un dégradé d UI plat et gratuit'
+    portee: 'halo lunaire derrière le personnage/lotus, pleine lumière d'une branche, base de l arbre de vie — jamais un dégradé d UI plat et gratuit'
     forme-halo: 'radial-gradient(58% 58% at 50% 42%, {colors.surface-elevee} 0%, transparent 68%)'
     forme-arbre: 'radial-gradient(130% 90% at 50% 100%, {colors.surface} 0%, {colors.fond} 60%)'
     regle: 'imagerie peinte = plage libre ; dégradés dessinés en CSS (hors imagerie) ≤6% de luminance et grain-sombre appliqué par-dessus'
@@ -218,8 +218,8 @@ components:
     tronc: '{colors.arbre-tronc}'
     branche: '{colors.arbre-branche}'
     feuillage: '{colors.arbre-feuillage}'
-    fruit: '{colors.accent}'
-    lueur-fruit: '{colors.lueur}'
+    rayonnement: '{colors.lueur}'    # la branche en pleine lumière — lueur nacre, JAMAIS un objet-fruit
+    accroche: '{colors.accent}'      # point d'accroche cliquable — la seule apparition de l'accent dans l'illustration
     cerne: '{colors.bordure-forte}'
     ciel: '{colors.fond}'
     trait-tronc: 5px
@@ -296,7 +296,7 @@ Anam est une compagne d'introspection qui refuse de dire ce qui arrange. Le prod
 
 **L'app est très imagée.** De vraies illustrations en fond et aux seuils, bien plus que la moyenne des apps. La contrepartie est une contrainte d'accessibilité de premier ordre : **le texte est blanc, écrit relativement petit, et posé sur de l'image**. C'est le cas le plus difficile qui soit (le contraste varie pixel par pixel). Deux règles absolues en découlent, développées plus bas : **aucun texte ne touche une image sans voile de lisibilité**, et **tout texte paraît en fondu**, jamais en glissé.
 
-**L'arbre — devenu arbre de nuit — reste l'objet signature.** Il remplace la barre de progression, le score, le badge et la série. Il ne régresse jamais (FR-029). Écorce argentée, feuillage bleu-lune, un fruit qui luit, poussant contre le ciel étoilé.
+**L'arbre de vie — un arbre de nuit — reste l'objet signature.** Il remplace la barre de progression, le score, le badge et la série. Il ne régresse jamais (FR-029). Écorce argentée, feuillage bleu-lune, chaque branche vécue qui **entre en pleine lumière** (pas de fruit, pas d'objet-récompense), poussant contre le ciel étoilé.
 
 **La discrétion reste une contrainte de premier ordre** (NFR-015) — mais elle se joue désormais **à la surface, pas à l'intérieur**. L'imagerie riche (personnage, lune, lotus, étoiles) vit **dans la séance, derrière l'authentification**. Ce qui est exposé au monde — **l'icône, l'aperçu de notification, la vignette multitâche** — ne révèle jamais qu'il est question de spiritualité ou d'intimité. Le test opérationnel tient : on tend le téléphone deux secondes, sur l'écran verrouillé ou la grille d'icônes ; si « voyance » ou « astrologie » sort, c'est raté. L'app-switcher affiche un **privacy-cover** neutre, jamais l'imagerie de séance.
 
@@ -322,8 +322,8 @@ Palette **« Nuit galactique »**, échantillonnée au pixel sur l'imagerie de r
 - **Surface `#16132F`** et **surface élevée `#201C42`** — les deux seuls niveaux de profondeur. Trois surfaces empilées, c'est déjà une de trop.
 - **Texte `#EEECF7`** — blanc lunaire à peine mauve. **Jamais `#FFFFFF` pur** : le blanc pur sur indigo profond provoque de la halation (le texte vibre) et fatigue le soir.
 - **Texte doux `#ABA6C9`** — pervenche éteinte : métadonnées, dates, mentions, aide. **Jamais** pour le contenu écrit par l'utilisatrice.
-- **Accent `#8FC1EF`** — **le lotus bleu.** C'est la couleur de l'action, et seulement de l'action : bouton primaire, lien, point d'accroche d'une branche, fruit. Jamais un fond de section, jamais un état, jamais décorative. La lueur du lotus dans l'imagerie n'est pas cet accent-UI : c'est de la peinture.
-- **Lueur `#CDE4F8`** *(nouveau)* — nacre lumineuse pour les **points de lumière** : halo du lotus, rosée sur le fruit, point du signe, l'« essence de lumière ». **Distincte de l'accent** : la lueur brille mais n'est jamais cliquable. Ne jamais l'utiliser comme couleur d'action.
+- **Accent `#8FC1EF`** — **le lotus bleu.** C'est la couleur de l'action, et seulement de l'action : bouton primaire, lien, point d'accroche d'une branche. Jamais un fond de section, jamais un état, jamais décorative. La lueur du lotus dans l'imagerie n'est pas cet accent-UI : c'est de la peinture.
+- **Lueur `#CDE4F8`** *(nouveau)* — nacre lumineuse pour les **points de lumière** : halo du lotus, la pleine lumière d'une branche (le rayonnement), point du signe, l'« essence de lumière ». **Distincte de l'accent** : la lueur brille mais n'est jamais cliquable. Ne jamais l'utiliser comme couleur d'action.
 - **Accent doux `#241F47`** — aplat de mise en avant discret. Porte du texte `texte` uniquement, jamais du texte `accent`.
 - **Succès `#86B79E`** et **Alerte `#D0A05C`** — discrets, **en texte uniquement**, jamais en fond ni en pastille. Il n'y a **pas de rouge** dans ce système : Anam est un journal, pas un formulaire (voir *porte de secours*).
 - **Arbre : tronc `#6A6690`, branche `#9A96BE`, feuillage `#8FB6D8`** — argent lunaire et bleu-lune, réservés à l'illustration de l'arbre. **Aucun brun** : c'est un arbre de nuit. Ne jamais les employer comme couleurs d'interface.
@@ -359,7 +359,7 @@ Ratios calculés par la formule WCAG 2.x (luminance relative sRGB linéarisée).
 | `bordure` / `fond` | — | 1,36 | exempté (1.4.11) |
 | `bordure-forte` / focus sur `fond` | 3:1 | **4,29** | PASS |
 | `bordure-forte` sur `surface-elevee` (champ) | 3:1 | **3,54** | PASS |
-| `accent` (fruit) / `fond` | 3:1 | **10,25** | PASS |
+| `accent` (point d'accroche) / `fond` | 3:1 | **10,25** | PASS |
 | `arbre-tronc` / `fond` (ciel) | 3:1 | **3,63** | PASS |
 | `arbre-branche` / `fond` | 3:1 | **6,94** | PASS |
 | `arbre-feuillage` / `fond` | 3:1 | **9,14** | PASS |
@@ -570,7 +570,7 @@ L'icône de l'app est livrée **carrée et à fond perdu**, sans arrondi peint :
 
 ## Components
 
-### `arbre` — l'objet signature, en arbre de nuit
+### `arbre` — l'objet signature, l'arbre de vie (un arbre de nuit)
 
 L'arbre est un composant à part entière, un rendu vectoriel manipulable — pas une image plate. **Il reste identique dans sa mécanique ; seule sa matière devient nocturne.**
 
@@ -583,9 +583,9 @@ L'arbre est un composant à part entière, un rendu vectoriel manipulable — pa
 | Racines | La régularité, le fait de revenir | `arbre-tronc` | 2,5px, larges et étalées |
 | Feuillage | La granularité émotionnelle | `arbre-feuillage` (bleu-lune) | feuilles **individuelles**, opacités 0.78 → 1.0 |
 | Nœuds et cicatrices | Les tempêtes traversées | `cerne` | marques d'honneur, jamais des défauts |
-| Fruit | Le passage à l'action | `accent`, halo `lueur` | un seul par branche, **il luit** |
+| Rayonnement | Elle l'a vécu — devenu vrai en elle (déclaré par elle) | `lueur` (pleine lumière) | la branche entière **entre en lumière**, aucun objet-fruit suspendu |
 
-Le fruit prend la couleur d'accent parce que l'accent **est** la couleur de l'action ; sa **lueur** (`{colors.lueur}`) est celle des points de lumière de la nuit. C'est la seule apparition de l'accent dans l'illustration.
+Le **rayonnement** prend la **lueur** nacre (`{colors.lueur}`) — celle des points de lumière de la nuit : la branche vécue entre en pleine lumière, elle ne « produit » rien. La seule apparition de l'**accent** dans l'illustration est le **point d'accroche** cliquable (l'accent **est** la couleur de l'action).
 
 **Le ciel derrière l'arbre est désormais une nuit étoilée** (`{colors.fond}` + étoiles discrètes + `{components.lumiere.forme-arbre}` en base). C'est un **revirement** par rapport à l'ancien « aplat chaud et vide, aucune étoile » : les étoiles sont maintenant autorisées, avec goût — des points fins, jamais un scintillement clinquant.
 
@@ -598,9 +598,9 @@ Le fruit prend la couleur d'accent parce que l'accent **est** la couleur de l'ac
 
 - `naissance` — fine (2px), nue, bois clair argenté, jonction fraîche. Un seul geste franc.
 - `feuillaison` — même géométrie, trait à 3,2px, teinte assombrie, feuilles qui se déplient. L'état le plus riche en matière.
-- `fruit` — pleinement feuillue, **un** fruit dense qui **luit** doucement et fait légèrement ployer la branche. Forme simple, sans espèce reconnaissable.
+- `rayonnement` — pleinement feuillue, la branche **entre en pleine lumière** : le bois et le feuillage s'illuminent d'une lueur nacre douce et **statique**, de la base vers la cime. **Aucun fruit, aucun objet suspendu** — c'est la branche elle-même qui rayonne. Acquis **uniquement** quand l'utilisatrice le déclare.
 
-> **La progression se lit dans la MATIÈRE** — épaisseur de trait, densité de feuilles, éclat du bois — **jamais dans un effet de récompense ajouté.** La lueur du fruit fait partie de sa nature nocturne (elle est **statique**) ; elle n'est pas un « pop » de célébration. Aucune étincelle, aucune particule, aucune animation festive au changement d'état.
+> **La progression se lit dans la MATIÈRE** — épaisseur de trait, densité de feuilles, éclat du bois — **jamais dans un effet de récompense ajouté.** La pleine lumière d'une branche fait partie de sa nature nocturne (elle est **statique**) ; elle n'est pas un « pop » de célébration. Aucune étincelle, aucune particule, aucune animation festive au changement d'état.
 
 **Règles d'invariance**
 
@@ -704,7 +704,7 @@ Ces composants **n'existent pas** et ne doivent pas être créés (FR-031) : bar
 | **Voile de lisibilité sous tout texte posé sur image** (≥85 % courant / ≥70 % grand) | **Texte directement sur image sans voile** · `text-shadow` en guise de voile |
 | Personnage aux **seuils** (ouverture, nomination, clôture), sinon le signe | **Avatar réaliste collé à chaque message** · personnage photoréaliste · cercle/vignette autour d'elle |
 | Anam en illustration **peinte** + `mention-ia` persistante pour la transparence | Faire passer Anam pour une personne réelle · masquer la mention IA |
-| Arbre de **nuit** : écorce argentée, feuillage bleu-lune, fruit qui luit, ciel étoilé | Arbre brun/terreux · halo de récompense · pop de célébration au changement d'état |
+| Arbre de **vie**, de nuit : écorce argentée, feuillage bleu-lune, branche vécue en pleine lumière, ciel étoilé | Arbre brun/terreux ou doré · fruit-pomme / objet-récompense suspendu · halo de récompense · pop de célébration au changement d'état |
 | L'arbre comme unique représentation du chemin | Barres de progression · jauges · séries · scores · badges · pourcentages |
 | Signe abstrait (courbe du voile) en argent lunaire, ≤ 2 couleurs, lisible à 12px | Signe en `accent` (dilue l'action) · visage · orbe · bulle · onde sonore |
 | Accent `#8FC1EF` = action seule ; `lueur` = points de lumière (jamais cliquables) | Accent en fond de section ou en état · lueur sur un bouton |

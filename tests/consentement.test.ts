@@ -188,6 +188,53 @@ describe("Frontière art. 9 : le gabarit du write-gate + la première table de c
     const { error } = await admin.from("branche").select("*").limit(1);
     expect(error).toBeNull();
   });
+  it("`branche` est write-gatée art. 9 sur les DEUX chemins d'écriture : INSERT et UPDATE (Story 4.6)", async () => {
+    // Sonde COMPORTEMENTALE de la frontière art. 9 (tâche T6, jamais réalisée avant la revue) : le renommage
+    // est un dépôt de contenu art. 9 NEUF (le nom) — il doit tomber avec le consentement, comme la naissance.
+    const email = `sonde-branche-${t}@exemple.fr`;
+    const mdp = "test-sonde-123!";
+    const { data: cree } = await admin.auth.admin.createUser({ email, password: mdp, email_confirm: true });
+    const id = cree!.user!.id;
+    try {
+      const c = clientScope();
+      await c.auth.signInWithPassword({ email, password: mdp });
+      await c.from("consentement").upsert(
+        { utilisatrice_id: id, art9_accorde: true, ia_reconnue: true, cgu_acceptees: true, revoked_at: null },
+        { onConflict: "utilisatrice_id" },
+      );
+      const { data: e } = await admin
+        .from("entree_journal")
+        .insert({ utilisatrice_id: id, cle_tour: `sonde-${t}`, role: "utilisatrice", contenu: "un tour" })
+        .select("id")
+        .single();
+      const { data: b } = await admin
+        .from("branche")
+        .insert({ utilisatrice_id: id, extrait_source_id: e!.id, nom: "avant révocation" })
+        .select("id")
+        .single();
+
+      // Consentement RÉVOQUÉ → plus aucune écriture de contenu art. 9 sur `branche`, dans les deux sens.
+      await c.from("consentement").update({ revoked_at: new Date().toISOString() }).eq("utilisatrice_id", id);
+      const renommage = await c.from("branche").update({ nom: "après révocation" }).eq("id", b!.id);
+      expect(renommage.error, "UPDATE (renommage) : dépôt de contenu art. 9 → refusé sans consentement").not.toBeNull();
+      const { data: e2 } = await admin
+        .from("entree_journal")
+        .insert({ utilisatrice_id: id, cle_tour: `sonde2-${t}`, role: "utilisatrice", contenu: "un autre tour" })
+        .select("id")
+        .single();
+      const naissance = await c.from("branche").insert({ utilisatrice_id: id, extrait_source_id: e2!.id, nom: "née après" });
+      expect(naissance.error, "INSERT (naissance) : refusé sans consentement").not.toBeNull();
+
+      // La LECTURE, elle, survit à la révocation (export FR-067) — contrôle négatif du gate.
+      const lecture = await c.from("branche").select("id").eq("utilisatrice_id", id);
+      expect(lecture.error, "lire ses propres branches reste possible après révocation").toBeNull();
+      await c.auth.signOut();
+    } finally {
+      await admin.from("branche").delete().eq("utilisatrice_id", id);
+      await admin.from("entree_journal").delete().eq("utilisatrice_id", id);
+      await admin.auth.admin.deleteUser(id);
+    }
+  });
   it("les couches de contenu art. 9 restantes n'existent pas encore", async () => {
     for (const table of tablesContenuAVenir) {
       const { error } = await admin.from(table).select("*").limit(1);

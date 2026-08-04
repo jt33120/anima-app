@@ -11,6 +11,7 @@
  */
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   useEffect,
   useMemo,
@@ -21,6 +22,7 @@ import {
 } from "react";
 import {
   REGIONS,
+  adopterProjection,
   etatInitial,
   reducteurVue,
   surimpressionPour,
@@ -28,8 +30,10 @@ import {
   type ProjectionScene,
 } from "@/lib/scene";
 import ArbreVivant from "./arbre-vivant";
+import ArbreInteractif from "./arbre/ArbreInteractif";
 import Surimpression from "./surimpression";
 import Conversation from "./conversation/Conversation";
+import EchangeSource from "./conversation/EchangeSource";
 import type { PropositionBrancheData } from "./conversation/types";
 import s from "./monde.module.css";
 
@@ -94,11 +98,58 @@ const CORPS: Record<IdRegion, string> = {
 export default function SceneDom({ projection, propositionBranche }: ProprietesSceneRendue) {
   const [etat, dispatch] = useReducer(reducteurVue, etatInitial);
   const region = etat.regionCourante;
-  const aller = (cible: IdRegion) => dispatch({ type: "aller", cible });
+  /* Naviguer par la barre ANNULE le rejeu de l'échange source : sans ça, `echangeExtrait` restait collé et
+     la région Anam demeurait bloquée sur l'ancien extrait, sans composeur (piège de navigation, revue 4.6). */
+  const aller = (cible: IdRegion) => {
+    setEchangeExtrait(null);
+    dispatch({ type: "aller", cible });
+  };
 
   // État « Anam prépare » (AC2) remonté de la conversation → épaissit le signe de la surimpression.
   // Présentation pure (pas de domaine) ; SceneDom, hôte du view-state, le porte (AD-7).
   const [anamPrepare, setAnamPrepare] = useState(false);
+
+  // Story 4.6 — la projection AFFICHÉE. Seedée par le serveur ET RESYNCHRONISÉE quand la prop change :
+  // sans cette resynchronisation, une branche née pendant la session n'apparaissait JAMAIS dans l'arbre
+  // (props-into-state figé — revue 4.6). Patron React officiel d'ajustement d'état pendant le rendu.
+  // …et une lecture INDISPONIBLE n'efface pas un arbre déjà affiché : c'est `adopterProjection` (lib/scene)
+  // qui tranche, pas ce composant (AD-7 — le rendu dessine, il ne décide pas).
+  const [projLocale, setProjLocale] = useState(projection);
+  const [projPrec, setProjPrec] = useState(projection);
+  if (projection !== projPrec) {
+    setProjPrec(projection);
+    setProjLocale((affichee) => adopterProjection(affichee, projection));
+  }
+
+  // « Voir dans la conversation » : l'extrait source en cours de lecture (null = fil de conversation normal).
+  const [echangeExtrait, setEchangeExtrait] = useState<string | null>(null);
+  const router = useRouter();
+
+  const voirDansConversation = (extraitSourceId: string) => {
+    setEchangeExtrait(extraitSourceId);
+    dispatch({ type: "voirDansConversation" }); // mémorise le cadrage de l'arbre (retour restaurable)
+  };
+  const retourArbre = () => {
+    setEchangeExtrait(null);
+    dispatch({ type: "revenir" }); // restaure région + caméra + fiche (AC4)
+  };
+
+  // Le renommage passe par la route (jamais d'écriture DB au rendu, AD-7). Succès → nom mis à jour localement.
+  const renommer = async (brancheId: string, nom: string): Promise<boolean> => {
+    try {
+      const r = await fetch("/api/anam/branche", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "renommer", brancheId, nom }),
+      });
+      if (r.ok) {
+        setProjLocale((p) => ({ ...p, branches: p.branches.map((b) => (b.id === brancheId ? { ...b, nom } : b)) }));
+      }
+      return r.ok;
+    } catch {
+      return false;
+    }
+  };
 
   // Focus déplacé vers l'entête de la région ACTIVÉE (AC3), jamais au montage initial.
   // On compare à la région précédente (robuste au double-montage de React StrictMode,
@@ -109,8 +160,11 @@ export default function SceneDom({ projection, propositionBranche }: ProprietesS
     if (regionPrec.current !== region) {
       entetes.current[region]?.focus();
       regionPrec.current = region;
+      // En ENTRANT dans l'arbre, on redemande la projection au serveur : une branche née pendant la séance
+      // (Story 4.5) doit y apparaître. Le rendu ne lit pas la base — il demande un nouveau rendu serveur.
+      if (region === "arbre") router.refresh();
     }
-  }, [region]);
+  }, [region, router]);
 
   const seuilActif = region === "seuil";
 
@@ -128,11 +182,11 @@ export default function SceneDom({ projection, propositionBranche }: ProprietesS
       </div>
       <Etoiles />
 
-      {/* L'arbre, ancre du monde (au centre). Le rendu CONSOMME la projection (lecture seule) :
-          il DESSINE l'éveil, il ne le calcule pas (AD-7). */}
+      {/* Le DÉCOR de fond (ambiance, aria-hidden) — un arbre calme derrière toute la scène. L'arbre RÉEL et
+          adressable (branches, fiche, pan/zoom) vit dans la région « arbre ». AD-7 : décor muet, sans donnée. */}
       {projection.tronc.present && (
         <div className={`${s.arbreMonde} imagerie fondu-image`} aria-hidden>
-          <ArbreVivant eveil={projection.eveil} />
+          <ArbreVivant />
         </div>
       )}
 
@@ -171,16 +225,16 @@ export default function SceneDom({ projection, propositionBranche }: ProprietesS
       {/* ─────────── Régions : les destinations, DÉRIVÉES du modèle (ordre + libellés) ─────────── */}
       {REGIONS.map((r) => {
         const actif = region === r.id;
-        const estConversation = r.id === "anam";
+        const classe = r.id === "anam" ? s.regionConversation : r.id === "arbre" ? s.regionArbre : s.panneau;
         return (
           <section
             key={r.id}
-            className={`${s.region} ${estConversation ? s.regionConversation : s.panneau} ${actif ? s.regionActive : ""}`}
+            className={`${s.region} ${classe} ${actif ? s.regionActive : ""}`}
             aria-label={r.nom}
             aria-hidden={actif ? undefined : true}
             inert={actif ? undefined : true}
           >
-            {estConversation ? (
+            {r.id === "anam" ? (
               <>
                 {/* h1 unique de la vue (cible du focus programmatique) — quiet, la conversation suit. */}
                 <h1
@@ -190,8 +244,34 @@ export default function SceneDom({ projection, propositionBranche }: ProprietesS
                 >
                   {r.nom}
                 </h1>
-                {/* Rendu de la conversation (AD-7 : adaptateur muet, ne parle qu'à app/api). */}
-                <Conversation onPreparation={setAnamPrepare} propositionBranche={propositionBranche} />
+                {/* La Conversation reste MONTÉE en permanence : la démonter détruisait tout le fil de la
+                    séance en cours et ré-amorçait la proposition de branche de 4.5 (revue 4.6, HAUTE).
+                    L'échange source persisté se SUPERPOSE (AC4), puis le retour redonne le fil intact. */}
+                <div className={echangeExtrait ? s.masque : s.transparent}>
+                  <Conversation onPreparation={setAnamPrepare} propositionBranche={propositionBranche} />
+                </div>
+                {echangeExtrait && <EchangeSource extraitSourceId={echangeExtrait} onRetour={retourArbre} />}
+              </>
+            ) : r.id === "arbre" ? (
+              <>
+                <h1
+                  className={`t-titre-sm ${s.titreConversation}`}
+                  tabIndex={-1}
+                  ref={(el) => void (entetes.current[r.id] = el)}
+                >
+                  {r.nom}
+                </h1>
+                {/* L'arbre RÉEL : projection muette + fiche + vue liste + pan/zoom (AD-7). */}
+                <ArbreInteractif
+                  projection={projLocale}
+                  camera={etat.camera}
+                  brancheSelectionnee={etat.brancheSelectionnee}
+                  onCadrer={(camera) => dispatch({ type: "cadrer", camera })}
+                  onOuvrirFiche={(id) => dispatch({ type: "ouvrirFiche", brancheId: id })}
+                  onFermerFiche={() => dispatch({ type: "fermerFiche" })}
+                  onVoirDansConversation={voirDansConversation}
+                  onRenommer={renommer}
+                />
               </>
             ) : (
               <div className={s.bloc}>

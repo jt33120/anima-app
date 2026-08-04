@@ -508,33 +508,23 @@ class MoteurArbre {
   }
 }
 
-export interface ProprietesArbreVivant {
-  /** Niveau d'éveil 0→100 (du modèle). Le rendu le DESSINE, ne le calcule pas (AD-7). */
-  eveil: number;
-}
+/**
+ * Le DÉCOR de fond de la scène (ambiance, aria-hidden). Depuis 4.6, l'arbre RÉEL et adressable — branches,
+ * fiche, pan/zoom — vit dans la région « arbre » (`render/arbre/ArbreInteractif`). Ce composant n'est plus
+ * qu'un fond calme, dessiné à un niveau FIXE (aucune progression globale : FR-031). AD-7 : muet, aucune donnée.
+ */
+const NIVEAU_DECOR = 62; // arbre feuillu, calme — ambiance de fond, jamais un chiffre affiché
 
-export default function ArbreVivant({ eveil }: ProprietesArbreVivant) {
+export default function ArbreVivant() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const moteurRef = useRef<MoteurArbre | null>(null);
 
-  // Construction une seule fois (squelette déterministe, seed fixe → arbre stable).
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const moteur = new MoteurArbre(canvas);
     moteur.build();
-    moteur.dessiner(eveil);
-    moteurRef.current = moteur;
-    return () => {
-      moteurRef.current = null;
-    };
-    // Montage unique : la valeur d'éveil est répercutée par l'effet suivant ([eveil]).
+    moteur.dessiner(NIVEAU_DECOR);
   }, []);
-
-  // Répercute les changements d'éveil (rare en 1.7 : la projection est un stub).
-  useEffect(() => {
-    moteurRef.current?.dessiner(eveil);
-  }, [eveil]);
 
   return <canvas ref={canvasRef} aria-hidden />;
 }

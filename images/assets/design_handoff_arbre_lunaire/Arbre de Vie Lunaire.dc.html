@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Instrument+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0C0A1E}
+body{font-family:'Instrument Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#8FC1EF;text-decoration:none}
+a:hover{color:#CDE4F8}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;align-items:flex-start;gap:70px;padding:60px 64px;background:#0C0A1E">
+  <section style="display:flex;flex-direction:column;gap:20px;flex:none">
+    <div>
+      <div style="text-transform:uppercase;letter-spacing:.32em;font-size:11px;color:#6A6690">Arbre de Vie · argent lunaire</div>
+      <h1 style="font-family:'Marcellus',serif;font-weight:400;font-size:34px;color:#CDE4F8;line-height:1.1;margin-top:8px">Chaque branche s'illumine seule</h1>
+      <p style="font-size:13px;line-height:1.6;color:#9A96BE;max-width:430px;margin-top:10px">Touchez un point d'accroche pour faire passer sa branche d'un état au suivant. Aucune progression d'ensemble : une branche non vécue reste sombre pendant qu'une autre rayonne.</p>
+    </div>
+    <canvas ref="{{ setTree }}" onClick="{{ onTreeClick }}" onMouseMove="{{ onTreeMove }}" onMouseLeave="{{ onTreeLeave }}" style="display:block;width:520px;height:auto;cursor:pointer"></canvas>
+  </section>
+  <section style="display:flex;flex-direction:column;gap:18px;flex:none">
+    <div>
+      <div style="text-transform:uppercase;letter-spacing:.32em;font-size:11px;color:#6A6690">Planche de référence</div>
+      <h2 style="font-family:'Marcellus',serif;font-weight:400;font-size:26px;color:#CDE4F8;line-height:1.15;margin-top:8px">Les trois états d'une branche</h2>
+    </div>
+    <canvas ref="{{ setPlanche }}" style="display:block;width:660px;height:auto"></canvas>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;width:660px">
+      <div>
+        <div style="font-family:'Marcellus',serif;font-size:17px;color:#CDE4F8">Naissance</div>
+        <div style="font-size:12px;line-height:1.55;color:#9A96BE;margin-top:5px">Trait fin et nu, argent sombre. Un point de lueur nacre marque sa base : c'est le point d'accroche.</div>
+      </div>
+      <div>
+        <div style="font-family:'Marcellus',serif;font-size:17px;color:#CDE4F8">Feuillaison</div>
+        <div style="font-size:12px;line-height:1.55;color:#9A96BE;margin-top:5px">Les feuilles se déploient et la lumière monte le long de la branche, de la base vers la cime, par degrés continus.</div>
+      </div>
+      <div>
+        <div style="font-family:'Marcellus',serif;font-size:17px;color:#CDE4F8">Rayonnement</div>
+        <div style="font-size:12px;line-height:1.55;color:#9A96BE;margin-top:5px">Pleine lumière : bois et feuillage baignés d'une lueur nacre douce et statique. La branche elle-même rayonne.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:11px;padding-top:6px">
+      <span style="width:15px;height:15px;border-radius:50%;background:#8FC1EF;box-shadow:0 0 16px 5px rgba(205,228,248,.34);flex:none"></span>
+      <span style="font-size:12px;color:#9A96BE">Point d'accroche — <span style="color:#8FC1EF">#8FC1EF</span>, zone tactile 44&nbsp;px</span>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1400,&quot;height&quot;:1240},&quot;etat&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;En chemin&quot;,&quot;options&quot;:[&quot;Vide&quot;,&quot;Premiers pas&quot;,&quot;En chemin&quot;,&quot;Épanoui&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;États des branches&quot;},&quot;sway&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Affichage&quot;},&quot;planche&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Affichage&quot;}}">
+class Component extends DCLogic {
+  clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  ease = (x) => x * x * (3 - 2 * x);
+  smooth = (a, b, x) => { const u = this.clamp((x - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); };
+
+  NACRE = '205,228,248';
+  ANCHOR = '143,193,239';
+
+  PRESETS = {
+    'Vide': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    'Premiers pas': [0.62, 0, 0, 0, 0, 0.34, 0, 0, 0, 0, 0, 0, 0],
+    'En chemin': [1, 0.58, 0, 0.82, 0, 1, 0.36, 0, 0.7, 0, 0.45, 0, 0],
+    'Épanoui': [1, 1, 0.8, 1, 1, 1, 1, 0.55, 1, 1, 1, 0.72, 1]
+  };
+
+  componentDidMount() {
+    this.lits = (this.PRESETS[this.props.etat] || this.PRESETS['En chemin']).slice();
+    this.hover = -1;
+    this.build();
+    if (!this._raf) { this.loop = this.loop.bind(this); this._raf = requestAnimationFrame(this.loop); }
+  }
+  componentDidUpdate(prev) {
+    if (prev.etat !== this.props.etat) {
+      this.lits = (this.PRESETS[this.props.etat] || this.PRESETS['En chemin']).slice();
+      this._dirty = true;
+    }
+    if (prev.planche !== this.props.planche) this._plancheDirty = true;
+  }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); }
+
+  renderVals() {
+    if (!this._h) {
+      this._h = {
+        setTree: (el) => { this.canvas = el; if (el) { this.build(); if (!this._raf) { this.loop = this.loop.bind(this); this._raf = requestAnimationFrame(this.loop); } } },
+        setPlanche: (el) => { this.pl = el; if (el) { this.build(); this._plancheDirty = true; } },
+        onTreeClick: (e) => {
+          const i = this.pick(e); if (i < 0) return;
+          const v = this.lits[i];
+          this.lits[i] = v === 0 ? 0.58 : (v < 1 ? 1 : 0);
+          this._dirty = true;
+        },
+        onTreeMove: (e) => { const i = this.pick(e); if (i !== this.hover) { this.hover = i; e.currentTarget.style.cursor = i >= 0 ? 'pointer' : 'default'; } },
+        onTreeLeave: () => { this.hover = -1; }
+      };
+    }
+    return this._h;
+  }
+
+  pick(e) {
+    if (!this.branches) return -1;
+    const r = e.currentTarget.getBoundingClientRect();
+    const k = this.W / r.width;
+    const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
+    const rad = Math.max(30, 22 * k);
+    let best = -1, bd = rad * rad;
+    for (let i = 0; i < this.branches.length; i++) {
+      const a = this.branches[i].anchor, d = (a.x - x) ** 2 + (a.y - y) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
+
+  mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  // ---- palette bois : argent lunaire, aucun brun ----
+  tones(kind) {
+    if (kind === 'trunk' || kind === 'root') return { hi: '#918DB4', mid: '#6A6690', lo: '#4C4870' };
+    if (kind === 'leader') return { hi: '#A8A4CA', mid: '#837FA9', lo: '#605C88' };
+    return { hi: '#C0BDDA', mid: '#9A96BE', lo: '#7A76A0' };
+  }
+  leafShade(lit) {
+    lit = this.clamp(lit, 0, 1);
+    const st = [[38, 46, 78], [58, 82, 122], [98, 136, 178], [143, 182, 216], [205, 228, 248]];
+    const seg = lit * 4, i = Math.min(3, Math.floor(seg)), f = seg - i, a = st[i], b = st[i + 1];
+    return `rgb(${a[0] + (b[0] - a[0]) * f | 0},${a[1] + (b[1] - a[1]) * f | 0},${a[2] + (b[2] - a[2]) * f | 0})`;
+  }
+
+  layer(w, h) { const c = document.createElement('canvas'); c.width = Math.ceil(w * this.dpr); c.height = Math.ceil(h * this.dpr); const x = c.getContext('2d'); x.scale(this.dpr, this.dpr); return { c, x }; }
+
+  build() {
+    if (!this.canvas || this._built) return;
+    this._built = true;
+    this.W = 1408; this.H = 2503;
+    this.dpr = 0.7;
+    this.canvas.width = this.W * this.dpr; this.canvas.height = this.H * this.dpr;
+    this.ctx = this.canvas.getContext('2d'); this.ctx.scale(this.dpr, this.dpr);
+    this.light = { x: -0.52, y: -0.85 };
+    const A = this.layer(this.W, this.H); this.baseC = A.c; this.baseX = A.x;      // tronc + racines + leaders
+    const Bl = this.layer(this.W, this.H); this.woodC = Bl.c; this.woodX = Bl.x;   // bois des branches
+    const C = this.layer(this.W, this.H); this.leafC = C.c; this.leafX = C.x;      // feuilles
+    const D = this.layer(this.W, this.H); this.glowC = D.c; this.glowX = D.x;      // lueur nacre
+
+    const rng = this._rng = this.mulberry(23);
+    const cx = this.cx = 704, soilY = this.soilY = 1360;
+    this.statics = []; this.joints = [];
+    const fork = { x: cx, y: 1060 };
+
+    // tronc : plonge dans la terre, se prolonge en pivot
+    const tBot = soilY + 210, tTop = fork.y, tsteps = 54;
+    const trunkW = (y) => { const d = y - soilY, sig = d <= 0 ? 322 : 168; return 36 + 70 * Math.exp(-Math.pow(d / sig, 2)); };
+    const trunkX = (y) => { const u = this.clamp((tBot - y) / (tBot - tTop), 0, 1); const env = Math.sin(u * Math.PI); return cx + (Math.sin(u * 3.2 + 0.5) * 9 + Math.sin(u * 1.6 + 0.25) * 26) * env; };
+    const tPts = [];
+    for (let i = 0; i <= tsteps; i++) { const y = tBot + (tTop - tBot) * (i / tsteps); tPts.push({ x: trunkX(y), y, w: trunkW(y) }); }
+    this.statics.push({ pts: tPts, kind: 'trunk', striae: this._striae(13) });
+
+    // racines : éventail elliptique, ancrées sur la silhouette du tronc
+    const RX = 596, RY = 980, oX = cx, oY = soilY - 16;
+    const nd = (x, y) => Math.hypot((x - oX) / RX, (y - oY) / RY);
+    const growRoot = (x, y, ang, w, depth, span, hug) => {
+      const remain = (1 - nd(x, y)) * (RX * Math.abs(Math.cos(ang)) + RY * Math.abs(Math.sin(ang)));
+      if (remain < 44 || w < 2.4 || depth > 5) return;
+      const len = Math.min(remain, 104 + rng() * 74);
+      const a1 = ang + (rng() - 0.5) * 0.16, bow = (rng() - 0.5) * 0.9;
+      const ex = x + Math.cos(a1) * len, ey = y + Math.sin(a1) * len;
+      let mx, my;
+      if (hug) { mx = x + (ex - x) * 0.12; my = y + Math.max(Math.abs(ey - y) * 0.7, len * 0.46); }
+      else { mx = x + Math.cos(ang) * len * 0.5 - Math.sin(ang) * len * 0.16 * bow; my = y + Math.sin(ang) * len * 0.5 + Math.cos(ang) * len * 0.16 * bow; }
+      const tipW = Math.max(1.8, w * (depth === 0 ? 0.66 : 0.8));
+      const rb = this.limb(x, y, mx, my, ex, ey, w, tipW, 'root', { taper: 1.46 });
+      this.statics.push(rb);
+      const tip = rb.pts[rb.pts.length - 1];
+      const nb = (depth < 4 && rng() < 0.86) ? 2 : 1;
+      if (nb > 1 || depth < 3) this.joints.push({ x: tip.x, y: tip.y, r: Math.max(7, tipW * 1.35), kind: 'root' });
+      for (let i = 0; i < nb; i++) {
+        const dir = nb === 1 ? (rng() - 0.5) * 0.5 : (i ? 1 : -1);
+        growRoot(tip.x, tip.y, a1 + dir * span * (0.42 + rng() * 0.6), tipW * (nb === 1 ? 0.95 : 0.8), depth + 1, span * 0.64, false);
+      }
+    };
+    const NPS = 7;
+    for (const sgn of [-1, 1]) for (let i = 0; i < NPS; i++) {
+      const u = this.clamp((i + (rng() - 0.5) * 0.5) / (NPS - 1), 0, 1);
+      const ay = soilY - 76 + u * 232, tw = trunkW(ay), tx = trunkX(ay);
+      const base = 0.16 + u * 1.2;
+      growRoot(tx + sgn * tw * 0.4, ay, sgn > 0 ? base : Math.PI - base, tw * (0.3 + 0.16 * u) * (0.85 + rng() * 0.3), 0, 0.5, true);
+    }
+    growRoot(trunkX(tBot), tBot - 8, Math.PI / 2, trunkW(tBot) * 0.86, 0, 0.42, false);
+
+    // bulbes de canopée
+    const B = this.bulbs = [
+      [704, 250, 180], [452, 340, 158], [956, 335, 158], [286, 470, 146], [1122, 465, 146],
+      [590, 420, 148], [818, 415, 148], [360, 640, 150], [1048, 635, 150], [560, 610, 138],
+      [848, 605, 138], [430, 830, 132], [978, 825, 132]
+    ].map(([x, y, r]) => ({ x, y, r }));
+
+    // leaders (charpente permanente, fenêtre en cœur)
+    const Lmid = { x: 556, y: 900 }, Rmid = { x: 852, y: 895 }, Ctop = { x: 704, y: 860 };
+    this.statics.push(this.limb(fork.x, fork.y, fork.x - 52, fork.y - 96, Lmid.x, Lmid.y, 52, 31, 'leader', { taper: 1.3 }));
+    this.statics.push(this.limb(fork.x, fork.y, fork.x + 52, fork.y - 96, Rmid.x, Rmid.y, 52, 31, 'leader', { taper: 1.3 }));
+    this.statics.push(this.limb(fork.x, fork.y, fork.x, fork.y - 130, Ctop.x, Ctop.y, 45, 31, 'leader', { taper: 1.3 }));
+    this.joints.push({ x: fork.x, y: fork.y, r: 56, kind: 'leader' });
+
+    // branches indépendantes : une par bulbe
+    this.branches = [];
+    const route = [[Ctop, 0], [Ctop, 5], [Ctop, 6], [Lmid, 1], [Lmid, 3], [Lmid, 7], [Lmid, 9], [Lmid, 11], [Rmid, 2], [Rmid, 4], [Rmid, 8], [Rmid, 10], [Rmid, 12]];
+    for (const [hub, bi] of route) {
+      const b = B[bi];
+      const dx = b.x - hub.x, dy = b.y - hub.y, dl = Math.hypot(dx, dy) || 1;
+      const px = -dy / dl, py = dx / dl, bend = (rng() - 0.5) * 0.5 * dl;
+      const mx = (hub.x + b.x) / 2 + px * bend * 0.4, my = (hub.y + b.y) / 2 + py * bend * 0.4 - 14;
+      const main = this.limb(hub.x, hub.y, mx, my, b.x + (rng() - 0.5) * 24, b.y + (rng() - 0.5) * 20, 24, 6.5, 'branch', { taper: 1.34 });
+      const twigs = [];
+      const nF = 2 + (rng() < 0.5 ? 1 : 0);
+      for (let k = 0; k < nF; k++) {
+        const idx = Math.floor(main.pts.length * (0.48 + rng() * 0.48));
+        const p = main.pts[Math.min(main.pts.length - 1, idx)];
+        const ta = Math.atan2(b.y - p.y, b.x - p.x) + (rng() - 0.5) * 1.35;
+        this.growTwig(twigs, p.x, p.y, ta, b.r * (0.4 + rng() * 0.42), Math.min(p.w * 0.8, 10.5), 0, idx / (main.pts.length - 1), rng);
+      }
+      const anchor = main.pts[Math.max(1, Math.floor(main.pts.length * 0.14))];
+      this.branches.push({ main, twigs, bulb: b, anchor: { x: anchor.x, y: anchor.y }, leaves: [] });
+    }
+
+    this.makeLeafSprites();
+    this.buildLeaves();
+    this.buildDemo();
+    this.paintStatic();
+    this._dirty = true; this._plancheDirty = true;
+  }
+
+  growTwig(out, x, y, ang, len, w, depth, u0, rng) {
+    const a1 = ang + (rng() - 0.5) * 0.4;
+    const mx = x + Math.cos(ang) * len * 0.5, my = y + Math.sin(ang) * len * 0.5;
+    const ex = x + Math.cos(a1) * len, ey = y + Math.sin(a1) * len;
+    const tb = this.limb(x, y, mx, my, ex, ey, w, Math.max(2.4, w * 0.6), 'twig', { taper: 1.3 });
+    tb.u0 = u0;
+    out.push(tb);
+    if (depth >= 2 || w < 5) return;
+    const tip = tb.pts[tb.pts.length - 1];
+    this.joints.push({ x: tip.x, y: tip.y, r: Math.max(6, w * 0.62), kind: 'twig' });
+    for (let i = 0; i < 2; i++) {
+      const na = a1 + (i - 0.5) * (0.5 + rng() * 0.42) + (rng() - 0.5) * 0.2;
+      this.growTwig(out, tip.x, tip.y, na, len * (0.68 + rng() * 0.16), Math.max(2.4, w * 0.6) * 0.94, depth + 1, Math.min(1, u0 + 0.12), rng);
+    }
+  }
+
+  _striae(n) { const a = []; for (let k = 0; k < n; k++) a.push({ o: this._rng() * 1.5 - 0.75, tone: this._rng() < 0.5 ? 1 : -1, wf: 0.05 + this._rng() * 0.07, ph: this._rng() * 6.28, al: 0.1 + this._rng() * 0.14 }); return a; }
+
+  limb(x0, y0, cx1, cy1, x1, y1, w0, w1, kind, opts = {}) {
+    const steps = Math.max(8, Math.round(Math.hypot(x1 - x0, y1 - y0) / 11));
+    const pts = [];
+    for (let i = 0; i <= steps; i++) {
+      const u = i / steps, iu = 1 - u;
+      pts.push({
+        x: iu * iu * x0 + 2 * iu * u * cx1 + u * u * x1,
+        y: iu * iu * y0 + 2 * iu * u * cy1 + u * u * y1,
+        w: w1 + (w0 - w1) * Math.pow(iu, opts.taper || 1.1)
+      });
+    }
+    const bo = { pts, kind };
+    if (w0 > 16) bo.striae = this._striae(Math.round(3 + w0 / 12));
+    return bo;
+  }
+
+  // ---------- feuilles ----------
+  makeLeafSprites() {
+    const shapes = [{ L: 44, W: 0.30, c: 0.05 }, { L: 46, W: 0.42, c: -0.12 }, { L: 40, W: 0.52, c: 0.14 }, { L: 48, W: 0.34, c: 0 }, { L: 38, W: 0.60, c: -0.07 }, { L: 42, W: 0.46, c: 0.10 }];
+    const tones = [0.18, 0.36, 0.55, 0.76, 0.95];
+    this.leafSprites = shapes.map(sh => tones.map(t => this.renderLeaf(sh, t)));
+  }
+  renderLeaf(sh, lit) {
+    const L = sh.L, Wm = L * sh.W, pad = 5;
+    const cw = Math.ceil(Wm * 2 + pad * 2 + Math.abs(sh.c) * L), ch = Math.ceil(L + pad * 2);
+    const cv = document.createElement('canvas'); cv.width = Math.ceil(cw * this.dpr); cv.height = Math.ceil(ch * this.dpr);
+    const c = cv.getContext('2d'); c.scale(this.dpr, this.dpr);
+    const bX = cw / 2 - sh.c * L * 0.5, bY = ch - pad, tX = cw / 2 + sh.c * L * 0.5, tY = pad;
+    const mX = (bX + tX) / 2, mY = (bY + tY) / 2;
+    const g = c.createLinearGradient(bX, bY, tX, tY);
+    g.addColorStop(0, this.leafShade(this.clamp(lit - 0.2, 0, 1)));
+    g.addColorStop(0.45, this.leafShade(lit));
+    g.addColorStop(1, this.leafShade(this.clamp(lit - 0.05, 0, 1)));
+    c.fillStyle = g; c.beginPath(); c.moveTo(bX, bY);
+    c.quadraticCurveTo(mX + Wm, mY, tX, tY); c.quadraticCurveTo(mX - Wm, mY, bX, bY);
+    c.closePath(); c.fill();
+    c.strokeStyle = lit > 0.5 ? 'rgba(205,228,248,0.4)' : 'rgba(20,18,44,0.4)';
+    c.lineWidth = Math.max(0.8, L * 0.022); c.lineCap = 'round';
+    c.beginPath(); c.moveTo(bX, bY); c.quadraticCurveTo(mX, mY, tX, tY); c.stroke();
+    return { canvas: cv, bX, bY, w: cw, h: ch };
+  }
+  buildLeaves() {
+    const rng = this._rng;
+    for (const br of this.branches) {
+      const b = br.bulb, base = br.main.pts[0];
+      const reach = Math.hypot(b.x - base.x, b.y - base.y) + b.r;
+      const n = Math.round(b.r * b.r * 0.011);
+      for (let i = 0; i < n; i++) {
+        const a = rng() * 6.2832, rr = Math.sqrt(rng()) * b.r * 1.04;
+        const x = b.x + Math.cos(a) * rr, y = b.y + Math.sin(a) * rr * 0.92;
+        let dx = x - base.x, dy = y - base.y; const dl = Math.hypot(dx, dy) || 1;
+        let ox = x - b.x, oy = y - b.y; const ol = Math.hypot(ox, oy) || 1;
+        const rot = Math.atan2(dx / dl * 0.45 + ox / ol * 0.55, -(dy / dl * 0.45 + oy / ol * 0.55)) + (rng() - 0.5) * 0.7;
+        const localUp = this.clamp((b.y - y) / b.r + 0.5, 0, 1);
+        const rim = this.clamp(rr / b.r, 0, 1);
+        const lit = this.clamp(0.24 + 0.3 * localUp + 0.2 * rim + (rng() - 0.5) * 0.28, 0, 1);
+        br.leaves.push({
+          x, y, rot, u: this.clamp(dl / reach, 0, 1),
+          scale: (0.5 + Math.pow(rng(), 1.4) * 0.95) * (b.r / 118),
+          shape: (rng() * 6) | 0, tone: this.clamp(Math.floor(lit * 5), 0, 4)
+        });
+      }
+    }
+  }
+
+  // ---------- peinture bois ----------
+  paintLimb(ctx, b, wScale) {
+    const src = b.pts, n = src.length;
+    const vp = new Array(n);
+    for (let i = 0; i < n; i++) vp[i] = { x: src[i].x, y: src[i].y, w: Math.max(1.1, src[i].w * wScale) };
+    const L = [], R = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = vp[Math.max(0, i - 1)], p1 = vp[Math.min(n - 1, i + 1)];
+      let dx = p1.x - p0.x, dy = p1.y - p0.y; const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+      const nx = -dy, ny = dx, h = vp[i].w / 2;
+      vp[i].nx = nx; vp[i].ny = ny; vp[i].dx = dx; vp[i].dy = dy;
+      L.push({ x: vp[i].x + nx * h, y: vp[i].y + ny * h });
+      R.push({ x: vp[i].x - nx * h, y: vp[i].y - ny * h });
+    }
+    const tip = vp[n - 1], base = vp[0], m = vp[n >> 1];
+    const side = (m.nx * this.light.x + m.ny * this.light.y) > 0 ? 1 : -1;
+    const avgW = (base.w + tip.w) / 2, T = this.tones(b.kind);
+    if (avgW >= 5) {
+      const gr = ctx.createLinearGradient(m.x + m.nx * m.w / 2 * side, m.y + m.ny * m.w / 2 * side, m.x - m.nx * m.w / 2 * side, m.y - m.ny * m.w / 2 * side);
+      gr.addColorStop(0, T.hi); gr.addColorStop(0.42, T.mid); gr.addColorStop(1, T.lo);
+      ctx.fillStyle = gr;
+    } else ctx.fillStyle = T.mid;
+    ctx.beginPath(); ctx.moveTo(L[0].x, L[0].y);
+    for (let i = 1; i < n; i++) ctx.lineTo(L[i].x, L[i].y);
+    ctx.quadraticCurveTo(tip.x + tip.dx * tip.w * 0.75, tip.y + tip.dy * tip.w * 0.75, R[n - 1].x, R[n - 1].y);
+    for (let i = n - 2; i >= 0; i--) ctx.lineTo(R[i].x, R[i].y);
+    ctx.quadraticCurveTo(base.x - base.dx * base.w * 0.6, base.y - base.dy * base.w * 0.6, L[0].x, L[0].y);
+    ctx.closePath(); ctx.fill();
+    const line = (ofrac, sgn) => { ctx.beginPath(); for (let i = 0; i < n; i++) { const o = vp[i].w / 2 * ofrac; const X = vp[i].x + vp[i].nx * o * sgn, Y = vp[i].y + vp[i].ny * o * sgn; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke(); };
+    if (avgW >= 5) {
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = 'rgba(205,228,248,0.26)'; ctx.lineWidth = Math.max(0.8, avgW * 0.12); line(0.6, side);
+      ctx.strokeStyle = 'rgba(18,16,42,0.5)'; ctx.lineWidth = Math.max(0.9, avgW * 0.18); line(0.58, -side);
+    }
+    if (b.striae) for (const st of b.striae) {
+      ctx.strokeStyle = st.tone > 0 ? `rgba(190,196,228,${st.al})` : `rgba(20,18,46,${st.al + 0.05})`;
+      ctx.lineWidth = Math.max(0.8, avgW * st.wf); ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) { const u = i / (n - 1); const o = vp[i].w / 2 * 0.85 * (st.o + Math.sin(u * 4.2 + st.ph) * 0.11); const X = vp[i].x + vp[i].nx * o, Y = vp[i].y + vp[i].ny * o; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }
+      ctx.stroke();
+    }
+  }
+  paintThin(ctx, b) {
+    ctx.strokeStyle = '#4C4870'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < b.pts.length; i++) i ? ctx.lineTo(b.pts[i].x, b.pts[i].y) : ctx.moveTo(b.pts[i].x, b.pts[i].y);
+    ctx.stroke();
+  }
+  paintJoint(ctx, j) {
+    const r = Math.max(5, j.r * 0.72), lx = this.light.x, ly = this.light.y, T = this.tones(j.kind);
+    const g = ctx.createRadialGradient(j.x + lx * r * 0.4, j.y + ly * r * 0.4, r * 0.06, j.x, j.y, r);
+    g.addColorStop(0, 'rgba(145,141,180,0.5)'); g.addColorStop(0.42, 'rgba(76,72,112,0.6)'); g.addColorStop(1, 'rgba(30,28,58,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(j.x, j.y, r, 0, 6.2832); ctx.fill();
+    const ox = j.x - lx * r * 0.46, oy = j.y - ly * r * 0.46;
+    const sh = ctx.createRadialGradient(ox, oy, 0, ox, oy, r * 0.86);
+    sh.addColorStop(0, 'rgba(10,9,26,0.22)'); sh.addColorStop(1, 'rgba(10,9,26,0)');
+    ctx.fillStyle = sh; ctx.beginPath(); ctx.arc(ox, oy, r * 0.86, 0, 6.2832); ctx.fill();
+  }
+
+  paintStatic() {
+    const ctx = this.baseX;
+    ctx.clearRect(0, 0, this.W, this.H);
+    ctx.save(); ctx.translate(this.cx, this.soilY + 10); ctx.scale(1, 0.12);
+    const gs = ctx.createRadialGradient(0, 0, 0, 0, 0, 330);
+    gs.addColorStop(0, 'rgba(6,5,18,0.5)'); gs.addColorStop(1, 'rgba(6,5,18,0)');
+    ctx.fillStyle = gs; ctx.beginPath(); ctx.arc(0, 0, 330, 0, 6.2832); ctx.fill(); ctx.restore();
+    const order = { root: 0, trunk: 1, leader: 2 };
+    for (const b of this.statics.slice().sort((a, b2) => order[a.kind] - order[b2.kind])) this.paintLimb(ctx, b, 1);
+    for (const j of this.joints) if (j.kind === 'root' || j.kind === 'leader') this.paintJoint(ctx, j);
+  }
+
+  // ---------- rebake par état de branche ----------
+  rebake() {
+    const wx = this.woodX, lx = this.leafX, gx = this.glowX;
+    wx.clearRect(0, 0, this.W, this.H); lx.clearRect(0, 0, this.W, this.H); gx.clearRect(0, 0, this.W, this.H);
+    for (let i = 0; i < this.branches.length; i++) this.bakeBranch(wx, lx, gx, this.branches[i], this.lits[i]);
+    this._dirty = false;
+  }
+
+  bakeBranch(wx, lx, gx, br, lit) {
+    const grown = this.smooth(0, 0.55, lit);
+    if (lit <= 0.001) { this.paintThin(wx, br.main); for (const t of br.twigs) this.paintThin(wx, t); }
+    else {
+      const ws = 0.24 + 0.76 * grown;
+      this.paintLimb(wx, br.main, ws);
+      for (const t of br.twigs) { if (t.u0 <= lit + 0.06) this.paintLimb(wx, t, ws * 0.94); else this.paintThin(wx, t); }
+      for (const lf of br.leaves) {
+        if (lf.u > lit) continue;
+        const gy = this.clamp((lit - lf.u) / 0.16, 0, 1);
+        const tone = this.clamp(lf.tone + Math.round(lit * 1.5), 0, 4);
+        const spr = this.leafSprites[lf.shape][tone], s = lf.scale * (0.36 + 0.64 * gy);
+        lx.save(); lx.globalAlpha = gy; lx.translate(lf.x, lf.y); lx.rotate(lf.rot); lx.scale(s, s);
+        lx.drawImage(spr.canvas, -spr.bX, -spr.bY, spr.w, spr.h); lx.restore();
+      }
+      lx.globalAlpha = 1;
+      // lumière qui monte le long de la branche, base → cime
+      gx.save(); gx.globalCompositeOperation = 'lighter'; gx.lineCap = 'round';
+      this.glowAlong(gx, br.main.pts, lit, 1);
+      for (const t of br.twigs) { const f = this.clamp((lit - t.u0) / 0.22, 0, 1); if (f > 0.02) this.glowAlong(gx, t.pts, f, 0.7); }
+      const bloom = this.smooth(0.45, 1, lit);
+      if (bloom > 0.01) {
+        const b = br.bulb, R = b.r * 1.5;
+        gx.globalAlpha = bloom * 0.3;
+        const g = gx.createRadialGradient(b.x, b.y, 0, b.x, b.y, R);
+        g.addColorStop(0, `rgba(${this.NACRE},0.5)`); g.addColorStop(0.55, `rgba(${this.NACRE},0.16)`); g.addColorStop(1, `rgba(${this.NACRE},0)`);
+        gx.fillStyle = g; gx.beginPath(); gx.arc(b.x, b.y, R, 0, 6.2832); gx.fill();
+        gx.globalAlpha = 1;
+      }
+      gx.restore();
+    }
+  }
+
+  glowAlong(ctx, pts, f, k) {
+    if (f <= 0.002) return;
+    const n = pts.length, last = (n - 1) * this.clamp(f, 0, 1);
+    const iE = Math.floor(last), fr = last - iE;
+    const sub = pts.slice(0, iE + 1);
+    if (fr > 0.02 && iE < n - 1) { const a = pts[iE], b = pts[iE + 1]; sub.push({ x: a.x + (b.x - a.x) * fr, y: a.y + (b.y - a.y) * fr, w: a.w + (b.w - a.w) * fr }); }
+    if (sub.length < 2) return;
+    const pass = [[0.95, `rgba(120,160,215,${0.1 * k})`, 3, 26], [0.4, `rgba(160,196,232,${0.16 * k})`, 1.8, 13], [0.14, `rgba(${this.NACRE},${0.42 * k})`, 1, 4.4]];
+    for (const [wf, col, mn, mx] of pass) {
+      ctx.strokeStyle = col;
+      for (let i = 1; i < sub.length; i++) {
+        const u = i / (sub.length - 1);
+        const fade = 0.35 + 0.65 * this.smooth(0, 0.55, u < 0.9 ? 1 : (1 - u) / 0.1);
+        ctx.globalAlpha = fade;
+        ctx.lineWidth = Math.min(mx, Math.max(mn, (sub[i - 1].w + sub[i].w) * 0.5 * wf));
+        ctx.beginPath(); ctx.moveTo(sub[i - 1].x, sub[i - 1].y); ctx.lineTo(sub[i].x, sub[i].y); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  drawAnchor(ctx, a, hot) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const R = hot ? 40 : 30;
+    const g = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, R);
+    g.addColorStop(0, `rgba(${this.NACRE},${hot ? 0.62 : 0.44})`); g.addColorStop(0.4, `rgba(${this.ANCHOR},0.2)`); g.addColorStop(1, `rgba(${this.ANCHOR},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(a.x, a.y, R, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = `rgb(${this.ANCHOR})`; ctx.beginPath(); ctx.arc(a.x, a.y, hot ? 8.5 : 7, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = `rgba(${this.NACRE},0.9)`; ctx.beginPath(); ctx.arc(a.x, a.y, hot ? 4 : 3.2, 0, 6.2832); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---------- planche : une branche à ses 3 états ----------
+  buildDemo() {
+    const rng = this.mulberry(91);
+    const main = this.limb(70, 560, 150, 380, 250, 210, 26, 7, 'branch', { taper: 1.34 });
+    const bulb = { x: 250, y: 195, r: 128 };
+    const twigs = [];
+    for (let k = 0; k < 3; k++) {
+      const idx = Math.floor(main.pts.length * (0.5 + k * 0.16));
+      const p = main.pts[Math.min(main.pts.length - 1, idx)];
+      const ta = Math.atan2(bulb.y - p.y, bulb.x - p.x) + (k - 1) * 0.8;
+      this.growTwig(twigs, p.x, p.y, ta, bulb.r * 0.5, Math.min(p.w * 0.8, 10), 0, idx / (main.pts.length - 1), rng);
+    }
+    const demo = { main, twigs, bulb, anchor: { x: main.pts[3].x, y: main.pts[3].y }, leaves: [] };
+    const base = main.pts[0], reach = Math.hypot(bulb.x - base.x, bulb.y - base.y) + bulb.r;
+    for (let i = 0; i < Math.round(bulb.r * bulb.r * 0.012); i++) {
+      const a = rng() * 6.2832, rr = Math.sqrt(rng()) * bulb.r * 1.02;
+      const x = bulb.x + Math.cos(a) * rr, y = bulb.y + Math.sin(a) * rr * 0.92;
+      let dx = x - base.x, dy = y - base.y; const dl = Math.hypot(dx, dy) || 1;
+      let ox = x - bulb.x, oy = y - bulb.y; const ol = Math.hypot(ox, oy) || 1;
+      const rot = Math.atan2(dx / dl * 0.45 + ox / ol * 0.55, -(dy / dl * 0.45 + oy / ol * 0.55)) + (rng() - 0.5) * 0.7;
+      const localUp = this.clamp((bulb.y - y) / bulb.r + 0.5, 0, 1);
+      const lit = this.clamp(0.26 + 0.3 * localUp + 0.2 * this.clamp(rr / bulb.r, 0, 1) + (rng() - 0.5) * 0.26, 0, 1);
+      demo.leaves.push({ x, y, rot, u: this.clamp(dl / reach, 0, 1), scale: (0.5 + Math.pow(rng(), 1.4) * 0.9) * (bulb.r / 118), shape: (rng() * 6) | 0, tone: this.clamp(Math.floor(lit * 5), 0, 4) });
+    }
+    this.demo = demo;
+  }
+
+  paintPlanche() {
+    if (!this.pl || !this.demo) return;
+    const PW = 1180, PH = 700;
+    if (!this._plInit) {
+      this.pl.width = Math.ceil(PW * this.dpr); this.pl.height = Math.ceil(PH * this.dpr);
+      this.plx = this.pl.getContext('2d'); this.plx.scale(this.dpr, this.dpr);
+      const w = this.layer(400, PH); this.dW = w.c; this.dWx = w.x;
+      const l = this.layer(400, PH); this.dL = l.c; this.dLx = l.x;
+      const g = this.layer(400, PH); this.dG = g.c; this.dGx = g.x;
+      this._plInit = true;
+    }
+    const ctx = this.plx;
+    ctx.clearRect(0, 0, PW, PH);
+    const states = [0, 0.58, 1];
+    for (let k = 0; k < 3; k++) {
+      this.dWx.clearRect(0, 0, 400, PH); this.dLx.clearRect(0, 0, 400, PH); this.dGx.clearRect(0, 0, 400, PH);
+      this.bakeBranch(this.dWx, this.dLx, this.dGx, this.demo, states[k]);
+      const ox = k * 394;
+      ctx.save(); ctx.translate(ox, 0);
+      ctx.strokeStyle = 'rgba(106,102,144,0.28)'; ctx.lineWidth = 1;
+      if (k) { ctx.beginPath(); ctx.moveTo(2, 40); ctx.lineTo(2, PH - 40); ctx.stroke(); }
+      ctx.drawImage(this.dW, 0, 0, 400, PH);
+      ctx.drawImage(this.dL, 0, 0, 400, PH);
+      ctx.drawImage(this.dG, 0, 0, 400, PH);
+      this.drawAnchor(ctx, this.demo.anchor, false);
+      ctx.restore();
+    }
+    this._plancheDirty = false;
+  }
+
+  loop(now) {
+    const time = now / 1000;
+    if (this._dirty) this.rebake();
+    if (this._plancheDirty) this.paintPlanche();
+    const ctx = this.ctx; if (!ctx) { this._raf = requestAnimationFrame(this.loop); return; }
+    ctx.clearRect(0, 0, this.W, this.H);
+    ctx.drawImage(this.baseC, 0, 0, this.W, this.H);
+    ctx.drawImage(this.woodC, 0, 0, this.W, this.H);
+    const sw = this.props.sway === false ? 0 : 1;
+    ctx.drawImage(this.leafC, Math.sin(time * 0.5) * 3.4 * sw, Math.sin(time * 0.37 + 1.1) * 1.8 * sw, this.W, this.H);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(this.glowC, Math.sin(time * 0.5) * 1.6 * sw, 0, this.W, this.H);
+    ctx.restore();
+    for (let i = 0; i < this.branches.length; i++) this.drawAnchor(ctx, this.branches[i].anchor, this.hover === i);
+    this._raf = requestAnimationFrame(this.loop);
+  }
+}
+</script>
+</body>
+</html>

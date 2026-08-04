@@ -1,0 +1,349 @@
+/*
+ * arbre.module.css — L'arbre de vie (région « arbre »), sa fiche, sa vue liste, et l'échange source.
+ * Charte « nuit galactique » : argent lunaire (aucun brun, aucun or), lueur nacre pour le rayonnement,
+ * accent lotus RÉSERVÉ au point d'accroche. Aucun rouge. Anneau de focus jamais supprimé (bordure-forte).
+ */
+
+.arbre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.barre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  flex: none;
+}
+
+.zoomBoutons {
+  display: flex;
+  gap: var(--esp-2);
+}
+
+/* ── Boutons (≥ 44px, focus visible, jamais l'état par la couleur seule) ── */
+.actionSecondaire,
+.actionPrincipale,
+.zoomBouton {
+  min-height: var(--cible-tactile);
+  min-width: var(--cible-tactile);
+  padding: 0 var(--esp-3);
+  border-radius: var(--rayon-md);
+  border: 1px solid var(--bordure-forte);
+  background: var(--surface);
+  color: var(--texte);
+  font-family: var(--pile-ui);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.actionPrincipale {
+  background: var(--accent);
+  color: var(--fond);
+  border-color: transparent;
+}
+.actionPrincipale:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.zoomBouton {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.actionSecondaire:focus-visible,
+.actionPrincipale:focus-visible,
+.zoomBouton:focus-visible,
+.accroche:focus-visible,
+.ficheFermer:focus-visible,
+.renommageChamp:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
+/* ── Le canevas déplaçable/zoomable ── */
+.canevas {
+  position: relative;
+  flex: 1;
+  min-height: 18rem;
+  overflow: hidden;
+  border-radius: var(--rayon-lg);
+  touch-action: none; /* le pan/zoom est géré par les gestes, pas le navigateur */
+}
+.canevas:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+/* Le CARRÉ effectif : left/top/width/height sont posés en pixels par le composant (ResizeObserver) pour que
+   le SVG (viewBox carré, letterboxé par le navigateur) et les accroches partagent EXACTEMENT le même repère.
+   Positionner les accroches en % du CONTENEUR les décalait jusqu'à ~100 px du bois dessiné (revue 4.6). */
+.monde {
+  position: absolute;
+  transform-origin: 50% 50%; /* le zoom part du CENTRE (au coin, l'arbre fuyait hors cadre en 4 clics) */
+  transition: opacity var(--duree-standard);
+}
+.mondeEstompe {
+  opacity: 0.55; /* le reste de l'arbre s'estompe SANS FLOU (UX-DR-26) */
+}
+.svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.tronc {
+  fill: none;
+  stroke: var(--arbre-tronc);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.branche {
+  fill: none;
+  stroke: var(--arbre-branche);
+  stroke-linecap: round;
+}
+.feuille {
+  fill: var(--arbre-feuillage);
+}
+.rayonnement {
+  fill: var(--lueur); /* pleine lumière nacre, STATIQUE — aucun objet-fruit, aucune animation */
+  opacity: 0.32;
+}
+.accrocheDot {
+  fill: var(--accent);
+}
+/* Le hit-target cliquable : taille CONSTANTE ≥ 44px (contre-échelle 1/zoom appliquée en style inline). */
+.accroche {
+  position: absolute;
+  width: var(--cible-tactile);
+  height: var(--cible-tactile);
+  border: none;
+  border-radius: var(--rayon-full);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ── La fiche (étiquette, jamais modale) ── */
+/* La couche CAPTE les clics : c'est elle qui réalise « un tap à côté ferme » (UX-DR-26). En
+   `pointer-events: none`, taper à côté ouvrait la fiche d'une AUTRE branche ou naviguait ailleurs (revue 4.6). */
+.ficheCouche {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--esp-4);
+  /* Le canevas est en `overflow: hidden` + `touch-action: none` : sans défilement PROPRE à cette couche,
+     une fiche plus haute que le cadre était rognée EN HAUT ET EN BAS — le nom, la date et les deux actions
+     devenaient inatteignables, et le doigt ne pouvait pas défiler puisque le canevas avale le geste
+     (re-revue). Le défilement vit ici, et `touch-action: pan-y` le rend au doigt. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.fiche {
+  position: relative;
+  max-width: 32rem;
+  width: 100%;
+  /* Jamais plus haute que le cadre : au-delà, c'est la fiche elle-même qui défile, pas la page. */
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-elevee);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon-lg);
+  padding: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+.ficheNom {
+  font-family: var(--pile-ui); /* VOIX UTILISATRICE — jamais la police d'Anam (règle load-bearing) */
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--texte);
+  margin: 0;
+}
+.ficheDate {
+  font-family: var(--pile-ui);
+  font-size: 0.85rem;
+  color: var(--texte-doux);
+  margin: 0;
+}
+.ficheExtrait {
+  margin-top: var(--esp-2);
+}
+.ficheExtraitIntro {
+  font-family: var(--pile-ui);
+  font-size: 0.85rem;
+  color: var(--texte-doux);
+  margin: 0 0 var(--esp-1);
+}
+/* L'extrait rendu COMME UN TOUR D'UTILISATRICE : voix utilisatrice, filet bordure-forte, retrait. */
+.tourUtilisatrice {
+  font-family: var(--pile-ui);
+  color: var(--texte);
+  margin: 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--bordure-forte);
+}
+.tourAnam {
+  font-family: var(--pile-anam);
+  color: var(--texte);
+  margin: 0;
+  padding-left: 16px;
+}
+.ficheActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+  margin-top: var(--esp-3);
+}
+.renommage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  margin-top: var(--esp-3);
+}
+.renommageLabel {
+  font-family: var(--pile-ui);
+  font-size: 0.85rem;
+  color: var(--texte-doux);
+}
+.renommageChamp {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-3);
+  border-radius: var(--rayon-md);
+  border: 1px solid var(--bordure-forte);
+  background: var(--surface);
+  color: var(--texte);
+  font-family: var(--pile-ui);
+}
+.echec {
+  color: var(--alerte); /* ambre en TEXTE seul — aucun rouge, aucun fond d'alerte */
+  font-family: var(--pile-ui);
+  font-size: 0.9rem;
+  margin: 0;
+}
+/* Annonce de succès : lue par les lecteurs d'écran, discrète à l'œil (le renommage réussi était muet). */
+.annonce {
+  font-family: var(--pile-ui);
+  font-size: 0.85rem;
+  color: var(--texte-doux);
+  margin: 0;
+  min-height: 1em;
+}
+.ficheFermer {
+  position: absolute;
+  top: var(--esp-2);
+  right: var(--esp-2);
+  min-width: var(--cible-tactile);
+  min-height: var(--cible-tactile);
+  border: none;
+  background: transparent;
+  color: var(--texte-doux);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* ── L'arbre vide ── */
+.vide {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-2);
+  text-align: center;
+  padding: var(--esp-6);
+}
+.videTitre {
+  font-family: var(--pile-anam);
+  color: var(--texte);
+  margin: 0;
+}
+.videCorps {
+  font-family: var(--pile-ui);
+  color: var(--texte-doux);
+  margin: 0;
+}
+
+/* ── La vue liste de rang égal ── */
+.liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  overflow-y: auto;
+}
+.listeItem {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: var(--esp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+}
+
+/* ── L'échange source (« Voir dans la conversation ») ── */
+.echange {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  min-height: 0;
+  overflow-y: auto;
+}
+.echangeFil {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+.echangeFil li {
+  scroll-margin-top: calc(var(--cible-tactile) + var(--esp-6));
+}
+/* Le message EXACT : filet PERMANENT accent (≥3:1, il survit à l'estompe → l'identification ne repose
+   jamais sur la teinte seule) + fond accent-doux estompé en 2 s (UX-DR-25). Le repère TEXTUEL pour les
+   lecteurs d'écran est porté par `.surligneMention` (le surlignage était invisible aux AT — revue 4.6). */
+.surligne {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-doux);
+  padding: var(--esp-3);
+  border-radius: var(--rayon-md);
+  animation: estompeSurligne 2s var(--duree-standard) forwards;
+}
+.surligneMention {
+  display: block;
+  font-family: var(--pile-ui);
+  font-size: 0.8rem;
+  color: var(--texte-doux);
+  margin-bottom: var(--esp-1);
+}
+@keyframes estompeSurligne {
+  to {
+    background: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Immédiat : le filet accent reste, le fond disparaît d'emblée (aucun estompe animé). */
+  .surligne {
+    animation: none;
+    background: transparent;
+  }
+  .canevas {
+    transition: none;
+  }
+}

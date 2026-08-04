@@ -38,7 +38,7 @@ Camille demande une lecture. Anam **tire une carte au hasard** et la lui montre.
 
 ### UJ-4 — La naissance d'une branche
 
-Un jeudi soir, Camille raconte une dispute avec sa mère. En l'écrivant, elle s'interrompt : *« en fait je crois que je lui en veux pour un truc qui n'a rien à voir. »* Anam ne commente pas immédiatement. Elle laisse le moment se poser, puis : *« Il s'est passé quelque chose, là. Tu veux en faire une branche ? Tu l'appellerais comment ? »* Camille hésite, propose *« arrêter de payer la mauvaise facture »*. La branche naît, **datée, nommée par elle**, et pointe vers l'extrait exact où ça s'est produit. Les semaines suivantes, la branche **feuille** — Camille y revient sans qu'on la pousse. Trois semaines plus tard, elle appelle sa mère : la branche porte un **fruit**.
+Un jeudi soir, Camille raconte une dispute avec sa mère. En l'écrivant, elle s'interrompt : *« en fait je crois que je lui en veux pour un truc qui n'a rien à voir. »* Anam ne commente pas immédiatement. Elle laisse le moment se poser, puis : *« Il s'est passé quelque chose, là. Tu veux en faire une branche ? Tu l'appellerais comment ? »* Camille hésite, propose *« arrêter de payer la mauvaise facture »*. La branche naît, **datée, nommée par elle**, et pointe vers l'extrait exact où ça s'est produit. Les semaines suivantes, la branche **feuille** — Camille y revient sans qu'on la pousse. Trois semaines plus tard, elle appelle sa mère : elle le déclare, et la branche **entre en pleine lumière**.
 
 ### UJ-5 — Un soir sombre
 
@@ -99,7 +99,7 @@ Un jeudi soir, Camille raconte une dispute avec sa mère. En l'écrivant, elle s
 | **FR-025** | Anam **propose** une branche, elle ne la décrète jamais. |
 | **FR-026** | L'utilisatrice **valide et nomme** la branche. Une branche non nommée par elle n'existe pas. |
 | **FR-027** | Chaque branche est **datée** et liée à **l'extrait exact** dont elle provient. |
-| **FR-028** | Une branche traverse trois états : **naissance**, **feuillaison** (l'intégration), **fruit** (le passage à l'action). **Déclencheurs :** la *feuillaison* s'amorce lorsque l'utilisatrice revient spontanément sur le thème de la branche au fil des semaines — elle est progressive, jamais binaire. Le *fruit* n'est acquis que lorsque **l'utilisatrice confirme elle-même** être passée à l'acte : il n'est **jamais inféré** par le système, conformément à FR-026. |
+| **FR-028** | Une branche traverse trois états : **naissance**, **feuillaison** (l'intégration), **rayonnement** (elle entre en pleine lumière — devenu pleinement vrai en elle). **Déclencheurs :** la *feuillaison* s'amorce lorsque l'utilisatrice revient spontanément sur le thème de la branche au fil des semaines — elle est progressive, jamais binaire. Le *rayonnement* n'est acquis que lorsque **l'utilisatrice le déclare elle-même** (elle l'a vécu — un passage à l'acte, ou le sentiment que c'est devenu vrai en elle) : il n'est **jamais inféré** par le système, conformément à FR-026. **Aucun fruit, aucun objet-récompense** : la branche s'illumine, elle ne « produit » pas. |
 | **FR-029** | **L'arbre ne régresse jamais** du fait du produit. *(Exception unique : l'exercice du droit à l'effacement — voir FR-067.)* |
 | **FR-030** | Si plusieurs branches sont ouvertes sans intégration, Anam **propose d'en faire vivre une avant d'en ouvrir une autre**. |
 | **FR-031** | **Aucun score, aucune note, aucune jauge, aucune série.** |

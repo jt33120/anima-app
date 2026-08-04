@@ -77,6 +77,66 @@ describe("depot-branche — anti-fuite RUNTIME du nom art. 9 (NFR-022)", () => {
   });
 });
 
+describe("depot-branche (4.6) — lecture arbre / échange source / renommage : câblage & NFR-022", () => {
+  beforeEach(() => rpc.mockReset());
+
+  it("chargerBranches appelle .rpc(charger_branches_arbre) et mappe snake_case → camelCase (+ verbatim)", async () => {
+    rpc.mockResolvedValue({
+      data: [
+        {
+          branche_id: "b1",
+          nom: "un nom",
+          etat: "feuillaison",
+          intensite: 0.4,
+          date_naissance: "2026-03-12T10:00:00Z",
+          extrait_source_id: "e1",
+          extrait_contenu: "le verbatim exact",
+          extrait_cree_le: "2026-03-11T09:00:00Z",
+        },
+      ],
+      error: null,
+    });
+    const branches = await creerDepotBranche().chargerBranches();
+    expect(rpc).toHaveBeenCalledWith("charger_branches_arbre");
+    expect(branches[0]).toMatchObject({
+      id: "b1",
+      etat: "feuillaison",
+      intensite: 0.4,
+      extraitSourceId: "e1",
+      extraitContenu: "le verbatim exact",
+    });
+  });
+
+  it("chargerEchangeSource appelle .rpc(charger_echange_source, {p_extrait_source_id}) et mappe est_cible", async () => {
+    rpc.mockResolvedValue({
+      data: [{ id: "m1", role: "utilisatrice", contenu: "message", cree_le: "2026-03-12T10:02:00Z", est_cible: true }],
+      error: null,
+    });
+    const msgs = await creerDepotBranche().chargerEchangeSource({ extraitSourceId: "e1" });
+    expect(rpc).toHaveBeenCalledWith("charger_echange_source", { p_extrait_source_id: "e1" });
+    expect(msgs[0].estCible).toBe(true);
+  });
+
+  it("renommer appelle .rpc(renommer_branche, {p_branche_id, p_nouveau_nom})", async () => {
+    rpc.mockResolvedValue({ error: null });
+    await creerDepotBranche().renommer({ brancheId: "b1", nom: "nouveau" });
+    expect(rpc).toHaveBeenCalledWith("renommer_branche", { p_branche_id: "b1", p_nouveau_nom: "nouveau" });
+  });
+
+  it("[NFR-022] renommer : l'erreur ne porte que le code Postgres, jamais le nom art. 9", async () => {
+    rpc.mockResolvedValue({ error: { code: "42501", message: "row-level security" } });
+    let leve: unknown;
+    try {
+      await creerDepotBranche().renommer({ brancheId: "b", nom: "NOM_BRANCHE_zzz" });
+    } catch (e) {
+      leve = e;
+    }
+    const err = leve as Error;
+    expect(`${err.message}\n${err.stack ?? ""}`, "l'erreur porte le nom").not.toContain("NOM_BRANCHE_zzz");
+    expect(err.message).toContain("42501");
+  });
+});
+
 describe("depot-branche — server-only, sous JWT, sans fuite (AD-1/AD-12/NFR-022)", () => {
   it("lib/domain/branche.ts n'importe AUCUNE infra (domaine pur)", () => {
     const src = readFileSync(resolve(process.cwd(), "lib/domain/branche.ts"), "utf-8");

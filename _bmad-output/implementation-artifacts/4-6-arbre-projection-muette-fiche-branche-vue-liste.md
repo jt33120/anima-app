@@ -4,7 +4,7 @@ baseline_commit: 01efcb6
 
 # Story 4.6 : L'arbre — projection muette, fiche de branche, « Voir dans la conversation », renommage, vue liste de rang égal
 
-Status: review
+Status: done
 
 <!-- Story créée le 2026-07-31 après réécriture des specs de l'arbre (fruit → rayonnement, arbre de vie) et
      une analyse parallèle de 5 sous-systèmes (workflow wf_8e901b8f-3fe, 5 agents, 455k tokens). Périmètre

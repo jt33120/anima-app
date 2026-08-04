@@ -55,7 +55,7 @@ describe("reconcilierProjection — l'arbre ne régresse jamais au rendu (AC2)",
   });
 
   it("les incidents ne portent JAMAIS le nom art. 9 (NFR-022) — id + champ seuls", () => {
-    const { incidents } = reconcilierProjection(scene([br("a", "fruit", 1)]), scene([br("a", "naissance", 0)]));
+    const { incidents } = reconcilierProjection(scene([br("a", "rayonnement", 1)]), scene([br("a", "naissance", 0)]));
     const dump = JSON.stringify(incidents);
     expect(dump).not.toContain("secret");
     expect(Object.keys(incidents[0]).sort()).toEqual(["champ", "id"]);
@@ -69,7 +69,7 @@ describe("reconcilierProjection — l'arbre ne régresse jamais au rendu (AC2)",
   });
 
   it("[revue 4.6, HAUTE] une lecture INDISPONIBLE n'est PAS lue comme un effacement (aucun incident, rien n'est conclu)", () => {
-    const precedente = scene([br("a", "fruit", 1), br("b", "feuillaison", 0.5)]);
+    const precedente = scene([br("a", "rayonnement", 1), br("b", "feuillaison", 0.5)]);
     const panne: ProjectionScene = { tronc: { present: true }, branches: [], indisponible: true };
     const { projection, incidents } = reconcilierProjection(precedente, panne);
     expect(incidents, "une panne n'est pas une régression : c'est une absence d'information").toHaveLength(0);
@@ -93,7 +93,7 @@ describe("reconcilierProjection — l'arbre ne régresse jamais au rendu (AC2)",
   });
 
   it("est PURE : ne mute ni la projection précédente ni la nouvelle", () => {
-    const precedente = scene([br("a", "fruit", 1)]);
+    const precedente = scene([br("a", "rayonnement", 1)]);
     const nouvelle = scene([br("a", "naissance", 0)]);
     const gelPrec = JSON.stringify(precedente);
     const gelNouv = JSON.stringify(nouvelle);

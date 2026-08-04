@@ -121,9 +121,13 @@ describe("branche — schéma & contraintes (AC2, AC3)", () => {
     expect(data!.nom).toBe("arrêter de payer la mauvaise facture");
     expect(Number.isNaN(new Date(data!.date_naissance as string).getTime())).toBe(false);
     const colonnes = Object.keys(data!).sort();
+    // 4.7 ajoute les deux dates de transition — sans elles, la fiche ne pourrait pas dire ce qui a changé
+    // ET QUAND (AC5). Elles naissent NULL : une branche neuve n'a rien traversé.
     expect(colonnes).toEqual(
-      ["cree_le", "date_naissance", "etat", "extrait_source_id", "id", "intensite", "maj_le", "nom", "utilisatrice_id"].sort(),
+      ["cree_le", "date_feuillaison", "date_naissance", "date_rayonnement", "etat", "extrait_source_id", "id", "intensite", "maj_le", "nom", "utilisatrice_id"].sort(),
     );
+    expect(data!.date_feuillaison).toBeNull();
+    expect(data!.date_rayonnement).toBeNull();
   });
 
   it("[AC2 / revue #1] un nom vide, d'espaces, de TAB/NL, ou d'ESPACE INSÉCABLE est refusé par le CHECK (même service_role)", async () => {
@@ -148,7 +152,7 @@ describe("branche — schéma & contraintes (AC2, AC3)", () => {
     expect(ok.error, "un nom avec un caractere significatif est accepte").toBeNull();
   });
 
-  it("etat hors énumération refusé (check naissance|feuillaison|fruit)", async () => {
+  it("etat hors énumération refusé (check naissance|feuillaison|rayonnement)", async () => {
     const autre = await graverEntree(u.id, `br-sch-etat-${t}`);
     const bad = await admin
       .from("branche")

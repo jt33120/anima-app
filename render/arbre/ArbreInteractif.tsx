@@ -410,7 +410,7 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
                         />
                       ))}
                     {/* Rayonnement — pleine lumière nacre, STATIQUE, aucun objet-fruit suspendu. */}
-                    {pl.branche.etat === "fruit" && <circle cx={pl.x} cy={pl.y} r={44} className={s.rayonnement} />}
+                    {pl.branche.etat === "rayonnement" && <circle cx={pl.x} cy={pl.y} r={44} className={s.rayonnement} />}
                     <circle cx={pl.accroche.x} cy={pl.accroche.y} r={9} className={s.accrocheDot} />
                   </g>
                 );

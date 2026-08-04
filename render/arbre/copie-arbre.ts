@@ -1,7 +1,7 @@
 /**
  * copie-arbre.ts — Les libellés STATIQUES de l'arbre et le mapping d'AFFICHAGE de l'état. Le rendu ne peut
- * pas importer `lib/` (frontière AD-7) : la copie d'UI vit donc ici. Le mapping `fruit → « rayonnement »`
- * est un choix d'AFFICHAGE (l'enum SQL/modèle reste `fruit`) — jamais un objet-fruit : la branche s'illumine.
+ * pas importer `lib/` (frontière AD-7) : la copie d'UI vit donc ici. Depuis 4.7, l'état s'appelle
+ * « rayonnement » PARTOUT (base, modèle, écran) : plus aucune traduction, et jamais un objet-fruit.
  */
 
 import type { EtatBranche } from "@/lib/scene/projection";
@@ -10,7 +10,7 @@ import type { EtatBranche } from "@/lib/scene/projection";
 export const LIBELLE_ETAT: Record<EtatBranche, string> = {
   naissance: "naissance",
   feuillaison: "feuillaison",
-  fruit: "rayonnement", // pleine lumière déclarée par elle — plus aucune pomme
+  rayonnement: "rayonnement", // pleine lumière déclarée par elle — plus aucune pomme
 };
 
 export const ARIA_CANEVAS = "Ton arbre : chaque branche est une prise de conscience que tu as nommée.";

@@ -22,7 +22,7 @@ const NB_BRANCHES = 7; // choisi pour ne coïncider avec aucun chiffre des dates
 
 const branche = (i: number): BrancheProjetee => ({
   id: `b${i}`,
-  etat: i % 3 === 0 ? "naissance" : i % 3 === 1 ? "feuillaison" : "fruit",
+  etat: i % 3 === 0 ? "naissance" : i % 3 === 1 ? "feuillaison" : "rayonnement",
   intensite: 0.4,
   extraitSourceId: `extrait-${i}`,
   nom: `ce que j'ai compris, numéro ${"un deux trois quatre cinq six sept".split(" ")[i]}`,

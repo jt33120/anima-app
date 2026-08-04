@@ -23,7 +23,7 @@ describe("libellé d'état — en toutes lettres, « rayonnement » (plus jamais
   it("naissance / feuillaison / rayonnement", () => {
     expect(LIBELLE_ETAT.naissance).toBe("naissance");
     expect(LIBELLE_ETAT.feuillaison).toBe("feuillaison");
-    expect(LIBELLE_ETAT.fruit).toBe("rayonnement"); // l'enum SQL reste 'fruit', l'AFFICHAGE dit rayonnement
+    expect(LIBELLE_ETAT.rayonnement).toBe("rayonnement"); // même mot en base, dans le modèle et à l'écran (4.7)
   });
 });
 

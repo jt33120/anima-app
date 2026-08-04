@@ -11,9 +11,10 @@
  * navigateur) et ne nomme jamais un champ `message` (le concept de conversation ne fuit pas ici).
  */
 
-/** Miroir LITTÉRAL du CHECK SQL `branche.etat` (0021). L'enum reste `'fruit'` en base ; le libellé
- *  « rayonnement » est un mapping d'AFFICHAGE (render/), jamais une valeur de modèle. */
-export type EtatBranche = "naissance" | "feuillaison" | "fruit";
+/** Miroir LITTÉRAL du CHECK SQL `branche.etat` (0025). Le troisième état s'appelle « rayonnement »
+ *  partout — en base, dans le modèle et à l'écran : le produit a banni la métaphore du fruit (DESIGN
+ *  L586/L601), et une traduction à l'affichage aurait obligé chaque lecteur du SQL à connaître le décalage. */
+export type EtatBranche = "naissance" | "feuillaison" | "rayonnement";
 
 /** Une branche projetée : ce que le rendu doit dessiner et rendre adressable (le point d'accroche). */
 export interface BrancheProjetee {
@@ -52,8 +53,12 @@ export const projectionInitiale: ProjectionScene = Object.freeze({
   branches: Object.freeze([] as BrancheProjetee[]),
 });
 
-/** Ordre monotone des états (naissance < feuillaison < fruit) — sert la défense anti-régression. */
-const ORDRE_ETAT: Record<EtatBranche, number> = { naissance: 0, feuillaison: 1, fruit: 2 };
+/**
+ * Ordre monotone des états — la SOURCE UNIQUE. `lib/domain/cycle-branche.ts` l'importe d'ici plutôt que
+ * d'en garder une seconde copie : deux définitions de l'ordre qui divergeraient, c'est la faute R1-bis
+ * appliquée au TypeScript, et celle-ci décide dans quel sens l'arbre a le droit d'aller (FR-029).
+ */
+export const ORDRE_ETAT: Record<EtatBranche, number> = { naissance: 0, feuillaison: 1, rayonnement: 2 };
 
 /**
  * Normalise une intensité : hors [0,1] ou non finie (NaN/±Infinity) → repli sûr. Sans ça, `NaN > x` étant

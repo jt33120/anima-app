@@ -153,20 +153,24 @@ describe("branche renommage — write-gate art. 9 dans la policy (leçon R1), UP
     const c = await session(u.email);
     await donnerConsentement(c, u.id);
     // la policy passerait (owner + consentement + nom valide) — seul le trigger fige `etat` (pré-emption 4.7).
-    const { error } = await c.from("branche").update({ nom: "x", etat: "fruit" }).eq("id", u.branche);
+    const { error } = await c.from("branche").update({ nom: "x", etat: "rayonnement" }).eq("id", u.branche);
     expect(error, "poser un état à la main est refusé (cycle de vie = 4.7)").not.toBeNull();
     const { data } = await c.from("branche").select("etat").eq("id", u.branche).single();
     expect(data!.etat).toBe("naissance");
     await c.auth.signOut();
   });
 
-  it("[R1 / trigger] UPDATE DIRECT falsifiant date_naissance ou intensite → REJETÉ par le trigger", async () => {
+  it("[R1 / trigger] UPDATE DIRECT falsifiant date_naissance ou FAISANT RECULER l'intensité → REJETÉ", async () => {
+    // 4.6 refusait TOUTE écriture d'`intensite` (« la feuillaison est la 4.7 »). Depuis 4.7 la matière a le
+    // droit d'AVANCER — ce qui reste absolument interdit, c'est de reculer (FR-029) et de toucher l'origine.
     const c = await session(u.email);
     await donnerConsentement(c, u.id);
     const forgeDate = await c.from("branche").update({ nom: "x", date_naissance: "2000-01-01T00:00:00Z" }).eq("id", u.branche);
     expect(forgeDate.error, "falsifier la date de naissance est refusé").not.toBeNull();
-    const forgeIntensite = await c.from("branche").update({ nom: "x", intensite: 1 }).eq("id", u.branche);
-    expect(forgeIntensite.error, "poser l'intensité à la main est refusé (feuillaison = 4.7)").not.toBeNull();
+    const monte = await c.from("branche").update({ nom: "x", intensite: 0.6 }).eq("id", u.branche);
+    expect(monte.error, "la matière a le droit d'avancer (c'est la Story 4.7)").toBeNull();
+    const recule = await c.from("branche").update({ nom: "x", intensite: 0.1 }).eq("id", u.branche);
+    expect(recule.error, "…mais jamais de reculer (FR-029)").not.toBeNull();
     await c.auth.signOut();
   });
 });

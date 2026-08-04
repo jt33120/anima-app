@@ -36,7 +36,7 @@ afin que ma croissance se lise **dans la matière et jamais dans un chiffre**, e
 
 5. **Étant donné** un changement d'état, **quand** l'utilisatrice ouvre l'arbre, **alors** le changement est **déjà là** — **aucune animation de croissance**, aucune particule, aucun confetti, aucun son, aucune étincelle, aucun halo de récompense ; le rayonnement est **statique** —, **et** une **phrase sur la fiche dit ce qui a changé et quand**. *(FR-028, FR-031 ; epics 4.7 AC L912 ; DESIGN L601-L603)*
 
-6. **[DUR / sécurité]** **Étant donné** un épisode de détresse en cours **ou** la fenêtre de 72 h qui le suit, **quand** un tour est traité, **alors** **aucune progression de feuillaison n'est évaluée ni écrite** (garde de pipeline **et** garde au point d'écriture, double défense, source unique `branche_bloquee_par_detresse()`). Le sort du **geste de déclaration** pendant cette fenêtre est la décision **D3** (Dev Notes) — à trancher avant T4. *(FR-042, FR-046, AD-17, AD-16 ; miroir de la garde 4.4/4.5)*
+6. **[DUR / sécurité]** **Étant donné** un épisode de détresse en cours **ou** la fenêtre de 72 h qui le suit, **quand** un tour est traité, **alors** **aucune progression de feuillaison n'est évaluée ni écrite**, **et** **aucune déclaration de rayonnement n'est acceptée** (décision D3) — les deux gardées au **point d'écriture**, source unique `branche_bloquee_par_detresse()`, jamais dans la seule UI. *(FR-042, FR-046, AD-17, AD-16 ; miroir de la garde 4.4/4.5)*
 
 7. **[DUR / art. 9]** **Étant donné** l'évaluation d'un retour sur le thème, **quand** elle sollicite le modèle, **alors** le **`nom` de branche ne transite JAMAIS vers un modèle** (0021 L9 : « proposition & nommage 100 % déterministes »), **et** aucun `nom`, aucun verbatim ne fuit dans un journal ou une erreur. *(NFR-020, NFR-022, AD-2, AD-3 ; migration 0021 L7-L9)*
 
@@ -49,30 +49,30 @@ afin que ma croissance se lise **dans la matière et jamais dans un chiffre**, e
 > **Deux projets Vitest** : `node` (`tests/**/*.test.ts`) et `rendu` (`tests/rendu/**/*.test.tsx`, jsdom + Testing Library). Une garde de **comportement** de rendu va dans `rendu` ; une garde de **source** ne prouve que le câblage.
 > **Plancher de non-régression : 1346 tests verts / 120 fichiers** (état à la livraison de la 4.6, commit `2979d62`, CI 30914928189). `npx tsc --noEmit`, `npx eslint .` et `npm run build` doivent rester propres.
 
-- [ ] **T1 — Migration `0025_branche_cycle_vie.sql` : la garantie d'écriture** (AC: 1, 3, 4, 6, 7)
-  - [ ] **Relâcher les deux épingles de 0023 EN MÊME TEMPS** — la policy `branche_insertion` (`etat = 'naissance' and intensite = 0`) reste **telle quelle** (une branche naît toujours en naissance), mais le **trigger** `branche_garde_renommage` doit cesser d'interdire tout changement d'`etat`/`intensite` sur `UPDATE`. *(deferred-work L275 : « la 4.7 devra relâcher les deux au même endroit — sinon la feuillaison sera refusée »)*
-  - [ ] **(D2, à confirmer)** Renommer la valeur d'enum `'fruit'` → `'rayonnement'` : nouveau CHECK `etat in ('naissance','feuillaison','rayonnement')`. **Aucune ligne existante ne porte `fruit`** (4.5/4.6 n'écrivent que `naissance`) → migration triviale **maintenant**, dette de traduction permanente sinon.
-  - [ ] Colonnes de transition, **write-once** : `date_feuillaison timestamptz null`, `date_rayonnement timestamptz null` — nécessaires à AC5 (« ce qui a changé **et quand** ») et prévues par EXPERIENCE L232.
-  - [ ] Table `branche_retour (branche_id, entree_journal_id, jour_paris date, cree_le)` + `unique (branche_id, entree_journal_id)` : **idempotence au retry** (patron 2-4b) et base du « au fil des semaines » (un incrément par **jour civil Paris** au plus). RLS possédée, miroir `branche`.
-    - [ ] **⚠️ Inventaire d'effacement (FR-067 / AD-4 / AD-14).** Une table neuve qui porte un lien vers `entree_journal` est de la donnée art. 9 dérivée : elle **doit** rejoindre l'effacement exhaustif d'Epic 6 (`on delete cascade` depuis `branche` **et** inscription explicite dans l'inventaire de suppression). Une table oubliée par l'effacement est un trou RGPD silencieux — c'est exactement le genre de dette qu'on ne retrouve pas deux epics plus tard.
-  - [ ] **Trigger `branche_garde_cycle`** (remplace/étend `branche_garde_renommage`, `before insert or update`, **mord `service_role`**) — LÈVE si :
+- [x] **T1 — Migration `0025_branche_cycle_vie.sql` : la garantie d'écriture** (AC: 1, 3, 4, 6, 7)
+  - [x] **Relâcher les deux épingles de 0023 EN MÊME TEMPS** — la policy `branche_insertion` (`etat = 'naissance' and intensite = 0`) reste **telle quelle** (une branche naît toujours en naissance), mais le **trigger** `branche_garde_renommage` doit cesser d'interdire tout changement d'`etat`/`intensite` sur `UPDATE`. *(deferred-work L275 : « la 4.7 devra relâcher les deux au même endroit — sinon la feuillaison sera refusée »)*
+  - [x] **(D2, tranché : oui)** Renommer la valeur d'enum `'fruit'` → `'rayonnement'` : nouveau CHECK `etat in ('naissance','feuillaison','rayonnement')`. **Aucune ligne existante ne porte `fruit`** (4.5/4.6 n'écrivent que `naissance`) → migration triviale **maintenant**, dette de traduction permanente sinon.
+  - [x] Colonnes de transition, **write-once** : `date_feuillaison timestamptz null`, `date_rayonnement timestamptz null` — nécessaires à AC5 (« ce qui a changé **et quand** ») et prévues par EXPERIENCE L232.
+  - [x] Table `branche_retour (branche_id, entree_journal_id, jour_paris date, cree_le)` + `unique (branche_id, entree_journal_id)` : **idempotence au retry** (patron 2-4b) et base du « au fil des semaines » (un incrément par **jour civil Paris** au plus). RLS possédée, miroir `branche`.
+    - [x] **⚠️ Inventaire d'effacement (FR-067 / AD-4 / AD-14).** Une table neuve qui porte un lien vers `entree_journal` est de la donnée art. 9 dérivée : elle **doit** rejoindre l'effacement exhaustif d'Epic 6 (`on delete cascade` depuis `branche` **et** inscription explicite dans l'inventaire de suppression). Une table oubliée par l'effacement est un trou RGPD silencieux — c'est exactement le genre de dette qu'on ne retrouve pas deux epics plus tard.
+  - [x] **Trigger `branche_garde_cycle`** (remplace/étend `branche_garde_renommage`, `before insert or update`, **mord `service_role`**) — LÈVE si :
     - `etat` recule dans l'ordre `naissance(0) < feuillaison(1) < rayonnement(2)` ;
     - `intensite` **baisse** (et reste bornée [0,1] par le CHECK 0023) ;
     - `date_feuillaison` / `date_rayonnement` passe de non-null à une **autre** valeur ou à null (write-once) ;
     - `date_naissance` / `extrait_source_id` / `utilisatrice_id` / `cree_le` / `id` changent (inchangé depuis 0022) ;
     - `etat = 'rayonnement'` sans `date_rayonnement` (ou l'inverse) — cohérence état/date.
-  - [ ] **RPC `progresser_feuillaison(p_branche_id uuid, p_cle_tour text)`** — `security invoker`. **Signature à respecter** : `consigner()` renvoie `void`, l'appelant n'a **pas** l'id de l'entrée de journal ; la RPC résout l'entrée **en SQL** depuis `cle_tour` (patron `enregistrer_signal_reconceptualisation`, 0020 L99). Insère le retour (`on conflict do nothing`), et **seulement si la ligne est neuve ET qu'aucun retour du même jour civil Paris n'existe déjà**, avance `intensite` d'un pas et pose `etat='feuillaison'` + `date_feuillaison` si c'est la première fois. **Elle ne peut PAS écrire `rayonnement`** (valeur littérale interdite dans son corps → garde de source + garde SQL). Fast-fail AD-17 `branche_bloquee_par_detresse()`, comme 0021 L167.
-  - [ ] **RPC `declarer_rayonnement(p_branche_id uuid)`** — `security invoker`, **seul** chemin vers `rayonnement`. Pose `etat='rayonnement'` + `date_rayonnement = now()`. **Idempotente** (déjà rayonnante → 0 changement, pas d'erreur). Lève si la branche n'est pas possédée (patron 0023 §6 : plus de succès silencieux).
-  - [ ] **Policy UPDATE** : le WITH CHECK de `branche_renommage` couvre déjà owner + `a_consenti_art9()` + non-barré + nom significatif. Vérifier qu'il **reste suffisant** pour les deux nouveaux chemins, ou ajouter une policy dédiée. **Leçon R1** : `authenticated` a le grant UPDATE table-level → toute garde qui ne vivrait que dans la RPC serait illusoire.
-  - [ ] `comment on` sur table, trigger et les deux RPC (patron 0021/0022/0023).
+  - [x] **RPC `progresser_feuillaison(p_branche_id uuid, p_cle_tour text)`** — `security invoker`. **Signature à respecter** : `consigner()` renvoie `void`, l'appelant n'a **pas** l'id de l'entrée de journal ; la RPC résout l'entrée **en SQL** depuis `cle_tour` (patron `enregistrer_signal_reconceptualisation`, 0020 L99). Insère le retour (`on conflict do nothing`), et **seulement si la ligne est neuve ET qu'aucun retour du même jour civil Paris n'existe déjà**, avance `intensite` d'un pas et pose `etat='feuillaison'` + `date_feuillaison` si c'est la première fois. **Elle ne peut PAS écrire `rayonnement`** (valeur littérale interdite dans son corps → garde de source + garde SQL). Fast-fail AD-17 `branche_bloquee_par_detresse()`, comme 0021 L167.
+  - [x] **RPC `declarer_rayonnement(p_branche_id uuid)`** — `security invoker`, **seul** chemin vers `rayonnement`. Pose `etat='rayonnement'` + `date_rayonnement = now()`. **Idempotente** (déjà rayonnante → 0 changement, pas d'erreur). Lève si la branche n'est pas possédée (patron 0023 §6 : plus de succès silencieux). **(D3, tranché)** Lève aussi si `branche_bloquee_par_detresse()` — un basculement déclaré en crise n'entre pas en pleine lumière, et le geste ne se répare pas.
+  - [x] **Policy UPDATE** : le WITH CHECK de `branche_renommage` couvre déjà owner + `a_consenti_art9()` + non-barré + nom significatif. Vérifier qu'il **reste suffisant** pour les deux nouveaux chemins, ou ajouter une policy dédiée. **Leçon R1** : `authenticated` a le grant UPDATE table-level → toute garde qui ne vivrait que dans la RPC serait illusoire.
+  - [x] `comment on` sur table, trigger et les deux RPC (patron 0021/0022/0023).
 
-- [ ] **T2 — `lib/domain/cycle-branche.ts` : la fonction de transition UNIQUE (pure)** (AC: 1, 2)
-  - [ ] `ORDRE_ETAT` — source unique. Il existe déjà dans `lib/scene/projection.ts` L56 mais **n'est pas exporté** (module-private) : l'**exporter** et le faire importer par `cycle-branche.ts`, plutôt qu'en recopier une seconde définition. Deux copies de l'ordre monotone qui divergent, c'est la faute R1-bis en version TypeScript — et celle-ci décide dans quel sens l'arbre a le droit d'aller.
-  - [ ] `transitionner({ etat, intensite, date… }, evenement)` → nouvel état **ou refus explicite**. Pure, 0 I/O, testable sans base. **Aucun autre module n'a le droit de calculer une transition** (garde d'architecture T6).
-  - [ ] `PAS_FEUILLAISON` : le pas d'incrément d'`intensite`. **PLACEHOLDER PRODUIT** au même titre que `INSTRUCTION_RECONCEPTUALISATION` (0.2 = pleine feuillaison en 5 retours) — à valider avant mise en ligne, jamais affiché nulle part (FR-031).
-  - [ ] Idempotence : rejouer le même événement (même `entree_journal_id`) ne change **rien**.
+- [x] **T2 — `lib/domain/cycle-branche.ts` : la fonction de transition UNIQUE (pure)** (AC: 1, 2)
+  - [x] `ORDRE_ETAT` — source unique. Il existe déjà dans `lib/scene/projection.ts` L56 mais **n'est pas exporté** (module-private) : l'**exporter** et le faire importer par `cycle-branche.ts`, plutôt qu'en recopier une seconde définition. Deux copies de l'ordre monotone qui divergent, c'est la faute R1-bis en version TypeScript — et celle-ci décide dans quel sens l'arbre a le droit d'aller.
+  - [x] `transitionner({ etat, intensite, date… }, evenement)` → nouvel état **ou refus explicite**. Pure, 0 I/O, testable sans base. **Aucun autre module n'a le droit de calculer une transition** (garde d'architecture T6).
+  - [x] `PAS_FEUILLAISON` : le pas d'incrément d'`intensite`. **PLACEHOLDER PRODUIT** au même titre que `INSTRUCTION_RECONCEPTUALISATION` (0.2 = pleine feuillaison en 5 retours) — à valider avant mise en ligne, jamais affiché nulle part (FR-031).
+  - [x] Idempotence : rejouer le même événement (même `entree_journal_id`) ne change **rien**.
 
-- [ ] **T3 — Détection du retour sur le thème** (AC: 2, 6, 7) — **(D1, à confirmer : voir Dev Notes)**
+- [ ] **T3 — Détection du retour sur le thème** (AC: 2, 6, 7) — **(D1, tranché : hybride)**
   - [ ] `lib/domain/retour-theme.ts` (pur, patron `reconceptualisation.ts`) : la **présélection déterministe** (candidats plausibles parmi les branches non-rayonnantes) + l'`INSTRUCTION_RETOUR_THEME` structurée + le **parser pur** de la sortie modèle. Le doute → **aucun retour** (jamais un faux « tu y es revenue »).
   - [ ] `lib/safety/retour-theme-pipeline.ts` (patron `reconceptualisation-pipeline.ts`) : garde AD-17 (`fenetreDetresseActive`, repli sûr = `true` → supprime), garde `doitExecuterTravailSchema(verdict)`, budget de délai, `envoyerSousEgressArt9`, métrage, **repli sûr partout** (aucun tour ne casse à cause de ça).
   - [ ] **[DUR / AC7]** La requête envoyée au modèle ne porte **QUE des extraits de journal** (contenu qui transite déjà légitimement) — **jamais un `nom` de branche**. Garde dédiée : construire la requête avec des noms distinctifs et vérifier qu'aucun n'apparaît dans le payload.
@@ -115,7 +115,7 @@ Le relâchement correct : la **naissance** reste épinglée (une branche naît t
 
 `feuillaison` est un **continuum inféré** qui monte tout seul quand elle revient d'elle-même ; `rayonnement` est un **événement qu'elle déclare**. Les deux se lisent dans le dessin, **aucun des deux ne se lit dans un chiffre** (EXPERIENCE L251, FR-031).
 
-### D1 — Comment se détecte le « retour spontané sur le thème » (décision à confirmer)
+### D1 — Comment se détecte le « retour spontané sur le thème » — **TRANCHÉ (PO, 2026-08-04) : hybride**
 
 FR-028 : *« la feuillaison s'amorce lorsque l'utilisatrice revient spontanément sur le thème de la branche au fil des semaines »*. Rien dans le code actuel ne sait faire ça. Trois options ont été pesées :
 
@@ -125,26 +125,26 @@ FR-028 : *« la feuillaison s'amorce lorsque l'utilisatrice revient spontanémen
 | **B — modèle fort seul** | Précision réelle sur la paraphrase | Un 5ᵉ appel fort par tour, payload qui grossit avec le nombre de branches |
 | **C — hybride (recommandé)** | Présélection déterministe ≤3 candidats, puis **une** confirmation forte | Coût borné, surface art. 9 bornée, précision conservée |
 
-**Recommandation : C.** Et une raison décide, plus que le coût : **l'effet est irréversible**. `intensite` ne redescend jamais. Un faux négatif retarde un épaississement de trait ; un faux positif inscrit **définitivement** dans son arbre qu'elle est revenue sur un thème qu'elle n'a pas abordé. L'asymétrie impose la **précision** avant le rappel — donc « en cas de doute, non », et un juge capable de lire une paraphrase.
+**Décision PO : C.** Et une raison décide, plus que le coût : **l'effet est irréversible**. `intensite` ne redescend jamais. Un faux négatif retarde un épaississement de trait ; un faux positif inscrit **définitivement** dans son arbre qu'elle est revenue sur un thème qu'elle n'a pas abordé. L'asymétrie impose la **précision** avant le rappel — donc « en cas de doute, non », et un juge capable de lire une paraphrase.
 
 **Contrainte dure qui tombe ici (AC7) :** le `nom` de branche **ne transite jamais vers un modèle** (0021 L7-L9). La comparaison se fait donc sur les **extraits source** (`entree_journal.contenu`), qui transitent déjà légitimement sous `envoyerSousEgressArt9`. Le modèle renvoie des **indices**, jamais des noms ; le mapping indice → branche se fait côté serveur.
 
-### D2 — Renommer l'enum SQL `fruit` → `rayonnement` (décision à confirmer)
+### D2 — Renommer l'enum SQL `fruit` → `rayonnement` — **TRANCHÉ (PO, 2026-08-04) : renommer en 0025**
 
 Les specs produit ont été réécrites (PRD FR-028, DESIGN L586/L601, epics) : le troisième état est le **rayonnement**, plus jamais un fruit. Le code garde `'fruit'` en base et **traduit à l'affichage** (`copie-arbre.ts` L13). L'ARCHITECTURE-SPINE (L150, AD-8) n'a pas été mise à jour et dit encore `fruit` — **divergence spec/spec à signaler**.
 
-**Recommandation : renommer maintenant, en 0025.** C'est le **dernier moment gratuit** — aucune ligne ne porte `'fruit'` (4.5/4.6 n'écrivent que `naissance`) et 4.7 est justement la story qui écrit cette valeur pour la première fois. Sinon la traduction devient permanente, et chaque futur lecteur du SQL doit savoir que `fruit` veut dire « rayonnement » alors que le produit a explicitement banni la métaphore du fruit. Coût : `EtatBranche`, `ORDRE_ETAT`, `LIBELLE_ETAT`, `ArbreInteractif` L413, la vue liste, les tests. Petit et mécanique.
+**Décision PO : renommer maintenant, en 0025.** C'est le **dernier moment gratuit** — aucune ligne ne porte `'fruit'` (4.5/4.6 n'écrivent que `naissance`) et 4.7 est justement la story qui écrit cette valeur pour la première fois. Sinon la traduction devient permanente, et chaque futur lecteur du SQL doit savoir que `fruit` veut dire « rayonnement » alors que le produit a explicitement banni la métaphore du fruit. Coût : `EtatBranche`, `ORDRE_ETAT`, `LIBELLE_ETAT`, `ArbreInteractif` L413, la vue liste, les tests. Petit et mécanique.
 
-### D3 — La déclaration de rayonnement pendant un épisode de détresse (décision à confirmer)
+### D3 — La déclaration de rayonnement pendant un épisode de détresse — **TRANCHÉ (PO, 2026-08-04) : bloquer aussi**
 
-Ni l'epic ni le PRD ne tranchent. Les deux lectures se défendent :
+Ni l'epic ni le PRD ne tranchaient. Les deux lectures se défendaient :
 
 - **Laisser passer** — c'est **son** geste sur **sa** vie ; le bloquer est paternaliste, et l'interface devrait expliquer un refus qu'elle ne comprendrait pas.
-- **Bloquer (recommandé)** — AD-17 interdit déjà qu'une branche **naisse** pendant un épisode + 72 h, exactement parce qu'un basculement vécu en crise n'est pas un basculement stable. Or **le rayonnement est irréversible** : rien ne peut le retirer, sauf l'effacement. Laisser entrer en pleine lumière une branche pendant la fenêtre où l'on interdit d'en faire naître une est incohérent — et l'erreur ne se répare pas.
+- **Bloquer (retenu)** — AD-17 interdit déjà qu'une branche **naisse** pendant un épisode + 72 h, exactement parce qu'un basculement vécu en crise n'est pas un basculement stable. Or **le rayonnement est irréversible** : rien ne peut le retirer, sauf l'effacement. Laisser entrer en pleine lumière une branche pendant la fenêtre où l'on interdit d'en faire naître une est incohérent — et l'erreur ne se répare pas.
 
 **Attention à la confusion à ne pas faire :** AD-9 (« jamais de paywall sur la sécurité ») protège l'**accès aux haltes**, pas les gestes produit. Bloquer une déclaration n'est pas bloquer un filet de sécurité.
 
-Si D3 = bloquer : la garde vit au **point d'écriture** (`declarer_rayonnement` appelle `branche_bloquee_par_detresse()`), jamais dans la seule UI, et le libellé doit dire quelque chose de vrai et de doux — jamais « indisponible ».
+La garde vit au **point d'écriture** (`declarer_rayonnement` appelle `branche_bloquee_par_detresse()`), jamais dans la seule UI, et le libellé doit dire quelque chose de vrai et de doux — jamais « indisponible ».
 
 ### Ce qu'on RÉUTILISE (ne pas réinventer)
 
@@ -204,4 +204,5 @@ Nouveaux : `supabase/migrations/0025_branche_cycle_vie.sql`, `lib/domain/cycle-b
 
 | Date | Version | Description | Auteur |
 |---|---|---|---|
-| 2026-08-04 | v1.0 | Création de la story (analyse epics/PRD/SPINE/UX + code 4.5/4.6 livré). Deux décisions load-bearing posées : D1 (détection du retour sur le thème) et D2 (renommage de l'enum `fruit` → `rayonnement`). | Claude Opus 5 |
+| 2026-08-04 | v1.0 | Création de la story (analyse epics/PRD/SPINE/UX + code 4.5/4.6 livré). Trois décisions load-bearing posées : D1 (détection du retour sur le thème), D2 (renommage de l'enum `fruit` → `rayonnement`), D3 (déclaration pendant un épisode de détresse). | Claude Opus 5 |
+| 2026-08-04 | v1.1 | **D1 = hybride** (présélection déterministe + confirmation par le modèle fort), **D2 = renommer en 0025**, **D3 = bloquer aussi la déclaration pendant l'épisode + 72 h**. Tranchées par le PO. | Julian (PO) |

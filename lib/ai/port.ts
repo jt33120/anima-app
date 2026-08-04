@@ -13,7 +13,10 @@ import "server-only";
 
 // `detection` = la classification de détresse du pipeline sécurité (Story 2.3, §5). Toujours
 // résolue au tier FORT, inconditionnellement (AD-5, NFR-012) — voir `politique-tier`.
-export type CapaciteIa = "echange" | "reconceptualisation" | "synthese" | "detection";
+// `retour_theme` (Story 4.7) = « ce tour revient-il sur le thème d'une branche existante ? ».
+// FORT lui aussi : l'effet est IRRÉVERSIBLE (l'intensité ne redescend jamais), et lire une
+// paraphrase demande le modèle capable — un faux positif s'inscrit définitivement dans son arbre.
+export type CapaciteIa = "echange" | "reconceptualisation" | "synthese" | "detection" | "retour_theme";
 export type TierIa = "leger" | "fort";
 /** Niveau de détresse (Story 2.3 le PRODUIT ; ici, la politique le CONSOMME — défaut 0). */
 export type NiveauSecurite = 0 | 1 | 2 | 3;

@@ -22,6 +22,14 @@ import {
   ACTION_CENTRER,
   ACTION_FERMER,
   FICHE_EXTRAIT_INTRO,
+  FICHE_DEPUIS_FEUILLAISON,
+  FICHE_DEPUIS_RAYONNEMENT,
+  ACTION_DECLARER_RAYONNEMENT,
+  CONFIRMER_RAYONNEMENT,
+  CONFIRMER_OUI,
+  CONFIRMER_NON,
+  SUCCES_RAYONNEMENT,
+  ECHEC_RAYONNEMENT,
 } from "./copie-arbre";
 import s from "./arbre.module.css";
 
@@ -41,6 +49,12 @@ export interface ProprietesFiche {
   onAnnoncer?: (texte: string) => void;
   /** Ferme la fiche et ramène cette branche au centre. Remplace le double-clic, qui était mort (re-revue). */
   onCentrer?: () => void;
+  /**
+   * Story 4.7 (AC3) — LE GESTE : elle déclare que cette branche est devenue vraie en elle. Le rendu ne
+   * DÉCIDE rien (AD-7) : il transmet une intention, le serveur écrit. `false` = refusé (fenêtre détresse,
+   * panne) → on le dit sans mentir, et sans expliquer ce qu'elle n'a pas à savoir.
+   */
+  onDeclarerRayonnement?: (brancheId: string) => Promise<boolean>;
 }
 
 export default function FicheBranche({
@@ -50,8 +64,11 @@ export default function FicheBranche({
   onRenommer,
   onAnnoncer,
   onCentrer,
+  onDeclarerRayonnement,
 }: ProprietesFiche) {
   const [renomme, setRenomme] = useState(false);
+  const [confirme, setConfirme] = useState(false);
+  const [enCours, setEnCours] = useState(false);
   const titreRef = useRef<HTMLParagraphElement>(null);
   // Le focus revient au bouton d'ouverture quand le champ se referme (sinon il retombe sur <body>).
   const boutonRenommerRef = useRef<HTMLButtonElement>(null);
@@ -72,6 +89,16 @@ export default function FicheBranche({
         {branche.nom ?? ""}
       </p>
       {branche.dateNaissance && <p className={s.ficheDate}>{dateLisible(branche.dateNaissance)}</p>}
+
+      {/* AC5 — ce qui a changé, ET QUAND. On ne montre QUE l'état atteint : empiler « elle s'étoffe » et
+          « en pleine lumière » raconterait un historique que personne n'a demandé. Le saut direct
+          naissance → rayonnement laisse `dateFeuillaison` vide, et la phrase ne l'invente pas. */}
+      {branche.etat === "rayonnement" && branche.dateRayonnement && (
+        <p className={s.ficheTransition}>{FICHE_DEPUIS_RAYONNEMENT(dateLisible(branche.dateRayonnement))}</p>
+      )}
+      {branche.etat === "feuillaison" && branche.dateFeuillaison && (
+        <p className={s.ficheTransition}>{FICHE_DEPUIS_FEUILLAISON(dateLisible(branche.dateFeuillaison))}</p>
+      )}
 
       {branche.extraitContenu && (
         <div className={s.ficheExtrait}>
@@ -103,7 +130,41 @@ export default function FicheBranche({
             {ACTION_CENTRER}
           </button>
         )}
+        {/* AC3 — le geste. Absent si la branche rayonne déjà : proposer d'atteindre ce qui est atteint
+            serait au mieux du bruit, au pire une invitation à re-faire ce qui ne se refait pas. */}
+        {onDeclarerRayonnement && branche.etat !== "rayonnement" && !confirme && (
+          <button type="button" className={s.actionSecondaire} onClick={() => setConfirme(true)}>
+            {ACTION_DECLARER_RAYONNEMENT}
+          </button>
+        )}
       </div>
+
+      {/* Le geste est IRRÉVERSIBLE : rien ne peut retirer la pleine lumière, sauf l'effacement. On le dit
+          AVANT, en une phrase, sans dramatiser — et « Pas encore » est une sortie sans conséquence. */}
+      {confirme && onDeclarerRayonnement && (
+        <div className={s.ficheConfirmation}>
+          <p>{CONFIRMER_RAYONNEMENT}</p>
+          <div className={s.ficheActions}>
+            <button
+              type="button"
+              className={s.actionSecondaire}
+              disabled={enCours}
+              onClick={async () => {
+                setEnCours(true);
+                const ok = await onDeclarerRayonnement(branche.id);
+                setEnCours(false);
+                setConfirme(false);
+                onAnnoncer?.(ok ? SUCCES_RAYONNEMENT : ECHEC_RAYONNEMENT);
+              }}
+            >
+              {CONFIRMER_OUI}
+            </button>
+            <button type="button" className={s.actionSecondaire} disabled={enCours} onClick={() => setConfirme(false)}>
+              {CONFIRMER_NON}
+            </button>
+          </div>
+        </div>
+      )}
 
       {renomme && (
         <ChampRenommage

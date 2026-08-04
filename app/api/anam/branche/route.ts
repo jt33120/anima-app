@@ -68,6 +68,18 @@ export async function POST(request: Request): Promise<Response> {
       await creerDepotBranche(supabase).renommer({ brancheId, nom });
       return NextResponse.json({ ok: true });
     }
+    if (action === "rayonnement") {
+      // Story 4.7 (AC3) — LE GESTE. C'est le seul chemin de l'application vers la pleine lumière, et il
+      // ne prend RIEN d'autre qu'un identifiant : aucun texte libre, aucune sortie de modèle ne peut
+      // l'atteindre. C'est ce qui rend « jamais inféré » vrai par construction et pas par discipline —
+      // une garde d'architecture vérifie qu'aucun module de pipeline n'appelle `declarerRayonnement`.
+      // Les gardes (propriétaire, fenêtre détresse D3, monotonie) vivent au point d'écriture (0025).
+      if (typeof brancheId !== "string" || brancheId.length === 0) {
+        return NextResponse.json({ code: "branche_manquante" }, { status: 400 });
+      }
+      await creerDepotBranche(supabase).declarerRayonnement({ brancheId });
+      return NextResponse.json({ ok: true });
+    }
     return NextResponse.json({ code: "action_invalide" }, { status: 400 });
   } catch (e) {
     // On DISTINGUE le refus d'une garde de la panne. Un refus (consentement retiré, branche non possédée,

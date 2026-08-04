@@ -64,6 +64,8 @@ export interface ProprietesArbreInteractif {
   onFermerFiche: () => void;
   onVoirDansConversation: (extraitSourceId: string) => void;
   onRenommer: (brancheId: string, nom: string) => Promise<boolean>;
+  /** Story 4.7 (AC3) — le GESTE, transmis tel quel : le rendu ne décide pas d'un état (AD-7). */
+  onDeclarerRayonnement?: (brancheId: string) => Promise<boolean>;
 }
 
 export default function ArbreInteractif(p: ProprietesArbreInteractif) {
@@ -456,6 +458,7 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
                 onFermer={fermerFiche}
                 onVoirDansConversation={p.onVoirDansConversation}
                 onRenommer={p.onRenommer}
+                onDeclarerRayonnement={p.onDeclarerRayonnement}
                 onAnnoncer={setAnnonce}
                 onCentrer={() => {
                   // Remplace le double-clic sur l'accroche, qui ne pouvait JAMAIS se déclencher : le

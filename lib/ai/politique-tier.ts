@@ -31,6 +31,7 @@ export function tierPour(capacite: CapaciteIa, niveauSecurite: NiveauSecurite = 
   // Explicite (pas incident) : un futur repoint de la branche par défaut ne doit pas la casser.
   if (capacite === "detection") return "fort";
   if (niveauSecurite >= 1) return "fort"; // AD-5 : détresse → le plus capable, jamais le léger
+  // Tout le reste (reconceptualisation, synthèse, retour_theme) est du travail de schéma : FORT.
   return capacite === "echange" ? "leger" : "fort";
 }
 

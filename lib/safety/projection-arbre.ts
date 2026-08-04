@@ -33,6 +33,10 @@ export async function chargerProjectionArbre(supabase: SupabaseClient): Promise<
       extraitSourceId: b.extraitSourceId,
       nom: b.nom,
       dateNaissance: b.dateNaissance,
+      // AC5 — « une phrase sur la fiche dit ce qui a changé et QUAND ». `undefined` (pas `null`) quand la
+      // transition n'a pas eu lieu : la fiche n'affiche alors rien, plutôt qu'une date vide.
+      dateFeuillaison: b.dateFeuillaison ?? undefined,
+      dateRayonnement: b.dateRayonnement ?? undefined,
       extraitContenu: b.extraitContenu,
     }));
     return { tronc: { present: true }, branches: projetees };

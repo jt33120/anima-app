@@ -4,7 +4,7 @@ baseline_commit: 2979d62
 
 # Story 4.7 : Le cycle de vie d'une branche — naissance → feuillaison → rayonnement, monotone et gardé à l'écriture
 
-Status: ready-for-dev
+Status: review
 
 <!-- Story créée le 2026-08-04, immédiatement après la livraison de la 4.6 (CI verte 30914928189, 1346 tests).
      4.5 fait NAÎTRE la branche, 4.6 la MONTRE et la RENOMME, 4.7 la fait VIVRE. C'est la première story qui
@@ -72,36 +72,36 @@ afin que ma croissance se lise **dans la matière et jamais dans un chiffre**, e
   - [x] `PAS_FEUILLAISON` : le pas d'incrément d'`intensite`. **PLACEHOLDER PRODUIT** au même titre que `INSTRUCTION_RECONCEPTUALISATION` (0.2 = pleine feuillaison en 5 retours) — à valider avant mise en ligne, jamais affiché nulle part (FR-031).
   - [x] Idempotence : rejouer le même événement (même `entree_journal_id`) ne change **rien**.
 
-- [ ] **T3 — Détection du retour sur le thème** (AC: 2, 6, 7) — **(D1, tranché : hybride)**
-  - [ ] `lib/domain/retour-theme.ts` (pur, patron `reconceptualisation.ts`) : la **présélection déterministe** (candidats plausibles parmi les branches non-rayonnantes) + l'`INSTRUCTION_RETOUR_THEME` structurée + le **parser pur** de la sortie modèle. Le doute → **aucun retour** (jamais un faux « tu y es revenue »).
-  - [ ] `lib/safety/retour-theme-pipeline.ts` (patron `reconceptualisation-pipeline.ts`) : garde AD-17 (`fenetreDetresseActive`, repli sûr = `true` → supprime), garde `doitExecuterTravailSchema(verdict)`, budget de délai, `envoyerSousEgressArt9`, métrage, **repli sûr partout** (aucun tour ne casse à cause de ça).
-  - [ ] **[DUR / AC7]** La requête envoyée au modèle ne porte **QUE des extraits de journal** (contenu qui transite déjà légitimement) — **jamais un `nom` de branche**. Garde dédiée : construire la requête avec des noms distinctifs et vérifier qu'aucun n'apparaît dans le payload.
-  - [ ] Câblage dans `app/api/anam/message/route.ts`, dans le **même `after()`** que l'étage reconceptualisation (post-réponse, aucune latence ajoutée, aucun 500 possible), **après** le gate d'allocation.
-  - [ ] Nouvelle capacité `retour_theme` dans `CapaciteIa` (`lib/ai/port.ts`) + `politique-tier.ts` → **fort**.
+- [x] **T3 — Détection du retour sur le thème** (AC: 2, 6, 7) — **(D1, tranché : hybride)**
+  - [x] `lib/domain/retour-theme.ts` (pur, patron `reconceptualisation.ts`) : la **présélection déterministe** (candidats plausibles parmi les branches non-rayonnantes) + l'`INSTRUCTION_RETOUR_THEME` structurée + le **parser pur** de la sortie modèle. Le doute → **aucun retour** (jamais un faux « tu y es revenue »).
+  - [x] `lib/safety/retour-theme-pipeline.ts` (patron `reconceptualisation-pipeline.ts`) : garde AD-17 (`fenetreDetresseActive`, repli sûr = `true` → supprime), garde `doitExecuterTravailSchema(verdict)`, budget de délai, `envoyerSousEgressArt9`, métrage, **repli sûr partout** (aucun tour ne casse à cause de ça).
+  - [x] **[DUR / AC7]** La requête envoyée au modèle ne porte **QUE des extraits de journal** (contenu qui transite déjà légitimement) — **jamais un `nom` de branche**. Garde dédiée : construire la requête avec des noms distinctifs et vérifier qu'aucun n'apparaît dans le payload.
+  - [x] Câblage dans `app/api/anam/message/route.ts`, dans le **même `after()`** que l'étage reconceptualisation (post-réponse, aucune latence ajoutée, aucun 500 possible), **après** le gate d'allocation.
+  - [x] Nouvelle capacité `retour_theme` dans `CapaciteIa` (`lib/ai/port.ts`) + `politique-tier.ts` → **fort**.
 
-- [ ] **T4 — Le geste de déclaration (AC3) : endpoint + fiche + réponse à Anam** (AC: 3, 5)
-  - [ ] `app/api/anam/branche/rayonnement/route.ts` (ou extension de `app/api/anam/branche`) : POST `{ brancheId }`, 401 sans session, appelle `declarer_rayonnement`. **Aucune entrée textuelle, aucune sortie de modèle ne peut atteindre ce chemin** — il ne prend qu'un id et un geste.
-  - [ ] Fiche (`render/arbre/FicheBranche.tsx`) : action explicite, libellé dans `copie-arbre.ts`. **Formulation à trancher côté produit** — dire ce qu'elle a vécu, jamais féliciter (charte §6). Masquée si la branche rayonne déjà. Confirmation légère (le geste est **irréversible**).
-  - [ ] Affordance « en réponse à Anam » : bouton **explicite** (patron `PropositionBranche.tsx` de la 4.5), **jamais** un parsing du texte libre — sinon le rayonnement serait inféré, ce qu'AC3 interdit.
-  - [ ] Annonce a11y via la région live persistante existante (`onAnnoncer`).
+- [x] **T4 — Le geste de déclaration (AC3) : endpoint + fiche + réponse à Anam** (AC: 3, 5)
+  - [x] `app/api/anam/branche/rayonnement/route.ts` (ou extension de `app/api/anam/branche`) : POST `{ brancheId }`, 401 sans session, appelle `declarer_rayonnement`. **Aucune entrée textuelle, aucune sortie de modèle ne peut atteindre ce chemin** — il ne prend qu'un id et un geste.
+  - [x] Fiche (`render/arbre/FicheBranche.tsx`) : action explicite, libellé dans `copie-arbre.ts`. **Formulation à trancher côté produit** — dire ce qu'elle a vécu, jamais féliciter (charte §6). Masquée si la branche rayonne déjà. Confirmation légère (le geste est **irréversible**).
+  - [x] Affordance « en réponse à Anam » : bouton **explicite** (patron `PropositionBranche.tsx` de la 4.5), **jamais** un parsing du texte libre — sinon le rayonnement serait inféré, ce qu'AC3 interdit.
+  - [x] Annonce a11y via la région live persistante existante (`onAnnoncer`).
 
-- [ ] **T5 — Le rendu : « ce qui a changé et quand » (AC5)** (AC: 5)
-  - [ ] `BrancheProjetee` porte `dateFeuillaison?` / `dateRayonnement?` ; `charger_branches_arbre()` et `depot-branche.ts` les remontent.
-    - [ ] **⚠️ `create or replace function` ne peut PAS changer le type de retour** (`ERROR 42P13`). `charger_branches_arbre()` gagne deux colonnes → il faut **`drop function public.charger_branches_arbre();` puis `create`**, et **re-poser le `revoke`/`grant`** (un `drop` les emporte). Même piège si `charger_echange_source` était touché.
-  - [ ] Fiche : une phrase sobre et **datée** (« En pleine lumière depuis le 12 mars. » / « Feuillaison amorcée le 3 février. »). Aucune félicitation, aucun chiffre, aucune jauge (FR-031).
-  - [ ] Vue liste : l'état reste écrit **en toutes lettres** (jamais la couleur seule) ; `LIBELLE_ETAT` s'aligne sur (D2).
-  - [ ] **Aucune animation de changement d'état** — garde de comportement dans le projet `rendu` : monter avec un état supérieur ne déclenche ni transition, ni keyframe, ni classe d'apparition.
+- [x] **T5 — Le rendu : « ce qui a changé et quand » (AC5)** (AC: 5)
+  - [x] `BrancheProjetee` porte `dateFeuillaison?` / `dateRayonnement?` ; `charger_branches_arbre()` et `depot-branche.ts` les remontent.
+    - [x] **⚠️ `create or replace function` ne peut PAS changer le type de retour** (`ERROR 42P13`). `charger_branches_arbre()` gagne deux colonnes → il faut **`drop function public.charger_branches_arbre();` puis `create`**, et **re-poser le `revoke`/`grant`** (un `drop` les emporte). Même piège si `charger_echange_source` était touché.
+  - [x] Fiche : une phrase sobre et **datée** (« En pleine lumière depuis le 12 mars. » / « Feuillaison amorcée le 3 février. »). Aucune félicitation, aucun chiffre, aucune jauge (FR-031).
+  - [x] Vue liste : l'état reste écrit **en toutes lettres** (jamais la couleur seule) ; `LIBELLE_ETAT` s'aligne sur (D2).
+  - [x] **Aucune animation de changement d'état** — garde de comportement dans le projet `rendu` : monter avec un état supérieur ne déclenche ni transition, ni keyframe, ni classe d'apparition.
 
-- [ ] **T6 — Les gardes** (AC: 1, 2, 3, 4, 6, 7)
-  - [ ] `tests/cycle-branche.test.ts` — la fonction pure : monotonie, refus de régression, idempotence, pas d'incrément.
-  - [ ] `tests/branche-cycle-sql.test.ts` — **contre la vraie base** : régression `etat`, régression `intensite`, réécriture de date, forge de `rayonnement` par `progresser_feuillaison`, **et les mêmes tentatives en `service_role`** (isole le trigger seul — sans ça la mutation ne meurt pas).
-  - [ ] `tests/retour-theme.test.ts` — parser pur, doute → non ; **AC7** : aucun `nom` dans le payload.
-  - [ ] `tests/retour-theme-pipeline.test.ts` — suppression en détresse/72 h, repli sûr, métrage, aucun 500.
-  - [ ] `tests/rayonnement-endpoint.test.ts` — 401, isolation, idempotence.
-  - [ ] **Garde d'architecture** : `declarer_rayonnement` n'a **qu'un seul appelant** (le dépôt appelé par la route du geste) ; **aucun** module de `lib/safety/` ni de pipeline ne le référence — c'est ça, « jamais inféré ».
-  - [ ] **Garde d'architecture** : aucun module hors `lib/domain/cycle-branche.ts` ne calcule une transition d'état (miroir de la garde « un seul appelant de `requeteReconceptualisation` », 4.4).
-  - [ ] `tests/rendu/arbre-cycle.test.tsx` — le changement est **déjà là**, sans animation (AC5).
-  - [ ] **Mutation-vérifier** au minimum : la garde de monotonie du trigger, l'interdiction d'écrire `rayonnement` depuis `progresser_feuillaison`, la garde AD-17 du pipeline, la garde art. 9 du payload.
+- [x] **T6 — Les gardes** (AC: 1, 2, 3, 4, 6, 7)
+  - [x] `tests/cycle-branche.test.ts` — la fonction pure : monotonie, refus de régression, idempotence, pas d'incrément.
+  - [x] `tests/branche-cycle-sql.test.ts` — **contre la vraie base** : régression `etat`, régression `intensite`, réécriture de date, forge de `rayonnement` par `progresser_feuillaison`, **et les mêmes tentatives en `service_role`** (isole le trigger seul — sans ça la mutation ne meurt pas).
+  - [x] `tests/retour-theme.test.ts` — parser pur, doute → non ; **AC7** : aucun `nom` dans le payload.
+  - [x] `tests/retour-theme-pipeline.test.ts` — suppression en détresse/72 h, repli sûr, métrage, aucun 500.
+  - [x] `tests/rayonnement-endpoint.test.ts` — 401, isolation, idempotence.
+  - [x] **Garde d'architecture** : `declarer_rayonnement` n'a **qu'un seul appelant** (le dépôt appelé par la route du geste) ; **aucun** module de `lib/safety/` ni de pipeline ne le référence — c'est ça, « jamais inféré ».
+  - [x] **Garde d'architecture** : aucun module hors `lib/domain/cycle-branche.ts` ne calcule une transition d'état (miroir de la garde « un seul appelant de `requeteReconceptualisation` », 4.4).
+  - [x] `tests/rendu/arbre-cycle.test.tsx` — le changement est **déjà là**, sans animation (AC5).
+  - [x] **Mutation-vérifier** au minimum : la garde de monotonie du trigger, l'interdiction d'écrire `rayonnement` depuis `progresser_feuillaison`, la garde AD-17 du pipeline, la garde art. 9 du payload.
 
 ## Dev Notes
 
@@ -194,11 +194,92 @@ Nouveaux : `supabase/migrations/0025_branche_cycle_vie.sql`, `lib/domain/cycle-b
 
 ### Agent Model Used
 
+Claude Opus 5 (1M context) — implémentation et gardes.
+
 ### Debug Log References
+
+- `supabase db reset` rejoue **0001→0025** proprement (vérifié deux fois, dont après le renommage de l'enum).
+- Commande de suite : `set -a && . ./.env.local && set +a && npx vitest run`.
 
 ### Completion Notes List
 
+**Ce qui a été livré.** La monotonie de l'arbre vit désormais **à l'écriture**, dans le trigger
+`branche_garde_cycle` — le seul endroit qui connaît la ligne *précédente*, donc le seul qui puisse
+garantir FR-029. Aucun écrivain, JWT ou `service_role`, ne peut faire reculer `etat` ou `intensite`, ni
+réécrire une date de transition posée. La feuillaison progresse **par degrés** au rythme des retours
+(un par jour civil Paris au plus, idempotent par le ledger `branche_retour`), et la pleine lumière n'est
+atteignable **que** par le geste de l'utilisatrice.
+
+**Trois choses valent d'être retenues, parce qu'elles ont changé le code :**
+
+1. **Un fast-fail qui ne mourait pas.** Le garde AD-17 de `declarer_rayonnement` a **survécu à sa
+   mutation** une fois la clause de détresse posée dans le trigger : plus aucun test ne pouvait le tuer,
+   parce qu'il n'apportait plus rien d'observable. Il a été **retiré** plutôt que gardé décoratif. Une
+   garde qu'aucun test ne peut tuer n'est pas une garde, c'est un commentaire exécutable.
+
+2. **La garde AD-17 ne pouvait pas vivre dans la policy.** `branche_maj` est partagée avec le renommage :
+   y mettre `not branche_bloquee_par_detresse()` aurait rendu impossible de **renommer** une branche
+   pendant un épisode — absurde et cruel. Elle vit donc dans le trigger, qui couvre tous les écrivains
+   sous JWT sans toucher au droit de parole. Un test de contrôle positif verrouille ça.
+
+3. **Ce que la garantie ne couvre PAS, dit explicitement.** L'utilisatrice qui ouvrirait sa console
+   pourrait avancer son propre arbre par un UPDATE direct. Le verrouiller (drapeau de transaction,
+   privilège de colonne) coûterait la **testabilité de la monotonie** — plus aucun chemin ne pourrait
+   tenter une régression, donc plus aucun test ne pourrait tuer le mutant de la garde qui compte. Le
+   choix est documenté en tête de `0025` et dans le fichier de test, pas laissé implicite.
+
+**Mutation-vérifié** (garde retirée → rouges comptés → restaurée → re-run vert) :
+
+| Garde | Où | Rouges |
+|---|---|---|
+| Monotonie de l'état | trigger `branche_garde_cycle` | 1 |
+| Monotonie de l'intensité | trigger | 1 |
+| Dates de transition write-once | trigger | 1 |
+| AD-17/FR-046 « l'arbre ne pousse pas en détresse » | trigger | 3 |
+| Fast-fail AD-17 (message clair) | `progresser_feuillaison` | 1 |
+| Garde AD-17 du pipeline | `retour-theme-pipeline` | 2 |
+| [AC7] le `nom` ne part pas au modèle | `requeteRetourTheme` | 2 |
+| [AC3] aucun pipeline ne déclare le rayonnement | garde d'architecture | 2 |
+
+*Une mesure a d'abord été fausse* : la boucle de restauration réappliquait un fichier périmé d'une série
+antérieure, ce qui contaminait deux mutants. Refaite proprement, elle donne les chiffres ci-dessus.
+
+**Chiffres.** 1439 tests verts / 126 fichiers (plancher 4.6 : 1346 / 120). `tsc`, `eslint`, `next build`
+propres. `supabase db reset` rejoue 0001→0025.
+
+**Reste ouvert / à valider avant mise en ligne :**
+- `PAS_FEUILLAISON = 0,2` et `INSTRUCTION_RETOUR_THEME` sont des **placeholders produit**, au même titre
+  qu'`INSTRUCTION_RECONCEPTUALISATION` — à éprouver sur données réelles.
+- La présélection lexicale est volontairement **large** (un mot porteur commun suffit) : c'est le modèle
+  qui tranche. Si le coût des appels forts devient un sujet, c'est le premier levier à resserrer.
+- L'ARCHITECTURE-SPINE (AD-8, L150) dit encore `fruit` : à mettre à jour, la base et le code disent
+  `rayonnement` depuis 0025.
+
 ### File List
+
+**Nouveaux**
+- `supabase/migrations/0025_branche_cycle_vie.sql`
+- `lib/domain/cycle-branche.ts`
+- `lib/domain/retour-theme.ts`
+- `lib/safety/retour-theme-pipeline.ts`
+- `tests/branche-cycle-sql.test.ts`
+- `tests/cycle-branche.test.ts`
+- `tests/retour-theme.test.ts`
+- `tests/retour-theme-pipeline.test.ts`
+- `tests/cycle-architecture.test.ts`
+- `tests/rendu/arbre-cycle.test.tsx`
+
+**Modifiés**
+- `lib/scene/projection.ts` (enum `rayonnement`, `ORDRE_ETAT` exporté, dates de transition)
+- `lib/data/depot-branche.ts` (dates, candidats, progression, déclaration)
+- `lib/safety/projection-arbre.ts` (dates remontées à la scène)
+- `lib/ai/port.ts`, `lib/ai/politique-tier.ts` (capacité `retour_theme` → fort)
+- `app/api/anam/message/route.ts` (étage retour sur le thème dans `after()`)
+- `app/api/anam/branche/route.ts` (action `rayonnement`)
+- `render/arbre/FicheBranche.tsx`, `render/arbre/copie-arbre.ts`, `render/arbre/ArbreInteractif.tsx`,
+  `render/arbre/arbre.module.css`, `render/scene-dom.tsx`
+- `tests/branche.test.ts`, `tests/branche-renommage.test.ts`, `tests/projection-arbre.test.ts`,
+  `tests/arbre-rendu.test.ts`, `tests/rendu/arbre-sans-mesure.test.tsx` (assertions que 4.7 change)
 
 ## Change Log
 
@@ -206,3 +287,4 @@ Nouveaux : `supabase/migrations/0025_branche_cycle_vie.sql`, `lib/domain/cycle-b
 |---|---|---|---|
 | 2026-08-04 | v1.0 | Création de la story (analyse epics/PRD/SPINE/UX + code 4.5/4.6 livré). Trois décisions load-bearing posées : D1 (détection du retour sur le thème), D2 (renommage de l'enum `fruit` → `rayonnement`), D3 (déclaration pendant un épisode de détresse). | Claude Opus 5 |
 | 2026-08-04 | v1.1 | **D1 = hybride** (présélection déterministe + confirmation par le modèle fort), **D2 = renommer en 0025**, **D3 = bloquer aussi la déclaration pendant l'épisode + 72 h**. Tranchées par le PO. | Julian (PO) |
+| 2026-08-04 | v2.0 | Implémentation complète (T1→T6). 1439 tests verts, 8 gardes mutation-vérifiées, un fast-fail retiré parce qu'il survivait à sa mutation. Statut → review. | Claude Opus 5 |

@@ -17,6 +17,8 @@ import { verifieLeLibelle } from "@/lib/safety/ressources-aide";
 import { creerDepotSeance } from "@/lib/data/depot-seance";
 import { creerDepotJournal } from "@/lib/data/depot-journal";
 import { evaluerReconceptualisationDuTour, fenetreDetresseActive } from "@/lib/safety/reconceptualisation-pipeline";
+import { evaluerRetourThemeDuTour } from "@/lib/safety/retour-theme-pipeline";
+import { creerDepotBranche } from "@/lib/data/depot-branche";
 import { creerDepotSignalReconcept } from "@/lib/data/depot-reconceptualisation";
 import { avancerArc, SIGNAUX_NEUTRES, type EtatArc } from "@/lib/domain/arc-seance";
 import { requeteExtractionArc, extraireSignauxArc } from "@/lib/domain/signaux-arc";
@@ -279,6 +281,43 @@ export async function POST(request: NextRequest) {
         }
       } catch (e) {
         console.error("anam/message : étage reconceptualisation en repli", { nom: e instanceof Error ? e.name : "inconnu" });
+      }
+    });
+  }
+
+  // ── ÉTAGE RETOUR SUR LE THÈME (Story 4.7, AC2) ─────────────────────────────────────────────────
+  // Ce que la 4.4 fait pour la NAISSANCE d'une branche, cet étage le fait pour sa CROISSANCE : « ce
+  // tour revient-il sur le thème d'une branche déjà nommée ? ». Même posture exactement — `after()`
+  // (aucune latence, rien à l'écran ce tour), après la sécurité (consomme `securite.verdict`) et après
+  // le gate d'allocation, sur le même client JWT, métré `:retour_theme`. Un échec journalise un
+  // incident sans art. 9 ; JAMAIS un 500 : l'arbre qui ne feuille pas ce tour-ci feuillera au prochain
+  // retour, alors qu'une réponse d'Anam qui casse ne se rattrape pas.
+  if (dernierMessage?.role === "user") {
+    after(async () => {
+      try {
+        const depot = creerDepotBranche(supabase);
+        const retour = await evaluerRetourThemeDuTour(
+          {
+            supabase,
+            adaptateur,
+            depot: {
+              chargerCandidats: () => depot.chargerCandidatsRetour(),
+              progresser: (a) => depot.progresserFeuillaison(a),
+            },
+            fenetreDetresseActive: () => fenetreDetresseActive(supabase, "retour_theme"),
+          },
+          {
+            messages,
+            verdict: securite.verdict,
+            cleTour: cleIdempotence,
+            tour: dernierMessage.content,
+          },
+        );
+        if (retour.usage) {
+          await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence: `${cleIdempotence}:retour_theme`, ...retour.usage });
+        }
+      } catch (e) {
+        console.error("anam/message : étage retour sur le thème en repli", { nom: e instanceof Error ? e.name : "inconnu" });
       }
     });
   }

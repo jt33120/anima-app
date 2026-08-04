@@ -43,6 +43,26 @@ export const SUCCES_RENOMMAGE = "Le nom a été changé.";
 
 /** La fiche parle de l'ORIGINE, sobrement — jamais de félicitation ni de décret (charte §6). */
 export const FICHE_EXTRAIT_INTRO = "Née de ce moment :";
+
+/**
+ * Story 4.7 (AC5) — « une phrase sur la fiche dit ce qui a changé et quand ». Sobre, factuelle, DATÉE.
+ * Aucune félicitation, aucun « bravo », aucun chiffre, aucune jauge (FR-031) : on constate, on ne
+ * récompense pas. Le verbe reste le sien — « tu as dit », pas « tu as débloqué ».
+ */
+export const FICHE_DEPUIS_FEUILLAISON = (date: string) => `Elle s'étoffe depuis le ${date}.`;
+export const FICHE_DEPUIS_RAYONNEMENT = (date: string) => `En pleine lumière depuis le ${date}, parce que tu l'as dit.`;
+
+/**
+ * Le GESTE (AC3). Formulé comme une constatation qu'elle fait, jamais comme un objectif atteint : la
+ * pleine lumière n'est pas une récompense qu'on décroche, c'est quelque chose qu'elle reconnaît.
+ */
+export const ACTION_DECLARER_RAYONNEMENT = "C'est devenu vrai en moi";
+/** Le geste est IRRÉVERSIBLE (rien ne peut le retirer, sauf l'effacement) : on le dit avant, pas après. */
+export const CONFIRMER_RAYONNEMENT = "Cette branche entrera en pleine lumière, et elle y restera. C'est bien ça ?";
+export const CONFIRMER_OUI = "Oui, c'est devenu vrai";
+export const CONFIRMER_NON = "Pas encore";
+export const SUCCES_RAYONNEMENT = "Cette branche est en pleine lumière.";
+export const ECHEC_RAYONNEMENT = "Je n'ai pas pu enregistrer ça. Tu peux réessayer.";
 /** Repère TEXTUEL du message exact dans le rejeu (l'identification ne repose jamais sur la teinte seule). */
 export const MENTION_MOMENT = "Le moment d'où vient cette branche";
 export const CHAMP_RENOMMER_LABEL = "Le nom de cette branche";

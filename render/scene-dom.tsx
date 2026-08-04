@@ -151,6 +151,31 @@ export default function SceneDom({ projection, propositionBranche }: ProprietesS
     }
   };
 
+  // Story 4.7 (AC3) — LE GESTE. Même posture exactement que le renommage : le rendu transmet une
+  // intention, le serveur écrit et garde (D3 : la fenêtre détresse refuse au point d'écriture). On ne
+  // met à jour localement QU'EN CAS DE SUCCÈS — afficher la pleine lumière sur un refus serait un
+  // mensonge optimiste, et sur un état irréversible c'est le pire moment pour en faire un.
+  const declarerRayonnement = async (brancheId: string): Promise<boolean> => {
+    try {
+      const r = await fetch("/api/anam/branche", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "rayonnement", brancheId }),
+      });
+      if (r.ok) {
+        // La DATE vient du serveur au prochain chargement ; en local on ne pose que l'état, jamais une
+        // date fabriquée au client (elle différerait de celle qui fait foi).
+        setProjLocale((p) => ({
+          ...p,
+          branches: p.branches.map((b) => (b.id === brancheId ? { ...b, etat: "rayonnement" as const } : b)),
+        }));
+      }
+      return r.ok;
+    } catch {
+      return false;
+    }
+  };
+
   // Focus déplacé vers l'entête de la région ACTIVÉE (AC3), jamais au montage initial.
   // On compare à la région précédente (robuste au double-montage de React StrictMode,
   // contrairement à un simple booléen « déjà monté »).
@@ -271,6 +296,7 @@ export default function SceneDom({ projection, propositionBranche }: ProprietesS
                   onFermerFiche={() => dispatch({ type: "fermerFiche" })}
                   onVoirDansConversation={voirDansConversation}
                   onRenommer={renommer}
+                  onDeclarerRayonnement={declarerRayonnement}
                 />
               </>
             ) : (

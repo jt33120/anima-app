@@ -28,6 +28,11 @@ export interface BrancheProjetee {
   readonly nom?: string;
   /** Date de naissance (ISO) — pour la fiche (« datée », FR-027). */
   readonly dateNaissance?: string;
+  /** Story 4.7 (AC5) — quand la feuillaison s'est amorcée. Absente si la branche n'a jamais feuillu
+   *  (le saut direct naissance → rayonnement est légal : la fiche ne doit pas prétendre le contraire). */
+  readonly dateFeuillaison?: string;
+  /** Story 4.7 (AC5) — depuis quand elle est en pleine lumière. La fiche dit ce qui a changé ET QUAND. */
+  readonly dateRayonnement?: string;
   /** Verbatim de l'extrait source (art. 9) — la fiche le rend « comme un tour d'utilisatrice » (FR-027). */
   readonly extraitContenu?: string;
   /** Position déterministe du point d'accroche sur le canevas. En 4.6 le rendu la calcule ; optionnelle ici. */

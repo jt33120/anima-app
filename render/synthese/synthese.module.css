@@ -1,0 +1,40 @@
+/* Story 4.9 — la halte « La synthèse » et sa fiche. Registre DOCUMENT : posé, lisible longtemps. */
+
+/* Une HALTE se pose par-dessus la scène : largeur de lecture, respiration, jamais pleine largeur. */
+.halte {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: var(--esp-7) var(--esp-4) var(--esp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-5);
+}
+
+.precedente {
+  margin-top: var(--esp-4);
+}
+
+.fiche {
+  background: var(--surface-elevee);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon-md);
+  padding: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
+.periode {
+  margin: 0;
+}
+
+/*
+ * `pre-wrap` : la mise en forme du modèle est PRÉSERVÉE, jamais réinterprétée (voir FicheSynthese).
+ * `overflow-wrap` empêche qu'un mot très long ne pousse la page hors de sa largeur.
+ */
+.corps {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  margin: 0;
+}

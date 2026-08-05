@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { codeDErreur, executerOrdonnanceur } from "@/lib/ordonnanceur/executer";
+import { executerOrdonnanceur } from "@/lib/ordonnanceur/executer";
+import { codeDErreur } from "@/lib/domain/code-erreur";
 import { executerSante } from "@/lib/ordonnanceur/jobs/sante";
 import type { JobEnregistre } from "@/lib/ordonnanceur/registre";
 import type { DepotOrdonnanceur, EtatOrdonnanceur, TypeIncident } from "@/lib/data/depot-ordonnanceur";

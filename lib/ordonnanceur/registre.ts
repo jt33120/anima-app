@@ -2,6 +2,7 @@ import "server-only";
 import type { DescriptionJob } from "@/lib/domain/ordonnanceur";
 import type { DepotOrdonnanceur } from "@/lib/data/depot-ordonnanceur";
 import { executerSante } from "@/lib/ordonnanceur/jobs/sante";
+import { executerSynthese, NOM_JOB as NOM_SYNTHESE } from "@/lib/ordonnanceur/jobs/synthese";
 
 /**
  * Story 4.8 (AC1) — LE REGISTRE. La liste, unique et déclarative, de tout ce qui s'exécute périodiquement
@@ -43,5 +44,21 @@ export const REGISTRE: readonly JobEnregistre[] = [
     // Le jour où ce job est entré au registre (Story 4.8). Lu seulement tant qu'il n'a jamais réussi.
     enServiceDepuis: new Date("2026-08-05T00:00:00Z"),
     executer: executerSante,
+  },
+  {
+    // ⚠️ QUOTIDIEN, alors que la synthèse est HEBDOMADAIRE. Ce n'est pas une erreur — c'est le mécanisme
+    // de reprise. Le job est un FAN-OUT : il repasse chaque jour et réclame une fenêtre HEBDOMADAIRE par
+    // personne. Une personne servie lundi est `deja_fait` mardi ; une personne en échec lundi est reprise
+    // mardi. Avec une cadence hebdomadaire ici, un fan-out partiellement réussi clôrait sa semaine et les
+    // personnes en échec ne seraient jamais reprises. Voir l'en-tête de `jobs/synthese.ts`.
+    nom: NOM_SYNTHESE,
+    cadence: "quotidien",
+    // 60 h, pour la même raison que le job de santé : jamais pile sur un multiple de la cadence.
+    toleranceHeures: 60,
+    // Le lot est de 20 personnes et chacune coûte un appel au modèle fort. Le délai borne le FAN-OUT
+    // entier, pas une personne — chaque personne a en plus son propre bail (`BAIL_PERSONNE_S`).
+    delaiMs: 50_000,
+    enServiceDepuis: new Date("2026-08-05T00:00:00Z"),
+    executer: executerSynthese,
   },
 ];

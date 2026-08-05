@@ -24,9 +24,12 @@ function req(entete?: string): Request {
   });
 }
 
+/** Les jobs du registre — la purge et les compteurs suivent le registre, pas un nom en dur. */
+const JOBS = ["sante-ordonnanceur", "synthese-hebdomadaire"];
+
 async function purger() {
-  await admin.from("execution_job").delete().eq("job", "sante-ordonnanceur");
-  await admin.from("incident_systeme").delete().eq("job", "sante-ordonnanceur");
+  await admin.from("execution_job").delete().in("job", JOBS);
+  await admin.from("incident_systeme").delete().in("job", JOBS);
 }
 
 /**
@@ -39,14 +42,14 @@ async function executionsDuRegistre(): Promise<number> {
   const { count } = await admin
     .from("execution_job")
     .select("*", { count: "exact", head: true })
-    .eq("job", "sante-ordonnanceur");
+    .in("job", JOBS);
   return count ?? -1;
 }
 async function incidentsDuRegistre(): Promise<number> {
   const { count } = await admin
     .from("incident_systeme")
     .select("*", { count: "exact", head: true })
-    .eq("job", "sante-ordonnanceur");
+    .in("job", JOBS);
   return count ?? -1;
 }
 
@@ -106,7 +109,13 @@ describe("GET /api/ordonnanceur — la porte unique", () => {
     expect(r.status).toBe(200);
     const corps = (await r.json()) as { execute: boolean; jobs: { nom: string; issue: string }[] };
     expect(corps.execute).toBe(true);
-    expect(corps.jobs).toEqual([{ nom: "sante-ordonnanceur", issue: "execute" }]);
+    // Les DEUX jobs du registre tournent, dans l'ordre du registre. `synthese-hebdomadaire` ne trouve
+    // aucune candidate dans cette base (aucun abonnement actif) et se clôt donc en réussite sans rien
+    // produire — ce qui est exactement le comportement attendu d'un fan-out sans personne à servir.
+    expect(corps.jobs).toEqual([
+      { nom: "sante-ordonnanceur", issue: "execute" },
+      { nom: "synthese-hebdomadaire", issue: "execute" },
+    ]);
 
     const { data } = await admin.from("execution_job").select("statut, tentatives").eq("job", "sante-ordonnanceur");
     expect(data).toHaveLength(1);
@@ -120,7 +129,10 @@ describe("GET /api/ordonnanceur — la porte unique", () => {
     const r = await GET(req(`Bearer ${SECRET}`));
     expect(r.status).toBe(200);
     const corps = (await r.json()) as { jobs: { issue: string }[] };
-    expect(corps.jobs[0].issue).toBe("deja_fait");
+    expect(corps.jobs.map((j) => j.issue), "les DEUX fenêtres sont déjà prises").toEqual([
+      "deja_fait",
+      "deja_fait",
+    ]);
 
     const { data } = await admin.from("execution_job").select("tentatives").eq("job", "sante-ordonnanceur");
     expect(data, "toujours UNE seule ligne").toHaveLength(1);
@@ -205,6 +217,14 @@ describe("GET /api/ordonnanceur — la porte unique", () => {
 
   it("[NFR-022] la réponse ne porte que des identifiants techniques", async () => {
     const corps = await (await GET(req(`Bearer ${SECRET}`))).text();
-    expect(corps).toBe(JSON.stringify({ execute: true, jobs: [{ nom: "sante-ordonnanceur", issue: "execute" }] }));
+    expect(corps).toBe(
+      JSON.stringify({
+        execute: true,
+        jobs: [
+          { nom: "sante-ordonnanceur", issue: "execute" },
+          { nom: "synthese-hebdomadaire", issue: "execute" },
+        ],
+      }),
+    );
   });
 });

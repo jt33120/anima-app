@@ -1,6 +1,7 @@
 import "server-only";
 import { avecDelai } from "@/lib/domain/delai";
 import { fenetreDe } from "@/lib/domain/ordonnanceur";
+import { codeDErreur } from "@/lib/domain/code-erreur";
 import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
 import type { DepotOrdonnanceur } from "@/lib/data/depot-ordonnanceur";
 import { REGISTRE, type JobEnregistre } from "@/lib/ordonnanceur/registre";
@@ -17,27 +18,6 @@ import { verifierEnvironnement } from "@/lib/ordonnanceur/environnement";
 
 /** Marge ajoutée au délai du job pour calculer son bail : un plantage franc libère la fenêtre après ça. */
 const MARGE_BAIL_S = 60;
-
-/** Un code d'erreur au format de nos RPC : « reclamer_execution: 42501 ». */
-const CODE_RPC = /^[a-z_]+: [A-Z0-9]+$/;
-/** Un code interne : au moins deux segments en minuscules reliés par `_` — « sante_ordonnanceur_timeout ». */
-const CODE_INTERNE = /^[a-z0-9]+(?:_[a-z0-9]+)+$/;
-
-/**
- * Réduit une erreur à un CODE écrivable en base (NFR-020/NFR-022).
- *
- * Le raisonnement, et il est plus strict qu'il n'en a l'air : un message d'erreur est un ramasse-miettes.
- * Il peut avoir traversé un adaptateur qui recopie l'entrée, une bibliothèque qui cite la valeur fautive,
- * un pilote qui rend la ligne. On ne peut donc pas ASSAINIR un message — on ne peut que RECONNAÎTRE les
- * nôtres et jeter le reste. D'où deux formes admises, et `erreur_non_identifiee` pour tout le reste.
- *
- * L'exigence de deux segments dans `CODE_INTERNE` n'est pas cosmétique : sans elle, un message réduit à un
- * seul mot en minuscules — c'est-à-dire un mot pris au verbatim d'une utilisatrice — passerait le filtre.
- */
-export function codeDErreur(e: unknown): string {
-  const message = e instanceof Error ? e.message : "";
-  return CODE_RPC.test(message) || CODE_INTERNE.test(message) ? message.slice(0, 120) : "erreur_non_identifiee";
-}
 
 export type IssueJob = "execute" | "deja_fait" | "echoue";
 

@@ -46,6 +46,7 @@ const EXCLUS = new Set([
   "lib/domain/signaux-arc.ts",
   "lib/domain/consigne-voix.ts",
   "lib/domain/consigne-bilan.ts", // consigne de génération du bilan (2.9) — lexique en instructions inverses
+  "lib/domain/consigne-synthese.ts", // consigne de génération de la synthèse (4.9) — même nature
   "lib/domain/lexique-interdit.ts", // la source des interdits — s'auto-matcherait
 ]);
 

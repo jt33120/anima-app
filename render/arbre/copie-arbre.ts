@@ -62,7 +62,15 @@ export const CONFIRMER_RAYONNEMENT = "Cette branche entrera en pleine lumière, 
 export const CONFIRMER_OUI = "Oui, c'est devenu vrai";
 export const CONFIRMER_NON = "Pas encore";
 export const SUCCES_RAYONNEMENT = "Cette branche est en pleine lumière.";
+/** PANNE (500) : réessayer a du sens. */
 export const ECHEC_RAYONNEMENT = "Je n'ai pas pu enregistrer ça. Tu peux réessayer.";
+/**
+ * REFUS (403) : réessayer n'a PAS de sens — la garde tiendra encore pendant des heures. Promettre
+ * « tu peux réessayer » à quelqu'un qui sort d'une crise, c'est l'inviter à se heurter au même mur
+ * plusieurs fois. On dit ce qui est vrai : ce n'est pas perdu, c'est juste pas maintenant. Et on
+ * n'explique PAS pourquoi — lui annoncer que le système l'a classée n'est autorisé nulle part.
+ */
+export const REFUS_RAYONNEMENT = "Pas maintenant. Cette branche t'attend, elle ne bougera pas.";
 /** Repère TEXTUEL du message exact dans le rejeu (l'identification ne repose jamais sur la teinte seule). */
 export const MENTION_MOMENT = "Le moment d'où vient cette branche";
 export const CHAMP_RENOMMER_LABEL = "Le nom de cette branche";

@@ -23,9 +23,30 @@ import { intensiteBornee, type ProjectionScene, type BrancheProjetee } from "@/l
  */
 const ARBRE_INDISPONIBLE: ProjectionScene = { tronc: { present: true }, branches: [], indisponible: true };
 
+/**
+ * Le geste irréversible est-il suspendu (épisode en cours ou 72 h suivantes) ? Repli SÛR = `true` : le
+ * doute SUSPEND. Se tromper en suspendant coûte à Sanela un geste différé de quelques heures ; se
+ * tromper dans l'autre sens lui fait vivre un refus juste après lui avoir demandé de s'engager sur
+ * quelque chose d'irréversible. L'asymétrie ne se discute pas.
+ */
+async function gestesSuspendus(supabase: SupabaseClient): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc("branche_bloquee_par_detresse");
+    if (error) {
+      journaliserIncidentSecurite("projection_arbre_fenetre", error);
+      return true;
+    }
+    return data === true;
+  } catch (e) {
+    journaliserIncidentSecurite("projection_arbre_fenetre", e);
+    return true;
+  }
+}
+
 export async function chargerProjectionArbre(supabase: SupabaseClient): Promise<ProjectionScene> {
   try {
     const branches = await creerDepotBranche(supabase).chargerBranches();
+    const suspendus = await gestesSuspendus(supabase);
     const projetees: BrancheProjetee[] = branches.map((b) => ({
       id: b.id,
       etat: b.etat,
@@ -39,7 +60,9 @@ export async function chargerProjectionArbre(supabase: SupabaseClient): Promise<
       dateRayonnement: b.dateRayonnement ?? undefined,
       extraitContenu: b.extraitContenu,
     }));
-    return { tronc: { present: true }, branches: projetees };
+    return suspendus
+      ? { tronc: { present: true }, branches: projetees, gestesSuspendus: true }
+      : { tronc: { present: true }, branches: projetees };
   } catch (e) {
     // L'extraction du code Postgres vit DÉSORMAIS dans le journaliseur (`codeJournalisable`) : elle
     // s'applique donc à TOUS les appelants, y compris les routes qui l'avaient oubliée (re-revue).

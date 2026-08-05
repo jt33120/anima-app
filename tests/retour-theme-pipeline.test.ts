@@ -36,8 +36,8 @@ function fauxAdaptateur(texte: string) {
 
 function fauxDepot(
   candidats = [
-    { id: "b1", nom: "dire non à ma mère", extrait: "je n'arrive jamais à refuser à ma mère" },
-    { id: "b2", nom: "changer de métier", extrait: "mon travail ne me ressemble plus" },
+    { id: "b1", nom: "dire non à ma mère", extrait: "je n'arrive jamais à refuser à ma mère", etat: "feuillaison" as const, intensite: 0.4 },
+    { id: "b2", nom: "changer de métier", extrait: "mon travail ne me ressemble plus", etat: "naissance" as const, intensite: 0 },
   ],
 ): DepotCandidatsRetour & { chargerCandidats: ReturnType<typeof vi.fn>; progresser: ReturnType<typeof vi.fn> } {
   return {
@@ -66,29 +66,65 @@ describe("[AC6 DUR / AD-17] la garde de pipeline : rien n'est évalué ni écrit
     expect(depot.chargerCandidats, "on ne lit même pas les branches").not.toHaveBeenCalled();
   });
 
-  it("le repli de lecture de la fenêtre est PROTECTEUR : le doute supprime", async () => {
-    // `fenetreDetresseActive` rend `true` sur erreur (repli sûr, patron 4.4). Ici on le simule.
-    const { adaptateur, completer } = fauxAdaptateur("RETOURS: 1");
-    const r = await evaluerRetourThemeDuTour(
-      { supabase: supabaseOk, adaptateur, depot: fauxDepot(), fenetreDetresseActive: async () => true },
-      { messages: MESSAGES, verdict: verdictNeutre, cleTour: "t1", tour: TOUR },
-    );
-    expect(r.supprime).toBe(true);
-    expect(completer).not.toHaveBeenCalled();
-  });
-});
-
-describe("La présélection décide s'il y a lieu de dépenser un appel fort", () => {
-  it("aucun candidat apparié → aucun appel, aucun coût", async () => {
+  it("[REVUE] un verdict qui SUPPRIME le travail de schéma suffit seul à tout arrêter", async () => {
+    // Ce test était un DOUBLON exact du précédent (même `fenetreDetresseActive: async () => true`) :
+    // il n'exerçait jamais le repli qu'il prétendait prouver, et la seconde moitié de la garde —
+    // `!doitExecuterTravailSchema(verdict)` — n'était couverte par rien. Ici la fenêtre est FERMÉE :
+    // seul le verdict peut arrêter l'étage, donc sa mutation devient mortelle.
     const { adaptateur, completer } = fauxAdaptateur("RETOURS: 1");
     const depot = fauxDepot();
     const r = await evaluerRetourThemeDuTour(
       { supabase: supabaseOk, adaptateur, depot, fenetreDetresseActive: async () => false },
-      { messages: MESSAGES, verdict: verdictNeutre, cleTour: "t1", tour: "il fait beau" },
+      { messages: MESSAGES, verdict: classerDetresse(2), cleTour: "t1", tour: TOUR },
     );
-    expect(completer, "sans candidat plausible, on ne demande rien au modèle").not.toHaveBeenCalled();
+    expect(r.supprime, "sécurité d'abord (AD-16) : un tour en détresse ne fait pas pousser d'arbre").toBe(true);
+    expect(completer).not.toHaveBeenCalled();
+    expect(depot.chargerCandidats).not.toHaveBeenCalled();
+  });
+});
+
+describe("La présélection décide s'il y a lieu de dépenser un appel fort", () => {
+  it("[REVUE] peu de branches et aucun appariement lexical → on demande QUAND MÊME au modèle", async () => {
+    // Le lexical était un portail fermé : la paraphrase (« posé une limite avec maman » pour « dire non
+    // à ma mère ») ne partage aucun mot et n'était donc JAMAIS soumise au modèle — le retour le plus
+    // significatif était celui que l'arbre ignorait. Tant que l'envoi reste borné, on transmet tout.
+    const { adaptateur, completer } = fauxAdaptateur("RETOURS: aucun");
+    const depot = fauxDepot();
+    const r = await evaluerRetourThemeDuTour(
+      { supabase: supabaseOk, adaptateur, depot, fenetreDetresseActive: async () => false },
+      { messages: MESSAGES, verdict: verdictNeutre, cleTour: "t1", tour: "hier j'ai posé une limite avec maman" },
+    );
+    expect(completer, "deux branches seulement : la charge est la même qu'un appariement réussi").toHaveBeenCalledTimes(1);
+    expect(r.usage).not.toBeNull();
+    expect(r.progressions, "le modèle a dit non : rien ne bouge").toBe(0);
+  });
+
+  it("BEAUCOUP de branches et aucun appariement → aucun appel (le coût reste borné)", async () => {
+    const { adaptateur, completer } = fauxAdaptateur("RETOURS: 1");
+    const beaucoup = Array.from({ length: 9 }, (_, i) => ({
+      id: `b${i}`,
+      nom: `thème ${i}`,
+      extrait: `un moment numéro ${i}`,
+      etat: "naissance" as const,
+      intensite: 0,
+    }));
+    const r = await evaluerRetourThemeDuTour(
+      { supabase: supabaseOk, adaptateur, depot: fauxDepot(beaucoup), fenetreDetresseActive: async () => false },
+      { messages: MESSAGES, verdict: verdictNeutre, cleTour: "t1", tour: "rien à voir avec tout ça" },
+    );
+    expect(completer, "au-delà de la borne, le lexical redevient un classeur").not.toHaveBeenCalled();
     expect(r.usage).toBeNull();
     expect(r.progressions).toBe(0);
+  });
+
+  it("un tour sans aucun mot porteur (« ok ») ne dépense rien", async () => {
+    const { adaptateur, completer } = fauxAdaptateur("RETOURS: 1");
+    const r = await evaluerRetourThemeDuTour(
+      { supabase: supabaseOk, adaptateur, depot: fauxDepot(), fenetreDetresseActive: async () => false },
+      { messages: MESSAGES, verdict: verdictNeutre, cleTour: "t1", tour: "ok" },
+    );
+    expect(completer).not.toHaveBeenCalled();
+    expect(r.usage).toBeNull();
   });
 
   it("aucune branche du tout (première séance) → aucun appel", async () => {
@@ -197,18 +233,23 @@ describe("[AD-15] REPLI SÛR — cet étage ne fait JAMAIS échouer un tour", ()
     spy.mockRestore();
   });
 
-  it("[NFR-022] un incident d'écriture ne journalise NI le nom NI le verbatim", async () => {
+  it("[NFR-022] un incident d'écriture ne journalise NI le nom NI le verbatim — sur AUCUN canal", async () => {
+    // La garde n'espionnait que `console.error` : une fuite art. 9 partie par `warn` ou `log` passait
+    // sans être vue — et pire, elle s'imprimait dans la sortie du test censé la prouver absente.
     const { adaptateur } = fauxAdaptateur("RETOURS: 1");
     const depot = fauxDepot();
     depot.progresser.mockRejectedValue(new Error("branche.progresserFeuillaison: P0001"));
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const canaux = (["error", "warn", "log", "info", "debug"] as const).map((n) =>
+      vi.spyOn(console, n).mockImplementation(() => {}),
+    );
     await evaluerRetourThemeDuTour(
       { supabase: supabaseOk, adaptateur, depot, fenetreDetresseActive: async () => false },
       { messages: MESSAGES, verdict: verdictNeutre, cleTour: "t1", tour: TOUR },
     );
-    const journal = spy.mock.calls.map((a) => JSON.stringify(a)).join("\n");
+    const journal = canaux.flatMap((s) => s.mock.calls).map((a) => JSON.stringify(a)).join("\n");
     expect(journal, "le nom de branche est de l'art. 9").not.toContain("dire non à ma mère");
     expect(journal, "le verbatim aussi").not.toContain("je n'arrive jamais à refuser");
-    spy.mockRestore();
+    expect(journal, "ni le tour de l'utilisatrice").not.toContain("ma mère hier soir");
+    for (const s of canaux) s.mockRestore();
   });
 });

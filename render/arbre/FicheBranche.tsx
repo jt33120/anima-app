@@ -30,7 +30,15 @@ import {
   CONFIRMER_NON,
   SUCCES_RAYONNEMENT,
   ECHEC_RAYONNEMENT,
+  REFUS_RAYONNEMENT,
 } from "./copie-arbre";
+
+/**
+ * Le geste rend TROIS issues, pas un booléen : `ok`, `refus` (la garde de détresse a dit non — réessayer
+ * n'y changera rien pendant des heures) et `panne` (réessayer a du sens). Les confondre faisait dire
+ * « tu peux réessayer » à quelqu'un qui venait de traverser une crise.
+ */
+export type ResultatGeste = "ok" | "refus" | "panne";
 import s from "./arbre.module.css";
 
 function dateLisible(iso?: string): string {
@@ -54,7 +62,14 @@ export interface ProprietesFiche {
    * DÉCIDE rien (AD-7) : il transmet une intention, le serveur écrit. `false` = refusé (fenêtre détresse,
    * panne) → on le dit sans mentir, et sans expliquer ce qu'elle n'a pas à savoir.
    */
-  onDeclarerRayonnement?: (brancheId: string) => Promise<boolean>;
+  onDeclarerRayonnement?: (brancheId: string) => Promise<ResultatGeste>;
+  /**
+   * Story 4.7 / revue — le geste est SUSPENDU (épisode de détresse ou 72 h suivantes). Décidé par
+   * `lib/scene` (AD-7), constaté ici. On masque sans expliquer : annoncer « tu sors d'un épisode »
+   * reviendrait à lui dire que le système l'a classée. Mieux vaut ne rien proposer que proposer,
+   * faire lire « elle y restera », puis refuser.
+   */
+  gesteSuspendu?: boolean;
 }
 
 export default function FicheBranche({
@@ -65,10 +80,19 @@ export default function FicheBranche({
   onAnnoncer,
   onCentrer,
   onDeclarerRayonnement,
+  gesteSuspendu,
 }: ProprietesFiche) {
   const [renomme, setRenomme] = useState(false);
   const [confirme, setConfirme] = useState(false);
   const [enCours, setEnCours] = useState(false);
+  /**
+   * ⚠️ REVUE — le geste irréversible ne rendait aucun compte au clavier ni au lecteur d'écran : le focus
+   * retombait sur <body> à l'ouverture de la confirmation, à l'annulation ET après validation (le bouton
+   * disparaît alors du DOM). Quelqu'un qui navigue au clavier se retrouvait perdu en haut de page, sans
+   * savoir si son geste — définitif — avait abouti.
+   */
+  const boutonGesteRef = useRef<HTMLButtonElement>(null);
+  const titreConfirmationRef = useRef<HTMLParagraphElement>(null);
   const titreRef = useRef<HTMLParagraphElement>(null);
   // Le focus revient au bouton d'ouverture quand le champ se referme (sinon il retombe sur <body>).
   const boutonRenommerRef = useRef<HTMLButtonElement>(null);
@@ -132,8 +156,19 @@ export default function FicheBranche({
         )}
         {/* AC3 — le geste. Absent si la branche rayonne déjà : proposer d'atteindre ce qui est atteint
             serait au mieux du bruit, au pire une invitation à re-faire ce qui ne se refait pas. */}
-        {onDeclarerRayonnement && branche.etat !== "rayonnement" && !confirme && (
-          <button type="button" className={s.actionSecondaire} onClick={() => setConfirme(true)}>
+        {onDeclarerRayonnement && !gesteSuspendu && branche.etat !== "rayonnement" && !confirme && (
+          <button
+            type="button"
+            className={s.actionSecondaire}
+            ref={boutonGesteRef}
+            onClick={() => {
+              setConfirme(true);
+              // La question est POSÉE : le focus y va, et elle est annoncée. Sans ça, un lecteur
+              // d'écran ne disait rien — on demandait un engagement définitif en silence.
+              requestAnimationFrame(() => titreConfirmationRef.current?.focus());
+              onAnnoncer?.(CONFIRMER_RAYONNEMENT);
+            }}
+          >
             {ACTION_DECLARER_RAYONNEMENT}
           </button>
         )}
@@ -142,8 +177,10 @@ export default function FicheBranche({
       {/* Le geste est IRRÉVERSIBLE : rien ne peut retirer la pleine lumière, sauf l'effacement. On le dit
           AVANT, en une phrase, sans dramatiser — et « Pas encore » est une sortie sans conséquence. */}
       {confirme && onDeclarerRayonnement && (
-        <div className={s.ficheConfirmation}>
-          <p>{CONFIRMER_RAYONNEMENT}</p>
+        <div className={s.ficheConfirmation} role="group" aria-label={CONFIRMER_RAYONNEMENT}>
+          <p tabIndex={-1} ref={titreConfirmationRef}>
+            {CONFIRMER_RAYONNEMENT}
+          </p>
           <div className={s.ficheActions}>
             <button
               type="button"
@@ -151,15 +188,28 @@ export default function FicheBranche({
               disabled={enCours}
               onClick={async () => {
                 setEnCours(true);
-                const ok = await onDeclarerRayonnement(branche.id);
+                const issue = await onDeclarerRayonnement(branche.id);
                 setEnCours(false);
                 setConfirme(false);
-                onAnnoncer?.(ok ? SUCCES_RAYONNEMENT : ECHEC_RAYONNEMENT);
+                onAnnoncer?.(
+                  issue === "ok" ? SUCCES_RAYONNEMENT : issue === "refus" ? REFUS_RAYONNEMENT : ECHEC_RAYONNEMENT,
+                );
+                // Le bouton déclencheur vient de disparaître (succès) ou revient (échec) : dans les deux
+                // cas on ramène le focus DANS la fiche, jamais sur <body>.
+                requestAnimationFrame(() => (boutonGesteRef.current ?? titreRef.current)?.focus());
               }}
             >
               {CONFIRMER_OUI}
             </button>
-            <button type="button" className={s.actionSecondaire} disabled={enCours} onClick={() => setConfirme(false)}>
+            <button
+              type="button"
+              className={s.actionSecondaire}
+              disabled={enCours}
+              onClick={() => {
+                setConfirme(false);
+                requestAnimationFrame(() => boutonGesteRef.current?.focus());
+              }}
+            >
               {CONFIRMER_NON}
             </button>
           </div>

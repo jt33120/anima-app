@@ -47,7 +47,7 @@ export interface DepotBranche {
    * feuiller) avec leur extrait source, pour la présélection déterministe du retour sur le thème.
    * Le `nom` remonte ici et reste EN MÉMOIRE SERVEUR : il sert la présélection, jamais le modèle (AC7).
    */
-  chargerCandidatsRetour(): Promise<{ id: string; nom: string; extrait: string }[]>;
+  chargerCandidatsRetour(): Promise<{ id: string; nom: string; extrait: string; etat: EtatBranche; intensite: number }[]>;
   /** Story 4.7 — consigne un retour et fait avancer la matière d'un degré. `true` si ça a bougé. */
   progresserFeuillaison(args: { brancheId: string; cleTour: string }): Promise<boolean>;
   /** Story 4.7 (AC3) — la DÉCLARATION de pleine lumière. SEUL appelant légitime : la route du geste. */
@@ -103,7 +103,9 @@ export function creerDepotBranche(client?: SupabaseClient): DepotBranche {
       if (error) throw new Error(`branche.renommer: ${error.code ?? "echec"}`);
     },
 
-    async chargerCandidatsRetour(): Promise<{ id: string; nom: string; extrait: string }[]> {
+    async chargerCandidatsRetour(): Promise<
+      { id: string; nom: string; extrait: string; etat: EtatBranche; intensite: number }[]
+    > {
       const supabase = await clientOu();
       const { data, error } = await supabase.rpc("charger_branches_arbre");
       if (error) throw new Error(`branche.chargerCandidatsRetour: ${error.code ?? "echec"}`);
@@ -115,6 +117,8 @@ export function creerDepotBranche(client?: SupabaseClient): DepotBranche {
           id: r.branche_id as string,
           nom: (r.nom as string) ?? "",
           extrait: (r.extrait_contenu as string) ?? "",
+          etat: r.etat as EtatBranche,
+          intensite: Number.isFinite(Number(r.intensite)) ? Math.min(1, Math.max(0, Number(r.intensite))) : 0,
         }));
     },
 

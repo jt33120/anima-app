@@ -22,6 +22,9 @@ import { codeJournalisable } from "@/lib/safety/rpc-repli";
 import { POST as incident } from "@/app/api/incident/route";
 
 const supa = {} as SupabaseClient;
+/** Client JWT factice qui répond à `branche_bloquee_par_detresse` — hors fenêtre par défaut. */
+const supaFenetre = (bloquee: boolean) =>
+  ({ rpc: async () => ({ data: bloquee, error: null }) }) as unknown as SupabaseClient;
 
 describe("chargerProjectionArbre — composition & repli sûr", () => {
   beforeEach(() => chargerBranches.mockReset());
@@ -61,6 +64,29 @@ describe("chargerProjectionArbre — composition & repli sûr", () => {
     expect(projection.indisponible, "une panne n'est pas un arbre vide").toBe(true);
     expect(projection.branches).toEqual([]);
     expect(spy, "l'incident est journalisé (repli AD-15)").toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("[REVUE] pendant la fenêtre de détresse, la projection SUSPEND les gestes (AD-17/D3)", async () => {
+    // Sans ce drapeau, la fiche offrait le geste irréversible, faisait lire « elle y restera », puis le
+    // point d'écriture refusait — à quelqu'un qui venait de traverser une crise. La décision vit ICI
+    // (lib/scene), pas dans le rendu : le rendu constate, il ne déduit pas (AD-7).
+    chargerBranches.mockResolvedValue([]);
+    const dedans = await chargerProjectionArbre(supaFenetre(true));
+    expect(dedans.gestesSuspendus).toBe(true);
+    const dehors = await chargerProjectionArbre(supaFenetre(false));
+    expect(dehors.gestesSuspendus, "hors fenêtre, rien n'est suspendu").toBeUndefined();
+  });
+
+  it("[REVUE] le repli de la fenêtre est PROTECTEUR : le doute suspend", async () => {
+    // Se tromper en suspendant coûte à Sanela un geste différé de quelques heures ; se tromper dans
+    // l'autre sens lui fait vivre un refus juste après un engagement irréversible. L'asymétrie tranche.
+    chargerBranches.mockResolvedValue([]);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const enPanne = { rpc: async () => ({ data: null, error: { code: "42501" } }) } as unknown as SupabaseClient;
+    expect((await chargerProjectionArbre(enPanne)).gestesSuspendus).toBe(true);
+    const quiLeve = { rpc: async () => { throw new Error("réseau"); } } as unknown as SupabaseClient;
+    expect((await chargerProjectionArbre(quiLeve)).gestesSuspendus).toBe(true);
     spy.mockRestore();
   });
 

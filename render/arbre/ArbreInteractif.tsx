@@ -45,7 +45,7 @@ import {
   ZOOM_PLUS,
   ZOOM_MOINS,
 } from "./copie-arbre";
-import FicheBranche from "./FicheBranche";
+import FicheBranche, { type ResultatGeste } from "./FicheBranche";
 import VueListe from "./VueListe";
 import s from "./arbre.module.css";
 
@@ -65,7 +65,7 @@ export interface ProprietesArbreInteractif {
   onVoirDansConversation: (extraitSourceId: string) => void;
   onRenommer: (brancheId: string, nom: string) => Promise<boolean>;
   /** Story 4.7 (AC3) — le GESTE, transmis tel quel : le rendu ne décide pas d'un état (AD-7). */
-  onDeclarerRayonnement?: (brancheId: string) => Promise<boolean>;
+  onDeclarerRayonnement?: (brancheId: string) => Promise<ResultatGeste>;
 }
 
 export default function ArbreInteractif(p: ProprietesArbreInteractif) {
@@ -390,18 +390,32 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
                 const intensite = intensiteBornee(pl.branche.intensite);
                 return (
                   <g key={pl.branche.id}>
-                    {/* Le bois — épaisseur selon l'état (matière, jamais la couleur seule). */}
+                    {/*
+                      Le bois — épaisseur CONTINUE, portée par l'intensité (2 px nu → 3,2 px pleinement
+                      feuillu, DESIGN L599-L600).
+
+                      ⚠️ REVUE — l'épaisseur dépendait de l'ENUM : le premier retour la faisait sauter de
+                      2 à 3,2 px d'un coup, en même temps que cinq feuilles apparaissaient ex nihilo.
+                      FR-028 exige l'inverse mot pour mot : « progressive, jamais binaire ; la matière
+                      s'installe PAR DEGRÉS — le trait s'épaissit, les feuilles se déplient AU FIL DES
+                      RETOURS ». Le champ `intensite` existait précisément pour ça et le rendu l'ignorait
+                      pour l'épaisseur : la seule chose qui se lisait à l'écran était un basculement.
+                    */}
                     <line
                       x1={pl.fourche.x}
                       y1={pl.fourche.y}
                       x2={pl.x}
                       y2={pl.y}
                       className={s.branche}
-                      strokeWidth={pl.branche.etat === "naissance" ? 2 : 3.2}
+                      strokeWidth={2 + intensite * 1.2}
                     />
-                    {/* Feuillage — densité selon l'intensité (bornée : une valeur folle ne peut plus geler le rendu). */}
+                    {/*
+                      Feuillage — densité CONTINUE elle aussi. Le premier retour (intensité 0,2) déplie
+                      DEUX feuilles, pas cinq ; le feuillage plein en compte douze. Bornée : une valeur
+                      folle ne peut pas geler le rendu.
+                    */}
                     {pl.branche.etat !== "naissance" &&
-                      Array.from({ length: Math.round(3 + intensite * 9) }).map((_, k) => (
+                      Array.from({ length: Math.max(1, Math.round(intensite * 12)) }).map((_, k) => (
                         <circle
                           key={k}
                           cx={pl.x + Math.cos(k * 2.4) * (10 + k * 3)}
@@ -459,6 +473,7 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
                 onVoirDansConversation={p.onVoirDansConversation}
                 onRenommer={p.onRenommer}
                 onDeclarerRayonnement={p.onDeclarerRayonnement}
+                gesteSuspendu={p.projection.gestesSuspendus === true}
                 onAnnoncer={setAnnonce}
                 onCentrer={() => {
                   // Remplace le double-clic sur l'accroche, qui ne pouvait JAMAIS se déclencher : le

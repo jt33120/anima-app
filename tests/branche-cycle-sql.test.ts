@@ -238,6 +238,26 @@ describe("[AC3 DUR] le chemin AUTOMATIQUE ne peut pas mener à la pleine lumièr
     ).not.toMatch(/rayonnement/);
   });
 
+  it("[structurel / REVUE] `progresser_feuillaison` SÉRIALISE sur la branche (`for update`)", () => {
+    // Garde de SOURCE assumée : la course est réelle mais trop étroite pour qu'un test de comportement
+    // la tue de façon fiable (voir le test de concurrence). Sans ce verrou, deux tours simultanés le
+    // même jour incrémentent tous les deux — +0,4 au lieu de +0,2, et l'arbre ne régresse jamais, donc
+    // c'est définitif. La migration EST la définition déployée (`db reset` la rejoue, la CI part d'une
+    // base neuve) : verrouiller son texte est la façon honnête de garder cet invariant.
+    const sql = readFileSync(resolve(process.cwd(), "supabase/migrations/0026_branche_cycle_correctifs.sql"), "utf-8");
+    const debut = sql.indexOf("create or replace function public.progresser_feuillaison");
+    expect(debut, "la RPC corrigée est introuvable dans 0026").toBeGreaterThan(-1);
+    const corps = sql.slice(debut, sql.indexOf("$;", debut));
+    const verrou = corps.slice(corps.indexOf("select b.etat into v_etat"));
+    expect(verrou.slice(0, verrou.indexOf(";") + 1), "le select de la branche doit poser un verrou").toMatch(
+      /for\s+update/,
+    );
+    // …et le verrou doit être posé AVANT la lecture du ledger, sinon il ne sérialise rien d'utile.
+    expect(corps.indexOf("for update"), "verrou posé après la lecture du ledger : inutile").toBeLessThan(
+      corps.indexOf("insert into public.branche_retour"),
+    );
+  });
+
   it("[MÉTA] cette garde attraperait bien un mutant (elle n'est pas vraie par accident)", () => {
     // Sans ce contrôle, la garde ci-dessus passerait tout aussi bien si la fonction n'existait plus.
     const mutant = "create function public.progresser_feuillaison()\nbegin\n set etat = 'rayonnement';\nend;\n$;";
@@ -315,6 +335,38 @@ describe("[AC2 DUR] `progresser_feuillaison` — par degrés, un retour par jour
     expect(apres.intensite, "l'intensité ne dépasse jamais 1").toBeLessThanOrEqual(1);
     expect(apres.intensite, "après neuf retours espacés, le feuillage est plein").toBeCloseTo(1, 5);
     expect(apres.etat, "[AC3] la feuillaison ne mène JAMAIS toute seule à la pleine lumière").toBe("feuillaison");
+    await c.auth.signOut();
+  });
+
+  it("[REVUE] deux tours CONCURRENTS le même jour ne donnent qu'UN seul incrément", async () => {
+    // Séquence perdante d'origine : deux tours partent presque en même temps (double envoi, retry
+    // réseau, deux onglets). Chacun insère SA ligne de retour — clés différentes, aucun conflit — puis
+    // chacun demande « existe-t-il un AUTRE retour aujourd'hui ? ». En READ COMMITTED, aucune des deux
+    // transactions ne voit encore la ligne de l'autre : les deux répondent non, les deux incrémentent.
+    // +0,4 pour une seule journée, et l'arbre ne régresse jamais (FR-029) — donc définitivement.
+    const b = await creerBranche(u.id, "course");
+    const c = await session(u.email);
+    await donnerConsentement(c, u.id);
+    // ⚠️ CE QUE CE TEST PROUVE, ET CE QU'IL NE PROUVE PAS. Il vérifie qu'un déluge d'appels simultanés
+    // n'écrit qu'UN pas et n'échoue jamais — c'est le comportement qui compte pour Sanela. Il n'est PAS
+    // un tueur de mutant fiable : sans `for update`, il ne rougit qu'une fois sur trois ou quatre, parce
+    // que PostgREST sérialise déjà une partie du trafic par son pool de connexions (la course est bien
+    // plus ouverte en production, où les connexions abondent). Le `for update` est donc verrouillé EN
+    // PLUS par une garde structurelle plus bas — annoncée comme telle, plutôt qu'un test de comportement
+    // qui prétendrait prouver ce qu'il n'attrape qu'au hasard.
+    const cles = Array.from({ length: 6 }, (_, i) => `cyc-course-${i}-${t}`);
+    for (const cle of cles) await graverEntree(u.id, cle);
+
+    const avant = (await etatDe(b)).intensite;
+    const resultats = await Promise.all(
+      cles.map((cle) => c.rpc("progresser_feuillaison", { p_branche_id: b, p_cle_tour: cle })),
+    );
+    for (const r of resultats) expect(r.error, "aucun des appels ne doit échouer").toBeNull();
+    expect(resultats.filter((r) => r.data === true), "un seul retour compte par jour civil").toHaveLength(1);
+    expect((await etatDe(b)).intensite - avant, "un seul pas, quel que soit le nombre d'appels").toBeCloseTo(pas, 5);
+    // Les SIX retours restent consignés : ce sont des faits, seul leur EFFET est plafonné.
+    const ledger = await admin.from("branche_retour").select("entree_journal_id").eq("branche_id", b);
+    expect(ledger.data).toHaveLength(6);
     await c.auth.signOut();
   });
 

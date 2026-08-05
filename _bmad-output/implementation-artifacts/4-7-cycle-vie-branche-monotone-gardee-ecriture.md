@@ -190,6 +190,99 @@ Nouveaux : `supabase/migrations/0025_branche_cycle_vie.sql`, `lib/domain/cycle-b
 - [Source: _bmad-output/implementation-artifacts/deferred-work.md#L275 (ordre de relâchement pour la 4.7)]
 - [Source: supabase/migrations/0021_branche.sql, 0022_branche_arbre.sql, 0023_branche_arbre_correctifs.sql]
 
+## Revue adversariale (IA) — 2026-08-05
+
+**Dispositif.** 13 angles de chasse en parallèle sur le diff (27 fichiers, +2367/−21), chaque trouvaille
+attaquée par un sceptique chargé de la **démolir** (réfutée par défaut tant qu'il ne l'avait pas reproduite
+lui-même), puis synthèse + critique de complétude. **79 agents, 65 candidats, 43 retenus, dédoublonnés en
+8 défauts.** Tous corrigés.
+
+### Le défaut HAUTE — le contrat de la liste numérotée n'était étanche à aucun bout
+
+**Deux chemins distincts, le même dégât irréversible : la MAUVAISE branche feuille.**
+
+*(a) À la lecture.* L'instruction dit au modèle « en cas de doute, réponds `aucun` » — et un modèle fort
+répond en français naturel. Reproduit :
+
+| sortie du modèle | ancien parser |
+|---|---|
+| `RETOURS: aucun. Le message ne revient ni sur 1, ni sur 2, ni sur 3.` | `[0,1,2]` |
+| `RETOURS: non, aucun lien avec 1 ni 2` | `[0,1]` |
+| `RETOURS: aucun` | `[]` ← **le seul cas testé** |
+
+Bout-en-bout contre le vrai Supabase : `progressions: 3`, trois branches passées en feuillaison, dates
+posées. **Une réponse qui dit NON faisait pousser tout l'arbre.**
+
+*(b) À l'écriture.* L'extrait partait **verbatim non aplati**. Sur mobile, Entrée fait un saut de ligne :
+un tour contenant une liste (« J'ai compris deux choses :\n1. …\n2. … ») injectait de vraies lignes
+numérotées dans le payload, le modèle visait une ligne interne, le mapping numéro→branche glissait.
+
+Invisible (l'étage tourne dans `after()`), non journalisé, et **définitif** (FR-029). Correctif : la ligne
+`RETOURS` doit être **exactement** une liste de nombres ; l'extrait est aplati et borné à 400 caractères.
+
+### Les 7 autres
+
+| | Défaut | Correctif |
+|---|---|---|
+| M | La présélection lexicale était un **portail fermé** : « j'ai posé une limite avec maman » ne réveillait pas « dire non à ma mère » — le cas exact que le docstring disait attraper | elle devient un **classeur** : tant que l'envoi reste borné, tout part au modèle |
+| M | `motsPorteurs` **détruisait les ligatures** : « sœur », « cœur », « vœu » disparaissaient du vocabulaire — celui d'un journal intime | œ→oe, æ→ae **avant** la décomposition NFD |
+| M | Le geste irréversible restait **offert pendant les 72 h** post-détresse, puis refusé, avec « Tu peux réessayer » — faux pendant trois jours | `gestesSuspendus` décidé dans `lib/scene` ; le geste est **masqué sans être expliqué**, et le refus (403) a son propre message |
+| M | La feuillaison était **binaire à l'écran** : premier retour = 5 feuilles d'un coup + trait de 2 à 3,2 px | épaisseur et densité **continues**, pilotées par `intensite` |
+| M | Le geste ne rendait **aucun compte au clavier** : focus perdu sur `<body>` à l'ouverture, à l'annulation et après validation | focus dirigé aux trois moments, confirmation annoncée, groupe nommé |
+| M | **Six trous de tests**, mutation-prouvés | voir ci-dessous |
+| B | Course dans `progresser_feuillaison` : deux tours concurrents = **deux incréments**, définitivement | `select … for update` sur la branche (migration 0026) |
+| B | `branche_retour` sans index sur ses FK : l'effacement FR-067 en Seq Scan | deux index (0026) |
+
+### Les six trous de tests — ce qui rassurait à tort
+
+- **Le geste irréversible n'avait aucun test de comportement.** Trois mutants (garde de session inversée,
+  erreur RPC avalée, validation retirée) traversaient **100 % de la suite**. → `rayonnement-endpoint.test.ts`,
+  bout en bout contre la vraie base. Les trois mutants meurent maintenant (1, 3, 1 rouges).
+- **La garde du plafond `MAX_CANDIDATS` était vide** : la fixture ne produisait jamais plus de 3 candidats,
+  le `.slice()` était un no-op. Or ce plafond EST la borne d'art. 9 exposé.
+- **La garde « aucune animation » ne pouvait pas échouer** : jsdom ne charge aucune règle CSS d'un module,
+  `animationName` y vaut toujours `""`. → lecture de la feuille de style, **commentaires retirés** (le mot
+  « animation » figure dans un commentaire de `.rayonnement` — le piège de la garde par liste de mots de 4.6).
+- **Le cas ordinaire de la fiche** (feuillu *puis* déclaré, les deux dates présentes) n'était jamais monté :
+  le mutant qui empile les deux phrases survivait.
+- **La garde NFR-022 n'espionnait que `console.error`** : une fuite par `warn` ou `log` passait — et
+  s'imprimait dans la sortie du test censé la prouver absente.
+- **Un test était un doublon exact** du précédent et n'exerçait jamais le repli qu'il prétendait prouver ;
+  la moitié `!doitExecuterTravailSchema(verdict)` de la garde n'était couverte par rien.
+
+### Corrections d'altitude
+
+- **`transitionner` était du code mort.** La « fonction de transition unique dans `lib/domain/` » exigée par
+  AC1/AD-8 n'avait aucun appelant de production : la règle ne vivait que dans le SQL. Elle est désormais
+  consultée par `peutEncoreFeuiller`, qui écarte de la présélection les branches ne pouvant plus progresser
+  — ce qui ferme du même coup un défaut BASSE (leur verbatim art. 9 repartait au modèle indéfiniment et
+  elles évinçaient du plafond des branches encore vivantes).
+- **La garde de concurrence est honnête sur ce qu'elle prouve.** Le test bout-en-bout (six appels
+  simultanés) ne tue le mutant qu'une fois sur trois — PostgREST sérialise déjà une partie du trafic par
+  son pool. Il est conservé pour le comportement, et le `for update` est verrouillé **en plus** par une
+  garde structurelle, annoncée comme telle, qui tue son mutant à tous les coups.
+
+### Mutation-vérifié (revue)
+
+| Garde | Rouges |
+|---|---|
+| Parser : négation en français | 1 |
+| Payload : extrait multiligne / borné | 2 |
+| Endpoint du geste : garde de session | 1 |
+| Endpoint du geste : erreur RPC avalée | 3 |
+| Endpoint du geste : validation d'entrée | 1 |
+| `for update` (garde structurelle) | 1 |
+
+### Reste ouvert, assumé
+
+- **AC3 « geste en réponse à Anam »** : le second chemin n'existe pas. Il suppose qu'Anam *pose la question*,
+  ce qu'aucune spec ne définit (quand ? sur quel signal ?). Implémenter un déclencheur inventé serait pire
+  que l'absence. **À cadrer produit** — le chemin depuis la fiche, lui, est complet.
+- **La paraphrase au-delà de 3 branches** : le repli ne s'applique que si l'envoi reste borné. Au-delà, le
+  lexical redevient un classeur et un retour paraphrasé peut être raté. Limite documentée dans le code.
+- **`PAS_FEUILLAISON = 0,2` et `INSTRUCTION_RETOUR_THEME`** restent des placeholders produit.
+- **ARCHITECTURE-SPINE (AD-8, L150)** dit encore `fruit`.
+
 ## Dev Agent Record
 
 ### Agent Model Used
@@ -288,3 +381,4 @@ propres. `supabase db reset` rejoue 0001→0025.
 | 2026-08-04 | v1.0 | Création de la story (analyse epics/PRD/SPINE/UX + code 4.5/4.6 livré). Trois décisions load-bearing posées : D1 (détection du retour sur le thème), D2 (renommage de l'enum `fruit` → `rayonnement`), D3 (déclaration pendant un épisode de détresse). | Claude Opus 5 |
 | 2026-08-04 | v1.1 | **D1 = hybride** (présélection déterministe + confirmation par le modèle fort), **D2 = renommer en 0025**, **D3 = bloquer aussi la déclaration pendant l'épisode + 72 h**. Tranchées par le PO. | Julian (PO) |
 | 2026-08-04 | v2.0 | Implémentation complète (T1→T6). 1439 tests verts, 8 gardes mutation-vérifiées, un fast-fail retiré parce qu'il survivait à sa mutation. Statut → review. | Claude Opus 5 |
+| 2026-08-05 | v2.1 | Revue adversariale (79 agents, 13 angles) : 8 défauts corrigés dont 1 HAUTE (le parser acceptait les négations → toutes les branches feuillaient, définitivement) et 6 trous de tests mutation-prouvés. Migration 0026. 1482 tests verts. | Claude Opus 5 |

@@ -50,6 +50,19 @@ export interface ProjectionScene {
    * MENSONGE et la pire régression possible au sens de FR-029 (revue 4.6, HAUTE).
    */
   readonly indisponible?: true;
+  /**
+   * Vrai pendant un épisode de détresse et les 72 h qui suivent (AD-17/FR-046, décision D3).
+   *
+   * ⚠️ REVUE — sans ce drapeau, la fiche offrait le geste irréversible, faisait lire la confirmation
+   * solennelle (« elle y restera »), puis le point d'écriture refusait. Sanela venait de traverser une
+   * crise ; l'app lui faisait vivre un refus juste après lui avoir demandé de s'engager. La garde
+   * d'écriture était correcte, l'interface mentait par omission.
+   *
+   * On MASQUE le geste, sans l'expliquer : dire « tu sors d'un épisode » reviendrait à lui annoncer que
+   * le système l'a classée, ce qu'aucune spec n'autorise. Le silence est ici le choix le plus doux.
+   * Décidé dans `lib/scene` (AD-7) — le rendu constate, il ne déduit pas.
+   */
+  readonly gestesSuspendus?: true;
 }
 
 /** STUB de départ : tronc présent, aucune branche. Gelé (lecture seule réelle, pas seulement au type). */

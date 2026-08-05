@@ -35,6 +35,7 @@ import Surimpression from "./surimpression";
 import Conversation from "./conversation/Conversation";
 import EchangeSource from "./conversation/EchangeSource";
 import type { PropositionBrancheData } from "./conversation/types";
+import type { ResultatGeste } from "./arbre/FicheBranche";
 import s from "./monde.module.css";
 
 export interface ProprietesSceneRendue {
@@ -155,14 +156,18 @@ export default function SceneDom({ projection, propositionBranche }: ProprietesS
   // intention, le serveur écrit et garde (D3 : la fenêtre détresse refuse au point d'écriture). On ne
   // met à jour localement QU'EN CAS DE SUCCÈS — afficher la pleine lumière sur un refus serait un
   // mensonge optimiste, et sur un état irréversible c'est le pire moment pour en faire un.
-  const declarerRayonnement = async (brancheId: string): Promise<boolean> => {
+  const declarerRayonnement = async (brancheId: string): Promise<ResultatGeste> => {
     try {
       const r = await fetch("/api/anam/branche", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "rayonnement", brancheId }),
       });
-      if (r.ok) {
+      // REVUE — un REFUS (403, garde de détresse) n'est pas une panne : réessayer n'y changera rien
+      // pendant des heures. Les confondre faisait promettre « tu peux réessayer » à quelqu'un qui sort
+      // d'une crise, et l'invitait à se heurter au même mur.
+      if (!r.ok) return r.status === 403 ? "refus" : "panne";
+      {
         // La DATE vient du serveur au prochain chargement ; en local on ne pose que l'état, jamais une
         // date fabriquée au client (elle différerait de celle qui fait foi).
         setProjLocale((p) => ({
@@ -170,9 +175,9 @@ export default function SceneDom({ projection, propositionBranche }: ProprietesS
           branches: p.branches.map((b) => (b.id === brancheId ? { ...b, etat: "rayonnement" as const } : b)),
         }));
       }
-      return r.ok;
+      return "ok";
     } catch {
-      return false;
+      return "panne";
     }
   };
 

@@ -6,6 +6,7 @@ import { preselectionner, requeteRetourTheme, lireRetoursTheme, type BrancheCand
 import { doitExecuterTravailSchema } from "./pipeline";
 import { journaliserIncidentSecurite } from "./rpc-repli";
 import type { VerdictSecurite } from "./classer-detresse";
+import { avecDelai } from "@/lib/domain/delai";
 
 /**
  * Story 4.7 (T3) — l'orchestrateur du RETOUR SUR LE THÈME, l'étage qui fait FEUILLER l'arbre. Frère
@@ -60,14 +61,6 @@ export interface ResultatRetourTheme {
 
 const DELAI_RETOUR_MS = 8000;
 
-function avecDelai<T>(p: Promise<T>, ms: number): Promise<T> {
-  let minuteur: ReturnType<typeof setTimeout>;
-  const delai = new Promise<never>((_, rej) => {
-    minuteur = setTimeout(() => rej(new Error("retour_theme_timeout")), ms);
-  });
-  return Promise.race([p.finally(() => clearTimeout(minuteur)), delai]);
-}
-
 export async function evaluerRetourThemeDuTour(
   deps: DepsRetourTheme,
   args: { messages: MessageIa[]; verdict: VerdictSecurite; cleTour: string; tour: string },
@@ -101,6 +94,7 @@ export async function evaluerRetourThemeDuTour(
         requete: requeteRetourTheme(args.messages, candidats),
       }),
       deps.delaiMs ?? DELAI_RETOUR_MS,
+      "retour_theme_timeout",
     );
   } catch (e) {
     journaliserIncidentSecurite("retour_theme_egress_exception", e);

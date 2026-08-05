@@ -4,6 +4,7 @@ import type { AiPort, MessageIa, RequeteIa } from "@/lib/ai/port";
 import { envoyerSousEgressArt9, type RaisonRefus } from "@/lib/ai/egress-guard";
 import { classerDetresse, repliSur, type VerdictSecurite } from "./classer-detresse";
 import type { FamilleDanger } from "./ressources-aide";
+import { avecDelai } from "@/lib/domain/delai";
 
 /**
  * Détecteur de détresse (Story 2.3, AC2 ; §5) — la classification au modèle FORT.
@@ -34,14 +35,6 @@ export interface DepsDetecteur {
 const DELAI_DETECTION_MS = 8000;
 
 /** Course contre un délai : si `p` n'a pas résolu à temps, rejette (→ repli sûr en aval, AD-15). */
-function avecDelai<T>(p: Promise<T>, ms: number): Promise<T> {
-  let minuteur: ReturnType<typeof setTimeout>;
-  const delai = new Promise<never>((_, rej) => {
-    minuteur = setTimeout(() => rej(new Error("detection_timeout")), ms);
-  });
-  return Promise.race([p.finally(() => clearTimeout(minuteur)), delai]);
-}
-
 export type ResultatDetection =
   | { bloque: false; verdict: VerdictSecurite }
   | { bloque: true; raison: RaisonRefus };
@@ -133,6 +126,7 @@ export async function detecterDetresse(
     resultat = await avecDelai(
       envoyerSousEgressArt9({ supabase: deps.supabase, adaptateur: deps.adaptateur, requete }),
       deps.delaiMs ?? DELAI_DETECTION_MS,
+      "detection_timeout",
     );
   } catch (e) {
     journaliserIncidentSecurite("appel_detection_echoue", e);

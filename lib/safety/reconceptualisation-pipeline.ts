@@ -6,6 +6,7 @@ import { requeteReconceptualisation, detecterReconceptualisation } from "@/lib/d
 import { doitExecuterTravailSchema } from "./pipeline";
 import { journaliserIncidentSecurite } from "./rpc-repli";
 import type { VerdictSecurite } from "./classer-detresse";
+import { avecDelai } from "@/lib/domain/delai";
 
 /**
  * Orchestrateur de la DÉTECTION DE RECONCEPTUALISATION (Story 4.4, AD-16) — l'étage ordonné APRÈS la
@@ -60,14 +61,6 @@ export interface ResultatReconcept {
 const DELAI_RECONCEPT_MS = 8000;
 
 /** Course contre un délai : si `p` n'a pas résolu à temps, rejette (→ repli en aval, aucun signal). */
-function avecDelai<T>(p: Promise<T>, ms: number): Promise<T> {
-  let minuteur: ReturnType<typeof setTimeout>;
-  const delai = new Promise<never>((_, rej) => {
-    minuteur = setTimeout(() => rej(new Error("reconcept_timeout")), ms);
-  });
-  return Promise.race([p.finally(() => clearTimeout(minuteur)), delai]);
-}
-
 /**
  * Lecteur de la fenêtre détresse SOUS JWT (en cours OU 72 h). `branche_bloquee_par_detresse()` est keyée
  * sur `auth.uid()` → à appeler avec le client JWT (JAMAIS le client admin, qui n'a pas d'auth.uid() et
@@ -108,6 +101,7 @@ export async function evaluerReconceptualisationDuTour(
         requete: requeteReconceptualisation(args.messages),
       }),
       deps.delaiMs ?? DELAI_RECONCEPT_MS,
+      "reconcept_timeout",
     );
   } catch (e) {
     journaliserIncidentSecurite("reconcept_egress_exception", e); // hang/erreur fort → aucun signal

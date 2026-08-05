@@ -4,7 +4,7 @@ baseline_commit: 2979d62
 
 # Story 4.7 : Le cycle de vie d'une branche — naissance → feuillaison → rayonnement, monotone et gardé à l'écriture
 
-Status: review
+Status: done
 
 <!-- Story créée le 2026-08-04, immédiatement après la livraison de la 4.6 (CI verte 30914928189, 1346 tests).
      4.5 fait NAÎTRE la branche, 4.6 la MONTRE et la RENOMME, 4.7 la fait VIVRE. C'est la première story qui

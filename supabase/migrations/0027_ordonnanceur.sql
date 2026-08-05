@@ -23,17 +23,20 @@
 -- ne prouvent rien à l'exécution : elles disent ce qu'on a tapé, pas où on a atterri. Le marqueur, lui, est
 -- porté par la base elle-même — on ne peut pas se tromper de base sans que la base le dise.
 --
--- La migration amorce `local`. Un projet cloud doit être EXPLICITEMENT promu (`update … set nom =
--- 'production'`). Si on oublie la promotion, la prod refuse de tourner. C'est le bon sens de l'échec : elle
--- refuse au lieu d'effacer.
+-- La table naît VIDE, et c'est le cœur de la garde. Cf. la revue de la story (défaut n°2) : amorcer `local`
+-- ici donnait le même mot aux deux « je ne sais pas » du verrou — celui de la base non promue et celui du
+-- déploiement sans `ANIMA_ENV` — donc ils s'accordaient au lieu de se contredire. Sans ligne, une base cloud
+-- non promue rend `base_muette` et l'ordonnanceur REFUSE de tourner. Oublier la promotion ne donne plus le
+-- droit d'écrire ; ça donne un refus, bruyant et sans effet.
+--
+-- Le poste local et la CI reçoivent leur marqueur `local` par `supabase/seed.sql`, que `supabase start` et
+-- `db reset` jouent après les migrations et qu'un projet cloud ne reçoit jamais.
 
 create table public.environnement (
   id      boolean     primary key default true check (id),  -- ligne UNIQUE : `true` est la seule clé possible
   nom     text        not null check (nom in ('local', 'preview', 'production')),
   fige_le timestamptz not null default now()
 );
-
-insert into public.environnement (nom) values ('local');
 
 alter table public.environnement enable row level security;
 alter table public.environnement force  row level security;

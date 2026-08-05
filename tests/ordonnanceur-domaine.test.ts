@@ -8,7 +8,13 @@ import { fenetreDe, estEnRetard, type DescriptionJob } from "@/lib/domain/ordonn
  * fois, ou jamais.
  */
 
-const JOB: DescriptionJob = { nom: "essai", cadence: "quotidien", toleranceHeures: 48, delaiMs: 1000 };
+const JOB: DescriptionJob = {
+  nom: "essai",
+  cadence: "quotidien",
+  toleranceHeures: 48,
+  delaiMs: 1000,
+  enServiceDepuis: new Date("2026-01-01T00:00:00Z"), // un job ANCIEN, sauf mention contraire
+};
 
 describe("[AC2] la fenêtre quotidienne suit le jour civil PARISIEN, pas UTC", () => {
   it("deux instants du même jour parisien donnent la MÊME clé", () => {
@@ -99,6 +105,29 @@ describe("[AC5] le retard, et le piège du job qui n'a jamais tourné", () => {
     const naissanceAncienne = new Date("2026-07-01T00:00:00Z");
     const reussiteRecente = new Date("2026-08-05T06:00:00Z");
     expect(estEnRetard(JOB, reussiteRecente, naissanceAncienne, maintenant)).toBe(false);
+  });
+
+  it("[LE PIÈGE 3] un job AJOUTÉ AUJOURD'HUI à un système ANCIEN n'est pas en retard", () => {
+    // Le défaut n°4 de la revue, et il se serait déclenché dès la Story 4.9. Le job de santé passe AVANT
+    // les autres dans la boucle : au tick même où un job neuf tourne pour la première fois, la santé ne
+    // trouve aucune réussite à son nom. Avec le seul repli sur la naissance du SYSTÈME — vieille de
+    // plusieurs semaines — elle levait un incident `job_en_retard` sur un job qui allait s'exécuter
+    // quelques millisecondes plus tard. Chaque story ajoutant un job aurait ouvert par un faux incident.
+    //
+    // Mutation-cible : retirer `enServiceDepuis` du `Math.max` → ce test rougit.
+    const nouveau: DescriptionJob = { ...JOB, enServiceDepuis: maintenant };
+    const naissanceAncienne = new Date("2026-07-01T00:00:00Z");
+    expect(estEnRetard(nouveau, null, naissanceAncienne, maintenant)).toBe(false);
+  });
+
+  it("[LE PIÈGE 3, l'autre bord] … mais s'il ne tourne toujours pas trois jours plus tard, il EST en retard", () => {
+    // La grâce accordée au job neuf est une grâce, pas une amnistie. Mutation-cible symétrique : prendre
+    // `enServiceDepuis` SEUL (sans le `max` avec la naissance) — ce test-là resterait vert, mais le PIÈGE 1
+    // rougirait, puisqu'un job déclaré il y a six mois sur une base neuve serait déclaré en retard le jour
+    // du déploiement. Il faut les deux tests pour clouer les deux bords.
+    const nouveau: DescriptionJob = { ...JOB, enServiceDepuis: maintenant };
+    const troisJoursApres = new Date(maintenant.getTime() + 72 * 3_600_000);
+    expect(estEnRetard(nouveau, null, new Date("2026-07-01T00:00:00Z"), troisJoursApres)).toBe(true);
   });
 
   it("la tolérance est une borne STRICTE : pile à la limite n'est pas en retard", () => {

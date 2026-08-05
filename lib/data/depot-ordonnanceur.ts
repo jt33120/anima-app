@@ -1,5 +1,6 @@
 import "server-only";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
+import { avecDelai } from "@/lib/domain/delai";
 
 /**
  * Story 4.8 — le dépôt de l'ordonnanceur. C'est l'UN des rares endroits légitimes où `service_role` est
@@ -90,7 +91,20 @@ export function creerDepotOrdonnanceur(): DepotOrdonnanceur {
  */
 export async function santePublique(): Promise<"ok" | "degrade" | "inconnu"> {
   try {
-    const { data, error } = await createSupabaseAdminClient().rpc("sante_ordonnanceur_publique");
+    // BORNÉ. Un `try/catch` n'attrape que des rejets — jamais une attente. Or la panne la plus banale d'une
+    // base n'est pas l'erreur, c'est le silence : la requête ne revient pas. `/api/health` étant le test de
+    // fumée du produit, une base muette y faisait pendre la route entière jusqu'à ce que la plateforme la
+    // tue — la sonde censée dire « l'app répond » cessait donc de répondre (revue 4.8, défaut n°8).
+    //
+    // `Promise.resolve(…)` n'est pas décoratif : le constructeur de requête de PostgREST est un THENABLE,
+    // pas une `Promise`. Il porte `then` mais ni `catch` ni `finally` — et `avecDelai` appelle `.finally`
+    // pour désarmer son minuteur. Le lui passer nu lèverait un TypeError à chaque appel, que ce `catch`
+    // avalerait en « inconnu » : la sonde resterait verte en ayant cessé de sonder.
+    const { data, error } = await avecDelai(
+      Promise.resolve(createSupabaseAdminClient().rpc("sante_ordonnanceur_publique")),
+      2_000,
+      "sante_publique_timeout",
+    );
     if (error || (data !== "ok" && data !== "degrade")) return "inconnu";
     return data;
   } catch {

@@ -4,7 +4,7 @@ baseline_commit: 04d4198
 
 # Story 4.8 : La fondation de l'ordonnanceur unique
 
-Status: review
+Status: done
 
 <!-- Story créée le 2026-08-05, après la 4.7 (CI verte 30982420668, 1482 tests). C'est la première story
      d'INFRASTRUCTURE de l'Epic 4 : elle ne livre rien de visible à l'utilisatrice. Sa valeur est négative
@@ -187,6 +187,7 @@ Claude Opus 5 (1M context).
 - `lib/ordonnanceur/environnement.ts` · `lib/ordonnanceur/registre.ts` · `lib/ordonnanceur/executer.ts` · `lib/ordonnanceur/jobs/sante.ts`
 - `app/api/ordonnanceur/route.ts`
 - `vercel.json`
+- **Revue :** `supabase/migrations/0028_sante_homme_mort.sql` · `supabase/seed.sql`
 - `tests/ordonnanceur-domaine.test.ts` (14) · `tests/ordonnanceur-sql.test.ts` (17) · `tests/ordonnanceur-endpoint.test.ts` (7) · `tests/ordonnanceur-executeur.test.ts` (15) · `tests/ordonnanceur-architecture.test.ts` (11)
 
 **Modifiés**
@@ -200,9 +201,71 @@ Claude Opus 5 (1M context).
 - **La granularité est quotidienne.** Suffisante pour la synthèse (4.9) et les rappels d'échéance (4.10), qui portent sur des jours. Un besoin plus fin exigerait le plan Pro de Vercel — à rouvrir si 4.10 le demande.
 - **`avecDelai` ne coupe pas le travail, il cesse de l'attendre.** Un job qui pend est clos en échec et sa fenêtre libérée, mais la promesse sous-jacente continue jusqu'à ce que la plateforme tue le processus. Sans effet ici (le job de santé ne fait que lire) ; à revoir quand un job écrira beaucoup — un `AbortSignal` traversant serait alors le bon outil.
 
+
+## Revue adversariale (2026-08-05) — 10 défauts confirmés, 10 corrigés
+
+22 agents : 6 angles de recherche indépendants (SQL/concurrence, répartiteur, domaine temporel, porte,
+vie privée, gardes), puis un sceptique par candidat avec mandat de RÉFUTER, puis un balayage.
+18 candidats bruts → 12 après dédup → **10 survivent à la réfutation**, 3 réfutées (le double effet du
+délai, `maxDuration` face à la somme des délais, `/api/health` devenue dynamique).
+
+**Les deux critiques — tous deux des gardes qui ne gardaient rien :**
+
+1. **Le signal de santé était inversé.** `sante_ordonnanceur_publique` ne regardait que `incident_systeme`.
+   Or les incidents sont écrits PAR l'ordonnanceur : un ordonnanceur qui ne tourne plus n'écrit plus rien,
+   donc plus aucun incident, donc `/api/health` répondait « ok ». Et comme la fenêtre des incidents ne fait
+   que deux jours, le signal s'AMÉLIORAIT à mesure que la panne durait. Vérifié en base : dix jours d'arrêt
+   → « ok ». Correction : clause d'HOMME MORT (migration 0028) — on ne déclare la santé que si l'on peut
+   MONTRER une réussite du job de santé de moins de 48 h. Une absence ne peut pas s'auto-signaler.
+   *Preuve immédiate : le projet cloud, où rien n'a jamais tourné, est passé de `ok` à `degrade`.*
+
+2. **Le verrou d'environnement était inerte dans son état par défaut.** La migration amorçait le marqueur à
+   `local`, exactement la valeur sur laquelle `environnementDuDeploiement()` se replie quand `ANIMA_ENV` est
+   absente. Les deux « je ne sais pas » du verrou portaient le même mot — et deux ignorances qui portent le
+   même mot ne se contredisent pas : elles s'accordent. Un `npm run dev` pointé sur un projet cloud non
+   promu obtenait un verdict ACCORDÉ, réclamait la fenêtre du jour et la clôturait : un poste de dev pouvait
+   éteindre la journée de prod, et à l'Epic 6 exécuter la rétention. Correction : la migration n'amorce plus
+   rien ; `supabase/seed.sql` donne son marqueur au local et à la CI, et un projet cloud non promu rend
+   `base_muette` → refus.
+
+**Les six majeurs :**
+
+3. **et 5. Le repli produisait PLUS d'effet que le chemin nominal (AD-15 à l'envers).** `clore(succès)` était
+   dans le `try` du job : un hoquet réseau après un job réussi écrivait `echoue`, levait un incident
+   mensonger et rendait la fenêtre IMMÉDIATEMENT re-réclamable. Sur 4.9 : une seconde synthèse et une
+   seconde notification. Le test qui couvrait ce chemin **attendait le mauvais comportement** — il figeait
+   le défaut, vert.
+4. **Tout job ajouté au registre aurait été « en retard » au tick même où il tournait pour la première
+   fois** : la santé passe avant lui dans la boucle et se rabattait sur la naissance du SYSTÈME. Chaque
+   story ajoutant un job aurait ouvert par un faux incident, à commencer par la 4.9. Correction :
+   `enServiceDepuis` au registre, et la référence devient `max(mise en service, naissance)`.
+6. **La garde AC4 ne lisait ni `.github/workflows/` ni les fichiers de la racine.** Le commentaire nommait
+   pourtant GitHub Actions comme la menace. Un `on: schedule:` dans `ci.yml`, ou un `setInterval` dans
+   `proxy.ts` (le middleware Next 16, exécuté à chaque requête), passait le build en vert.
+7. **Rien ne reliait la clé de fenêtre écrite en base à `fenetreDe`** : le dépôt factice jetait l'argument.
+   Le répartiteur aurait pu passer une constante — l'idempotence disparaît sans qu'aucune exception ne soit
+   levée — et les 1555 tests seraient restés verts.
+8. **`santePublique` n'était pas bornée** : un `try/catch` n'attrape que des rejets, jamais une attente. Une
+   base silencieuse faisait pendre `/api/health`, c'est-à-dire la sonde censée dire « l'app répond ».
+
+**Les deux mineurs :** la tolérance de 48 h tombait pile sur deux fois la cadence, si bien que l'alerte se
+jouait sur la dérive de planification de Vercel (→ 60 h, au milieu de l'intervalle) ; et le log du refus
+d'environnement sortait en `code: undefined`, le journaliseur ne lisant que la clé `code`.
+
+**Mutation-vérification : 12 mutants, 12 tués.** Première passe à jeter — le script restaurait par
+`git checkout`, ce qui effaçait les correctifs non commités en même temps que les mutants et faisait tourner
+les mutants suivants contre le code d'avant la revue. Restauration refaite par instantané.
+
+**Ce que cette revue apprend, au-delà des dix correctifs :** *une garde dont le signal est une ABSENCE ne
+peut pas être elle-même le signal.* Les défauts n°1 et n°2 sont le même défaut à deux endroits — on
+demandait à un système en panne de dire qu'il est en panne, et à une ignorance de contredire une autre
+ignorance. Les deux corrections vont dans le même sens : lire l'absence, et donner des mots différents à
+deux doutes différents.
+
 ## Change Log
 
 | Date | Version | Description |
 |---|---|---|
 | 2026-08-05 | 0.1 | Story créée. D1/D2/D3 tranchés par le PO avant implémentation. |
 | 2026-08-05 | 1.0 | Implémentée. 1555 tests verts, 23 mutants tués. Cliquet d'environnement retiré après examen ; `estDu` non livrée par choix ; `avecDelai` déduplifiée. Statut → review. |
+| 2026-08-05 | 1.1 | Revue adversariale (22 agents) : 10 défauts confirmés dont 2 critiques, tous corrigés. Migration 0028 (homme mort) + `supabase/seed.sql`. 1568 tests verts, 12 mutants tués. 0028 déployée sur le cloud. Statut → done. |

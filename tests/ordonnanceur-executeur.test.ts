@@ -12,30 +12,41 @@ import type { DepotOrdonnanceur, EtatOrdonnanceur, TypeIncident } from "@/lib/da
 
 interface Trace {
   reclames: string[];
+  /**
+   * La CLÉ DE FENÊTRE telle qu'elle part vers la base, réclamation par réclamation. Le dépôt factice la
+   * jetait (revue 4.8, défaut n°7) : rien dans toute la suite ne reliait la clé écrite en base à
+   * `fenetreDe(cadence, instant)`. Le répartiteur aurait pu passer une constante, ou la cadence du mauvais
+   * job, et les 1555 tests seraient restés verts pendant que l'idempotence — la seule chose que cette
+   * story promet — cessait d'exister.
+   */
+  fenetres: { job: string; fenetre: string; bail: number }[];
   clos: { job: string; reussi: boolean; motif: string | null }[];
+  fenetresCloses: { job: string; fenetre: string }[];
   incidents: { type: TypeIncident; job: string; detail: string | null }[];
 }
 
 function depotFactice(
   options: {
     reclamer?: (job: string) => boolean | Promise<boolean>;
-    clore?: () => void;
+    clore?: (reussi: boolean) => void;
     etat?: EtatOrdonnanceur;
     environnement?: string | null;
   } = {},
 ): { depot: DepotOrdonnanceur; trace: Trace } {
-  const trace: Trace = { reclames: [], clos: [], incidents: [] };
+  const trace: Trace = { reclames: [], fenetres: [], clos: [], fenetresCloses: [], incidents: [] };
   const depot: DepotOrdonnanceur = {
     async environnementDeclare() {
       return options.environnement === undefined ? "local" : options.environnement;
     },
-    async reclamer(job) {
+    async reclamer(job, fenetre, _c, bail) {
       trace.reclames.push(job);
+      trace.fenetres.push({ job, fenetre, bail });
       return options.reclamer ? await options.reclamer(job) : true;
     },
-    async clore(job, _f, _c, reussi, motif) {
-      options.clore?.();
+    async clore(job, fenetre, _c, reussi, motif) {
+      options.clore?.(reussi);
       trace.clos.push({ job, reussi, motif });
+      trace.fenetresCloses.push({ job, fenetre });
     },
     async etat() {
       return options.etat ?? { naissance: null, reussites: new Map() };
@@ -47,8 +58,20 @@ function depotFactice(
   return { depot, trace };
 }
 
-function job(nom: string, executer: JobEnregistre["executer"], delaiMs = 50): JobEnregistre {
-  return { nom, cadence: "quotidien", toleranceHeures: 48, delaiMs, executer };
+function job(
+  nom: string,
+  executer: JobEnregistre["executer"],
+  delaiMs = 50,
+  cadence: JobEnregistre["cadence"] = "quotidien",
+): JobEnregistre {
+  return {
+    nom,
+    cadence,
+    toleranceHeures: 48,
+    delaiMs,
+    enServiceDepuis: new Date("2026-01-01T00:00:00Z"),
+    executer,
+  };
 }
 
 describe("[NFR-020/NFR-022] `codeDErreur` — on ne peut pas assainir un message, seulement reconnaître les siens", () => {
@@ -163,17 +186,47 @@ describe("[AC5] un job cassé ne met pas l'ordonnanceur à l'arrêt", () => {
     espion.mockRestore();
   });
 
-  it("l'échec de la CLÔTURE elle-même ne fait pas tomber le répartiteur", async () => {
+  it("[LE CŒUR — défauts n°3 et n°5] une CLÔTURE qui tombe ne transforme pas un succès en échec", async () => {
+    // CE TEST DISAIT L'INVERSE. Il attendait `issue: "echoue"` et figeait ainsi le défaut : quand
+    // `clore(succès)` échouait — un hoquet réseau après un job parfaitement exécuté — le catch du JOB
+    // prenait le relais, écrivait `echoue`, levait un incident `job_echoue` mensonger, et rendait la
+    // fenêtre IMMÉDIATEMENT re-réclamable. Le repli produisait donc PLUS d'effet que le chemin nominal,
+    // exactement à l'envers d'AD-15. Sur la synthèse (4.9) : une seconde synthèse et une seconde
+    // notification ; sur la rétention (Epic 6) : un second effacement.
+    //
+    // Un test peut donc protéger un bug aussi solidement qu'il protège une garde. Celui-ci était vert.
     const espion = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { depot } = depotFactice({
-      clore: () => {
-        throw new Error("clore_execution: 08006");
+    const aTourne = vi.fn(async () => {});
+    const { depot, trace } = depotFactice({
+      clore: (reussi) => {
+        if (reussi) throw new Error("clore_execution: 08006");
       },
     });
-    const rapport = await executerOrdonnanceur({ depot, registre: [job("ok", async () => {})] });
+    const rapport = await executerOrdonnanceur({ depot, registre: [job("vrai-travail", aTourne)] });
+
     expect(rapport.execute, "le répartiteur rend un rapport, il ne lève pas").toBe(true);
-    expect(rapport.jobs).toEqual([{ nom: "ok", issue: "echoue" }]);
+    expect(aTourne, "le travail, lui, a bien eu lieu").toHaveBeenCalledOnce();
+    expect(trace.clos.filter((c) => !c.reussi), "AUCUNE clôture en échec").toEqual([]);
+    expect(trace.incidents, "AUCUN incident : le job n'a pas échoué, c'est la comptabilité qui a raté").toEqual([]);
+    // L'issue rapportée suit le TRAVAIL, jamais la comptabilité.
+    expect(rapport.jobs).toEqual([{ nom: "vrai-travail", issue: "execute" }]);
     espion.mockRestore();
+  });
+
+  it("[CONTRÔLE POSITIF] … mais un vrai échec du JOB est toujours clos en échec et signalé", async () => {
+    // Sans ce contre-test, le précédent serait satisfait par un répartiteur qui n'écrit plus jamais rien.
+    const { depot, trace } = depotFactice();
+    const rapport = await executerOrdonnanceur({
+      depot,
+      registre: [
+        job("vrai-echec", async () => {
+          throw new Error("appel_echoue");
+        }),
+      ],
+    });
+    expect(rapport.jobs).toEqual([{ nom: "vrai-echec", issue: "echoue" }]);
+    expect(trace.clos).toEqual([{ job: "vrai-echec", reussi: false, motif: "appel_echoue" }]);
+    expect(trace.incidents).toEqual([{ type: "job_echoue", job: "vrai-echec", detail: "appel_echoue" }]);
   });
 });
 
@@ -199,6 +252,16 @@ describe("[AC3] le refus d'environnement précède TOUT", () => {
     const rapport = await executerOrdonnanceur({ depot, registre: [job("quelconque", async () => {})] });
     expect(rapport.refus).toBe("base_muette");
     expect(trace.reclames).toEqual([]);
+
+    // Le refus ne s'écrit PAS en base (on doute de la base) : le journal du processus est donc le seul
+    // canal qui reste, et il doit porter la raison. Or `journaliserIncidentSecurite` ne recopie pas
+    // l'objet qu'on lui passe — il n'en lit que la clé `code` et jette le reste, pour qu'aucun champ
+    // libre ne parte en log (NFR-022). Un `{motif, deploiement}` sortait donc en `code: undefined` :
+    // l'alerte existait, vide de sens (revue 4.8, défaut n°10).
+    expect(espion).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ motif: "ordonnanceur_environnement", code: "base_muette/local" }),
+    );
     espion.mockRestore();
   });
 });
@@ -251,5 +314,36 @@ describe("[AC5] le job de santé", () => {
     for (const i of trace.incidents) {
       expect(["aucune_reussite_connue", "reussite_hors_tolerance"]).toContain(i.detail);
     }
+  });
+});
+
+describe("[AC2] la clé de fenêtre qui part vers la base est bien celle du domaine", () => {
+  it("chaque job est réclamé ET clos sur la fenêtre de SA cadence, pour l'instant donné", async () => {
+    // Le trou de la revue (défaut n°7) : le dépôt factice jetait l'argument `fenetre`, et les tests
+    // d'endpoint ne lisaient jamais la colonne. Toute la suite pouvait donc rester verte avec un
+    // répartiteur qui passe une constante — auquel cas l'idempotence, la seule chose que cette story
+    // promet, disparaît sans qu'aucune exception ne soit levée : le job tourne une fois pour toutes,
+    // ou bien deux fois par jour.
+    //
+    // L'instant est choisi méchamment : 23h30 UTC un 5 août, c'est DÉJÀ le 6 à Paris. Un répartiteur qui
+    // daterait la fenêtre en UTC écrirait « 2026-08-05 » et ce test rougirait.
+    const { depot, trace } = depotFactice();
+    await executerOrdonnanceur({
+      depot,
+      instant: new Date("2026-08-05T23:30:00Z"),
+      registre: [job("q", async () => {}), job("h", async () => {}, 50, "hebdomadaire")],
+    });
+
+    // Le bail vaut ceil(delaiMs / 1000) + 60 s de marge — la fenêtre se libère peu après un plantage franc.
+    expect(trace.fenetres).toEqual([
+      { job: "q", fenetre: "2026-08-06", bail: 61 },
+      { job: "h", fenetre: "2026-W32", bail: 61 },
+    ]);
+    // Et la clôture porte la MÊME clé que la réclamation : clore une autre fenêtre laisserait la première
+    // `en_cours` pour toujours et clôturerait une occurrence qui n'a pas tourné.
+    expect(trace.fenetresCloses).toEqual([
+      { job: "q", fenetre: "2026-08-06" },
+      { job: "h", fenetre: "2026-W32" },
+    ]);
   });
 });

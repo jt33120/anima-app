@@ -24,8 +24,21 @@ export interface DescriptionJob {
   /** Identifiant stable — sert de clé d'exécution ET de clé d'incident. Ne jamais renommer à la légère. */
   readonly nom: string;
   readonly cadence: Cadence;
-  /** Au-delà de ce délai sans réussite, le job est en retard (AC5). Toujours > l'intervalle de la cadence. */
+  /**
+   * Au-delà de ce délai sans réussite, le job est en retard (AC5). Toujours STRICTEMENT plus grand qu'un
+   * multiple de l'intervalle de la cadence — voir le commentaire du registre : une tolérance posée pile sur
+   * un multiple fait dépendre l'alerte de la dérive de planification, c'est-à-dire du hasard.
+   */
   readonly toleranceHeures: number;
+  /**
+   * Le jour où ce job est ENTRÉ AU REGISTRE. Sert de point de départ au retard tant qu'il n'a jamais réussi.
+   *
+   * Sans lui, un job ajouté au registre était en retard AU TICK MÊME OÙ IL TOURNAIT POUR LA PREMIÈRE FOIS :
+   * le job de santé passe avant lui dans la boucle, ne trouve aucune réussite à son nom, et se rabattait
+   * alors sur la naissance du SYSTÈME — vieille de plusieurs semaines. Chaque story ajoutant un job aurait
+   * ouvert sa journée par un faux incident (revue de la Story 4.8, défaut n°4).
+   */
+  readonly enServiceDepuis: Date;
   /** Borne d'exécution. Un job qui dépasse est clos en échec — il ne mange pas le budget des suivants (D1). */
   readonly delaiMs: number;
 }
@@ -85,16 +98,22 @@ export function fenetreDe(cadence: Cadence, instant: Date): string {
 /**
  * Le job est-il en retard ? (AC5)
  *
- * `derniereReussite` vaut `null` pour un job jamais exécuté avec succès — et c'est exactement le cas qu'il
- * faut traiter avec soin. On se replie alors sur la NAISSANCE DU SYSTÈME (la plus ancienne exécution connue,
- * tous jobs confondus). Deux erreurs sont ainsi évitées d'un coup :
+ * `derniereReussite` vaut `null` pour un job jamais exécuté avec succès — et c'est le seul cas difficile.
+ * « Pas de réussite » ne dit rien tant qu'on ne sait pas DEPUIS QUAND on aurait dû en voir une. Il faut donc
+ * une date de départ, et deux horloges différentes ont chacune raison sur une moitié du problème :
  *
- *   • au premier tick, la naissance vaut « maintenant » → aucun job n'est en retard, pas de bruit le jour du
- *     déploiement, précisément le jour où un faux positif serait le plus coûteux ;
- *   • une semaine plus tard, un job enregistré mais jamais exécuté EST en retard → la panne qu'on veut voir.
+ *   • `enServiceDepuis` — depuis quand ce JOB existe. Un job ajouté aujourd'hui n'a pas de retard à rattraper.
+ *   • `naissanceSysteme` — depuis quand cette BASE voit tourner l'ordonnanceur. Un déploiement neuf ne doit
+ *     pas hériter du retard d'un job déclaré il y a six mois dans le code.
  *
- * Un `null` traité comme « pas de retard » serait aveugle au job mort-né ; traité comme « en retard »
- * hurlerait au démarrage. Le repli sur la naissance est ce qui rend les deux vrais.
+ * La borne juste est la PLUS RÉCENTE des deux, et les quatre cas se vérifient un par un :
+ *
+ *   1. job ancien, base neuve      → la naissance gagne     → rien n'est en retard le jour du déploiement ;
+ *   2. job neuf, base ancienne     → la mise en service gagne → pas de faux incident le jour où on l'ajoute ;
+ *   3. job neuf, base neuve        → les deux valent « maintenant » → rien n'est en retard ;
+ *   4. l'un ou l'autre, deux jours plus tard et toujours aucune réussite → EN RETARD : la panne qu'on veut voir.
+ *
+ * Prendre la plus ANCIENNE des deux casserait les cas 1 et 2 ; n'en garder qu'une en casserait un.
  */
 export function estEnRetard(
   job: DescriptionJob,
@@ -102,6 +121,7 @@ export function estEnRetard(
   naissanceSysteme: Date,
   instant: Date,
 ): boolean {
-  const reference = derniereReussite ?? naissanceSysteme;
-  return instant.getTime() - reference.getTime() > job.toleranceHeures * MS_PAR_HEURE;
+  const debut = Math.max(job.enServiceDepuis.getTime(), naissanceSysteme.getTime());
+  const reference = derniereReussite?.getTime() ?? debut;
+  return instant.getTime() - reference > job.toleranceHeures * MS_PAR_HEURE;
 }

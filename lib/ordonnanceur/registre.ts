@@ -33,11 +33,15 @@ export const REGISTRE: readonly JobEnregistre[] = [
   {
     nom: "sante-ordonnanceur",
     cadence: "quotidien",
-    // Deux jours : un tick manqué ne déclenche rien (Vercel Cron n'est pas contractuellement ponctuel),
-    // deux ticks manqués, si. La tolérance vaut toujours plus que l'intervalle de la cadence, sinon le job
-    // s'alerterait sur son propre décalage d'exécution.
-    toleranceHeures: 48,
+    // 60 h, et surtout PAS 48. L'intention est « un tick manqué ne déclenche rien, deux ticks manqués, si ».
+    // À 48 h — pile deux fois la cadence — la comparaison au deuxième tick tombait à quelques secondes de la
+    // bascule : elle se jouait sur la dérive de planification de Vercel Cron, qui se compte en minutes. La
+    // même panne alertait ou non selon le hasard de l'horaire. 60 h place le seuil au MILIEU de l'intervalle
+    // [48 h, 72 h] : deux ticks manqués alertent toujours, un seul jamais (revue 4.8, défaut n°9).
+    toleranceHeures: 60,
     delaiMs: 15_000,
+    // Le jour où ce job est entré au registre (Story 4.8). Lu seulement tant qu'il n'a jamais réussi.
+    enServiceDepuis: new Date("2026-08-05T00:00:00Z"),
     executer: executerSante,
   },
 ];

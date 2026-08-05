@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * Story 4.8 (T2) — LA GARANTIE À L'ÉCRITURE. Tout ce qui suit se joue en base, sous `service_role`, contre
@@ -331,5 +333,44 @@ describe("[NFR-020] l'absence d'art. 9 est STRUCTURELLE, pas disciplinaire", () 
       expect((data ?? []).length, `${table} doit être peuplée pour que ce test veuille dire quelque chose`).toBe(1);
       expect(Object.keys(data![0]).sort(), table).toEqual(colonnes);
     }
+  });
+});
+
+describe("[AC3 — défaut n°2] une base FRAÎCHEMENT MIGRÉE ne s'accorde avec aucun déploiement", () => {
+  it("la migration 0027 n'amorce PAS le marqueur — le repli de la garde et le défaut de la base ne portent plus le même mot", () => {
+    // LE DÉFAUT. La migration insérait `local`, et `environnementDuDeploiement()` se replie sur `local`
+    // quand `ANIMA_ENV` est absente ou méconnaissable. Les DEUX « je ne sais pas » du verrou portaient donc
+    // le même mot — et deux ignorances qui portent le même mot ne se contredisent pas : elles s'accordent.
+    //
+    // Concrètement : un projet cloud migré mais pas encore promu déclarait `local` ; un `npm run dev`
+    // pointé sur lui (ANIMA_ENV=local, comme dans `.env.example`) obtenait un verdict ACCORDÉ, réclamait
+    // la fenêtre du jour et la clôturait en `reussi` — le vrai tick de 6 h trouvait alors `deja_fait`. Un
+    // poste de développement pouvait éteindre la journée de production. Et à l'Epic 6, ce même chemin
+    // exécute la rétention, c'est-à-dire l'effacement de données réelles (AD-14) : exactement l'accident
+    // que l'AC3 prétend tuer.
+    //
+    // Une garde de SOURCE, ici, et pas de comportement : la base locale a bien son marqueur (par
+    // `seed.sql`), donc aucune requête ne peut montrer l'état « fraîchement migré ». Ce qu'on vérifie,
+    // c'est ce que reçoit un projet CLOUD — qui, lui, ne reçoit que les migrations.
+    const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/0027_ordonnanceur.sql"), "utf-8");
+    const insertions = migration.match(/insert\s+into\s+public\.environnement/gi) ?? [];
+    expect(insertions, "aucun amorçage du marqueur dans une migration").toEqual([]);
+
+    // … et le marqueur local vient bien d'ailleurs : sans ça, la CI et le poste local n'auraient plus de
+    // marqueur du tout et TOUS les tests d'ordonnanceur tomberaient en `base_muette` — vert par accident.
+    const seed = readFileSync(resolve(process.cwd(), "supabase/seed.sql"), "utf-8");
+    expect(seed).toMatch(/insert\s+into\s+public\.environnement[\s\S]*'local'/i);
+  });
+
+  it("le marqueur de CETTE base dit bien `local`, et il est indélébile", async () => {
+    const { data } = await admin.from("environnement").select("nom, id");
+    expect(data, "exactement une ligne : `id` est un booléen contraint à `true`").toHaveLength(1);
+    expect(data![0].nom).toBe("local");
+
+    // Le trigger `environnement_indelebile` : une base sans marqueur retomberait dans `base_muette` (donc
+    // le refus, donc l'invariant tiendrait) — mais un refus muet se diagnostique mal. On préfère l'erreur
+    // franche, qui dit tout de suite ce qui a été cassé.
+    const { error } = await admin.from("environnement").delete().eq("id", true);
+    expect(error, "la suppression du marqueur lève").not.toBeNull();
   });
 });

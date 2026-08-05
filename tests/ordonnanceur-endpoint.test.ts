@@ -163,6 +163,46 @@ describe("GET /api/ordonnanceur — la porte unique", () => {
     espion.mockRestore();
   });
 
+  it("[AC5 — L'HOMME MORT] sans réussite récente du job de santé, le signal public dit `degrade`", async () => {
+    // LE DÉFAUT N°1 DE LA REVUE, et le plus retors : `sante_ordonnanceur_publique` ne regardait QUE les
+    // incidents. Or les incidents sont écrits PAR l'ordonnanceur. Un ordonnanceur qui ne tourne plus n'écrit
+    // plus rien — donc plus aucun incident, donc `/api/health` répondait « ok ». Et comme la fenêtre des
+    // incidents ne fait que deux jours, le signal s'AMÉLIORAIT à mesure que la panne durait. La sonde disait
+    // le contraire de la vérité précisément dans le cas où elle sert.
+    //
+    // La correction (migration 0028) : on ne déclare la santé que si l'on peut MONTRER une réussite récente.
+    // Une absence ne peut pas s'auto-signaler ; il faut donc lire l'absence, pas attendre un signal.
+    await purger();
+
+    // Précondition explicite : la clause d'homme mort est bien FAUSSE ici. Sans elle, l'assertion suivante
+    // pourrait être satisfaite par un incident laissé par un autre test et ne rien prouver.
+    const { count } = await admin
+      .from("execution_job")
+      .select("*", { count: "exact", head: true })
+      .eq("job", "sante-ordonnanceur")
+      .eq("statut", "reussi")
+      .gt("termine_le", new Date(Date.now() - 48 * 3_600_000).toISOString());
+    expect(count, "aucune réussite du job de santé dans les 48 h").toBe(0);
+
+    const { data } = await admin.rpc("sante_ordonnanceur_publique");
+    expect(data, "un ordonnanceur qui ne tourne pas ne se déclare pas sain").toBe("degrade");
+  });
+
+  it("[AC5] … et un vrai tick inscrit bien la réussite qui rouvre le droit de se dire sain", async () => {
+    // Le contrôle positif de l'homme mort : sans lui, la garde ci-dessus serait satisfaite par une fonction
+    // qui répond `degrade` en toutes circonstances — c'est-à-dire par un signal tout aussi inutile, à
+    // l'envers. On n'assère pas ici la valeur GLOBALE du mot (elle dépend des incidents que d'autres
+    // fichiers écrivent en parallèle), mais la seule chose que ce tick contrôle : sa propre réussite.
+    await GET(req(`Bearer ${SECRET}`));
+    const { count } = await admin
+      .from("execution_job")
+      .select("*", { count: "exact", head: true })
+      .eq("job", "sante-ordonnanceur")
+      .eq("statut", "reussi")
+      .gt("termine_le", new Date(Date.now() - 48 * 3_600_000).toISOString());
+    expect(count, "la réussite du tick est datée et visible de la clause d'homme mort").toBe(1);
+  });
+
   it("[NFR-022] la réponse ne porte que des identifiants techniques", async () => {
     const corps = await (await GET(req(`Bearer ${SECRET}`))).text();
     expect(corps).toBe(JSON.stringify({ execute: true, jobs: [{ nom: "sante-ordonnanceur", issue: "execute" }] }));

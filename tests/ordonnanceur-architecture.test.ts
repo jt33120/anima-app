@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
+import { REGISTRE } from "@/lib/ordonnanceur/registre";
 
 /**
  * Story 4.8 (T8) — LES GARDES D'ARCHITECTURE. C'est ici que « aucun mécanisme périodique hors de
@@ -34,7 +35,35 @@ function sansCommentaires(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
 
-const SOURCES = [...fichiersSous("lib"), ...fichiersSous("app"), ...fichiersSous("render")];
+/**
+ * Les fichiers TypeScript de la RACINE. Ils manquaient (revue 4.8, défaut n°6) : `proxy.ts` — le middleware
+ * de Next 16, exécuté sur CHAQUE requête — n'était couvert par aucune garde, pas plus que `next.config.ts`
+ * ou un futur `instrumentation.ts`, qui est précisément l'endroit prévu par Next pour démarrer quelque chose
+ * au boot du serveur. Trois endroits où poser un rythme parallèle, aucun surveillé.
+ */
+function fichiersRacine(): string[] {
+  return readdirSync(RACINE)
+    .filter((f) => /\.tsx?$/.test(f) && !f.endsWith(".d.ts"))
+    .map((f) => join(RACINE, f))
+    .filter((f) => statSync(f).isFile());
+}
+
+const SOURCES = [
+  ...fichiersSous("lib"),
+  ...fichiersSous("app"),
+  ...fichiersSous("render"),
+  ...fichiersRacine(),
+];
+
+/**
+ * Un déclencheur périodique dans un workflow GitHub Actions. La menace était NOMMÉE par le commentaire de
+ * la garde des routes (« un service externe, GitHub Actions… ») et n'était vérifiée nulle part : rien
+ * n'empêchait d'ajouter à `ci.yml` un `on: schedule:` qui appelle une route avec un `curl`. Ce serait un
+ * second ordonnanceur complet — hors registre, hors `vercel.json`, et hors de toute idempotence.
+ */
+function declencheurPeriodique(yaml: string): boolean {
+  return /^\s*schedule:\s*$/m.test(yaml) || /^\s*-?\s*cron:\s*\S/m.test(yaml);
+}
 
 describe("[MÉTA] la garde de commentaires fonctionne dans les DEUX sens", () => {
   it("elle efface une mention en commentaire et conserve le code réel", () => {
@@ -70,6 +99,24 @@ describe("[AC1/AC4] il n'existe qu'UN mécanisme périodique dans ce dépôt", (
       (f) => f.slice(RACINE.length + 1),
     );
     expect(fautifs).toEqual([]);
+  });
+
+  it("[MÉTA] le détecteur de cron GitHub Actions rougit sur un vrai cas et se tait sur le reste", () => {
+    // Sans ce contrôle positif, la garde ci-dessous serait peut-être simplement aveugle — et un test
+    // aveugle est vert pour toujours. La leçon de 4.6, appliquée à un troisième détecteur textuel.
+    expect(declencheurPeriodique("on:\n  schedule:\n    - cron: '0 6 * * *'\n"), "un vrai cron").toBe(true);
+    expect(declencheurPeriodique("on:\n  push:\n    branches: [main]\n"), "un push, non").toBe(false);
+    expect(declencheurPeriodique("# schedule: rien ici\njobs:\n  schedule-doc:\n"), "un nom, non").toBe(false);
+  });
+
+  it("AUCUN workflow GitHub Actions ne déclare de déclencheur périodique", () => {
+    const dossier = resolve(RACINE, ".github", "workflows");
+    const fichiers = existsSync(dossier) ? readdirSync(dossier).filter((f) => /\.ya?ml$/.test(f)) : [];
+    // Anti-vacuité : une garde qui ne lit aucun fichier passe toujours. Si les workflows déménagent, ce
+    // test doit rougir plutôt que devenir silencieusement décoratif.
+    expect(fichiers.length, "il doit y avoir au moins un workflow à inspecter").toBeGreaterThan(0);
+    const fautifs = fichiers.filter((f) => declencheurPeriodique(readFileSync(join(dossier, f), "utf-8")));
+    expect(fautifs, "un `on: schedule:` est un second ordonnanceur, invisible du registre").toEqual([]);
   });
 
   it("AUCUN cron dans les migrations — l'ordonnanceur n'est pas dans Postgres", () => {
@@ -145,5 +192,44 @@ describe("[AC3] la configuration d'environnement est déclarée, pas devinée", 
     const exemple = readFileSync(resolve(RACINE, ".env.example"), "utf-8");
     expect(exemple).toMatch(/^CRON_SECRET=/m);
     expect(exemple).toMatch(/^ANIMA_ENV=/m);
+  });
+});
+
+describe("[AC5] le job de santé est le point fixe du signal public", () => {
+  it("le registre déclare bien `sante-ordonnanceur`, QUOTIDIEN — le nom que la SQL code en dur", () => {
+    // La clause d'homme mort de `sante_ordonnanceur_publique` (migration 0028) nomme ce job en dur et
+    // suppose sa cadence QUOTIDIENNE : c'est ce qui garantit qu'une réussite doit apparaître toutes les
+    // 24 h. Le renommer, ou le passer hebdomadaire, rendrait ce prédicat faux EN SILENCE — le signal
+    // public dirait `degrade` pour toujours, et personne ne saurait pourquoi. La SQL ne peut pas importer
+    // le registre ; ce test est la couture entre les deux.
+    const sante = REGISTRE.find((j) => j.nom === "sante-ordonnanceur");
+    expect(sante, "le job de santé doit rester au registre").toBeDefined();
+    expect(sante!.cadence, "la clause d'homme mort suppose une réussite toutes les 24 h").toBe("quotidien");
+
+    const migration = readFileSync(resolve(RACINE, "supabase", "migrations", "0028_sante_homme_mort.sql"), "utf-8");
+    expect(migration, "le nom en dur dans la SQL et celui du registre sont le même").toContain(
+      `job = '${sante!.nom}'`,
+    );
+  });
+
+  it("la tolérance de chaque job dépasse STRICTEMENT un multiple de sa cadence", () => {
+    // Revue 4.8, défaut n°9. Une tolérance posée pile sur un multiple de la cadence (48 h pour un job
+    // quotidien) fait dépendre l'alerte de la dérive de planification de Vercel Cron, qui se compte en
+    // minutes : la même panne alerte ou non selon le hasard de l'horaire. On exige donc que la tolérance
+    // tombe au MILIEU d'un intervalle, jamais sur un de ses bords.
+    for (const j of REGISTRE) {
+      const pas = j.cadence === "quotidien" ? 24 : 168;
+      const reste = j.toleranceHeures % pas;
+      expect(reste, `${j.nom} : ${j.toleranceHeures} h est pile sur un multiple de ${pas} h`).not.toBe(0);
+    }
+  });
+
+  it("chaque job du registre déclare sa date de mise en service", () => {
+    // Sans elle, un job ajouté au registre est signalé « en retard » au tick même où il tourne pour la
+    // première fois (défaut n°4). Le type l'impose déjà ; ce test empêche la valeur bidon (`new Date(0)`,
+    // qui rendrait le repli équivalent à l'ancien).
+    for (const j of REGISTRE) {
+      expect(j.enServiceDepuis.getTime(), `${j.nom}`).toBeGreaterThan(new Date("2026-01-01").getTime());
+    }
   });
 });

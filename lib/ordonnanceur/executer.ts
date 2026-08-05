@@ -63,9 +63,13 @@ export async function executerOrdonnanceur(deps: DepsOrdonnanceur): Promise<Rapp
     // la bonne base : y écrire quoi que ce soit contredirait la promesse même de l'AC3 (« n'opère que sur
     // le projet de son propre environnement »). Le refus part par le journal du processus et par la réponse
     // HTTP — deux canaux qui n'engagent pas la base d'en face.
+    // Sous la clé `code`, et pas sous des clés parlantes : `journaliserIncidentSecurite` ne recopie PAS
+    // l'objet qu'on lui donne — il en extrait `code` (ou le nom d'exception) et jette le reste, précisément
+    // pour qu'aucun champ libre ne parte en log (NFR-022). Un `{motif, deploiement}` sortait donc en
+    // `code: undefined` : l'alerte existait, vide de sens (revue 4.8, défaut n°10). Les deux valeurs sont
+    // des énumérations fermées — rien d'identifiant ne peut s'y glisser.
     journaliserIncidentSecurite("ordonnanceur_environnement", {
-      motif: verdict.motif,
-      deploiement: verdict.deploiement,
+      code: `${verdict.motif}/${verdict.deploiement}`,
     });
     return { execute: false, refus: verdict.motif, jobs: [] };
   }
@@ -75,6 +79,10 @@ export async function executerOrdonnanceur(deps: DepsOrdonnanceur): Promise<Rapp
   for (const job of registre) {
     const fenetre = fenetreDe(job.cadence, instant);
     const bail = Math.ceil(job.delaiMs / 1000) + MARGE_BAIL_S;
+    // Hors des deux `try` : c'est la seule chose que les rattrapages ci-dessous ont besoin de savoir, et ils
+    // ne doivent pas pouvoir l'oublier. Tant qu'elle est fausse, aucun effet n'a été produit ; une fois
+    // vraie, plus aucun chemin n'a le droit de prétendre le contraire.
+    let travailFait = false;
     try {
       // La réclamation EST la décision. Si elle refuse, quelqu'un a déjà fait ce travail dans cette fenêtre
       // (ou le fait en ce moment) — il n'y a rien à décider de plus, et surtout rien à décider ici.
@@ -89,8 +97,7 @@ export async function executerOrdonnanceur(deps: DepsOrdonnanceur): Promise<Rapp
           job.delaiMs,
           `${job.nom.replace(/-/g, "_")}_timeout`,
         );
-        await deps.depot.clore(job.nom, fenetre, null, true, null);
-        jobs.push({ nom: job.nom, issue: "execute" });
+        travailFait = true;
       } catch (e) {
         const code = codeDErreur(e);
         // Clore en ÉCHEC, pas laisser pendre : une ligne `echoue` est immédiatement re-réclamable, alors
@@ -99,12 +106,33 @@ export async function executerOrdonnanceur(deps: DepsOrdonnanceur): Promise<Rapp
         await deps.depot.leverIncident("job_echoue", job.nom, code);
         jobs.push({ nom: job.nom, issue: "echoue" });
       }
+
+      // LA CLÔTURE EN RÉUSSITE EST HORS DU CATCH CI-DESSUS, et ce n'est pas une question de mise en forme.
+      // Quand elle y était (revue 4.8, défauts n°3 et n°5), un simple hoquet réseau sur `clore(true)` —
+      // après un job parfaitement exécuté — tombait dans le catch du JOB : on écrivait `echoue`, on levait
+      // un incident `job_echoue` mensonger, et surtout on rendait la fenêtre IMMÉDIATEMENT re-réclamable.
+      // Le repli produisait donc PLUS d'effet que le chemin nominal, l'exact inverse d'AD-15. Sur la
+      // synthèse (4.9), c'eût été une seconde synthèse et une seconde notification ; sur la rétention
+      // (Epic 6), un second effacement.
+      if (travailFait) {
+        await deps.depot.clore(job.nom, fenetre, null, true, null);
+        jobs.push({ nom: job.nom, issue: "execute" });
+      }
     } catch (e) {
-      // L'échec de la mécanique elle-même (réclamation, clôture, incident). On n'a plus rien de fiable à
-      // écrire pour ce job — mais les SUIVANTS n'y sont pour rien : un job cassé ne met pas l'ordonnanceur
-      // à l'arrêt. Sa fenêtre reste réclamable au tick suivant.
-      journaliserIncidentSecurite("ordonnanceur_job_indisponible", { job: job.nom, code: codeDErreur(e) });
-      jobs.push({ nom: job.nom, issue: "echoue" });
+      // L'échec de la MÉCANIQUE (réclamation, clôture, incident), pas du job. On n'a plus rien de fiable à
+      // écrire — mais les jobs SUIVANTS n'y sont pour rien : un job cassé ne met pas l'ordonnanceur à
+      // l'arrêt.
+      //
+      // L'issue rapportée suit le TRAVAIL, jamais la comptabilité : si `clore(true)` a échoué, le job a bel
+      // et bien tourné et le dire « échoué » serait faux. La ligne reste alors `en_cours` sous son bail —
+      // on ne réécrit rien dans une base qui vient de refuser une écriture.
+      //
+      // RÉSIDU ASSUMÉ : ce bail expirera bien avant le tick suivant, donc le job sera ré-exécuté demain.
+      // C'est la limite du protocole à deux temps, et elle se referme au niveau du JOB, pas ici : un job
+      // qui produit un effet visible (4.9, Epic 6) doit être idempotent sur sa propre clé, pas seulement
+      // sur sa fenêtre.
+      journaliserIncidentSecurite("ordonnanceur_job_indisponible", { code: `${job.nom}/${codeDErreur(e)}` });
+      jobs.push({ nom: job.nom, issue: travailFait ? "execute" : "echoue" });
     }
   }
 

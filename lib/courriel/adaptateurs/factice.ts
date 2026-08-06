@@ -1,5 +1,6 @@
 import "server-only";
 import type { PortCourriel, MotifCourriel } from "@/lib/courriel/port";
+import type { JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
 
 /**
  * Story 4.9 — l'adaptateur FACTICE. In-process : rien ne quitte le système, donc rien à protéger.
@@ -13,6 +14,8 @@ import type { PortCourriel, MotifCourriel } from "@/lib/courriel/port";
 export interface CourrielEnvoye {
   readonly destinataire: string;
   readonly motif: MotifCourriel;
+  /** Retenu pour qu'un test puisse prouver que le lien de sortie est bien PROPRE à la personne. */
+  readonly jeton: JetonDesabonnement;
 }
 
 export interface PortCourrielFactice extends PortCourriel {
@@ -24,9 +27,13 @@ export function creerPortCourrielFactice(options: { echoue?: boolean } = {}): Po
   return {
     envoyes,
     estConfigure: () => true,
-    async envoyer(destinataire: string, motif: MotifCourriel): Promise<void> {
+    async envoyer(
+      destinataire: string,
+      motif: MotifCourriel,
+      jeton: JetonDesabonnement,
+    ): Promise<void> {
       if (options.echoue) throw new Error("courriel_refuse_500");
-      envoyes.push({ destinataire, motif });
+      envoyes.push({ destinataire, motif, jeton });
     },
   };
 }

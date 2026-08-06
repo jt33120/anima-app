@@ -14,7 +14,9 @@ import {
   type MateriauSynthese,
 } from "@/lib/domain/synthese";
 import { consigneSynthese, messagesSynthese } from "@/lib/domain/consigne-synthese";
-import { GABARITS, EXPEDITEUR_NOM } from "@/lib/courriel/gabarits";
+import { gabaritPour, EXPEDITEUR_NOM } from "@/lib/courriel/gabarits";
+import { validerOrigine } from "@/lib/courriel/origine";
+import { jetonValide } from "@/lib/domain/jeton-desabonnement";
 
 /**
  * Story 4.9 (T7) — LE DOMAINE PUR et LA SURFACE SORTANTE.
@@ -26,6 +28,20 @@ import { GABARITS, EXPEDITEUR_NOM } from "@/lib/courriel/gabarits";
  */
 
 const RACINE = process.cwd();
+
+/** Tous les `.ts`/`.tsx` sous un dossier du dépôt. Partagé par les gardes de dépôt de ce fichier. */
+function fichiersTs(dossier: string): string[] {
+  const trouves: string[] = [];
+  const parcourir = (d: string) => {
+    for (const entree of readdirSync(d)) {
+      const chemin = join(d, entree);
+      if (statSync(chemin).isDirectory()) parcourir(chemin);
+      else if (/\.tsx?$/.test(chemin)) trouves.push(chemin);
+    }
+  };
+  parcourir(resolve(RACINE, dossier));
+  return trouves;
+}
 
 function materiau(p: Partial<MateriauSynthese> = {}): MateriauSynthese {
   return {
@@ -196,47 +212,57 @@ describe("[REVUE 4.9 / T2-3] la sortie du modèle est bornée AVANT d'entrer en 
 describe("[AC4 / FR-035 / NFR-015] ce qui SORT vers le serveur de messagerie", () => {
   const source = readFileSync(resolve(RACINE, "lib/courriel/gabarits.ts"), "utf-8");
 
-  it("[LE CŒUR] aucun gabarit n'est INTERPOLÉ — pas un seul `${}` dans le fichier", () => {
-    // C'est LA garde du fichier, et elle est textuelle à dessein. Un gabarit qui accepterait une valeur
-    // serait un gabarit par lequel de l'art. 9 pourrait sortir — le scénario banal étant « ajoutons le
-    // premier paragraphe de la synthèse en aperçu, c'est plus engageant ». Ce paragraphe s'afficherait
-    // sur un écran verrouillé, potentiellement devant quelqu'un d'autre, et traînerait pour toujours
-    // dans les journaux d'un serveur de messagerie.
-    const corpsSeul = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    expect(corpsSeul, "aucune interpolation").not.toMatch(/\$\{/);
-    expect(corpsSeul, "aucune concaténation de variable non plus").not.toMatch(/\+\s*[a-z]\w*\s*\+/);
-    // Revue 4.9 : les deux assertions ci-dessus ne cherchaient QUE de la syntaxe, si bien qu'une variable
-    // insérée telle quelle dans la table passait en vert — le fichier en contenait déjà une (`LIEN`). On
-    // vérifie donc aussi la VALEUR : chaque champ des gabarits doit se retrouver, au caractère près, dans
-    // la source. Un gabarit assemblé à partir d'une variable ne peut plus passer inaperçu.
-    for (const gabarit of Object.values(GABARITS)) {
-      expect(source, "l'objet est écrit en clair dans la source").toContain(JSON.stringify(gabarit.objet));
-      for (const ligne of gabarit.texte.split("\n").filter((l) => l.trim().length > 0)) {
-        expect(source, `« ${ligne} » doit être littérale dans la source`).toContain(ligne);
-      }
+  const O1 = validerOrigine("https://un.exemple.test")!;
+  const O2 = validerOrigine("https://deux.exemple.test")!;
+  const J1 = jetonValide("11111111-1111-4111-8111-111111111111")!;
+  const J2 = jetonValide("22222222-2222-4222-8222-222222222222")!;
+  const g = gabaritPour("synthese_prete", { origine: O1, jeton: J1 })!;
+
+  it("[LE CŒUR] le gabarit n'a QUE DEUX trous, et ce sont les deux trous typés", () => {
+    // La garde d'origine était textuelle — « pas un seul `${}` dans le fichier ». Elle a dû céder : l'hôte
+    // ne peut pas être écrit en dur (le domaine codé en dur est EN VENTE, cf. T5-1) et un lien de
+    // désabonnement qui ne désigne personne ne désabonne personne.
+    //
+    // Elle est remplacée par une garde plus forte, qui ne regarde plus la syntaxe mais le RÉSULTAT :
+    // rendre le gabarit avec deux jeux de valeurs différents, puis vérifier que la SEULE différence entre
+    // les deux textes est la substitution elle-même. S'il existait un troisième trou — un prénom, une
+    // date, un aperçu de synthèse — cette égalité tomberait, quel que soit le nom de la variable et quelle
+    // que soit la façon dont elle est assemblée.
+    const autre = gabaritPour("synthese_prete", { origine: O2, jeton: J2 })!;
+    const projete = g.texte.split(O1).join(O2).split(J1).join(J2);
+    expect(projete, "aucune variabilité hors l'origine et le jeton").toBe(autre.texte);
+    expect(g.objet, "l'objet, lui, ne varie pas du tout").toBe(autre.objet);
+
+    // Et la moitié statique reste prouvée mot à mot : chaque ligne, une fois les deux valeurs retirées,
+    // doit se retrouver au caractère près dans la source. Une ligne assemblée ailleurs ne passe pas.
+    for (const ligne of g.texte.split("\n")) {
+      const statique = ligne.split(O1).join("").split(J1).join("");
+      if (statique.trim().length === 0) continue;
+      expect(source, `« ${statique} » doit être littérale dans la source`).toContain(statique);
     }
+    expect(source, "l'objet est écrit en clair dans la source").toContain(JSON.stringify(g.objet));
   });
 
   it("l'ensemble des motifs est FERMÉ, et c'est le même que celui de la base", () => {
     // La migration 0029 contraint `motif in ('synthese_prete')`. Les deux listes doivent rester égales :
     // un motif ajouté d'un seul côté produirait un envoi que la base refuse de tracer, ou l'inverse.
-    expect(Object.keys(GABARITS)).toEqual(["synthese_prete"]);
     const migration = readFileSync(resolve(RACINE, "supabase/migrations/0029_synthese_periodique.sql"), "utf-8");
-    for (const motif of Object.keys(GABARITS)) expect(migration).toContain(`'${motif}'`);
+    expect(migration).toContain("'synthese_prete'");
+    // Hors de l'ensemble : aucun gabarit, donc l'adaptateur lève au lieu d'envoyer un corps vide.
+    expect(
+      gabaritPour("inconnu" as Parameters<typeof gabaritPour>[0], { origine: O1, jeton: J1 }),
+    ).toBeNull();
   });
 
   it("l'OBJET est celui du dossier UX, et il ne dit ni l'intimité ni l'ésotérisme", () => {
     // NFR-015 : « nom, icône et aperçus de notification ne révèlent ni l'intimité du contenu ni un
     // registre ésotérique ». L'objet est ce qui s'affiche sur l'écran verrouillé.
-    expect(GABARITS.synthese_prete.objet).toBe("Ta synthèse est prête");
+    expect(g.objet).toBe("Ta synthèse est prête");
     expect(EXPEDITEUR_NOM).toBe("Anam");
   });
 
   it("aucun mot du registre intime ou ésotérique dans le corps", () => {
-    const tout = Object.values(GABARITS)
-      .map((g) => `${g.objet}\n${g.texte}`)
-      .join("\n")
-      .toLowerCase();
+    const tout = `${g.objet}\n${g.texte}`.toLowerCase();
     for (const interdit of [
       "astral", "thème", "horoscope", "ennéagramme", "tarot", "tirage", "lune", "spirituel",
       "branche", "arbre", "détresse", "émotion", "thérapie", "guérison", "soin",
@@ -248,26 +274,55 @@ describe("[AC4 / FR-035 / NFR-015] ce qui SORT vers le serveur de messagerie", (
   it("le lien mène à la HALTE, jamais au contenu", () => {
     // Une URL se transfère, se journalise et se prévisualise. Un lien qui afficherait la synthèse sans
     // authentification serait une fuite d'art. 9 par URL — d'où une adresse de page, qui exige la session.
-    expect(GABARITS.synthese_prete.texte).toContain("/synthese");
-    expect(GABARITS.synthese_prete.texte, "aucun jeton dans l'URL").not.toMatch(/token|jeton|[?&]t=/i);
+    expect(g.texte).toContain(`${O1}/synthese`);
+  });
+
+  it("[T5-1 — LE CŒUR] AUCUN hôte n'est écrit en dur, nulle part dans le produit", () => {
+    // Le gabarit portait `https://anima.app/synthese`. Ce domaine est PARQUÉ et EN VENTE : quiconque
+    // l'achète sert une fausse page de connexion Anam à des femmes qu'un courriel signé « Anam » vient
+    // d'avertir qu'un texte intime les attend. Le courriel du produit devient le véhicule de
+    // l'hameçonnage, avec sa crédibilité intacte.
+    //
+    // Le test d'origine ne vérifiait que `toContain("/synthese")` — le CHEMIN, jamais l'HÔTE. C'est le
+    // trou exact, et il est ici refermé sur tout le dépôt.
+    const corpsSeul = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    expect(corpsSeul, "l'origine vient de la configuration, jamais de la source").not.toMatch(
+      /https?:\/\/[a-z0-9.-]+/i,
+    );
+    expect(g.texte, "et le texte rendu ne porte que l'origine fournie").not.toMatch(
+      /https?:\/\/(?!un\.exemple\.test)/,
+    );
+
+    // Balayage du dépôt : `anima.app` ne doit réapparaître dans aucun CODE — ni dans un gabarit, ni dans
+    // une valeur par défaut, ni dans une constante. Les commentaires sont retirés avant la lecture :
+    // plusieurs fichiers nomment ce domaine pour expliquer précisément pourquoi il ne faut pas l'écrire,
+    // et une garde qui interdirait d'en parler effacerait la mémoire de la raison.
+    for (const dossier of ["app", "lib", "render"]) {
+      for (const fichier of fichiersTs(dossier)) {
+        const code = readFileSync(fichier, "utf-8")
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .replace(/^\s*\/\/.*$/gm, "");
+        expect(code, `${fichier} code un domaine en dur`).not.toContain("anima.app");
+      }
+    }
+  });
+
+  it("[T5-2 — LE CŒUR] le désabonnement est un LIEN, et le courriel n'invite plus à répondre", () => {
+    // Le gabarit disait « Pour ne plus recevoir ces messages, réponds à ce courriel » — sans boîte
+    // entrante, sans mécanisme d'opt-out, sans en-tête `List-Unsubscribe`. Ses seules sorties réelles
+    // étaient de résilier son abonnement ou de révoquer son consentement art. 9.
+    //
+    // Et le retour de flamme : celle qui répond n'écrit pas « stop », elle écrit POURQUOI. Ce texte libre
+    // est de l'art. 9, et il arrive dans une boîte ordinaire, hors RLS, hors ZDR, pour toujours.
+    expect(g.texte, "un lien, pas une réponse").toContain(`${O1}/desabonnement?j=${J1}`);
+    expect(g.texte.toLowerCase(), "aucune invitation à répondre").not.toMatch(/répond|reply|renvoie/);
+    // RFC 8058 : la cible un-clic accepte un POST et n'est PAS la page de confirmation.
+    expect(g.lienUnClic).toBe(`${O1}/api/desabonnement?j=${J1}`);
   });
 });
 
 describe("[AD-3] un seul fournisseur d'envoi, un seul lecteur de sa clé", () => {
-  function fichiersSous(dossier: string): string[] {
-    const base = resolve(RACINE, dossier);
-    const trouves: string[] = [];
-    const parcourir = (d: string) => {
-      for (const entree of readdirSync(d)) {
-        const chemin = join(d, entree);
-        if (statSync(chemin).isDirectory()) parcourir(chemin);
-        else if (/\.tsx?$/.test(chemin)) trouves.push(chemin);
-      }
-    };
-    parcourir(base);
-    return trouves;
-  }
-  const SOURCES = [...fichiersSous("lib"), ...fichiersSous("app"), ...fichiersSous("render")];
+  const SOURCES = [...fichiersTs("lib"), ...fichiersTs("app"), ...fichiersTs("render")];
   const sans = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
   it("un SEUL fichier parle à Resend", () => {
@@ -286,13 +341,30 @@ describe("[AD-3] un seul fournisseur d'envoi, un seul lecteur de sa clé", () =>
     expect(lecteurs).toEqual([join("lib", "courriel", "fabrique.ts")]);
   });
 
-  it("le port courriel n'est utilisé que par le job de synthèse", () => {
+  it("le CHEMIN D'ENVOI n'est emprunté que par le job de synthèse", () => {
     // Mutation-cible : envoyer un courriel depuis une route (« juste une confirmation »). Chaque
     // appelant supplémentaire échappe au plafond de 72 h — qui n'est plafond que s'il est le seul chemin.
+    //
+    // La garde regarde les quatre modules par lesquels un courriel PART (revue T5-2). Elle regardait
+    // auparavant tout `lib/courriel/`, ce qui la faisait crier sur le désabonnement — un module de ce
+    // dossier qui n'envoie rien, et dont les appelants (la page et la route un-clic) sont exactement ce
+    // que la revue exigeait d'ajouter. Élargir la garde pour l'accueillir aurait rendu invisible le cas
+    // qu'elle protège ; on la resserre plutôt sur ce qu'elle protège vraiment.
+    const CHEMIN_ENVOI = /@\/lib\/courriel\/(port|fabrique|gabarits|adaptateurs)/;
     const appelants = SOURCES.filter((f) => !f.includes(join("lib", "courriel")))
-      .filter((f) => /@\/lib\/courriel\//.test(sans(readFileSync(f, "utf-8"))))
+      .filter((f) => CHEMIN_ENVOI.test(sans(readFileSync(f, "utf-8"))))
       .map((f) => f.slice(RACINE.length + 1));
     expect(appelants).toEqual([join("lib", "ordonnanceur", "jobs", "synthese.ts")]);
+  });
+
+  it("et le geste de DÉSABONNEMENT ne s'écrit qu'à un seul endroit", () => {
+    // Deux chemins mènent au même refus : la page de confirmation (le geste humain) et la route un-clic
+    // (RFC 8058, le bouton de Gmail). Ils doivent partager la même fonction — sinon l'un des deux finit
+    // par diverger, et ce sera celui que personne ne teste.
+    const appelants = SOURCES.filter((f) => !f.includes(join("lib", "courriel")))
+      .filter((f) => /regler_courriels_par_jeton/.test(sans(readFileSync(f, "utf-8"))))
+      .map((f) => f.slice(RACINE.length + 1));
+    expect(appelants, "seul `lib/courriel/desabonnement.ts` appelle la RPC").toEqual([]);
   });
 
   it("`.env.example` documente les deux variables — un secret non documenté est un secret qu'on oublie", () => {

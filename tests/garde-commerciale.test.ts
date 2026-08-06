@@ -77,7 +77,15 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     const MARQUEURS = /(paywall|abonnement|quota|bilan|checkout|premium)/i;
     // Le marqueur commercial vit dans le DOSSIER (App Router : la route est toujours `page.tsx`/
     // `route.ts`) → on matche le CHEMIN COMPLET, jamais le seul basename (sinon aveugle aux routes).
-    const estCommerciale = (f: string) => MARQUEURS.test(f);
+    // « désabonnement » CONTIENT « abonnement », et n'a rien de commercial : c'est le droit d'opposition
+    // au canal courriel (art. 21, revue 4.9 / T5-2). On neutralise le mot AVANT d'appliquer le matcher,
+    // plutôt que d'exclure le fichier — ainsi une future surface qui s'appellerait
+    // `desabonnement-premium` resterait attrapée par les autres marqueurs.
+    const estCommerciale = (f: string) => MARQUEURS.test(f.replace(/d[eé]sabonnement/gi, "canal-courriel"));
+    expect(estCommerciale("app/desabonnement/actions.ts"), "faux positif sur le désabonnement").toBe(false);
+    expect(estCommerciale("app/desabonnement/premium/page.tsx"), "les autres marqueurs restent actifs").toBe(
+      true,
+    );
     // Preuve non-tautologique que le matcher attrape bien une route nommée par son dossier :
     expect(estCommerciale("app/(scene)/abonnement/page.tsx"), "route commerciale par dossier ratée").toBe(true);
     expect(estCommerciale("app/bilan/page.tsx")).toBe(true);

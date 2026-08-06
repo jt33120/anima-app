@@ -1,0 +1,44 @@
+/* Page atteinte depuis une boîte de réception, hors de la scène : mêmes tokens, même sobriété que /cgu. */
+.page {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  padding: var(--esp-8) var(--marge-mobile);
+}
+.contenu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  width: 100%;
+  max-width: var(--mesure);
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  margin-top: var(--esp-2);
+}
+/* `--cible-tactile` (DESIGN.md : 44 px est le minimum absolu) — le seul geste de la page. */
+.bouton,
+.boutonSecondaire {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-5);
+  border-radius: var(--rayon);
+  cursor: pointer;
+  transition: opacity var(--duree-standard) var(--courbe);
+}
+.bouton {
+  background: var(--accent);
+  color: var(--sur-accent);
+  border: 0;
+}
+.boutonSecondaire {
+  background: transparent;
+  color: var(--texte);
+  border: 1px solid var(--bordure-forte);
+}
+.bouton:focus-visible,
+.boutonSecondaire:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}

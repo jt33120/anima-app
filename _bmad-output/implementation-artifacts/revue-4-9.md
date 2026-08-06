@@ -14,7 +14,7 @@ requêtes SQL contre le Postgres local (transactions annulées), exécution du p
 | **A — ce qui atteint une personne** | T1-1 → T1-6, T2-1 → T2-4, plus T6-1 et T6-2 rencontrés en chemin | **CORRIGÉ** — migration 0030, 27 mutants appliqués / 27 tués, 1670 tests verts |
 | **B — l'exploitation** | T3-1 → T3-7, plus T4-3 et T6-10 rencontrés en chemin | **CORRIGÉ** — migration 0031, 14 mutants / 14 tués, 1694 tests verts |
 | **C — la discipline de test** | T4-1, T4-2, T4-4 | **CORRIGÉ** — migrations 0032 et 0033, 21 mutants / 21 tués, 1720 tests verts |
-| Portes pré-lancement | T5-1 → T5-3 | à ouvrir avant le lancement |
+| **T5 — les portes pré-lancement** | T5-1 → T5-3, plus T6-14 (« dans le menu de compte ») en chemin | **CORRIGÉ côté code** — migration 0034, 28 mutants / 27 tués (1 équivalent, cf. plus bas), 1766 tests verts. Restent les portes HUMAINES : acheter un domaine, signer le DPA Resend, SPF/DKIM/DMARC, la politique de confidentialité |
 | Le reste | T6-3 → T6-20 | à trier |
 
 **Deux défauts trouvés EN ÉCRIVANT les tests du lot C**, pas par relecture. `btrim(texte)` sans second
@@ -41,6 +41,23 @@ d'idempotence hebdomadaire par la période. Le détail et ses conséquences sont
 0030. Bénéfice non prévu : **T3-8** (deux synthèses en 24 h au passage de semaine ISO) et **T3-9** (la
 semaine brûlée par un « rien à dire ») tombent gratuitement — la cadence est désormais « sept jours
 depuis la dernière période racontée », plus un calendrier civil.
+
+**Le lot T5 a rendu le canal SÛR PAR DÉFAUT plutôt que sûr par discipline.** Sans domaine configuré, sans
+clé, ou sans jeton de désabonnement lisible, **aucun courriel ne part** — la synthèse est produite et
+consultable, aucune réservation n'est consommée. L'ancienne garde « aucune interpolation dans les
+gabarits » a dû céder (l'hôte ne peut pas être écrit en dur, et un lien de désabonnement qui ne désigne
+personne ne désabonne personne) ; elle est remplacée par deux trous TYPÉS NOMINALEMENT et par une garde
+qui rend le gabarit avec deux jeux de valeurs et exige que la seule différence soit la substitution — ce
+qui attrape un troisième trou quel que soit son nom et sa façon d'être assemblé.
+
+**Cinq mutants ont survécu à la première campagne T5**, et chacun désignait un trou réel : `jetonValide`
+n'était regardée par aucun test ; `reglerCourriels` ne pouvait prouver ni qu'une panne de base ne se dit
+jamais « c'est fait », ni qu'un jeton mal formé n'atteint pas la base (d'où la séparation
+`reglerCourrielsAvec(client, …)`, patron du job) ; et le test des droits était **une tautologie de plus** —
+il appelait les trois fonctions avec un objet d'arguments fusionné, si bien que PostgREST répondait
+« fonction introuvable » et que rendre `execute` à `anon` le laissait VERT. Le sixième, `data as Jeton`
+dans le dépôt, est un **mutant équivalent** : la colonne est de type `uuid`, donc aucune exécution ne peut
+distinguer les deux versions. Il est laissé tel quel plutôt que couvert par un test de façade.
 
 **Trois trous trouvés dans mes propres correctifs par la mutation-vérification**, et comblés : la case
 art. 9 et la case IA n'étaient éprouvées que par « aucune ligne de consentement » et « révoquée » ; le

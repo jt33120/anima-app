@@ -62,6 +62,21 @@ export const LONGUEUR_SYNTHESE_MAX = 20_000;
 export const PLAFOND_NOTIFICATION_HEURES = 72;
 
 /**
+ * Combien de temps la TRACE d'un envoi survit à son usage (revue T5-3, NFR-021).
+ *
+ * Ligne à ligne, `notification_envoyee` ne porte rien : un motif dans un ensemble fermé, une clé. Empilée,
+ * elle devient un calendrier d'assiduité — et son ABSENCE parle autant que sa présence, une semaine sans
+ * ligne étant une semaine où elle n'a rien écrit. Or les deux usages sont bornés : le plafond regarde
+ * 72 h, l'idempotence regarde une clé de période qui ne peut plus se reproduire une fois la synthèse
+ * écrite. Au-delà de trente jours, la ligne ne sert plus à rien — ce qui est précisément la définition de
+ * ce qu'on n'a pas le droit de garder.
+ *
+ * Trente et non pas cinq : la marge couvre une panne d'ordonnanceur de plusieurs semaines sans jamais
+ * approcher la fenêtre de 72 h qui, elle, doit rester exacte.
+ */
+export const RETENTION_NOTIFICATION_JOURS = 30;
+
+/**
  * Combien d'utilisatrices au plus par tick. Le fan-out est séquentiel dans une lambda bornée à 60 s et
  * chaque personne coûte un appel au modèle fort : le lot doit tenir dans le budget. Celles qui n'ont pas
  * eu leur tour reviennent demain — la reprise quotidienne EST le mécanisme (cf. le piège de la cadence).

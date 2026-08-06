@@ -86,6 +86,18 @@ describe("les noms d'arguments correspondent — c'est TOUT ce que ce fichier pr
     expect(await depot.personnesEnEchecRepete(JOB)).toBeTypeOf("number");
   });
 
+  it("[T5-2] `jetonDesabonnement` et `purgerNotifications` atteignent les leurs", async () => {
+    // Ces deux méthodes sont arrivées avec le lot T5 et n'étaient couvertes par rien ici — c'est-à-dire
+    // exactement le trou que ce fichier existe pour fermer. `p_utilisatrice` mal orthographié, ou
+    // `jeton_courriel` renommé sans son appelant : aucun typage, aucune doublure, aucune relecture ne le
+    // voient. La base, elle, répond `PGRST202`.
+    const jeton = await depot.jetonDesabonnement(elle.id);
+    expect(jeton, "un uuid, pas `null`").toMatch(/^[0-9a-f-]{36}$/);
+    expect(await depot.jetonDesabonnement(elle.id), "stable d'un appel à l'autre").toBe(jeton);
+
+    expect(await depot.purgerNotifications(30), "un nombre, pas `null`").toBeTypeOf("number");
+  });
+
   it("[LE CŒUR] `materiau` transmet RÉELLEMENT les deux plafonds", async () => {
     // Mutant survivant de la campagne d'origine : le plafond du domaine remplacé par une constante en
     // dur dans le dépôt. Personne ne le voyait — les tests de domaine vérifiaient la VALEUR de la

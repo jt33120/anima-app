@@ -1,5 +1,6 @@
 import "server-only";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
+import { jetonValide, type JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
 import type { MateriauSynthese } from "@/lib/domain/synthese";
 
 /**
@@ -58,6 +59,18 @@ export interface DepotSynthese {
   ): Promise<boolean>;
   /** L'adresse vit dans `auth.users`, jamais recopiée dans une table `public`. */
   adresse(utilisatriceId: string): Promise<string | null>;
+  /**
+   * Le jeton opaque de désabonnement, créé au premier envoi (revue T5-2). `null` sur échec de lecture :
+   * un courriel sans lien de désabonnement ne part pas — l'absence de sortie est ce qui a rendu la
+   * première version indéfendable, et une panne de base n'est pas une raison de la reproduire.
+   */
+  jetonDesabonnement(utilisatriceId: string): Promise<JetonDesabonnement | null>;
+  /**
+   * Efface les traces de notification devenues inutiles (revue T5-3). Rend le nombre de lignes
+   * supprimées, ou `null` si la purge n'a pas pu s'exécuter — le silence serait pire, une rétention qui
+   * échoue en douce étant indistinguable d'une rétention qui n'existe pas.
+   */
+  purgerNotifications(jours: number): Promise<number | null>;
 }
 
 export function creerDepotSynthese(): DepotSynthese {
@@ -130,6 +143,20 @@ export function creerDepotSynthese(): DepotSynthese {
       const { data, error } = await supabase.auth.admin.getUserById(utilisatriceId);
       if (error) return null;
       return data.user?.email ?? null;
+    },
+
+    async jetonDesabonnement(utilisatriceId): Promise<JetonDesabonnement | null> {
+      const { data, error } = await supabase.rpc("jeton_courriel", { p_utilisatrice: utilisatriceId });
+      if (error) return null;
+      // `jetonValide` n'est pas décoratif ici : c'est la frontière où une valeur venue de la base entre
+      // dans un type qui autorise à écrire dans un courriel. Elle la refuse si ce n'est pas un uuid.
+      return jetonValide(typeof data === "string" ? data : null);
+    },
+
+    async purgerNotifications(jours): Promise<number | null> {
+      const { data, error } = await supabase.rpc("purger_notifications_envoyees", { p_jours: jours });
+      if (error) return null;
+      return typeof data === "number" ? data : null;
     },
   };
 }

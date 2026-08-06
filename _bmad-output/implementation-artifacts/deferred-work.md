@@ -303,3 +303,47 @@ c'est lui qui tue le mutant.
   pas une donnée), mais à revoir si le journal devient un vrai canal d'alerte. [app/api/incident/route.ts]
 - **`app/error.tsx` / `global-error.tsx`** toujours manquants (déjà relevé plus haut, toujours transverse).
 
+
+## Story 4.9 — le canal courriel : portes pré-lancement (revue adversariale, lot T5)
+
+Le canal courriel est le premier chemin du produit qui atteint une personne **hors de l'application**.
+Les corrections T5 l'ont rendu sûr par défaut : sans configuration, rien ne part. Restent des portes que
+seul un humain peut franchir.
+
+- **PORTE — LE DOMAINE.** `ANIMA_SITE_URL` doit désigner un domaine **réellement possédé**. Le gabarit
+  portait `https://anima.app` en dur ; ce domaine est **parqué et EN VENTE chez Afternic** (NS afternic,
+  MX null), relié à aucun déploiement. Quiconque l'achète peut servir une fausse page de connexion Anam
+  sur `/synthese`, à des femmes qu'un courriel signé « Anam » vient d'avertir qu'un texte intime les
+  attend : l'hameçonnage arrive alors avec la crédibilité du produit. **Tant que la variable est absente
+  ou invalide, `estConfigure()` répond `false` et aucun courriel ne part** — la synthèse est produite et
+  consultable, aucune réservation n'est consommée. Une garde de dépôt interdit désormais tout hôte écrit
+  en dur dans `app/`, `lib/`, `render/`. [lib/courriel/origine.ts, .env.example]
+- **PORTE — Resend sous-traitant art. 28** (FR-067/NFR-019) : DPA Resend à signer et documenter, comme
+  Mistral et Stripe. Resend voit **une adresse, un motif, un jeton opaque** — jamais un mot de la synthèse
+  (la signature du port l'en empêche). Transfert US à couvrir. [lib/courriel/port.ts]
+- **PORTE — la boîte de l'expéditeur.** Le courriel n'invite plus à répondre (la phrase « réponds à ce
+  courriel » ouvrait un canal art. 9 **entrant** vers une boîte ordinaire, hors RLS, hors ZDR — et cette
+  boîte n'existait pas). Mais rien n'empêche quelqu'un de répondre quand même. À trancher côté ops :
+  adresse d'expédition sans boîte de réception, ou boîte réellement relevée avec une politique de
+  conservation. Ne PAS faire de `ANIMA_COURRIEL_EXPEDITEUR` une adresse consultée sans décision explicite.
+- **PORTE — information art. 13.** 4.9 ajoute **un destinataire** (Resend, US) et **une finalité nouvelle**
+  (l'adresse de compte, jusqu'ici réservée aux magic links, sert à une notification produit). `/cgu` les
+  nomme désormais, mais reste un placeholder auto-déclaré : la politique de confidentialité complète et
+  l'écran de consentement restent à rédiger/valider par un juriste. [app/cgu/page.tsx]
+- **Rétention de `synthese` — DÉCISION, pas un oubli.** Aucune purge périodique : ces récits sont ce que
+  la personne vient relire, et ce sont les seuls textes du produit qu'elle n'a pas écrits elle-même, donc
+  qu'elle ne peut pas reconstituer. Ils vivent et meurent avec le compte (cascade FK, vérifiée en base),
+  et entrent dans l'export dès maintenant. Le moteur de rétention unique (AD-14, Epic 6) doit hériter de
+  cette décision, pas la redécouvrir.
+- **Rétention de `notification_envoyee` — FAITE**, 30 jours, exécutée à chaque tick du job de synthèse
+  (`purger_notifications_envoyees`). Empilée, la table était un calendrier d'assiduité dont l'ABSENCE
+  parle autant que la présence. Le moteur unique de l'Epic 6 reprendra cette purge avec les autres ; d'ici
+  là elle tourne, parce qu'une durée de conservation qui attend un epic n'est pas appliquée.
+- **Le désabonnement est CÂBLÉ**, dans les deux sens : lien dans le corps (`/desabonnement`, geste
+  confirmé) et en-têtes `List-Unsubscribe` / `List-Unsubscribe-Post` (RFC 8058, exigés par Gmail et Yahoo
+  depuis février 2024). Le refus porte sur le CANAL : la synthèse continue de s'écrire et reste
+  consultable. Reste à faire côté ops : **enregistrements SPF/DKIM/DMARC** sur le domaine, sans quoi les
+  messages partent en indésirables quoi qu'ils contiennent. [supabase/migrations/0034]
+- **Aucun lien entrant vers `/synthese` ni vers `/desabonnement` depuis l'application** (T6-14, non traité
+  ici) : les deux haltes ne sont atteignables que par leur URL. À câbler avec le menu de compte, qui
+  n'existe pas encore.

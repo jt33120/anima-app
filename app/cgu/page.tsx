@@ -29,6 +29,30 @@ export default function PageCGU() {
           Tu gardes la main sur tes données : tu peux les exporter et les effacer à tout
           moment. Le détail du traitement figure sur l&apos;écran de consentement.
         </p>
+
+        {/*
+          Information art. 13 — les DESTINATAIRES (revue 4.9, T5-3). La 4.9 ajoute un
+          sous-traitant (Resend) et une finalité nouvelle (l'adresse du compte, jusqu'ici
+          réservée à la connexion, sert à une notification produit) : ni l'un ni l'autre
+          n'était annoncé nulle part. Ce qui est écrit ici est vérifiable dans le code, ligne
+          à ligne — c'est le minimum honnête, pas la politique de confidentialité complète,
+          qui reste une porte pré-lancement.
+        */}
+        <h2 className="t-titre-sm">Qui d&apos;autre voit quoi</h2>
+        <p className="t-corps">
+          Trois prestataires interviennent, et chacun ne voit que ce dont il a besoin :
+          l&apos;hébergeur de la base de données et de l&apos;application ; le fournisseur du
+          modèle d&apos;intelligence artificielle, qui reçoit ce qui est nécessaire à la
+          conversation et s&apos;engage à ne pas s&apos;en servir pour entraîner ses modèles
+          ni à le conserver ; et un service d&apos;envoi de courriels, établi aux États-Unis,
+          qui reçoit <strong>ton adresse et la raison de l&apos;envoi — jamais un mot de ce
+          que tu écris ni de ce qui est écrit pour toi</strong>.
+        </p>
+        <p className="t-corps">
+          Ton adresse sert à te connecter, et à te prévenir quand une synthèse est prête. Tu
+          peux arrêter ces courriels à tout moment, par le lien qu&apos;ils contiennent, sans
+          rien changer d&apos;autre à ton compte.
+        </p>
       </article>
     </main>
   );

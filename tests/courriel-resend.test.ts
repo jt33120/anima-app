@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { creerPortResend } from "@/lib/courriel/adaptateurs/resend";
-import { GABARITS, EXPEDITEUR_NOM } from "@/lib/courriel/gabarits";
+import { gabaritPour, EXPEDITEUR_NOM } from "@/lib/courriel/gabarits";
+import { validerOrigine } from "@/lib/courriel/origine";
+import { jetonValide } from "@/lib/domain/jeton-desabonnement";
 import { codeDErreur } from "@/lib/domain/code-erreur";
 
 /**
@@ -16,6 +18,9 @@ import { codeDErreur } from "@/lib/domain/code-erreur";
  */
 
 const fetchOrigine = globalThis.fetch;
+const ORIGINE = validerOrigine("https://exemple.test")!;
+const JETON = jetonValide("11111111-1111-4111-8111-111111111111")!;
+const GABARIT = gabaritPour("synthese_prete", { origine: ORIGINE, jeton: JETON })!;
 
 interface AppelCapture {
   url: string;
@@ -55,34 +60,77 @@ describe("[NFR-020/022] ce qui part RÉELLEMENT sur le réseau", () => {
     // paragraphe de la synthèse en aperçu, c'est plus engageant » : ce paragraphe est de l'art. 9, il
     // s'afficherait sur un écran verrouillé et traînerait pour toujours chez un tiers.
     const appels = stubFetch({ ok: true, status: 200 });
-    const port = creerPortResend("re_cle", "anam@exemple.fr");
+    const port = creerPortResend("re_cle", "anam@exemple.fr", ORIGINE);
 
-    await port.envoyer("marie@exemple.fr", "synthese_prete");
+    await port.envoyer("marie@exemple.fr", "synthese_prete", JETON);
 
     expect(appels).toHaveLength(1);
     expect(appels[0].url).toBe("https://api.resend.com/emails");
-    // Exactement quatre champs. Un `toEqual` sur les CLÉS : un champ ajouté fait rougir, même vide.
-    expect(Object.keys(appels[0].corps).sort()).toEqual(["from", "subject", "text", "to"]);
+    // Exactement cinq champs. Un `toEqual` sur les CLÉS : un champ ajouté fait rougir, même vide.
+    expect(Object.keys(appels[0].corps).sort()).toEqual(["from", "headers", "subject", "text", "to"]);
     expect(appels[0].corps).toEqual({
       from: `${EXPEDITEUR_NOM} <anam@exemple.fr>`,
       to: ["marie@exemple.fr"],
-      subject: GABARITS.synthese_prete.objet,
-      text: GABARITS.synthese_prete.texte,
+      subject: GABARIT.objet,
+      text: GABARIT.texte,
+      headers: {
+        "List-Unsubscribe": `<${ORIGINE}/api/desabonnement?j=${JETON}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
     });
+  });
+
+  it("[T5-2] les deux en-têtes de désabonnement partent, et RIEN d'autre en en-tête", async () => {
+    // RFC 2369 / RFC 8058 — exigés par Gmail et Yahoo depuis février 2024. Ils font apparaître un bouton
+    // « Se désabonner » à côté de l'expéditeur : c'est le chemin le plus court entre « je ne veux plus »
+    // et le fait que ça s'arrête. Sans eux, le geste offert à la place est « signaler comme spam ».
+    //
+    // Le second `toEqual` sur les clés vaut autant que le premier : un en-tête est une autre porte par
+    // laquelle une valeur pourrait sortir, et elle est moins regardée que le corps.
+    const appels = stubFetch({ ok: true, status: 200 });
+    await creerPortResend("re_cle", "anam@exemple.fr", ORIGINE).envoyer(
+      "marie@exemple.fr",
+      "synthese_prete",
+      JETON,
+    );
+
+    const entetes = appels[0].corps.headers as Record<string, string>;
+    expect(Object.keys(entetes).sort()).toEqual(["List-Unsubscribe", "List-Unsubscribe-Post"]);
+    expect(entetes["List-Unsubscribe-Post"], "sans ça, le un-clic n'est pas reconnu").toBe(
+      "List-Unsubscribe=One-Click",
+    );
+    // La cible accepte un POST : c'est la route d'API, jamais la page de confirmation, qui est en GET.
+    expect(entetes["List-Unsubscribe"]).toContain("/api/desabonnement");
+  });
+
+  it("[T5-1] l'hôte des liens vient de l'ORIGINE fournie, jamais de la source", async () => {
+    // Le domaine était écrit en dur, et il est en vente. Deux origines différentes doivent produire deux
+    // courriels différents — sinon c'est qu'un hôte est resté quelque part.
+    const appels = stubFetch({ ok: true, status: 200 });
+    const autre = validerOrigine("https://autre.exemple.test")!;
+    await creerPortResend("re_cle", "anam@exemple.fr", autre).envoyer(
+      "marie@exemple.fr",
+      "synthese_prete",
+      JETON,
+    );
+
+    const texte = String(appels[0].corps.text);
+    expect(texte).toContain(`${autre}/synthese`);
+    expect(texte, "aucun autre hôte n'a survécu").not.toContain(ORIGINE);
   });
 
   it("le corps envoyé est le gabarit AU CARACTÈRE PRÈS — aucune interpolation en chemin", async () => {
     const appels = stubFetch({ ok: true, status: 200 });
-    await creerPortResend("re_cle", "anam@exemple.fr").envoyer("marie@exemple.fr", "synthese_prete");
+    await creerPortResend("re_cle", "anam@exemple.fr", ORIGINE).envoyer("marie@exemple.fr", "synthese_prete", JETON);
 
     const texte = String(appels[0].corps.text);
     expect(texte, "rien qui ressemble à une variable non substituée").not.toMatch(/\$\{|\[object|undefined|NaN/);
-    expect(texte).toBe(GABARITS.synthese_prete.texte);
+    expect(texte).toBe(GABARIT.texte);
   });
 
   it("la clé part en en-tête, jamais dans le corps", async () => {
     const appels = stubFetch({ ok: true, status: 200 });
-    await creerPortResend("re_secrete", "anam@exemple.fr").envoyer("marie@exemple.fr", "synthese_prete");
+    await creerPortResend("re_secrete", "anam@exemple.fr", ORIGINE).envoyer("marie@exemple.fr", "synthese_prete", JETON);
 
     expect(appels[0].entetes.authorization).toBe("Bearer re_secrete");
     expect(JSON.stringify(appels[0].corps), "aucun secret dans la charge utile").not.toContain("re_secrete");
@@ -109,8 +157,8 @@ describe("les refus, et ce qu'ils laissent derrière eux", () => {
     } as unknown as Response;
     stubFetch(async () => reponseAvecCorps);
 
-    const port = creerPortResend("re_cle", "anam@exemple.fr");
-    await expect(port.envoyer("marie@exemple.fr", "synthese_prete")).rejects.toThrow("courriel_refuse_422");
+    const port = creerPortResend("re_cle", "anam@exemple.fr", ORIGINE);
+    await expect(port.envoyer("marie@exemple.fr", "synthese_prete", JETON)).rejects.toThrow("courriel_refuse_422");
     expect(corpsLu, "le corps de la réponse n'est jamais lu").toBe(false);
   });
 
@@ -118,8 +166,8 @@ describe("les refus, et ce qu'ils laissent derrière eux", () => {
     // La chaîne complète : ce que l'adaptateur lève doit être journalisable tel quel. Si `codeDErreur` le
     // rejetait, on perdrait le diagnostic ; s'il laissait passer autre chose, on perdrait la garde.
     stubFetch({ ok: false, status: 500 });
-    const port = creerPortResend("re_cle", "anam@exemple.fr");
-    const erreur = await port.envoyer("marie@exemple.fr", "synthese_prete").catch((e) => e);
+    const port = creerPortResend("re_cle", "anam@exemple.fr", ORIGINE);
+    const erreur = await port.envoyer("marie@exemple.fr", "synthese_prete", JETON).catch((e) => e);
 
     expect(codeDErreur(erreur)).toBe("courriel_refuse_500");
     expect(codeDErreur(erreur), "et surtout : pas l'adresse").not.toContain("@");
@@ -130,10 +178,10 @@ describe("les refus, et ce qu'ils laissent derrière eux", () => {
     // retirer `if (!gabarit) throw`. On enverrait alors `subject: undefined, text: undefined` — un
     // courriel vide, signé Anam, à quelqu'un qui n'a rien demandé.
     const appels = stubFetch({ ok: true, status: 200 });
-    const port = creerPortResend("re_cle", "anam@exemple.fr");
+    const port = creerPortResend("re_cle", "anam@exemple.fr", ORIGINE);
 
     await expect(
-      port.envoyer("marie@exemple.fr", "promo_black_friday" as "synthese_prete"),
+      port.envoyer("marie@exemple.fr", "promo_black_friday" as "synthese_prete", JETON),
     ).rejects.toThrow("courriel_motif_inconnu");
     expect(appels, "rien n'est parti").toEqual([]);
   });
@@ -141,9 +189,9 @@ describe("les refus, et ce qu'ils laissent derrière eux", () => {
   it("un fournisseur qui ne répond pas est coupé, et le code ne dit rien de l'adresse", async () => {
     vi.useFakeTimers();
     stubFetch(() => new Promise<Response>(() => {}));
-    const port = creerPortResend("re_cle", "anam@exemple.fr");
+    const port = creerPortResend("re_cle", "anam@exemple.fr", ORIGINE);
 
-    const promesse = port.envoyer("marie@exemple.fr", "synthese_prete");
+    const promesse = port.envoyer("marie@exemple.fr", "synthese_prete", JETON);
     const attendu = expect(promesse).rejects.toThrow("courriel_timeout");
     await vi.advanceTimersByTimeAsync(11_000);
     await attendu;
@@ -152,6 +200,6 @@ describe("les refus, et ce qu'ils laissent derrière eux", () => {
 
 describe("`estConfigure` dit la vérité", () => {
   it("un adaptateur construit avec une clé se déclare prêt", () => {
-    expect(creerPortResend("re_cle", "anam@exemple.fr").estConfigure()).toBe(true);
+    expect(creerPortResend("re_cle", "anam@exemple.fr", ORIGINE).estConfigure()).toBe(true);
   });
 });

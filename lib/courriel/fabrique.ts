@@ -1,5 +1,6 @@
 import "server-only";
 import { creerPortResend } from "@/lib/courriel/adaptateurs/resend";
+import { origineDuSite } from "@/lib/courriel/origine";
 import type { PortCourriel } from "@/lib/courriel/port";
 
 /**
@@ -43,6 +44,14 @@ export function creerPortCourriel(): PortCourriel {
 
   const cle = process.env.RESEND_API_KEY?.trim();
   const expediteur = process.env.ANIMA_COURRIEL_EXPEDITEUR?.trim();
-  if (!cle || !expediteur) return NON_CONFIGURE;
-  return creerPortResend(cle, expediteur);
+  // ── L'ORIGINE EST UNE CONDITION D'ENVOI AU MÊME TITRE QUE LA CLÉ (revue T5-1) ─────────────────────────
+  //
+  // Sans elle, le courriel partirait quand même — avec un lien vers un domaine qu'on ne possède pas, dans
+  // un message signé « Anam » annonçant à une femme qu'un texte intime l'attend. C'est le scénario
+  // d'hameçonnage le plus facile à réussir qu'on puisse offrir à quelqu'un, et c'est nous qui l'aurions
+  // posté. Elle est donc traitée comme la clé : absente, rien ne part, la synthèse s'écrit et se lit dans
+  // l'application, aucune réservation n'est consommée.
+  const origine = origineDuSite();
+  if (!cle || !expediteur || !origine) return NON_CONFIGURE;
+  return creerPortResend(cle, expediteur, origine);
 }

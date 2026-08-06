@@ -11,6 +11,7 @@ import {
   PLAFOND_NOTIFICATION_HEURES,
   PLAFOND_OCTETS,
   RESERVE_PERSONNE_MS,
+  RETENTION_NOTIFICATION_JOURS,
   periodeDe,
   validerSortieSynthese,
 } from "@/lib/domain/synthese";
@@ -168,6 +169,18 @@ export async function executerSyntheseAvec(ctx: ContexteJob, deps: DepsSynthese)
   if (bloquees > 0) {
     await ctx.depot.leverIncident("job_echoue", NOM_JOB, "echecs_repetes");
   }
+
+  // LA PURGE DE LA TRACE (revue T5-3). Ici plutôt que dans un job à part : c'est ce job qui écrit ces
+  // lignes, la purge est un `delete` sur une table minuscule, et un job de plus voudrait dire une
+  // fenêtre, un incident et une sonde de plus pour trois lignes de SQL. Le moteur de rétention unique
+  // (AD-14, Epic 6) la reprendra avec les autres durées — ce qui compte est qu'en attendant, elle
+  // TOURNE : une durée de conservation qui attend un epic n'est pas une durée de conservation.
+  //
+  // Un échec ici ne fait échouer ni une personne ni le job : rien de ce que l'utilisatrice attend n'en
+  // dépend. Mais il se DIT, sinon une rétention en panne est indistinguable d'une rétention absente.
+  if ((await deps.depot.purgerNotifications(RETENTION_NOTIFICATION_JOURS)) === null) {
+    journaliserExploitation("synthese_purge_notifications", { code: "echec" });
+  }
 }
 
 /** Ce qu'il est advenu d'une personne. Un échec ne se dit pas ici : il se lève. */
@@ -258,6 +271,13 @@ async function notifier(deps: DepsSynthese, utilisatriceId: string, syntheseId: 
     const adresse = await deps.depot.adresse(utilisatriceId);
     if (!adresse) return;
 
+    // LE JETON DE DÉSABONNEMENT, AVANT LA RÉSERVATION (revue T5-2). L'ordre est le même que celui
+    // d'`estConfigure()`, et pour la même raison : tout ce qui peut empêcher l'envoi doit être connu
+    // avant de consommer le droit d'envoyer. Sans jeton, on n'envoie pas — un courriel sans porte de
+    // sortie est exactement ce que cette revue a refusé.
+    const jeton = await deps.depot.jetonDesabonnement(utilisatriceId);
+    if (!jeton) return;
+
     // La clé d'idempotence est LA SYNTHÈSE elle-même. C'était la semaine ISO ; ça ne pouvait plus l'être
     // une fois la clé de la synthèse devenue la période, et c'est de toute façon plus exact : une ligne
     // écrite, une annonce, sans intermédiaire calendaire entre les deux.
@@ -269,7 +289,7 @@ async function notifier(deps: DepsSynthese, utilisatriceId: string, syntheseId: 
     );
     if (!reserve) return;
 
-    await deps.courriel.envoyer(adresse, "synthese_prete");
+    await deps.courriel.envoyer(adresse, "synthese_prete", jeton);
   } catch (e) {
     // L'échec de l'ANNONCE ne fait pas échouer la SYNTHÈSE : le travail a bien été produit et il est
     // consultable. Le rétrograder en échec ferait revenir cette personne demain pour une synthèse qui

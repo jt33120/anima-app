@@ -7,8 +7,10 @@ import {
   PLAFOND_NOTIFICATION_HEURES,
   PLAFOND_OCTETS,
   DELAI_MODELE_MS,
+  RETENTION_NOTIFICATION_JOURS,
   type MateriauSynthese,
 } from "@/lib/domain/synthese";
+import { jetonValide } from "@/lib/domain/jeton-desabonnement";
 import type { DepotSynthese } from "@/lib/data/depot-synthese";
 import type { DepotOrdonnanceur, EtatOrdonnanceur, TypeIncident } from "@/lib/data/depot-ordonnanceur";
 import type { AiPort, ReponseIa, RequeteIa } from "@/lib/ai/port";
@@ -82,8 +84,12 @@ interface TraceSynthese {
   plafonds: { entrees: number; octets: number }[];
   enregistrements: { id: string; debut: string; fin: string; contenu: string; tronquee: boolean }[];
   reservations: { id: string; motif: string; cle: string; plafond: number }[];
+  purges: number[];
   ordre: string[];
 }
+
+/** Un uuid quelconque : ce qui compte est qu'il PASSE `jetonValide`, pas sa valeur. */
+const JETON_FACTICE = "11111111-1111-4111-8111-111111111111";
 
 function depotSyntheseFactice(options: {
   candidates?: string[];
@@ -91,9 +97,11 @@ function depotSyntheseFactice(options: {
   enregistrer?: (id: string) => string | null;
   reserver?: (id: string) => boolean;
   adresse?: (id: string) => string | null;
+  jeton?: (id: string) => string | null;
+  purge?: number | null;
   enEchecRepete?: number;
 } = {}) {
-  const trace: TraceSynthese = { appelsCandidates: [], materiaux: [], plafonds: [], enregistrements: [], reservations: [], ordre: [] };
+  const trace: TraceSynthese = { appelsCandidates: [], materiaux: [], plafonds: [], enregistrements: [], reservations: [], purges: [], ordre: [] };
   const depot: DepotSynthese = {
     async candidates(job, limite) {
       trace.appelsCandidates.push({ job, limite });
@@ -119,6 +127,15 @@ function depotSyntheseFactice(options: {
     },
     async adresse(id) {
       return options.adresse ? options.adresse(id) : `${id}@exemple.fr`;
+    },
+    async jetonDesabonnement(id) {
+      trace.ordre.push("jeton");
+      const brut = options.jeton ? options.jeton(id) : JETON_FACTICE;
+      return jetonValide(brut);
+    },
+    async purgerNotifications(jours) {
+      trace.purges.push(jours);
+      return options.purge === undefined ? 0 : options.purge;
     },
   };
   return { depot, trace };
@@ -264,13 +281,87 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
 
     await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
-    expect(trace.ordre).toEqual(["enregistrer", "reserver"]);
+    // Le JETON est lu AVANT la réservation (revue T5-2), pour la même raison qu'`estConfigure()` :
+    // tout ce qui peut empêcher l'envoi doit être connu avant de consommer le droit d'envoyer.
+    expect(trace.ordre).toEqual(["enregistrer", "jeton", "reserver"]);
     expect(trace.reservations).toEqual([
       // La clé d'idempotence est LA SYNTHÈSE écrite, plus la semaine ISO (revue 4.9) : le dépôt factice
       // rend `syn-u1`, et c'est exactement ce que l'annonce doit réserver.
       { id: "u1", motif: "synthese_prete", cle: "syn-u1", plafond: PLAFOND_NOTIFICATION_HEURES },
     ]);
-    expect(courriel.envoyes).toEqual([{ destinataire: "u1@exemple.fr", motif: "synthese_prete" }]);
+    expect(courriel.envoyes).toEqual([
+      { destinataire: "u1@exemple.fr", motif: "synthese_prete", jeton: JETON_FACTICE },
+    ]);
+  });
+
+  it("[T5-2] sans jeton de désabonnement, RIEN ne part — et la réservation n'est pas consommée", async () => {
+    // Un courriel sans porte de sortie est exactement ce que la revue a refusé : la seule issue offerte
+    // était de résilier ou de révoquer son consentement art. 9. Une panne de lecture du jeton n'est pas
+    // une raison de reproduire ça — on se tait, et la synthèse attend dans l'app.
+    // Mutation-cible : retirer `if (!jeton) return;`.
+    const { depot } = depotOrdoFactice();
+    const { depot: syn, trace } = depotSyntheseFactice({ jeton: () => null });
+    const { ia } = iaFactice();
+    const courriel = creerPortCourrielFactice();
+
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
+
+    expect(trace.enregistrements, "la synthèse, elle, est écrite").toHaveLength(1);
+    expect(courriel.envoyes, "aucun courriel").toEqual([]);
+    expect(trace.reservations, "et le droit d'envoyer reste entier").toEqual([]);
+  });
+
+  it("[T5-2] le jeton envoyé est celui de CETTE personne", async () => {
+    // Un jeton partagé ne désabonnerait personne — ou désabonnerait tout le monde. Mutation-cible : rendre
+    // un jeton constant depuis le dépôt.
+    const { depot } = depotOrdoFactice();
+    const { depot: syn } = depotSyntheseFactice({
+      candidates: ["u1", "u2"],
+      jeton: (id) => (id === "u1" ? JETON_FACTICE : "22222222-2222-4222-8222-222222222222"),
+    });
+    const { ia } = iaFactice();
+    const courriel = creerPortCourrielFactice();
+
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
+
+    expect(courriel.envoyes.map((e) => e.jeton)).toEqual([
+      JETON_FACTICE,
+      "22222222-2222-4222-8222-222222222222",
+    ]);
+  });
+
+  it("[T5-3] la trace des envois est purgée à chaque tick, et son échec se DIT", async () => {
+    // `notification_envoyee` ne porte rien ligne à ligne ; empilée, c'est un calendrier d'assiduité, dont
+    // l'absence parle autant que la présence. Mutation-cible : ne pas appeler la purge — ou l'appeler et
+    // avaler son échec, ce qui rend une rétention en panne indistinguable d'une rétention absente.
+    const { depot } = depotOrdoFactice();
+    const { depot: syn, trace } = depotSyntheseFactice();
+    const { ia } = iaFactice();
+
+    await executerSyntheseAvec(contexte(depot), {
+      depot: syn,
+      ia,
+      supabase: supabaseFactice().client,
+      courriel: creerPortCourrielFactice(),
+    });
+    expect(trace.purges, "une fois par tick, avec la durée du domaine").toEqual([
+      RETENTION_NOTIFICATION_JOURS,
+    ]);
+
+    const journal = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { depot: syn2 } = depotSyntheseFactice({ purge: null });
+      await executerSyntheseAvec(contexte(depotOrdoFactice().depot), {
+        depot: syn2,
+        ia: iaFactice().ia,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice(),
+      });
+      // Le motif vit dans le second argument de `console.warn` (un objet), pas dans la phrase.
+      expect(JSON.stringify(journal.mock.calls)).toContain("synthese_purge_notifications");
+    } finally {
+      journal.mockRestore();
+    }
   });
 
   it("le plafond refuse → aucun courriel, mais la synthèse est bien écrite", async () => {
@@ -344,7 +435,7 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     }
   });
 
-  it("[NFR-020] le job n'a que DEUX arguments à donner au port — l'adresse et le motif", async () => {
+  it("[NFR-020] le job n'a que TROIS arguments à donner au port, et le troisième est un uuid", async () => {
     // ── CE TEST ÉTAIT UNE TAUTOLOGIE (revue 4.9, T4-4) ────────────────────────────────────────────────
     //
     // Il faisait `Object.keys(courriel.envoyes[0])` — c'est-à-dire qu'il interrogeait un objet que la
@@ -353,8 +444,12 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     // mesurait ce que le test avait fabriqué.
     //
     // On capture donc les arguments BRUTS de l'appel, tels que le job les passe. Mutation-cible : ajouter
-    // un troisième argument à `envoyer` (un aperçu, un prénom, une date) — le test rougit, alors que
+    // un argument de plus à `envoyer` (un aperçu, un prénom, une date) — le test rougit, alors que
     // l'ancienne version restait verte.
+    //
+    // Le troisième argument est arrivé avec le désabonnement (T5-2), et c'est le seul qui varie d'une
+    // personne à l'autre. On vérifie donc DEUX choses : qu'il n'y en a pas un quatrième, et que celui-là
+    // est un uuid et RIEN d'autre — c'est-à-dire qu'aucun texte ne peut voyager par ce paramètre.
     //
     // Ce que ce fichier ne peut PAS prouver, et qu'il ne prétend plus prouver : ce qui part réellement
     // sur le réseau. Ça, c'est `courriel-resend.test.ts`, qui inspecte la charge utile du `fetch`.
@@ -372,8 +467,12 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
     expect(arguments_, "un seul envoi").toHaveLength(1);
-    expect(arguments_[0], "DEUX arguments, pas trois").toHaveLength(2);
-    expect(arguments_[0]).toEqual(["u1@exemple.fr", "synthese_prete"]);
+    expect(arguments_[0], "TROIS arguments, pas quatre").toHaveLength(3);
+    expect(arguments_[0]).toEqual(["u1@exemple.fr", "synthese_prete", JETON_FACTICE]);
+    expect(
+      String(arguments_[0][2]),
+      "le seul paramètre variable est un uuid, donc incapable de porter du texte",
+    ).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     expect(JSON.stringify(arguments_), "et pas un mot de la synthèse").not.toContain("INTIME");
   });
 

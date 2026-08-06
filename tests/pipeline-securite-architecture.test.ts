@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, join, relative } from "node:path";
 
 /**
  * Story 2.3 — la garde d'architecture du pipeline sécurité-d'abord (AD-16), prouvée par lecture de
@@ -405,5 +405,60 @@ describe("Story 2.9 — clôture + bilan + placement gardé : câblage serveur (
         /^\s*import\s+(?!type\b)[^;]*from\s*["'](?:@supabase|next|next\/|@\/lib\/data|@\/lib\/ai|@\/app|@\/render)/m,
       );
     }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// REVUE 4.9 / T2-1 — la garde GLOBALE qui manquait
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[AD-13] l'egress art. 9 est un passage OBLIGÉ — pour TOUT le dépôt, pas seulement pour la route", () => {
+  it("[LE CŒUR] personne n'appelle `.completer(` ou `.diffuser(` hors de `lib/ai/`", () => {
+    // Le trou que la 4.9 a révélé : les gardes d'egress n'étaient assérées QUE sur
+    // `app/api/anam/message/route.ts`. Un nouveau chemin — un job d'ordonnanceur, en l'occurrence —
+    // pouvait donc appeler l'adaptateur nu sans qu'aucun test ne rougisse, et c'est exactement ce qui
+    // s'est produit : `lib/ai/egress-guard.ts` déclare être « le SEUL endroit d'où du contenu art. 9 sort
+    // vers un fournisseur », et cette phrase était devenue fausse pendant tout le temps de la story.
+    //
+    // Cette garde-ci ne regarde pas UN fichier : elle balaie tout le dépôt. C'est la différence entre
+    // « ce chemin-là est gardé » et « il n'existe pas de chemin non gardé ».
+    const racine = process.cwd();
+    const ignores = new Set(["node_modules", ".next", ".git", "_bmad-output", "supabase", "images"]);
+    const coupables: string[] = [];
+
+    function balayer(dossier: string) {
+      for (const entree of readdirSync(dossier, { withFileTypes: true })) {
+        if (ignores.has(entree.name)) continue;
+        const chemin = join(dossier, entree.name);
+        if (entree.isDirectory()) {
+          balayer(chemin);
+          continue;
+        }
+        if (!/\.tsx?$/.test(entree.name)) continue;
+        const relatif = relative(racine, chemin).replace(/\\/g, "/");
+        // `lib/ai/` est le port lui-même : c'est là que vivent l'adaptateur et ses gardes.
+        // `tests/` fabrique des doublures, dont c'est le métier d'implémenter le port.
+        if (relatif.startsWith("lib/ai/") || relatif.startsWith("tests/")) continue;
+        const src = readFileSync(chemin, "utf-8");
+        if (/\.\s*completer\s*\(|\.\s*diffuser\s*\(/.test(src)) coupables.push(relatif);
+      }
+    }
+    balayer(racine);
+
+    expect(
+      coupables,
+      "tout appel au modèle passe par `envoyerSousEgressArt9` / `diffuserSousEgressArt9` / la variante ordonnanceur",
+    ).toEqual([]);
+  });
+
+  it("la variante ordonnanceur relit l'état vivant, et bloque dans le doute", () => {
+    // L'ordonnanceur n'a pas de session, donc pas d'`auth.uid()` : les gardes 2 et 3 du chemin de session
+    // sont inutilisables. Le prédicat équivalent vit en base, et la garde DOIT l'interroger — et échouer
+    // fermé si la RPC tombe (dernier `await` avant l'envoi).
+    const src = readFileSync(join(process.cwd(), "lib/ai/egress-guard.ts"), "utf-8");
+    const variante = src.slice(src.indexOf("envoyerSousEgressArt9Ordonnanceur"));
+    expect(variante, "le ZDR d'abord").toMatch(/estZdrProuve\s*\(\)/);
+    expect(variante, "puis l'état vivant en base").toMatch(/eligible_a_synthese/);
+    expect(variante, "fail-safe : une erreur RPC bloque").toMatch(/error\s*\|\|\s*eligible\s*!==\s*true/);
   });
 });

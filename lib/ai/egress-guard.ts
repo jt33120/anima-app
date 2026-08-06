@@ -72,6 +72,53 @@ export async function envoyerSousEgressArt9(args: {
  * son corps ne tourne pas avant la première itération : les gardes sont donc réellement passées
  * **avant le premier octet**. Un blocage ne diffuse rien (adaptateur jamais itéré).
  */
+/**
+ * ── LA VARIANTE ORDONNANCEUR (revue 4.9, T2-1) ─────────────────────────────────────────────────────────
+ *
+ * La 4.9 avait ouvert un SECOND point d'egress art. 9 : le job de synthèse appelait `completer()` sur
+ * l'adaptateur nu. Son `contientArt9: true` était donc parfaitement inerte — le seul lecteur de ce
+ * drapeau est `verifierGardesArt9` ci-dessus, jamais atteint sur ce chemin. Un test affirmait même
+ * garder l'invariant (« mentir sur `contientArt9` contournerait l'egress-guard ») : il gardait une porte
+ * qui n'était pas là. La phrase « le SEUL endroit d'où du contenu art. 9 sort » était devenue fausse.
+ *
+ * Pourquoi une variante plutôt que la même fonction : les gardes 2 et 3 lisent `auth.uid()`, et
+ * l'ordonnanceur n'a pas de session. Le prédicat équivalent, pour une utilisatrice DONNÉE, vit en base
+ * dans `eligible_a_synthese` — premium, barrière de minorité, consentement art. 9 vivant, détresse — et
+ * un test compare les deux chemins pour qu'ils ne divergent pas.
+ *
+ * Ce que ça rattrape concrètement : le lot est constitué en tête de tick puis traité SÉQUENTIELLEMENT,
+ * une personne à la fois, chacune coûtant un appel au modèle fort. Pour la vingtième, l'écart entre le
+ * contrôle et l'envoi se compte en dizaines de secondes. Une révocation qui atterrit dans cette fenêtre
+ * ne bloquait rien : son journal partait quand même. AD-13 dit littéralement « Prevents: envoi au
+ * fournisseur après une révocation en vol ».
+ */
+export type RaisonRefusOrdonnanceur = "zdr" | "eligibilite";
+export type ResultatEgressOrdonnanceur =
+  | { bloque: false; reponse: ReponseIa }
+  | { bloque: true; raison: RaisonRefusOrdonnanceur };
+
+export async function envoyerSousEgressArt9Ordonnanceur(args: {
+  /** Client `service_role` : l'ordonnanceur n'a pas de session, donc pas d'`auth.uid()`. */
+  supabase: SupabaseClient;
+  utilisatriceId: string;
+  adaptateur: AiPort;
+  requete: RequeteIa;
+}): Promise<ResultatEgressOrdonnanceur> {
+  const { supabase, utilisatriceId, adaptateur, requete } = args;
+  if (requete.contientArt9) {
+    // 1) ZDR de l'adaptateur lié — agnostique au fournisseur (AD-3), même garde que le chemin de session.
+    if (!adaptateur.estZdrProuve()) return { bloque: true, raison: "zdr" };
+    // 2) L'état VIVANT, relu immédiatement avant l'envoi. Fail-safe : une erreur RPC bloque aussi.
+    const { data: eligible, error } = await supabase.rpc("eligible_a_synthese", {
+      p_utilisatrice: utilisatriceId,
+    });
+    if (error || eligible !== true) return { bloque: true, raison: "eligibilite" };
+  }
+  // Seulement maintenant : l'envoi.
+  const reponse = await adaptateur.completer(requete);
+  return { bloque: false, reponse };
+}
+
 export async function diffuserSousEgressArt9(args: {
   supabase: SupabaseClient;
   adaptateur: AiPort;

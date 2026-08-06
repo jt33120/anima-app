@@ -5,9 +5,14 @@ import type { MateriauSynthese } from "@/lib/domain/synthese";
 /**
  * Story 4.9 — le dépôt de la synthèse. Comme celui de l'ordonnanceur, il tourne sous `service_role` : le
  * job n'a pas de session, donc pas d'`auth.uid()`, donc aucune RLS ne peut le porter. C'est précisément
- * pourquoi les quatre conditions d'éligibilité (premium, consentement art. 9 vivant, pas de barrière
- * minorité, quelque chose à dire) sont réunies DANS la fonction SQL et pas ici : sous `service_role`,
- * une garde écrite en TypeScript n'est plus une garde, c'est une politesse.
+ * pourquoi les conditions d'éligibilité (premium, consentement art. 9 vivant, pas de barrière minorité,
+ * aucune détresse en cours) sont réunies DANS la base et pas ici : sous `service_role`, une garde écrite
+ * en TypeScript n'est plus une garde, c'est une politesse.
+ *
+ * Revue 4.9 (T2-2) : elles ne vivent plus seulement dans la fonction de SÉLECTION mais dans
+ * `eligible_a_synthese`, qu'appellent aussi celle qui LIT le journal et celle qui ÉCRIT la synthèse.
+ * Appelées directement, les deux précédentes ne gardaient rien — `materiau_synthese` rendait le verbatim
+ * d'une utilisatrice ayant révoqué son consentement.
  *
  * Ce dépôt touche du CONTENU art. 9 (le journal, les faits, la synthèse) — le seul de ce genre à passer
  * par `service_role`. L'exception est bornée par construction : il n'expose aucune méthode capable de
@@ -21,18 +26,22 @@ import type { MateriauSynthese } from "@/lib/domain/synthese";
 export type MotifNotification = "synthese_prete";
 
 export interface DepotSynthese {
-  /** Les utilisatrices à synthétiser cette semaine, les plus longtemps servies en premier. */
-  candidates(semaine: string, limite: number): Promise<readonly string[]>;
-  materiau(utilisatriceId: string, plafondEntrees: number): Promise<MateriauSynthese>;
-  /** `false` si une synthèse existait déjà pour cette semaine — donc rien de neuf, donc pas de courriel. */
+  /** Les utilisatrices à servir maintenant, les plus longtemps en attente d'abord. */
+  candidates(limite: number): Promise<readonly string[]>;
+  materiau(utilisatriceId: string, plafondEntrees: number, plafondOctets: number): Promise<MateriauSynthese>;
+  /**
+   * L'identifiant de la synthèse écrite, ou `null` si rien ne l'a été — la tranche existait déjà, ou
+   * l'éligibilité a changé pendant la production. Rendre l'identifiant plutôt qu'un booléen donne à
+   * l'annonce une clé d'idempotence EXACTE : une synthèse, une annonce, et le lien entre les deux est
+   * la ligne elle-même.
+   */
   enregistrer(
     utilisatriceId: string,
-    semaine: string,
     debut: string,
     fin: string,
     contenu: string,
     tronquee: boolean,
-  ): Promise<boolean>;
+  ): Promise<string | null>;
   /** `true` si le canal est réservé et l'envoi autorisé. Réserve AVANT d'envoyer, jamais après. */
   reserverNotification(
     utilisatriceId: string,
@@ -48,19 +57,19 @@ export function creerDepotSynthese(): DepotSynthese {
   const supabase = createSupabaseAdminClient();
 
   return {
-    async candidates(semaine, limite): Promise<readonly string[]> {
+    async candidates(limite): Promise<readonly string[]> {
       const { data, error } = await supabase.rpc("utilisatrices_a_synthetiser", {
-        p_semaine: semaine,
         p_limite: limite,
       });
       if (error) throw new Error(`utilisatrices_a_synthetiser: ${error.code ?? "echec"}`);
       return Array.isArray(data) ? (data as string[]) : [];
     },
 
-    async materiau(utilisatriceId, plafondEntrees): Promise<MateriauSynthese> {
+    async materiau(utilisatriceId, plafondEntrees, plafondOctets): Promise<MateriauSynthese> {
       const { data, error } = await supabase.rpc("materiau_synthese", {
         p_utilisatrice: utilisatriceId,
         p_plafond_entrees: plafondEntrees,
+        p_plafond_octets: plafondOctets,
       });
       if (error) throw new Error(`materiau_synthese: ${error.code ?? "echec"}`);
       const brut = (data ?? {}) as Partial<MateriauSynthese>;
@@ -76,17 +85,16 @@ export function creerDepotSynthese(): DepotSynthese {
       };
     },
 
-    async enregistrer(utilisatriceId, semaine, debut, fin, contenu, tronquee): Promise<boolean> {
+    async enregistrer(utilisatriceId, debut, fin, contenu, tronquee): Promise<string | null> {
       const { data, error } = await supabase.rpc("enregistrer_synthese", {
         p_utilisatrice: utilisatriceId,
-        p_semaine: semaine,
         p_debut: debut,
         p_fin: fin,
         p_contenu: contenu,
         p_tronquee: tronquee,
       });
       if (error) throw new Error(`enregistrer_synthese: ${error.code ?? "echec"}`);
-      return data === true;
+      return typeof data === "string" && data.length > 0 ? data : null;
     },
 
     async reserverNotification(utilisatriceId, motif, cle, plafondHeures): Promise<boolean> {

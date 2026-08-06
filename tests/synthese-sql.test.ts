@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * Story 4.9 (T7) — LES GARANTIES À L'ÉCRITURE ET À LA LECTURE, contre le vrai Postgres.
@@ -25,7 +27,6 @@ const clientScope = () => createClient(url, publishable, { auth: { autoRefreshTo
 
 const t = Date.now();
 const MDP = "test-synthese-123!";
-const SEMAINE = "2099-W01"; // hors de toute fenêtre réelle : ces lignes ne croisent aucun autre fichier
 
 async function creerUtilisatrice(email: string): Promise<string> {
   const { data, error } = await admin.auth.admin.createUser({ email, password: MDP, email_confirm: true });
@@ -33,11 +34,11 @@ async function creerUtilisatrice(email: string): Promise<string> {
   return data.user!.id;
 }
 
-async function consentir(id: string, options: { revoque?: boolean } = {}) {
+async function consentir(id: string, options: { revoque?: boolean; sansArt9?: boolean; sansIa?: boolean } = {}) {
   const { error } = await admin.from("consentement").insert({
     utilisatrice_id: id,
-    art9_accorde: true,
-    ia_reconnue: true,
+    art9_accorde: !options.sansArt9,
+    ia_reconnue: !options.sansIa,
     cgu_acceptees: true,
     revoked_at: options.revoque ? new Date().toISOString() : null,
   });
@@ -53,8 +54,8 @@ async function abonner(id: string, etat = "actif") {
   if (error) throw new Error(`abonner: ${error.message}`);
 }
 
-async function graver(id: string, cle: string, contenu: string, creeLe?: string): Promise<void> {
-  const ligne: Record<string, unknown> = { utilisatrice_id: id, cle_tour: cle, role: "utilisatrice", contenu };
+async function graver(id: string, cle: string, contenu: string, creeLe?: string, role = "utilisatrice"): Promise<void> {
+  const ligne: Record<string, unknown> = { utilisatrice_id: id, cle_tour: cle, role, contenu };
   if (creeLe) ligne.cree_le = creeLe;
   const { error } = await admin.from("entree_journal").insert(ligne);
   if (error) throw new Error(`graver: ${error.message}`);
@@ -78,16 +79,47 @@ async function episode(id: string, debut: string, fin: string | null) {
   if (error) throw new Error(`episode: ${error.message}`);
 }
 
-async function materiau(id: string, plafond = 200) {
-  const { data, error } = await admin.rpc("materiau_synthese", { p_utilisatrice: id, p_plafond_entrees: plafond });
+async function materiau(id: string, plafond = 200, octets = 200_000) {
+  const { data, error } = await admin.rpc("materiau_synthese", {
+    p_utilisatrice: id,
+    p_plafond_entrees: plafond,
+    p_plafond_octets: octets,
+  });
   if (error) throw new Error(`materiau_synthese: ${error.message}`);
-  return data as { total: number; tronquee: boolean; entrees: { contenu: string }[]; faits: string[]; depuis: string | null };
+  return data as {
+    total: number;
+    tronquee: boolean;
+    entrees: { contenu: string }[];
+    faits: string[];
+    depuis: string | null;
+    jusqu_a: string;
+  };
 }
 
-async function candidates(semaine = SEMAINE, limite = 50): Promise<string[]> {
-  const { data, error } = await admin.rpc("utilisatrices_a_synthetiser", { p_semaine: semaine, p_limite: limite });
+/**
+ * ⚠️ `p_limite` est délibérément ÉNORME, et chaque appelant vérifie que la liste n'est pas saturée avant
+ * toute assertion négative. La revue 4.9 a montré pourquoi : la fonction rend une liste TRONQUÉE, donc
+ * l'absence d'un identifiant ne distingue pas « exclu par une garde » de « au-delà de la limite ». Les
+ * fichiers de test tournent en parallèle contre la MÊME base, et plusieurs y créent des premium
+ * consentantes avec du journal : sous charge, les assertions négatives d'AC5 devenaient vides et le
+ * mutant qu'elles prétendaient tuer survivait.
+ */
+const LIMITE_LARGE = 5_000;
+
+async function candidates(limite = LIMITE_LARGE): Promise<string[]> {
+  const { data, error } = await admin.rpc("utilisatrices_a_synthetiser", { p_limite: limite });
   if (error) throw new Error(`utilisatrices_a_synthetiser: ${error.message}`);
-  return data as string[];
+  const liste = data as string[];
+  if (liste.length >= limite) {
+    throw new Error(`liste SATURÉE (${liste.length}) : toute conclusion d'absence serait fausse`);
+  }
+  return liste;
+}
+
+async function eligible(id: string): Promise<boolean> {
+  const { data, error } = await admin.rpc("eligible_a_synthese", { p_utilisatrice: id });
+  if (error) throw new Error(`eligible_a_synthese: ${error.message}`);
+  return data as boolean;
 }
 
 async function supprimer(id: string) {
@@ -244,25 +276,26 @@ describe("[AC2] une synthèse par semaine, et pas deux", () => {
   });
   afterAll(async () => supprimer(u.id));
 
-  async function enregistrer(contenu: string): Promise<boolean> {
+  async function enregistrer(contenu: string, debut = "2026-03-01T00:00:00Z"): Promise<string | null> {
     const { data, error } = await admin.rpc("enregistrer_synthese", {
       p_utilisatrice: u.id,
-      p_semaine: SEMAINE,
-      p_debut: "2026-03-01T00:00:00Z",
+      p_debut: debut,
       p_fin: "2026-03-08T00:00:00Z",
       p_contenu: contenu,
       p_tronquee: false,
     });
     if (error) throw new Error(`enregistrer_synthese: ${error.message}`);
-    return data === true;
+    return (data as string | null) ?? null;
   }
 
-  it("[LE CŒUR] le second enregistrement de la même semaine rend `false` et n'écrit rien", async () => {
+  it("[LE CŒUR] le second enregistrement de la MÊME PÉRIODE rend `null` et n'écrit rien", async () => {
+    // La clé est `periode_debut`, plus la semaine ISO (revue 4.9) : les périodes se pavent bout à bout,
+    // donc deux synthèses ne peuvent pas partager un début.
     // Mutation-cible : retirer l'index unique, ou remplacer `do nothing` par `do update`. La conséquence
-    // n'est pas une ligne en trop : `enregistrer` rendrait `true` une seconde fois, le job enchaînerait
-    // sur la notification, et une VRAIE personne recevrait un second courriel pour la même semaine.
-    expect(await enregistrer("le premier récit"), "la première écrit").toBe(true);
-    expect(await enregistrer("un second récit"), "la seconde ne peut pas").toBe(false);
+    // n'est pas une ligne en trop : `enregistrer` rendrait un identifiant une seconde fois, le job
+    // enchaînerait sur la notification, et une VRAIE personne recevrait un second courriel.
+    expect(await enregistrer("le premier récit"), "la première écrit").not.toBeNull();
+    expect(await enregistrer("un second récit"), "la seconde ne peut pas").toBeNull();
 
     const { data } = await admin.from("synthese").select("contenu").eq("utilisatrice_id", u.id);
     expect(data, "une seule ligne").toHaveLength(1);
@@ -309,16 +342,62 @@ describe("[AC4] le plafond de notification, et l'idempotence du canal", () => {
     expect(await reserver("2099-W02"), "une autre période, mais dans les 72 h").toBe(false);
   });
 
+  /** Recule tout l'historique d'envoi : le plafond ne mord plus, seule l'idempotence peut encore refuser. */
+  async function vieillirLesEnvois() {
+    const { error } = await admin
+      .from("notification_envoyee")
+      .update({ envoye_le: "2026-01-01T00:00:00Z" })
+      .eq("utilisatrice_id", u.id);
+    if (error) throw new Error(`vieillir: ${error.message}`);
+  }
+
   it("le MÊME motif pour la MÊME période ne se réserve jamais deux fois", async () => {
     // Deuxième garantie, distincte de la première : l'idempotence. Le job repasse chaque jour ; sans
     // elle, le plafond expiré à J+4 laisserait repartir l'annonce d'une synthèse déjà annoncée.
-    expect(await reserver("2099-W01", 0), "plafond neutralisé — seule l'idempotence peut refuser").toBe(false);
+    await vieillirLesEnvois();
+    expect(await reserver("2099-W01"), "plafond écoulé — seule l'idempotence peut refuser").toBe(false);
   });
 
   it("plafond écoulé + période neuve → l'annonce repart", async () => {
     // Contrôle positif : sans lui, les deux tests précédents seraient satisfaits par une fonction qui
     // refuse TOUJOURS — un canal muet, tout aussi cassé, et invisible.
-    expect(await reserver("2099-W03", 0)).toBe(true);
+    await vieillirLesEnvois();
+    expect(await reserver("2099-W03")).toBe(true);
+  });
+
+  it("[REVUE 4.9 / T6-4] un plafond absent ou négatif est REFUSÉ, jamais interprété comme « pas de plafond »", async () => {
+    // `make_interval(hours => null)` rend NULL, donc `envoye_le > NULL` rend NULL, donc `not exists` rend
+    // TRUE : un plafond absent DÉSACTIVAIT silencieusement le plafond. Une valeur négative projetait la
+    // borne dans le futur, avec le même effet. Le commentaire promettait une garantie de la base ;
+    // c'était une garantie de l'appelant. Mutation-cible : retirer le `raise`.
+    for (const plafond of [null, 0, -72]) {
+      const { error } = await admin.rpc("reserver_notification", {
+        p_utilisatrice: u.id,
+        p_motif: "synthese_prete",
+        p_cle: `absurde-${plafond}`,
+        p_plafond_heures: plafond,
+      });
+      expect(error, `plafond ${plafond} doit être refusé`).not.toBeNull();
+    }
+  });
+
+  it("[REVUE 4.9 / T1-2] le plafond regarde le MOTIF — sinon FR-033 mangerait le courriel de synthèse", async () => {
+    // Le plafond ne regardait que « une notification, n'importe laquelle, dans les 72 h », alors que
+    // l'unicité regardait `(utilisatrice, motif, clé)`. Les deux se contredisaient, et le mécanisme était
+    // structurellement incompatible avec l'Epic 6 : un motif QUOTIDIEN (FR-033, le socle) aurait mangé
+    // chaque semaine le courriel de synthèse.
+    //
+    // FRONTIÈRE HONNÊTE : la contrainte CHECK ne connaît encore qu'un seul motif, donc le comportement
+    // à deux motifs n'est PAS observable aujourd'hui — aucun test de comportement ne peut le prouver, et
+    // prétendre le contraire serait pire que ne rien tester. On assère donc sur le texte de la migration,
+    // en le disant. Mutation-cible : retirer `and n.motif = p_motif` de la clause de plafond ; ce test
+    // rougit, et il redeviendra un vrai test de comportement le jour où FR-033 ajoutera un motif.
+    const migration = readFileSync(
+      resolve(process.cwd(), "supabase/migrations/0030_synthese_rattrapage.sql"),
+      "utf-8",
+    );
+    const clausePlafond = migration.slice(migration.indexOf("where not exists"));
+    expect(clausePlafond.slice(0, 400), "le plafond filtre sur le motif").toContain("n.motif = p_motif");
   });
 
   it("un motif hors de l'ensemble fermé est REFUSÉ par la base", async () => {
@@ -326,7 +405,7 @@ describe("[AC4] le plafond de notification, et l'idempotence du canal", () => {
       p_utilisatrice: u.id,
       p_motif: "promo_black_friday",
       p_cle: "x",
-      p_plafond_heures: 0,
+      p_plafond_heures: 72,
     });
     expect(error, "la contrainte CHECK ferme l'ensemble des motifs").not.toBeNull();
   });
@@ -341,9 +420,13 @@ describe("[AD-12] ce qu'une SESSION peut et ne peut pas", () => {
     u.id = await creerUtilisatrice(u.email);
     autre.id = await creerUtilisatrice(autre.email);
     for (const id of [u.id, autre.id]) {
+      // `enregistrer_synthese` porte désormais la garde d'éligibilité (T2-2) : sans abonnement ni
+      // consentement, elle refuse d'écrire — ce qui est précisément le point, et ce qui est prouvé
+      // séparément plus bas.
+      await consentir(id);
+      await abonner(id);
       await admin.rpc("enregistrer_synthese", {
         p_utilisatrice: id,
-        p_semaine: SEMAINE,
         p_debut: "2026-03-01T00:00:00Z",
         p_fin: "2026-03-08T00:00:00Z",
         p_contenu: `le récit de ${id}`,
@@ -394,47 +477,335 @@ describe("[AD-12] ce qu'une SESSION peut et ne peut pas", () => {
     expect(notifs ?? [], "deny-by-default").toEqual([]);
 
     const appels = [
-      sessionU.rpc("materiau_synthese", { p_utilisatrice: autre.id, p_plafond_entrees: 10 }),
+      sessionU.rpc("materiau_synthese", { p_utilisatrice: autre.id, p_plafond_entrees: 10, p_plafond_octets: 1000 }),
       sessionU.rpc("entrees_hors_detresse", { p_utilisatrice: autre.id, p_depuis: null, p_jusqu_a: new Date().toISOString() }),
-      sessionU.rpc("utilisatrices_a_synthetiser", { p_semaine: SEMAINE, p_limite: 10 }),
-      sessionU.rpc("reserver_notification", { p_utilisatrice: u.id, p_motif: "synthese_prete", p_cle: "x", p_plafond_heures: 0 }),
+      sessionU.rpc("utilisatrices_a_synthetiser", { p_limite: 10 }),
+      sessionU.rpc("reserver_notification", { p_utilisatrice: u.id, p_motif: "synthese_prete", p_cle: "x", p_plafond_heures: 1 }),
       sessionU.rpc("enregistrer_synthese", {
-        p_utilisatrice: u.id, p_semaine: "2099-W08", p_debut: "2026-03-01T00:00:00Z",
-        p_fin: "2026-03-08T00:00:00Z", p_contenu: "forgé", p_tronquee: false,
+        p_utilisatrice: u.id, p_debut: "2099-03-01T00:00:00Z",
+        p_fin: "2099-03-08T00:00:00Z", p_contenu: "forgé", p_tronquee: false,
       }),
+      // La garde d'autorisation elle-même : si une session pouvait l'appeler, elle apprendrait de
+      // n'importe qui s'il ou elle est premium, barrée, ou en épisode de détresse.
+      sessionU.rpc("eligible_a_synthese", { p_utilisatrice: autre.id }),
     ];
     for (const r of await Promise.all(appels)) expect(r.error, "RPC refusée sous JWT").not.toBeNull();
   });
 });
 
-describe("[le plafond de volume] il mord par le PLUS ANCIEN, et il le dit", () => {
+describe("[le plafond de volume] il mord par le PLUS RÉCENT, et la tranche suivante reprend là", () => {
   const u = { email: `syn-volume-${t}@exemple.fr`, id: "" };
 
   beforeAll(async () => {
     u.id = await creerUtilisatrice(u.email);
+    await consentir(u.id);
+    await abonner(u.id);
     for (let i = 0; i < 5; i += 1) {
       await graver(u.id, `${t}-v${i}`, `entrée ${i}`, `2026-04-0${i + 1}T10:00:00Z`);
     }
   });
   afterAll(async () => supprimer(u.id));
 
-  it("garde les plus RÉCENTES, les rend dans l'ordre, et signale la troncature", async () => {
-    // Mutation-cible : `order by cree_le asc` dans le sous-select du plafond. On garderait alors le
-    // début et on jetterait la fin : la synthèse raconterait un passé lointain en ignorant la semaine
-    // qui vient de se passer — l'inverse exact de ce qu'on vient lire.
+  it("[LE CŒUR] garde le DÉBUT de la période, et pose le filigrane sur la dernière entrée lue", async () => {
+    // LE défaut le plus coûteux de la 4.9. La version d'origine gardait les plus RÉCENTES puis posait
+    // `periode_fin = now()` : ce qui avait été écarté passait sous le filigrane et n'entrait PLUS JAMAIS
+    // dans aucune synthèse. La première synthèse visant tout le journal depuis l'inscription, une
+    // utilisatrice bavarde perdait sa première année dès le jour un — silencieusement, et pour une cause
+    // routinière (parler beaucoup, revenir après une absence), pas pour une panne.
+    //
+    // Mutation-cible : `order by e.cree_le desc` dans la fenêtre de `elig`, ou `'jusqu_a', v_instant`
+    // inconditionnel. Les deux rétablissent le trou définitif.
     const m = await materiau(u.id, 3);
     expect(m.total, "le total compte TOUT, avant plafond").toBe(5);
     expect(m.tronquee).toBe(true);
-    expect(m.entrees.map((e) => e.contenu), "les 3 plus récentes, en ordre chronologique").toEqual([
+    expect(m.entrees.map((e) => e.contenu), "les 3 PREMIÈRES, en ordre chronologique").toEqual([
+      "entrée 0",
+      "entrée 1",
       "entrée 2",
+    ]);
+    expect(
+      new Date(m.jusqu_a).toISOString(),
+      "le filigrane est la dernière entrée LUE, pas l'instant de lecture",
+    ).toBe("2026-04-03T10:00:00.000Z");
+  });
+
+  it("[LE CŒUR] la tranche suivante reprend EXACTEMENT au filigrane — rien ne tombe entre les deux", async () => {
+    // C'est la moitié qui manquait : garder le début ne sert à rien si la suite n'est jamais racontée.
+    const premiere = await materiau(u.id, 3);
+    const { error } = await admin.rpc("enregistrer_synthese", {
+      p_utilisatrice: u.id,
+      p_debut: premiere.entrees[0] ? "2026-04-01T10:00:00Z" : null,
+      p_fin: premiere.jusqu_a,
+      p_contenu: "la première tranche",
+      p_tronquee: true,
+    });
+    if (error) throw new Error(`enregistrer: ${error.message}`);
+
+    const suivante = await materiau(u.id, 3);
+    expect(suivante.entrees.map((e) => e.contenu), "la SUITE, sans doublon ni trou").toEqual([
       "entrée 3",
       "entrée 4",
     ]);
+    expect(suivante.tronquee, "et cette fois on va jusqu'au bout").toBe(false);
+
+    await admin.from("synthese").delete().eq("utilisatrice_id", u.id);
   });
 
-  it("sous le plafond, rien n'est tronqué", async () => {
+  it("sous le plafond, rien n'est tronqué et le filigrane est l'instant de lecture", async () => {
     const m = await materiau(u.id, 50);
     expect(m.tronquee).toBe(false);
     expect(m.entrees).toHaveLength(5);
+    expect(new Date(m.jusqu_a).getTime(), "pas de troncature → le filigrane est maintenant").toBeGreaterThan(
+      new Date("2026-04-05T10:00:00Z").getTime(),
+    );
+  });
+
+  it("[REVUE 4.9 / T2-4] le plafond d'OCTETS mord aussi — sinon la fenêtre du modèle explose en silence", async () => {
+    // `PLAFOND_ENTREES` seul ne bornait rien : 200 est un nombre d'entrées, et rien ne borne la longueur
+    // d'une entrée. Mutation-cible : retirer `and e.octets <= p_plafond_octets`.
+    const m = await materiau(u.id, 200, 20); // « entrée 0 » fait 8 caractères → deux tiennent, pas trois
+    expect(m.entrees.length, "coupé par la taille, pas par le nombre").toBeLessThan(5);
+    expect(m.tronquee).toBe(true);
+  });
+
+  it("une entrée SEULE plus grosse que le plafond passe quand même — sinon elle bloque tout, pour toujours", async () => {
+    // Contrôle positif indispensable : si la tranche pouvait être vide, le filigrane n'avancerait jamais
+    // et cette personne resterait bloquée sur une entrée trop longue jusqu'à la fin des temps.
+    const m = await materiau(u.id, 200, 1);
+    expect(m.entrees, "au moins une, toujours").toHaveLength(1);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// REVUE ADVERSARIALE 4.9 — LOT A
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[REVUE 4.9 / T1-1 / AD-17] rien ne naît pendant la détresse — pour de vrai cette fois", () => {
+  const u = { email: `syn-ad17-${t}@exemple.fr`, id: "" };
+
+  beforeAll(async () => {
+    u.id = await creerUtilisatrice(u.email);
+    await consentir(u.id);
+    await abonner(u.id);
+    // Une seule entrée, écrite AVANT tout épisode. C'est elle qui portait le défaut.
+    await graver(u.id, `${t}-ad17`, "une journée ordinaire", "2026-05-01T10:00:00Z");
+  });
+  afterAll(async () => supprimer(u.id));
+
+  it("sans détresse, elle est bien candidate — le contrôle positif d'abord", async () => {
+    expect(await eligible(u.id)).toBe(true);
+    expect(await candidates()).toContain(u.id);
+  });
+
+  it("[LE CŒUR] un épisode OUVERT la retire du lot, même si ses entrées sont ANTÉRIEURES", async () => {
+    // LE défaut, et le plus grave de la revue. La migration 0029 affirmait « rien ne naît pendant la
+    // détresse (AD-17) », le commit l'affirmait, la story l'affirmait. C'était faux : la clause AC3
+    // n'écartait que les ENTRÉES tombées DANS l'épisode. Celles d'AVANT restaient éligibles, la rendaient
+    // candidate, et une femme en épisode ouvert recevait sa synthèse ET son courriel — « Ta synthèse est
+    // prête » au milieu d'une traversée.
+    //
+    // Aucun test ne rougissait parce que le seul test de l'époque montait l'épisode AVANT l'unique
+    // entrée : il prouvait le cas où l'épisode couvre tout, puis concluait sur le cas général.
+    //
+    // Mutation-cible : retirer la clause `not exists (episode_detresse …)` d'`eligible_a_synthese`.
+    await episode(u.id, "2026-05-10T20:00:00Z", null); // ouvert, et POSTÉRIEUR à l'entrée
+    expect(await eligible(u.id), "l'autorisation tombe").toBe(false);
+    expect(await candidates(), "et elle sort du lot").not.toContain(u.id);
+  });
+
+  it("l'épisode CLOS bloque encore pendant la fenêtre de 72 h — le prédicat de la maison, à la lettre", async () => {
+    // `branche_bloquee_par_detresse()` (0010) est `fin is null OR fenetre_expire_at > now()`. La synthèse
+    // n'a aucune raison d'être plus laxiste que la naissance d'une branche : le lendemain d'un épisode,
+    // un bilan de sa semaine n'est pas ce dont elle a besoin. Mutation-cible : ne garder que `fin is null`.
+    await admin.from("episode_detresse").delete().eq("utilisatrice_id", u.id);
+    const ilYAUneHeure = new Date(Date.now() - 3_600_000).toISOString();
+    await episode(u.id, "2026-05-10T20:00:00Z", ilYAUneHeure); // clos, fenêtre encore chaude
+    expect(await eligible(u.id), "72 h après la fin, pas avant").toBe(false);
+
+    await admin.from("episode_detresse").delete().eq("utilisatrice_id", u.id);
+    const ilYALongtemps = new Date(Date.now() - 200 * 3_600_000).toISOString();
+    await episode(u.id, "2026-05-10T20:00:00Z", ilYALongtemps); // clos, fenêtre froide
+    expect(await eligible(u.id), "l'épisode ancien, lui, ne bloque plus rien").toBe(true);
+  });
+});
+
+describe("[REVUE 4.9 / T2-2] la garde vit dans la fonction, pas chez l'appelant — leçon 4.5", () => {
+  const revoquee = { email: `syn-revoq-${t}@exemple.fr`, id: "" };
+  const gratuite = { email: `syn-gratuite-${t}@exemple.fr`, id: "" };
+
+  beforeAll(async () => {
+    revoquee.id = await creerUtilisatrice(revoquee.email);
+    await consentir(revoquee.id);
+    await abonner(revoquee.id);
+    await graver(revoquee.id, `${t}-r`, "VERBATIM INTIME", "2026-05-02T10:00:00Z");
+    await admin.from("consentement").update({ revoked_at: new Date().toISOString() }).eq("utilisatrice_id", revoquee.id);
+
+    gratuite.id = await creerUtilisatrice(gratuite.email);
+    await consentir(gratuite.id);
+    await graver(gratuite.id, `${t}-g`, "VERBATIM INTIME", "2026-05-02T10:00:00Z");
+  });
+  afterAll(async () => {
+    await supprimer(revoquee.id);
+    await supprimer(gratuite.id);
+  });
+
+  it("[LE CŒUR] `materiau_synthese` appelée DIRECTEMENT ne rend rien d'une inéligible", async () => {
+    // Les conditions d'éligibilité ne vivaient QUE dans la fonction de sélection. Appelée directement —
+    // par un futur export, un outil d'administration, un job d'Epic 5 — `materiau_synthese` rendait le
+    // verbatim intégral du journal d'une utilisatrice ayant révoqué son consentement art. 9. C'est le
+    // défaut R1+R3 de la Story 4.5, dont la leçon était écrite noir sur blanc : « une garde écrite dans
+    // l'appelant n'est plus une garde, c'est une politesse ». La migration 0029 le disait elle-même,
+    // deux fois — et l'appliquait à la détresse et aux tombstones, jamais à l'éligibilité.
+    //
+    // Mutation-cible : retirer le `if not public.eligible_a_synthese(...) then return … end if`.
+    for (const inelig of [revoquee, gratuite]) {
+      const m = await materiau(inelig.id);
+      expect(m.entrees, `${inelig.email} : aucun verbatim`).toEqual([]);
+      expect(m.total).toBe(0);
+    }
+  });
+
+  it("[LE CŒUR] `enregistrer_synthese` appelée DIRECTEMENT n'écrit pas d'art. 9 pour une inéligible", async () => {
+    // Même racine, effet symétrique : la fonction d'écriture acceptait n'importe quel identifiant. La
+    // fenêtre réelle n'est pas théorique — entre la constitution du lot et l'écriture, il s'écoule
+    // jusqu'à une minute et vingt appels au modèle fort.
+    for (const inelig of [revoquee, gratuite]) {
+      const { data, error } = await admin.rpc("enregistrer_synthese", {
+        p_utilisatrice: inelig.id,
+        p_debut: "2026-05-01T00:00:00Z",
+        p_fin: "2026-05-08T00:00:00Z",
+        p_contenu: "un récit qui n'aurait jamais dû être écrit",
+        p_tronquee: false,
+      });
+      expect(error).toBeNull();
+      expect(data, `${inelig.email} : refus`).toBeNull();
+    }
+    const { data: lignes } = await admin
+      .from("synthese")
+      .select("id")
+      .in("utilisatrice_id", [revoquee.id, gratuite.id]);
+    expect(lignes ?? [], "aucune ligne écrite").toEqual([]);
+  });
+});
+
+describe("[REVUE 4.9] la CADENCE vit en base — sept jours, sauf rattrapage", () => {
+  const u = { email: `syn-cadence-${t}@exemple.fr`, id: "" };
+
+  beforeAll(async () => {
+    u.id = await creerUtilisatrice(u.email);
+    await consentir(u.id);
+    await abonner(u.id);
+    await graver(u.id, `${t}-c1`, "avant", "2026-06-01T10:00:00Z");
+    await graver(u.id, `${t}-c2`, "après", new Date(Date.now() - 3_600_000).toISOString());
+  });
+  afterAll(async () => supprimer(u.id));
+
+  async function poserSynthese(finIlYAHeures: number, tronquee: boolean) {
+    await admin.from("synthese").delete().eq("utilisatrice_id", u.id);
+    const fin = new Date(Date.now() - finIlYAHeures * 3_600_000).toISOString();
+    const { error } = await admin.rpc("enregistrer_synthese", {
+      p_utilisatrice: u.id,
+      p_debut: "2026-06-01T00:00:00Z",
+      p_fin: fin,
+      p_contenu: "une tranche",
+      p_tronquee: tronquee,
+    });
+    if (error) throw new Error(`poserSynthese: ${error.message}`);
+  }
+
+  it("servie il y a deux jours, entière → elle attend", async () => {
+    // Remplace la clé hebdomadaire ISO. Ce que ça corrige au passage : dimanche servie pour W32, une
+    // phrase écrite le soir, lundi la semaine ISO bascule et elle recevait une « synthèse hebdomadaire »
+    // couvrant 22 heures — le message générique récurrent que FR-034 interdit.
+    // Mutation-cible : retirer la clause `d.periode_fin <= now() - interval '7 days'`.
+    await poserSynthese(48, false);
+    expect(await candidates()).not.toContain(u.id);
+  });
+
+  it("servie il y a huit jours → elle revient", async () => {
+    await poserSynthese(8 * 24, false);
+    expect(await candidates()).toContain(u.id);
+  });
+
+  it("[LE CŒUR] servie il y a deux jours mais TRONQUÉE → elle revient dès demain", async () => {
+    // C'est le rattrapage chronologique. Sans cette clause, une utilisatrice revenue après trois mois
+    // verrait son journal raconté à raison d'une tranche par semaine : sa synthèse d'août parlerait de
+    // février. Mutation-cible : retirer `or d.tronquee`.
+    await poserSynthese(48, true);
+    expect(await candidates()).toContain(u.id);
+  });
+});
+
+describe("[REVUE 4.9] les deux trous que la mutation-vérification a trouvés dans mes propres tests", () => {
+  const sansArt9 = { email: `syn-noart9-${t}@exemple.fr`, id: "" };
+  const sansIa = { email: `syn-noia-${t}@exemple.fr`, id: "" };
+  const bavarde = { email: `syn-anam-${t}@exemple.fr`, id: "" };
+
+  beforeAll(async () => {
+    // Une ligne de consentement EXISTE, mais la case art. 9 n'est pas cochée. Le test d'origine
+    // n'éprouvait que « aucune ligne » et « revoked_at posé » : le mutant `and k.art9_accorde = true`
+    // → `and true` SURVIVAIT, c'est-à-dire qu'une femme ayant refusé l'art. 9 tout en ayant accepté les
+    // CGU aurait reçu sa synthèse. Le défaut était déjà signalé dans la revue (S1/S2) ; je l'avais
+    // reproduit.
+    sansArt9.id = await creerUtilisatrice(sansArt9.email);
+    await consentir(sansArt9.id, { sansArt9: true });
+    await abonner(sansArt9.id);
+    await graver(sansArt9.id, `${t}-na`, "quelque chose", "2026-07-01T10:00:00Z");
+
+    sansIa.id = await creerUtilisatrice(sansIa.email);
+    await consentir(sansIa.id, { sansIa: true });
+    await abonner(sansIa.id);
+    await graver(sansIa.id, `${t}-ni`, "quelque chose", "2026-07-01T10:00:00Z");
+
+    bavarde.id = await creerUtilisatrice(bavarde.email);
+    await consentir(bavarde.id);
+    await abonner(bavarde.id);
+    await graver(bavarde.id, `${t}-elle`, "CE QU'ELLE A DIT", "2026-07-01T10:00:00Z");
+    // Une ligne `role = 'anam'`. Aucun chemin de production n'en écrit (la policy de 0016 épingle
+    // `utilisatrice` à l'insertion, précisément « sinon une utilisatrice forgerait de fausses paroles
+    // d'Anam »), mais `service_role` contourne la RLS — et l'Epic 6 en écrira.
+    await graver(bavarde.id, `${t}-anam`, "CE QU'ANAM AURAIT DIT", "2026-07-01T11:00:00Z", "anam");
+  });
+  afterAll(async () => {
+    await supprimer(sansArt9.id);
+    await supprimer(sansIa.id);
+    await supprimer(bavarde.id);
+  });
+
+  it("cocher les CGU sans cocher l'art. 9 ne suffit pas — chaque case est éprouvée séparément", async () => {
+    // Mutation-cible : `and k.art9_accorde = true` → `and true`, puis `and k.ia_reconnue = true` → `and true`.
+    expect(await eligible(sansArt9.id), "art. 9 refusé").toBe(false);
+    expect(await eligible(sansIa.id), "IA non reconnue").toBe(false);
+    const liste = await candidates();
+    expect(liste).not.toContain(sansArt9.id);
+    expect(liste).not.toContain(sansIa.id);
+  });
+
+  it("[LE CŒUR] le matériau ne contient QUE ses mots à elle — jamais une ligne attribuée à Anam", async () => {
+    // C'est la moitié BASE de la correction T1-5. L'autre moitié (plus de préfixe de voix dans le
+    // prompt) vit dans `consigne-synthese.ts`. Les deux sont nécessaires : sans le filtre, le jour où
+    // l'Epic 6 écrira les tours d'Anam, ils entreraient dans un bloc que la consigne présente comme
+    // « ce qu'elle a écrit ». Mutation-cible : `where e.role = 'utilisatrice'` → `where true`.
+    const m = await materiau(bavarde.id);
+    expect(m.entrees.map((e) => e.contenu)).toEqual(["CE QU'ELLE A DIT"]);
+    expect(m.total, "le total non plus ne compte pas les tours d'Anam").toBe(1);
+  });
+
+  it("une personne dont le journal ne contient QUE des tours d'Anam n'est pas candidate", async () => {
+    // Latent aujourd'hui, armé à l'Epic 6 (FR-033, le socle quotidien : Anam parle sans être
+    // sollicitée). Sans le filtre dans la condition d'éligibilité, une personne qui n'a RIEN dit de la
+    // semaine deviendrait candidate, coûterait un appel au modèle fort et recevrait un courriel pour une
+    // synthèse composée des paroles d'Anam — le message générique récurrent que FR-034 interdit.
+    const muette = { email: `syn-anam-seule-${t}@exemple.fr`, id: "" };
+    muette.id = await creerUtilisatrice(muette.email);
+    try {
+      await consentir(muette.id);
+      await abonner(muette.id);
+      await graver(muette.id, `${t}-seul`, "Anam parle toute seule", "2026-07-02T10:00:00Z", "anam");
+      expect(await eligible(muette.id), "elle est bien autorisée…").toBe(true);
+      expect(await candidates(), "…mais elle n'a rien dit").not.toContain(muette.id);
+    } finally {
+      await supprimer(muette.id);
+    }
   });
 });

@@ -1,3 +1,5 @@
+import { FUSEAU } from "@/lib/domain/ordonnanceur";
+
 /**
  * Story 4.9 — LE DOMAINE PUR DE LA SYNTHÈSE. Aucune I/O, aucun framework, aucune infra (AD-1).
  *
@@ -8,7 +10,13 @@
  *     message générique récurrent. » Une synthèse « il ne s'est rien passé » EST ce message-là.
  *   • QUELLE PÉRIODE ? (D2) — de la dernière synthèse à maintenant, jamais une fenêtre glissante de sept
  *     jours. Un tick manqué ne doit pas creuser un trou définitif dans le récit.
- *   • QUE FAIRE DU TROP-PLEIN ? — le plafond mord par le PLUS ANCIEN, et la synthèse le dit.
+ *   • QUE FAIRE DU TROP-PLEIN ? — le plafond mord par le PLUS RÉCENT : on garde le DÉBUT de la période,
+ *     et le filigrane s'arrête à la dernière entrée lue. La suite est racontée le lendemain, dans une
+ *     tranche qui reprend exactement là. Revu par la revue 4.9 : mordre par le plus ancien (la version
+ *     d'origine) écartait le début de la période puis posait le filigrane à MAINTENANT — ce qui avait été
+ *     écarté passait sous le filigrane et n'entrait plus jamais dans aucune synthèse. La première
+ *     synthèse visant tout le journal depuis l'inscription, une utilisatrice bavarde perdait sa première
+ *     année dès le jour un. Le récit est chronologique ou il n'est pas.
  *
  * Ce qui N'EST PAS ici : l'exclusion de détresse et le filtre des tombstones. Ils vivent dans la base
  * (`entrees_hors_detresse`, `materiau_synthese`), parce qu'une garde qu'un appelant peut oublier n'est
@@ -24,6 +32,27 @@
  * ordinaire, et sous la fenêtre du modèle fort.
  */
 export const PLAFOND_ENTREES = 200;
+
+/**
+ * Le plafond de TAILLE, en caractères, d'une tranche envoyée au modèle.
+ *
+ * `PLAFOND_ENTREES` seul ne bornait rien : 200 est un nombre d'entrées, et rien ne borne la longueur
+ * d'une entrée — ni contrainte en base, ni `maxLength` au composeur. 200 entrées de 2,5 ko (soit ~350
+ * mots chacune : quelqu'un qui journalise en paragraphes, pas un abus) dépassent la fenêtre du modèle.
+ * La requête échouait alors en 400, rien n'était écrit, le filigrane n'avançait pas — donc les mêmes 200
+ * entrées le lendemain, et la même erreur, tous les jours, pour toujours, et en silence puisqu'un incident
+ * n'est levé que si TOUT le lot échoue.
+ *
+ * 200 000 caractères ≈ 55 000 jetons de français : large pour une tranche, et loin sous la fenêtre du
+ * modèle fort même en comptant la consigne et la sortie.
+ */
+export const PLAFOND_OCTETS = 200_000;
+
+/**
+ * La longueur maximale acceptée pour une synthèse produite. Au-delà, on coupe plutôt que de refuser :
+ * refuser ferait échouer la tranche, donc la rejouer à l'identique demain, donc échouer à nouveau.
+ */
+export const LONGUEUR_SYNTHESE_MAX = 20_000;
 
 /**
  * Le plafond de notification, tous motifs confondus (AC4, FR-035). Il borne le CANAL, jamais le CONTENU :
@@ -48,7 +77,12 @@ export interface EntreeMateriau {
 export interface MateriauSynthese {
   /** Fin de la dernière synthèse, ou `null` s'il n'y en a jamais eu. */
   readonly depuis: string | null;
-  /** L'instant où la base a lu le matériau. Devient `periode_fin`, donc le `depuis` de la prochaine. */
+  /**
+   * LE FILIGRANE de cette tranche — jusqu'où elle va. Devient `periode_fin`, donc le `depuis` de la
+   * prochaine. Quand `tronquee`, ce n'est PAS l'instant de lecture mais l'horodatage de la dernière
+   * entrée réellement lue : c'est ce qui fait que la tranche suivante reprend exactement là, et que
+   * rien ne tombe entre les deux.
+   */
   readonly jusqu_a: string;
   /** Nombre total d'entrées éligibles, AVANT le plafond. */
   readonly total: number;
@@ -93,4 +127,55 @@ export function periodeDe(materiau: MateriauSynthese): PeriodeSynthese | null {
   const premiere = materiau.entrees[0];
   if (!premiere) return null;
   return { debut: premiere.cree_le, fin: materiau.jusqu_a, tronquee: materiau.tronquee };
+}
+
+/**
+ * La sortie du modèle, avant écriture (revue 4.9, T2-3).
+ *
+ * C'était la SEULE sortie de modèle du produit qui n'était bornée par rien. Partout ailleurs il y a une
+ * garde : `extraireNiveau` et `extraireFamille` sont des parseurs à repli sûr, `lireBooleen` répond
+ * `false` dans le doute, `structurerBilan` n'émet AUCUN bilan plutôt qu'un bloc malformé, le flux
+ * conversationnel est coupé à trois phrases. Ici, `reponse.texte` allait tel quel en base.
+ *
+ * Deux conséquences réelles. Le modèle refuse — « Je ne peux pas vous aider avec cela. » — et ce refus
+ * est stocké verbatim, annoncé par courriel, et lu par elle comme le récit de sa semaine. Ou le modèle
+ * rend du blanc, la contrainte `length(btrim(contenu)) > 0` lève, la tranche échoue, et comme le
+ * filigrane n'avance pas elle est rejouée à l'identique le lendemain : une garde de base de données
+ * transformée en panne permanente.
+ *
+ * Rend `null` quand il n'y a rien d'écrivable — l'appelant clôt alors en échec, ce qui est la vérité :
+ * on a payé un appel au modèle fort et on n'a rien obtenu.
+ */
+export function validerSortieSynthese(texte: string | null | undefined): string | null {
+  const propre = (texte ?? "").trim();
+  if (propre.length === 0) return null;
+  // On COUPE plutôt que de refuser : refuser rejouerait la même tranche demain, pour le même résultat.
+  return propre.length > LONGUEUR_SYNTHESE_MAX ? propre.slice(0, LONGUEUR_SYNTHESE_MAX) : propre;
+}
+
+/**
+ * La période racontée, écrite pour être lue (revue 4.9, T6-1).
+ *
+ * Elle vit ICI, dans le domaine, et pas dans `render/`, pour deux raisons qui se rejoignent. La première
+ * est que le fuseau est une DÉCISION, et que le rendu ne décide pas (AD-7, AD-10) — la garde
+ * d'architecture du dépôt refuse d'ailleurs tout import de `lib/domain` depuis `render/`, et c'est elle
+ * qui a tranché. La seconde est que la fonction était RECOPIÉE à l'identique dans la halte et dans la
+ * fiche, et que les deux copies omettaient `timeZone` : le rendu se faisait donc dans le fuseau du
+ * serveur — Paris en développement, UTC en production. Une entrée écrite à 00 h 30 heure de Paris, heure
+ * de journal intime s'il en est, s'affichait la veille une fois déployée. Le défaut ne se voyait pas en
+ * local, et il fallait le corriger deux fois : la duplication n'était pas le symptôme, elle était la cause.
+ */
+export function periodeLisible(debut: string, fin: string): string {
+  const jour = (iso: string) =>
+    new Date(iso).toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: FUSEAU,
+    });
+  const [d, f] = [jour(debut), jour(fin)];
+  // Une tranche peut tenir dans une seule journée — c'est le cas quand le plafond mord sur peu d'entrées.
+  // « Du 3 août au 3 août » se lit comme une erreur d'affichage ; ce n'en est pas une, mais autant l'écrire
+  // comme quelqu'un l'écrirait.
+  return d === f ? `Le ${d}` : `Du ${d} au ${f}`;
 }

@@ -1,10 +1,17 @@
 import { describe, it, expect, vi } from "vitest";
 import { executerSyntheseAvec, NOM_JOB } from "@/lib/ordonnanceur/jobs/synthese";
 import { creerPortCourrielFactice } from "@/lib/courriel/adaptateurs/factice";
-import { LOT_PAR_TICK, PLAFOND_NOTIFICATION_HEURES, type MateriauSynthese } from "@/lib/domain/synthese";
+import {
+  LOT_PAR_TICK,
+  PLAFOND_ENTREES,
+  PLAFOND_NOTIFICATION_HEURES,
+  PLAFOND_OCTETS,
+  type MateriauSynthese,
+} from "@/lib/domain/synthese";
 import type { DepotSynthese } from "@/lib/data/depot-synthese";
 import type { DepotOrdonnanceur, EtatOrdonnanceur, TypeIncident } from "@/lib/data/depot-ordonnanceur";
 import type { AiPort, ReponseIa, RequeteIa } from "@/lib/ai/port";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ContexteJob } from "@/lib/ordonnanceur/registre";
 
 /**
@@ -16,7 +23,7 @@ import type { ContexteJob } from "@/lib/ordonnanceur/registre";
  */
 
 const INSTANT = new Date("2026-08-05T04:00:00Z"); // mercredi 06:00 à Paris — semaine ISO 2026-W32
-const SEMAINE = "2026-W32";
+const JOUR = "2026-08-05"; // la fenêtre de réclamation par personne est le JOUR (revue 4.9)
 
 interface TraceOrdo {
   reclames: { job: string; fenetre: string; cible: string | null; bail: number }[];
@@ -54,7 +61,7 @@ const MATERIAU_PLEIN: MateriauSynthese = {
   tronquee: false,
   entrees: [
     { role: "utilisatrice", contenu: "j'ai repris le dessin", cree_le: "2026-08-01T10:00:00.000Z" },
-    { role: "anam", contenu: "depuis quand ?", cree_le: "2026-08-01T10:01:00.000Z" },
+    { role: "utilisatrice", contenu: "depuis mars, en fait", cree_le: "2026-08-01T10:01:00.000Z" },
   ],
   faits: ["elle dessine"],
 };
@@ -70,7 +77,8 @@ const MATERIAU_VIDE: MateriauSynthese = {
 
 interface TraceSynthese {
   materiaux: string[];
-  enregistrements: { id: string; semaine: string; debut: string; fin: string; contenu: string }[];
+  plafonds: { entrees: number; octets: number }[];
+  enregistrements: { id: string; debut: string; fin: string; contenu: string; tronquee: boolean }[];
   reservations: { id: string; motif: string; cle: string; plafond: number }[];
   ordre: string[];
 }
@@ -78,23 +86,24 @@ interface TraceSynthese {
 function depotSyntheseFactice(options: {
   candidates?: string[];
   materiau?: (id: string) => MateriauSynthese;
-  enregistrer?: (id: string) => boolean;
+  enregistrer?: (id: string) => string | null;
   reserver?: (id: string) => boolean;
   adresse?: (id: string) => string | null;
 } = {}) {
-  const trace: TraceSynthese = { materiaux: [], enregistrements: [], reservations: [], ordre: [] };
+  const trace: TraceSynthese = { materiaux: [], plafonds: [], enregistrements: [], reservations: [], ordre: [] };
   const depot: DepotSynthese = {
     async candidates() {
       return options.candidates ?? ["u1"];
     },
-    async materiau(id) {
+    async materiau(id, plafondEntrees, plafondOctets) {
       trace.materiaux.push(id);
+      trace.plafonds.push({ entrees: plafondEntrees, octets: plafondOctets });
       return options.materiau ? options.materiau(id) : MATERIAU_PLEIN;
     },
-    async enregistrer(id, semaine, debut, fin, contenu) {
+    async enregistrer(id, debut, fin, contenu, tronquee) {
       trace.ordre.push("enregistrer");
-      trace.enregistrements.push({ id, semaine, debut, fin, contenu });
-      return options.enregistrer ? options.enregistrer(id) : true;
+      trace.enregistrements.push({ id, debut, fin, contenu, tronquee });
+      return options.enregistrer ? options.enregistrer(id) : `syn-${id}`;
     },
     async reserverNotification(id, motif, cle, plafond) {
       trace.ordre.push("reserver");
@@ -129,6 +138,23 @@ function iaFactice(options: { texte?: string; echoue?: boolean } = {}) {
   return { ia, requetes };
 }
 
+/**
+ * Le client `service_role` que l'egress-guard interroge juste avant de poster (T2-1). Il ne sert QU'À ça :
+ * relire `eligible_a_synthese` au plus près de l'envoi. `eligible: false` simule une révocation, une
+ * barrière de minorité ou un épisode de détresse survenu APRÈS la constitution du lot.
+ */
+function supabaseFactice(options: { eligible?: (id: string) => boolean; echoue?: boolean } = {}) {
+  const appels: string[] = [];
+  const client = {
+    async rpc(nom: string, args: { p_utilisatrice: string }) {
+      appels.push(`${nom}:${args.p_utilisatrice}`);
+      if (options.echoue) return { data: null, error: { code: "PGRST000" } };
+      return { data: options.eligible ? options.eligible(args.p_utilisatrice) : true, error: null };
+    },
+  } as unknown as SupabaseClient;
+  return { client, appels };
+}
+
 function contexte(depot: DepotOrdonnanceur): ContexteJob {
   return { depot, instant: INSTANT, registre: [] };
 }
@@ -148,15 +174,15 @@ describe("[LE CŒUR] la fenêtre RÉCLAMÉE par personne est HEBDOMADAIRE, sous 
     const { depot: syn } = depotSyntheseFactice({ candidates: ["u1", "u2"] });
     const { ia } = iaFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel: creerPortCourrielFactice() });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel: creerPortCourrielFactice() });
 
     expect(trace.reclames.map((r) => ({ job: r.job, fenetre: r.fenetre, cible: r.cible }))).toEqual([
-      { job: NOM_JOB, fenetre: SEMAINE, cible: "u1" },
-      { job: NOM_JOB, fenetre: SEMAINE, cible: "u2" },
+      { job: NOM_JOB, fenetre: JOUR, cible: "u1" },
+      { job: NOM_JOB, fenetre: JOUR, cible: "u2" },
     ]);
     expect(trace.clos.map((c) => ({ fenetre: c.fenetre, cible: c.cible, reussi: c.reussi }))).toEqual([
-      { fenetre: SEMAINE, cible: "u1", reussi: true },
-      { fenetre: SEMAINE, cible: "u2", reussi: true },
+      { fenetre: JOUR, cible: "u1", reussi: true },
+      { fenetre: JOUR, cible: "u2", reussi: true },
     ]);
   });
 
@@ -169,7 +195,7 @@ describe("[LE CŒUR] la fenêtre RÉCLAMÉE par personne est HEBDOMADAIRE, sous 
     const { ia, requetes } = iaFactice();
     const courriel = creerPortCourrielFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
     expect(traceSyn.materiaux, "seule u2 a été lue").toEqual(["u2"]);
     expect(requetes, "un seul appel au modèle").toHaveLength(1);
@@ -187,7 +213,7 @@ describe("[AC1] le modèle FORT, et la consigne côté serveur", () => {
     const { depot: syn } = depotSyntheseFactice();
     const { ia, requetes } = iaFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel: creerPortCourrielFactice() });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel: creerPortCourrielFactice() });
 
     expect(requetes[0].capacite).toBe("synthese");
     expect(requetes[0].contientArt9).toBe(true);
@@ -205,12 +231,12 @@ describe("[D3 / FR-034] rien à dire → rien du tout", () => {
     const { ia, requetes } = iaFactice();
     const courriel = creerPortCourrielFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
     expect(requetes, "des faits anciens ne suffisent pas — ils ont déjà été racontés").toEqual([]);
     expect(traceSyn.enregistrements).toEqual([]);
     expect(courriel.envoyes).toEqual([]);
-    expect(trace.clos).toEqual([{ fenetre: SEMAINE, cible: "u1", reussi: true, motif: null }]);
+    expect(trace.clos).toEqual([{ fenetre: JOUR, cible: "u1", reussi: true, motif: null }]);
   });
 });
 
@@ -224,11 +250,13 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     const { ia } = iaFactice();
     const courriel = creerPortCourrielFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
     expect(trace.ordre).toEqual(["enregistrer", "reserver"]);
     expect(trace.reservations).toEqual([
-      { id: "u1", motif: "synthese_prete", cle: SEMAINE, plafond: PLAFOND_NOTIFICATION_HEURES },
+      // La clé d'idempotence est LA SYNTHÈSE écrite, plus la semaine ISO (revue 4.9) : le dépôt factice
+      // rend `syn-u1`, et c'est exactement ce que l'annonce doit réserver.
+      { id: "u1", motif: "synthese_prete", cle: "syn-u1", plafond: PLAFOND_NOTIFICATION_HEURES },
     ]);
     expect(courriel.envoyes).toEqual([{ destinataire: "u1@exemple.fr", motif: "synthese_prete" }]);
   });
@@ -241,21 +269,22 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     const { ia } = iaFactice();
     const courriel = creerPortCourrielFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
     expect(trace.enregistrements, "la synthèse existe").toHaveLength(1);
     expect(courriel.envoyes, "l'annonce, non").toEqual([]);
   });
 
   it("une synthèse DÉJÀ écrite (rejeu) n'est pas annoncée une seconde fois", async () => {
-    // `enregistrer` rend `false` quand l'index unique a refusé : rien de neuf n'a été produit, donc rien
-    // à annoncer. Mutation-cible : notifier inconditionnellement.
+    // `enregistrer` rend `null` quand l'index unique a refusé, ou quand l'éligibilité a changé pendant la
+    // production : rien de neuf n'a été produit, donc rien à annoncer. Mutation-cible : notifier
+    // inconditionnellement.
     const { depot } = depotOrdoFactice();
-    const { depot: syn, trace } = depotSyntheseFactice({ enregistrer: () => false });
+    const { depot: syn, trace } = depotSyntheseFactice({ enregistrer: () => null });
     const { ia } = iaFactice();
     const courriel = creerPortCourrielFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
     expect(trace.reservations, "aucune réservation consommée").toEqual([]);
     expect(courriel.envoyes).toEqual([]);
@@ -270,7 +299,7 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     const { ia } = iaFactice();
     const muet = { estConfigure: () => false, envoyer: vi.fn(async () => {}) };
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel: muet });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel: muet });
 
     expect(trace.enregistrements, "la synthèse est produite quand même").toHaveLength(1);
     expect(trace.reservations).toEqual([]);
@@ -289,10 +318,11 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     await executerSyntheseAvec(contexte(depot), {
       depot: syn,
       ia,
+      supabase: supabaseFactice().client,
       courriel: creerPortCourrielFactice({ echoue: true }),
     });
 
-    expect(trace.clos).toEqual([{ fenetre: SEMAINE, cible: "u1", reussi: true, motif: null }]);
+    expect(trace.clos).toEqual([{ fenetre: JOUR, cible: "u1", reussi: true, motif: null }]);
     expect(trace.incidents, "un courriel perdu n'est pas un incident système").toEqual([]);
     espion.mockRestore();
   });
@@ -304,7 +334,7 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     const { ia } = iaFactice({ texte: "TEXTE INTIME QUI NE DOIT JAMAIS SORTIR" });
     const courriel = creerPortCourrielFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
     expect(JSON.stringify(courriel.envoyes)).not.toContain("INTIME");
     expect(Object.keys(courriel.envoyes[0]).sort()).toEqual(["destinataire", "motif"]);
@@ -324,11 +354,11 @@ describe("[AC1] une personne cassée n'emporte pas les autres", () => {
     const { ia } = iaFactice();
     const courriel = creerPortCourrielFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
     expect(trace.clos).toEqual([
-      { fenetre: SEMAINE, cible: "u1", reussi: false, motif: "materiau_synthese: 08006" },
-      { fenetre: SEMAINE, cible: "u2", reussi: true, motif: null },
+      { fenetre: JOUR, cible: "u1", reussi: false, motif: "materiau_synthese: 08006" },
+      { fenetre: JOUR, cible: "u2", reussi: true, motif: null },
     ]);
     expect(courriel.envoyes.map((e) => e.destinataire)).toEqual(["u2@exemple.fr"]);
     expect(trace.incidents, "un échec partiel n'est pas un incident").toEqual([]);
@@ -343,7 +373,7 @@ describe("[AC1] une personne cassée n'emporte pas les autres", () => {
     });
     const { ia } = iaFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel: creerPortCourrielFactice() });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel: creerPortCourrielFactice() });
 
     expect(trace.clos[0].motif).toBe("erreur_non_identifiee");
   });
@@ -355,7 +385,7 @@ describe("[AC1] une personne cassée n'emporte pas les autres", () => {
     const { depot: syn } = depotSyntheseFactice({ candidates: ["u1", "u2", "u3"] });
     const { ia } = iaFactice({ echoue: true });
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel: creerPortCourrielFactice() });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel: creerPortCourrielFactice() });
 
     expect(trace.incidents).toEqual([
       { type: "job_echoue", job: NOM_JOB, detail: "lot_entierement_echoue" },
@@ -369,7 +399,7 @@ describe("[AC1] une personne cassée n'emporte pas les autres", () => {
     const { depot: syn } = depotSyntheseFactice({ candidates: [] });
     const { ia } = iaFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel: creerPortCourrielFactice() });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel: creerPortCourrielFactice() });
 
     expect(trace.reclames).toEqual([]);
     expect(trace.incidents).toEqual([]);
@@ -377,21 +407,144 @@ describe("[AC1] une personne cassée n'emporte pas les autres", () => {
 });
 
 describe("le lot est BORNÉ — la lambda a 60 s, pas l'éternité", () => {
-  it("le job demande au plus `LOT_PAR_TICK` candidates, pour la semaine courante", async () => {
+  it("le job demande au plus `LOT_PAR_TICK` candidates — la CADENCE, elle, est décidée en base", async () => {
+    // La sélection ne porte plus de fenêtre : `utilisatrices_a_synthetiser` ne prend qu'une limite, et
+    // c'est la base qui applique « sept jours depuis la dernière période, sauf rattrapage ». Passer une
+    // semaine ici reviendrait à recréer côté TypeScript la clé calendaire qu'on vient de retirer.
     const { depot } = depotOrdoFactice();
-    const appel: { semaine?: string; limite?: number } = {};
+    const appel: { limite?: number } = {};
     const syn: DepotSynthese = {
       ...depotSyntheseFactice().depot,
-      async candidates(semaine, limite) {
-        appel.semaine = semaine;
+      async candidates(limite) {
         appel.limite = limite;
         return [];
       },
     };
     const { ia } = iaFactice();
 
-    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, courriel: creerPortCourrielFactice() });
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel: creerPortCourrielFactice() });
 
-    expect(appel).toEqual({ semaine: SEMAINE, limite: LOT_PAR_TICK });
+    expect(appel).toEqual({ limite: LOT_PAR_TICK });
+  });
+
+  it("le matériau est demandé BORNÉ en nombre ET en taille", async () => {
+    // `PLAFOND_ENTREES` seul ne bornait rien : 200 est un nombre d'entrées, et rien ne borne la longueur
+    // d'une entrée. Mutation-cible : retirer `PLAFOND_OCTETS` de l'appel. 200 entrées longues dépassent
+    // la fenêtre du modèle → 400 → aucune écriture → le filigrane n'avance pas → les mêmes 200 entrées
+    // demain, et tous les jours suivants, en silence.
+    const { depot } = depotOrdoFactice();
+    const { depot: syn, trace } = depotSyntheseFactice();
+    const { ia } = iaFactice();
+
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel: creerPortCourrielFactice() });
+
+    expect(trace.plafonds).toEqual([{ entrees: PLAFOND_ENTREES, octets: PLAFOND_OCTETS }]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// REVUE 4.9 / T2-1 — l'egress art. 9 est de nouveau un passage OBLIGÉ
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[T2-1 / AD-13] l'état vivant est relu JUSTE AVANT de poster le journal", () => {
+  it("[LE CŒUR] une révocation survenue APRÈS la constitution du lot bloque l'envoi", async () => {
+    // LE défaut : le job appelait `completer()` sur l'adaptateur NU. `contientArt9: true` était donc
+    // parfaitement inerte — son seul lecteur est l'egress-guard, jamais atteint sur ce chemin. Le lot est
+    // constitué en tête de tick puis traité SÉQUENTIELLEMENT, une personne à la fois, chacune coûtant un
+    // appel au modèle fort : pour la vingtième, l'écart entre le contrôle et l'envoi se compte en
+    // dizaines de secondes. AD-13 dit littéralement « Prevents: envoi au fournisseur après une révocation
+    // en vol ».
+    //
+    // Mutation-cible : remplacer `envoyerSousEgressArt9Ordonnanceur` par `deps.ia.completer`.
+    const espion = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { depot, trace } = depotOrdoFactice();
+      const { depot: syn, trace: traceSyn } = depotSyntheseFactice({ candidates: ["u1", "u2"] });
+      const { ia, requetes } = iaFactice();
+      const courriel = creerPortCourrielFactice();
+      const { client, appels } = supabaseFactice({ eligible: (id) => id !== "u2" });
+
+      await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: client, courriel });
+
+      expect(appels, "la garde est interrogée pour CHAQUE personne").toEqual([
+        "eligible_a_synthese:u1",
+        "eligible_a_synthese:u2",
+      ]);
+      expect(requetes, "u2 n'a JAMAIS été postée au fournisseur").toHaveLength(1);
+      expect(traceSyn.enregistrements.map((e) => e.id), "et rien n'a été écrit pour elle").toEqual(["u1"]);
+      expect(courriel.envoyes.map((e) => e.destinataire)).toEqual(["u1@exemple.fr"]);
+      // Close en RÉUSSITE : le job a fait son travail, qui était de constater qu'il ne devait rien faire.
+      // Clore en échec la ferait revenir demain pour reconstater la même chose, tous les jours.
+      expect(trace.clos.map((c) => ({ cible: c.cible, reussi: c.reussi }))).toEqual([
+        { cible: "u1", reussi: true },
+        { cible: "u2", reussi: true },
+      ]);
+    } finally {
+      espion.mockRestore();
+    }
+  });
+
+  it("le ZDR non prouvé bloque AUSSI — la garde est agnostique au fournisseur (AD-3)", async () => {
+    const espion = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { depot } = depotOrdoFactice();
+      const { depot: syn, trace } = depotSyntheseFactice();
+      const { ia, requetes } = iaFactice();
+      const iaSansZdr: AiPort = { ...ia, estZdrProuve: () => false };
+
+      await executerSyntheseAvec(contexte(depot), {
+        depot: syn,
+        ia: iaSansZdr,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice(),
+      });
+
+      expect(requetes, "rien n'est parti").toHaveLength(0);
+      expect(trace.enregistrements, "rien n'est écrit").toEqual([]);
+    } finally {
+      espion.mockRestore();
+    }
+  });
+
+  it("une erreur de la RPC de garde BLOQUE (fail-safe), elle ne laisse pas passer", async () => {
+    // Dernier `await` avant l'envoi : dans le doute, on ne poste pas. Mutation-cible : ignorer `error`.
+    const espion = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { depot } = depotOrdoFactice();
+      const { depot: syn, trace } = depotSyntheseFactice();
+      const { ia, requetes } = iaFactice();
+
+      await executerSyntheseAvec(contexte(depot), {
+        depot: syn,
+        ia,
+        supabase: supabaseFactice({ echoue: true }).client,
+        courriel: creerPortCourrielFactice(),
+      });
+
+      expect(requetes).toHaveLength(0);
+      expect(trace.enregistrements).toEqual([]);
+    } finally {
+      espion.mockRestore();
+    }
+  });
+
+  it("[T2-3] une sortie de modèle VIDE n'est jamais écrite, et compte comme un échec", async () => {
+    // Le blanc faisait lever `contenu_non_vide`, donc échouer la tranche — et comme le filigrane
+    // n'avance pas, la même tranche était rejouée à l'identique le lendemain. Une garde de base de
+    // données transformée en panne permanente. Mutation-cible : retirer le `if (contenu === null) throw`.
+    const { depot, trace } = depotOrdoFactice();
+    const { depot: syn, trace: traceSyn } = depotSyntheseFactice();
+    const { ia } = iaFactice({ texte: "   \n  " });
+
+    await executerSyntheseAvec(contexte(depot), {
+      depot: syn,
+      ia,
+      supabase: supabaseFactice().client,
+      courriel: creerPortCourrielFactice(),
+    });
+
+    expect(traceSyn.enregistrements, "rien n'entre en base").toEqual([]);
+    expect(trace.clos[0].reussi, "et c'est bien un échec : on a payé le modèle pour rien").toBe(false);
+    expect(trace.clos[0].motif).toBe("synthese_sortie_vide");
   });
 });

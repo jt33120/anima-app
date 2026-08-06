@@ -16,28 +16,32 @@ import s from "./synthese.module.css";
  * autorisés, à l'inverse de la voix d'Anam — FR-084) est porté par la CONSIGNE, côté serveur, où il est
  * une instruction ; pas ici, où il ne pourrait être qu'une devinette.
  *
- * `tronquee` est affiché parce que le taire serait mentir : une synthèse qui ne couvre pas tout son
- * début doit le dire, sinon son silence sur une période se lit comme « il ne s'est rien passé ».
+ * `tronquee` est affiché parce que le taire serait mentir : une synthèse qui s'arrête avant la fin de la
+ * période doit le dire, sinon son silence se lit comme « il ne s'est rien passé ».
+ *
+ * ── LA PÉRIODE ARRIVE DÉJÀ ÉCRITE ──────────────────────────────────────────────────────────────────────
+ *
+ * `periode` est une CHAÎNE, pas deux dates. La revue 4.9 a d'abord corrigé le fuseau ici même (les dates
+ * étaient rendues dans le fuseau du SERVEUR — Paris en développement, UTC en production, donc une entrée
+ * de 00 h 30 affichée la veille une fois déployée), puis la garde d'architecture a refusé le correctif :
+ * `render/` n'a pas le droit d'importer `lib/domain`, où vit `FUSEAU`. Elle avait raison. Choisir un
+ * fuseau est une DÉCISION, et le rendu ne décide pas (AD-10, AD-7) — il reçoit du texte et le dessine.
  */
 export default function FicheSynthese({
   contenu,
-  debut,
-  fin,
+  periode,
   tronquee,
 }: {
   contenu: string;
-  debut: string;
-  fin: string;
+  periode: string;
   tronquee: boolean;
 }) {
   return (
     <article className={`${s.fiche} fondu-texte`}>
-      <p className={`${s.periode} t-meta`}>
-        Du {jourLisible(debut)} au {jourLisible(fin)}
-      </p>
+      <p className={`${s.periode} t-meta`}>{periode}</p>
       {tronquee && (
         <p className={`${s.periode} t-meta`}>
-          Cette synthèse ne reprend pas tout le début de la période.
+          Cette synthèse s’arrête avant la fin de la période. La suite viendra.
         </p>
       )}
       <div className={`${s.corps} t-corps`}>{contenu}</div>
@@ -45,7 +49,3 @@ export default function FicheSynthese({
   );
 }
 
-/** Une date lisible, en français, sans heure — la synthèse porte sur des jours, pas sur des instants. */
-function jourLisible(iso: string): string {
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-}

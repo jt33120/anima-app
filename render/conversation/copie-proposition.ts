@@ -14,3 +14,10 @@ export const ACTION_NOMMER = "Nommer";
 export const CONFIRME_NAISSANCE = "Ta branche existe.";
 /** Échec de création (réseau / garde serveur) — neutre, sans dramatiser, retryable (revue 4.5, #3). */
 export const ECHEC_NAISSANCE = "Je n'ai pas pu créer cette branche. Tu peux réessayer.";
+
+/**
+ * Story 4.10 (AC4) — le geste de l'invitation. « La voir » et rien de plus : ni « Y aller maintenant »
+ * (qui presse), ni « Travailler dessus » (qui met au travail), ni un chiffre. Le libellé ne dit pas non
+ * plus LAQUELLE — le nom de la branche est de l'art. 9, et il s'affichera sur sa fiche, chez elle.
+ */
+export const ACTION_ALLER_VERS_BRANCHE = "La voir";

@@ -62,7 +62,8 @@
 .zoomBouton:focus-visible,
 .accroche:focus-visible,
 .ficheFermer:focus-visible,
-.renommageChamp:focus-visible {
+.renommageChamp:focus-visible,
+.planChamp:focus-visible {
   outline: 2px solid var(--bordure-forte);
   outline-offset: 2px;
 }
@@ -366,4 +367,69 @@
   .canevas {
     transition: none;
   }
+}
+
+/* ── Story 4.10 — LE PLAN D'ÉTAPES sur la fiche (FR-032/FR-081) ───────────────────────────────────────
+   Rendu comme un BLOC DOCUMENT : titres et listes vivent hors du fil de conversation (EXPERIENCE.md),
+   et une suite d'intentions est exactement ça — une liste qu'on relit, pas une parole qui passe. */
+.plan {
+  margin-top: var(--esp-3);
+  padding-top: var(--esp-3);
+  border-top: 1px solid var(--bordure-douce);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+.planTitre {
+  font-family: var(--pile-ui);
+  font-size: 0.85rem;
+  color: var(--texte-doux);
+  margin: 0;
+}
+.planVide {
+  font-family: var(--pile-ui);
+  font-size: 0.9rem;
+  color: var(--texte-doux);
+  margin: 0;
+}
+.planListe {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+/* Un filet à gauche, comme l'extrait source : ces mots sont les SIENS, pas ceux d'Anam. */
+.planEtape {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+  padding-left: 16px;
+  border-left: 2px solid var(--bordure-forte);
+}
+.planEtape p {
+  margin: 0;
+}
+/* La conjonction (« Si… » / « …alors… ») porte la FORME, pas le contenu : elle s'efface visuellement
+   pour que ses mots à elle restent au premier plan. Jamais portée par la couleur seule — c'est du texte. */
+.planConjonction {
+  font-family: var(--pile-ui);
+  font-size: 0.85rem;
+  color: var(--texte-doux);
+}
+.planSaisie {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  margin-top: var(--esp-2);
+}
+.planChamp {
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-3);
+  border-radius: var(--rayon-md);
+  border: 1px solid var(--bordure-forte);
+  background: var(--surface);
+  color: var(--texte);
+  font-family: var(--pile-ui);
 }

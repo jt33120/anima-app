@@ -34,15 +34,19 @@ import ArbreInteractif from "./arbre/ArbreInteractif";
 import Surimpression from "./surimpression";
 import Conversation from "./conversation/Conversation";
 import EchangeSource from "./conversation/EchangeSource";
-import type { PropositionBrancheData } from "./conversation/types";
+import type { OuvertureData } from "./conversation/types";
 import type { ResultatGeste } from "./arbre/FicheBranche";
 import s from "./monde.module.css";
 
 export interface ProprietesSceneRendue {
   /** Domain-projection serveur, en lecture seule (AD-7). Le rendu ne l'écrit jamais. */
   projection: ProjectionScene;
-  /** Story 4.5 — proposition de branche « le lendemain » calculée serveur (générique, aucun art. 9), ou null. */
-  propositionBranche?: PropositionBrancheData | null;
+  /**
+   * Story 4.5, arbitrée en 4.10 — ce que le SERVEUR a décidé d'ouvrir : une proposition de branche, une
+   * invitation à faire vivre celle qui attend (FR-030), ou rien. Générique, aucun art. 9, et surtout
+   * AUCUN COMPTE (FR-031/AC5 [DUR]) : le chiffre est mort côté serveur.
+   */
+  ouverture?: OuvertureData | null;
 }
 
 /* Étoiles générées côté client APRÈS montage → aucun décalage d'hydratation. */
@@ -96,7 +100,7 @@ const CORPS: Record<IdRegion, string> = {
   arbre: "Ton arbre grandira à mesure que tu avances.",
 };
 
-export default function SceneDom({ projection, propositionBranche }: ProprietesSceneRendue) {
+export default function SceneDom({ projection, ouverture }: ProprietesSceneRendue) {
   const [etat, dispatch] = useReducer(reducteurVue, etatInitial);
   const region = etat.regionCourante;
   /* Naviguer par la barre ANNULE le rejeu de l'échange source : sans ça, `echangeExtrait` restait collé et
@@ -133,6 +137,19 @@ export default function SceneDom({ projection, propositionBranche }: ProprietesS
   const retourArbre = () => {
     setEchangeExtrait(null);
     dispatch({ type: "revenir" }); // restaure région + caméra + fiche (AC4)
+  };
+
+  /**
+   * Story 4.10 (AC4) — l'invitation d'Anam MÈNE quelque part : elle emmène à la région arbre et ouvre la
+   * fiche de la branche visée, là où vivent les trois gestes qui la font vivre (plan d'étapes, retour sur
+   * le thème, déclaration de pleine lumière). Sans ce chemin, l'invitation serait un constat sur ce
+   * qu'elle n'a pas fait — c'est-à-dire un reproche.
+   *
+   * Deux actions du réducteur pur, aucune décision ici (AD-7) : le rendu navigue, il ne tranche rien.
+   */
+  const allerVersBranche = (brancheId: string) => {
+    aller("arbre");
+    dispatch({ type: "ouvrirFiche", brancheId });
   };
 
   // Le renommage passe par la route (jamais d'écriture DB au rendu, AD-7). Succès → nom mis à jour localement.
@@ -278,7 +295,11 @@ export default function SceneDom({ projection, propositionBranche }: ProprietesS
                     séance en cours et ré-amorçait la proposition de branche de 4.5 (revue 4.6, HAUTE).
                     L'échange source persisté se SUPERPOSE (AC4), puis le retour redonne le fil intact. */}
                 <div className={echangeExtrait ? s.masque : s.transparent}>
-                  <Conversation onPreparation={setAnamPrepare} propositionBranche={propositionBranche} />
+                  <Conversation
+                    onPreparation={setAnamPrepare}
+                    ouverture={ouverture}
+                    onAllerVersBranche={allerVersBranche}
+                  />
                 </div>
                 {echangeExtrait && <EchangeSource extraitSourceId={echangeExtrait} onRetour={retourArbre} />}
               </>

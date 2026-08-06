@@ -55,7 +55,7 @@ export const PLAFOND_OCTETS = 200_000;
 export const LONGUEUR_SYNTHESE_MAX = 20_000;
 
 /**
- * Le plafond de notification, tous motifs confondus (AC4, FR-035). Il borne le CANAL, jamais le CONTENU :
+ * Le plafond de notification, PAR FAMILLE depuis la 4.10 (AC4, FR-035). Il borne le CANAL, jamais le CONTENU :
  * une synthèse refusée par le plafond est quand même écrite et consultable — c'est le courriel qui ne part
  * pas. Confondre les deux reviendrait à laisser une règle de politesse effacer un récit.
  */
@@ -75,6 +75,30 @@ export const PLAFOND_NOTIFICATION_HEURES = 72;
  * approcher la fenêtre de 72 h qui, elle, doit rester exacte.
  */
 export const RETENTION_NOTIFICATION_JOURS = 30;
+
+/**
+ * Story 4.10 (décision D4) — LE RATTRAPAGE DE L'ANNONCE.
+ *
+ * Combien de jours une synthèse écrite mais jamais annoncée reste-t-elle annonçable, et combien on en
+ * reprend par tick.
+ *
+ * POURQUOI CE MÉCANISME EXISTE : l'annonce était accrochée à la PRODUCTION — `notifier()` n'était tentée
+ * que dans le tour où la synthèse venait d'être écrite. Refusée là (plafond, canal non configuré, hoquet
+ * réseau), elle était perdue DÉFINITIVEMENT : la cadence retient la personne sept jours, et la synthèse
+ * existant déjà, `enregistrer` rend `null`. La migration 0030 avait décrit exactement ce défaut et l'avait
+ * contourné (plafond par motif) plutôt que réparé. Le passage au plafond par FAMILLE le rendrait plus
+ * fréquent — d'où la vraie réparation, ici.
+ *
+ * TROIS JOURS, et pas trente : au-delà, « ta synthèse est prête » pour un texte de la semaine dernière est
+ * un courriel daté qui n'apporte rien. Le plafond a mordu, la synthèse attend dans l'app, et c'est très
+ * bien ainsi. Une durée courte est aussi ce qui empêche ce rattrapage de devenir une file d'attente.
+ *
+ * CINQ PAR TICK : le rattrapage passe AVANT le fan-out et mange donc son budget. Il ne fait aucun appel
+ * modèle (quatre allers-retours par personne), mais il ne doit pas empêcher la synthèse du jour d'être
+ * produite — c'est elle, la raison d'être du job.
+ */
+export const RATTRAPAGE_ANNONCE_JOURS = 3;
+export const LOT_RATTRAPAGE_ANNONCE = 5;
 
 /**
  * Combien d'utilisatrices au plus par tick. Le fan-out est séquentiel dans une lambda bornée à 60 s et
@@ -100,6 +124,26 @@ export const DELAI_MODELE_MS = 25_000;
  * quatre allers-retours en base et de l'envoi. En deçà, on rend la main — les restantes reviennent demain.
  */
 export const RESERVE_PERSONNE_MS = DELAI_MODELE_MS + 6_000;
+
+/**
+ * LE BUDGET PROPRE DU RATTRAPAGE (revue 4.10) — et pourquoi il ne pouvait pas être `RESERVE_PERSONNE_MS`.
+ *
+ * La première version bornait la boucle de rattrapage avec la MÊME réserve que le fan-out (31 s) sur un
+ * budget de 36 s. Elle ne s'arrêtait donc qu'au moment précis où la production s'arrêtait aussi — soit
+ * l'inverse exact de ce que son commentaire promettait. Une seule itération lente (quatre allers-retours,
+ * dont un POST HTTP) brûlait les 5 s de marge, et le fan-out cassait AU PREMIER CANDIDAT :
+ *
+ *     zéro synthèse produite, job clos en `reussi`, aucun incident levé — et répétable jour après jour,
+ *     puisque les synthèses non annoncées restent trois jours dans la fenêtre.
+ *
+ * Une famine totale et parfaitement silencieuse, sur le mécanisme censé RÉPARER une perte silencieuse.
+ *
+ * Le rattrapage garde donc sa propre marge AU-DESSUS de celle du fan-out : il rend la main pendant qu'il
+ * reste de quoi produire, pas au moment où il n'en reste plus. Et chaque annonce est bornée, parce qu'une
+ * réserve ne réserve rien si l'opération qu'elle protège n'a pas de plafond.
+ */
+export const RESERVE_RATTRAPAGE_MS = RESERVE_PERSONNE_MS + 4_000;
+export const DELAI_ANNONCE_MS = 3_000;
 
 export interface EntreeMateriau {
   readonly role: "utilisatrice" | "anam";

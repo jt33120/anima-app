@@ -33,8 +33,21 @@ import type { JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
  * refuse tout ce qui n'est pas un uuid — à l'exécution, pas seulement à la compilation.
  */
 
-/** L'ensemble FERMÉ des motifs. L'Epic 6 y ajoutera FR-033 (socle) et FR-034 (échéances). */
-export type MotifCourriel = "synthese_prete";
+/**
+ * L'ensemble FERMÉ des motifs — miroir EXACT du CHECK `notification_envoyee.motif` (0029/0036) et de
+ * `public.famille_motif` (0036). Trois choses doivent rester d'accord, et le désaccord est rendu bruyant :
+ * un motif absent du CHECK ne s'insère pas, un motif sans famille fait LEVER la réservation.
+ *
+ * `echeance_intention` (Story 4.10, AC3) : « une échéance que tu as fixée arrive aujourd'hui ». C'est le
+ * DEUXIÈME motif signé d'Anam — celui qui a rendu observable le fait que le plafond de 72 h était compté
+ * par motif et non par famille (décision D4). L'Epic 6 ajoutera FR-033 (le socle), qui est une AUTRE
+ * famille et n'entrera donc pas en concurrence avec ceux-ci.
+ *
+ * ⚠️ IL N'EXISTE AUCUN MOTIF DE RECONNEXION, et c'est structurel : « jamais un rappel de connexion »
+ * (AC3, EXPERIENCE.md) n'est pas une règle de rédaction qu'on pourrait enfreindre en écrivant un joli
+ * texte — il n'y a simplement aucune valeur ici où le loger.
+ */
+export type MotifCourriel = "synthese_prete" | "echeance_intention";
 
 
 export interface PortCourriel {

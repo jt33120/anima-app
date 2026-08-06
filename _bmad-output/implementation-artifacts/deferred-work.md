@@ -384,6 +384,96 @@ dans les définitions vivantes, vérifié en base). Restent trois items, gardés
   44 px mais restent tenues par la relecture. La garde empêche la RÉGRESSION, pas l'oubli sur un nom
   inédit — c'est écrit dans son en-tête.
 
+## FR-088 — « les branches sont premium » n'est gardé nulle part (constaté à la création de la 4.10)
+
+**Le fait.** `creer_branche_depuis_signal` (migration 0021) ne porte **aucune** condition d'abonnement,
+ni dans la RPC, ni dans le `WITH CHECK` de la policy `branche`. `app/api/anam/branche/route.ts` non plus
+(ses gardes portent sur la propriété et sur la détresse, pas sur l'entitlement). Un compte gratuit qui
+atteint une proposition d'ouverture peut donc créer, nommer, faire feuiller et déclarer en rayonnement
+autant de branches qu'il veut. FR-088 (`prd.md:186`) dit l'inverse.
+
+**Pourquoi ce n'est pas « borné en pratique » comme on pourrait le croire.** L'argument naturel est
+« de toute façon un compte gratuit ne parle pas assez pour déclencher une reconceptualisation ». Il ne
+tient pas aujourd'hui, pour deux raisons vérifiées :
+
+1. **Le quota gratuit est INERTE.** `limiteAllocationResiduelle()` lit `ALLOCATION_RESIDUELLE_TOURS`,
+   qui n'est **posé nulle part** (ni `.env.local`, ni Vercel) → `null` → `doitCouperConversation` renvoie
+   toujours `false`. Un compte gratuit a donc, à cette date, une **conversation illimitée**. Le
+   raisonnement « il ne parlera pas assez » ne commence à exister qu'une fois cette porte ops posée.
+2. **La détection de reconceptualisation n'a elle non plus aucune garde premium.**
+   `evaluerReconceptualisationDuTour` tourne sur *chaque* tour post-sécurité et dépense un appel au
+   **modèle fort**. Le coût réel n'est donc pas la branche : il est en amont, dans la détection, et il
+   est déjà entièrement ouvert au gratuit.
+
+**Ce que ça veut dire.** FR-088 n'est pas une frontière de coût, c'est la frontière **produit** : si un
+compte gratuit peut faire pousser tout un arbre, l'offre premium n'a plus grand-chose à vendre. C'est
+une décision de PO, pas un correctif technique évident — d'où le report.
+
+**Correctif quand il sera tranché** : la garde va dans le `WITH CHECK` de la policy d'écriture de
+`branche` (leçon RLS déjà apprise : `authenticated` a le grant sur la table, une garde dans la seule RPC
+ne protège rien), avec un repli explicite sur le doute — et il faut décider ce que devient une branche
+existante quand un abonnement s'éteint (lecture seule ? gelée ? intacte ?). **À trancher avant mise en
+ligne**, en même temps que la valeur de `ALLOCATION_RESIDUELLE_TOURS`. Hors périmètre de la 4.10, qui ne
+garde que ce qu'elle crée (les plans d'étapes, FR-081).
+[supabase/migrations/0021_branche.sql, app/api/anam/branche/route.ts, lib/ai/allocation-config.ts,
+lib/safety/reconceptualisation-pipeline.ts]
+
+---
+
+## Story 4.10 — ce que la revue a laissé ouvert, et pourquoi
+
+- **La collision synthèse ↔ rappel d'échéance est DÉTERMINISTE, et la perte est ACCEPTÉE (décision PO du
+  2026-08-06).** Les deux motifs partagent la famille `anam`, plafonnée à une notification par 72 h
+  (EXPERIENCE.md). Le registre exécute la synthèse AVANT le rappel dans le même tick : si les deux tombent
+  le même jour, la réservation de `synthese_prete` est déjà posée et le rappel est refusé — toujours, pas
+  parfois. Et ~43 % des jours de la semaine suivant une synthèse sont dans la fenêtre de blocage.
+  Contrairement à la synthèse (rattrapée trois jours par `syntheses_non_annoncees`), **le rappel n'est
+  jamais rattrapé** : `echeance = aujourd'hui`, jamais `<=`. Julian a tranché : on accepte la perte plutôt
+  que d'introduire une priorité entre motifs. **À rouvrir si l'usage montre des rappels manqués** — le
+  correctif serait une priorité de famille, ou une fenêtre de rattrapage d'un jour pour le rappel seul.
+  [supabase/migrations/0036, lib/ordonnanceur/registre.ts]
+
+- **La famille `socle` n'existe nulle part encore.** Toute l'argumentation D4 repose sur deux familles, et
+  `famille_motif` ne produit que `anam` ou `NULL`. La promesse « le socle quotidien FR-033 ne mangera pas
+  le courriel de synthèse » n'est donc vérifiée par aucun test — elle le sera le jour où l'Epic 5/6 ajoutera
+  le premier motif de socle. Le mécanisme est prêt (fail-closed sur motif non classé, testé) ; c'est la
+  seconde famille qui manque. [supabase/migrations/0036, lib/courriel/port.ts]
+
+- **`faits_arbitrage_ouverture` est exécutable par `authenticated`, donc le compte de branches ouvertes est
+  lisible par le client.** AC5 [DUR] est tenu au sens strict — le PRODUIT n'affiche jamais ce nombre, et le
+  type qui traverse la frontière n'a aucun champ numérique — mais l'affirmation « le rendu ne PEUT pas
+  l'afficher » est plus faible qu'annoncé : trois lignes dans une console suffisent à le récupérer. On ne
+  peut pas révoquer `authenticated` (la RPC est appelée sous le jeton de l'utilisatrice) ; les vraies
+  options sont de déplacer le seuil en SQL (au prix d'AD-1, qui veut la règle produit testable sans base)
+  ou d'accepter que quelqu'un puisse lire SON PROPRE compte dans SA base. **À trancher si le sujet
+  ressort.** [supabase/migrations/0036, lib/domain/arbitrage-ouverture.ts]
+
+- **L'inventaire d'effacement d'`ARCHITECTURE-SPINE.md` n'a pas été mis à jour** pour `intention` et
+  `invitation_integration`. Les cascades SQL fonctionnent (vérifié), donc l'effacement RÉEL n'est pas perdu ;
+  le risque est en aval, si le moteur de rétention de l'Epic 6 s'appuie sur cette liste plutôt que sur une
+  découverte dynamique des FK — notamment pour le volet EXPORT, qu'une cascade ne produit pas.
+  **Aucun test du dépôt ne vérifie dynamiquement que toute table portant `utilisatrice_id` est en cascade** —
+  la discipline repose entièrement sur la relecture. [ARCHITECTURE-SPINE.md:123]
+
+- **`RATTRAPAGE_ANNONCE_JOURS` (3 j) est exactement égal à `PLAFOND_NOTIFICATION_HEURES` (72 h).** Aucune
+  marge entre la durée pendant laquelle une synthèse reste rattrapable et celle pendant laquelle le plafond
+  la bloque. Deux synthèses à quelques heures d'intervalle — le cas littéral que 0030 décrivait — perdent
+  toujours l'annonce de la seconde. Allonger le rattrapage à 4-5 jours rendrait la fenêtre réellement
+  utile ; non fait parce qu'au-delà de trois jours, « ta synthèse est prête » devient un courriel daté.
+  [lib/domain/synthese.ts]
+
+- **Deux `300` littéraux en SQL** (`intention_declencheur_borne` / `intention_action_borne`) là où le domaine
+  évite scrupuleusement la seconde valeur (`INTENTION_LONGUEUR_MAX = NOM_LONGUEUR_MAX`). Aucune borne unique
+  extraite côté base. [supabase/migrations/0036]
+
+- **La garde des cibles tactiles ne voit pas les classes `actionSecondaire` / `carteAction`.**
+  `tests/cible-tactile.test.ts` ne reconnaît une classe que si son nom contient « bouton » ou « champ ».
+  Tous les contrôles neufs de la 4.10 sont conformes (les deux classes déclarent `min-height`), mais rien ne
+  garde la non-régression sur ces deux classes omniprésentes. Élargit le résiduel T6-6 déjà consigné.
+  [tests/cible-tactile.test.ts]
+
+---
+
 **Fragilité de suite observée, non corrigée** : les fichiers de tests SQL frappent le même Postgres local
 en parallèle. Sous forte contention (typiquement pendant une campagne de mutation, qui remplace des
 fonctions sur cette même base), un fichier peut échouer de façon transitoire. Quatre passes complètes

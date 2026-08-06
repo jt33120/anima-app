@@ -341,20 +341,57 @@ describe("[AD-3] un seul fournisseur d'envoi, un seul lecteur de sa clé", () =>
     expect(lecteurs).toEqual([join("lib", "courriel", "fabrique.ts")]);
   });
 
-  it("le CHEMIN D'ENVOI n'est emprunté que par le job de synthèse", () => {
-    // Mutation-cible : envoyer un courriel depuis une route (« juste une confirmation »). Chaque
-    // appelant supplémentaire échappe au plafond de 72 h — qui n'est plafond que s'il est le seul chemin.
-    //
-    // La garde regarde les quatre modules par lesquels un courriel PART (revue T5-2). Elle regardait
-    // auparavant tout `lib/courriel/`, ce qui la faisait crier sur le désabonnement — un module de ce
-    // dossier qui n'envoie rien, et dont les appelants (la page et la route un-clic) sont exactement ce
-    // que la revue exigeait d'ajouter. Élargir la garde pour l'accueillir aurait rendu invisible le cas
-    // qu'elle protège ; on la resserre plutôt sur ce qu'elle protège vraiment.
-    const CHEMIN_ENVOI = /@\/lib\/courriel\/(port|fabrique|gabarits|adaptateurs)/;
+  /**
+   * Les modules qui peuvent OBTENIR un port capable d'envoyer. La 4.10 en ajoute un second (le rappel
+   * d'échéance) — et c'est le moment où cette garde devait changer de nature.
+   *
+   * Tant qu'il n'y avait qu'un expéditeur, « un seul appelant » et « le plafond est le seul chemin »
+   * étaient la même phrase. À deux, ce n'est plus vrai : la liste ci-dessous ne protège plus rien toute
+   * seule, elle ne fait que constater. Ce qui protège vraiment est la garde SUIVANTE.
+   */
+  const EXPEDITEURS = [
+    join("lib", "ordonnanceur", "jobs", "synthese.ts"),
+    join("lib", "ordonnanceur", "jobs", "rappel-echeance.ts"),
+  ];
+  /** Obtenir un port qui envoie = passer par la fabrique ou par un adaptateur. Un import de TYPE n'envoie rien. */
+  const OBTIENT_UN_PORT = /@\/lib\/courriel\/(fabrique|adaptateurs)/;
+
+  it("seuls les JOBS peuvent obtenir un port d'envoi — jamais une route, jamais le rendu", () => {
+    // Mutation-cible : envoyer un courriel depuis une route (« juste une confirmation d'inscription »).
+    // Une route s'exécute à la demande, donc sans fenêtre, donc sans rythme : c'est la porte par laquelle
+    // FR-035 (« discrétion ») sort du produit sans que personne ne s'en aperçoive.
     const appelants = SOURCES.filter((f) => !f.includes(join("lib", "courriel")))
-      .filter((f) => CHEMIN_ENVOI.test(sans(readFileSync(f, "utf-8"))))
-      .map((f) => f.slice(RACINE.length + 1));
-    expect(appelants).toEqual([join("lib", "ordonnanceur", "jobs", "synthese.ts")]);
+      .filter((f) => OBTIENT_UN_PORT.test(sans(readFileSync(f, "utf-8"))))
+      .map((f) => f.slice(RACINE.length + 1))
+      .sort();
+    expect(appelants).toEqual([...EXPEDITEURS].sort());
+  });
+
+  it("[LE CŒUR] tout module capable d'envoyer RÉSERVE d'abord — le plafond n'est plafond que sans exception", () => {
+    // C'est la garde qui remplace « un seul appelant », et elle dit ce que celle-là voulait dire.
+    // Le plafond des 72 h, le refus de désabonnement (0034) et l'idempotence vivent TOUS dans
+    // `reserver_notification`. Un expéditeur qui appellerait `envoyer()` sans réserver les contournerait
+    // tous les trois d'un coup — et silencieusement, puisque le courriel PARTIRAIT.
+    //
+    // Mutation-cible : écrire un troisième job qui poste un courriel « une seule fois, à l'inscription »
+    // sans réserver. La garde précédente se contentait de le lister ; celle-ci rougit.
+    //
+    // ⚠️ CE QU'ELLE NE PEUT PAS PROUVER, et il faut le dire : elle lit du TEXTE. Un expéditeur qui
+    // appellerait bien `reserverNotification` mais en NEUTRALISERAIT le verdict (`const reserve = true ||
+    // await …`) la traverserait sans la faire rougir — la campagne de mutation l'a vérifié. Ce cas-là est
+    // couvert AILLEURS, et par le seul moyen qui puisse le couvrir : un test de COMPORTEMENT par
+    // expéditeur, qui double la réservation en refus et vérifie que rien ne part
+    // (`rappel-echeance-job.test.ts` « réservation REFUSÉE → aucun envoi » ; `synthese-job.test.ts` pour
+    // l'autre). Les deux gardes se partagent le travail : celle-ci voit apparaître un NOUVEL expéditeur,
+    // celles-là voient un expéditeur EXISTANT désobéir. Aucune des deux ne suffit seule.
+    for (const chemin of EXPEDITEURS) {
+      const source = sans(readFileSync(join(RACINE, chemin), "utf-8"));
+      expect(/\.envoyer\(/.test(source), `${chemin} : ce module envoie`).toBe(true);
+      expect(
+        /reserverNotification\(/.test(source),
+        `${chemin} envoie SANS réserver — il échappe au plafond, au désabonnement et à l'idempotence`,
+      ).toBe(true);
+    }
   });
 
   it("et le geste de DÉSABONNEMENT ne s'écrit qu'à un seul endroit", () => {

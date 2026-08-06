@@ -7,6 +7,7 @@ import BlocRessources from "./BlocRessources";
 import BlocDocument from "./BlocDocument";
 import CarteAbonnement from "./CarteAbonnement";
 import PropositionBranche from "./PropositionBranche";
+import InvitationIntegration from "./InvitationIntegration";
 import { estAncreEnBas } from "./composeur-clavier";
 import type { Tour } from "./types";
 import s from "./conversation.module.css";
@@ -30,6 +31,7 @@ export default function Fil({
   onRefuserAbonnement,
   onRepondreProposition,
   onNommerBranche,
+  onAllerVersBranche,
   nommage,
   quotaEpuise,
 }: {
@@ -42,6 +44,8 @@ export default function Fil({
   onNommerBranche?: (id: string, signalId: string, nom: string) => void;
   /** Story 4.5 — l'état d'un « Nommer » en vol (#12 verrou d'envoi / #3 échec retryable). */
   nommage?: { id: string; etat: "envoi" | "echec" } | null;
+  /** Story 4.10 (AC4) — l'invitation mène à la fiche de la branche visée, sinon c'est un reproche. */
+  onAllerVersBranche?: (brancheId: string) => void;
   /** Story 3.4 (revue F9) : allocation épuisée → aucun « Réessayer » résiduel (un rejeu serait re-coupé). */
   quotaEpuise?: boolean;
 }) {
@@ -94,6 +98,12 @@ export default function Fil({
             onOui={() => onRepondreProposition?.(t.id, t.signalId, true)}
             onNon={() => onRepondreProposition?.(t.id, t.signalId, false)}
             onNommer={(nom) => onNommerBranche?.(t.id, t.signalId, nom)}
+          />
+        ) : t.role === "invitation-integration" ? (
+          <InvitationIntegration
+            key={t.id}
+            phrase={t.phrase}
+            onAller={onAllerVersBranche ? () => onAllerVersBranche(t.brancheCibleId) : undefined}
           />
         ) : (
           <TourUtilisatrice key={t.id} texte={t.texte} />

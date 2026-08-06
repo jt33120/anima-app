@@ -43,10 +43,35 @@ async function gestesSuspendus(supabase: SupabaseClient): Promise<boolean> {
   }
 }
 
+/**
+ * Story 4.10 (AC6 / FR-081) — le plan d'étapes est-il ouvert à l'ÉCRITURE ? Repli SÛR = `false` : le
+ * doute FERME l'écriture. C'est l'inverse du repli d'`estPremiumCourante` côté commerce (où le doute
+ * suspend la vente), et pour la même raison de fond — on se trompe du côté qui ne fait de mal à personne.
+ * Ici, se tromper en fermant coûte un champ absent pendant quelques secondes ; se tromper en ouvrant lui
+ * fait écrire deux phrases intimes que le point d'écriture refusera ensuite.
+ */
+async function planOuvert(supabase: SupabaseClient): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc("est_premium_courante");
+    if (error) {
+      journaliserIncidentSecurite("projection_arbre_plan", error);
+      return false;
+    }
+    return data === true;
+  } catch (e) {
+    journaliserIncidentSecurite("projection_arbre_plan", e);
+    return false;
+  }
+}
+
 export async function chargerProjectionArbre(supabase: SupabaseClient): Promise<ProjectionScene> {
   try {
     const branches = await creerDepotBranche(supabase).chargerBranches();
     const suspendus = await gestesSuspendus(supabase);
+    // Écrire une intention est un dépôt de contenu art. 9 : la fenêtre de détresse la ferme aussi
+    // (AD-17, miroir du WITH CHECK de `intention_insertion`). Deux conditions, une seule question posée
+    // au rendu — il n'a pas à savoir laquelle des deux a fermé le champ, et surtout pas à le dire.
+    const ouvert = !suspendus && (await planOuvert(supabase));
     const projetees: BrancheProjetee[] = branches.map((b) => ({
       id: b.id,
       etat: b.etat,
@@ -60,9 +85,14 @@ export async function chargerProjectionArbre(supabase: SupabaseClient): Promise<
       dateRayonnement: b.dateRayonnement ?? undefined,
       extraitContenu: b.extraitContenu,
     }));
-    return suspendus
-      ? { tronc: { present: true }, branches: projetees, gestesSuspendus: true }
-      : { tronc: { present: true }, branches: projetees };
+    return {
+      tronc: { present: true },
+      branches: projetees,
+      // `undefined` plutôt que `false` : la projection ne porte que ce qui est VRAI, comme partout
+      // ailleurs ici (`indisponible`, `gestesSuspendus`). Un champ absent ne se lit pas de travers.
+      ...(suspendus ? { gestesSuspendus: true as const } : {}),
+      ...(ouvert ? { planOuvert: true as const } : {}),
+    };
   } catch (e) {
     // L'extraction du code Postgres vit DÉSORMAIS dans le journaliseur (`codeJournalisable`) : elle
     // s'applique donc à TOUS les appelants, y compris les routes qui l'avaient oubliée (re-revue).

@@ -73,13 +73,37 @@ export type Tour =
       readonly phrase: string;
       readonly etat: EtatProposition;
       readonly nom?: string;
+    }
+  /**
+   * L'INVITATION À INTÉGRER (Story 4.10, FR-030/AC4). Tour CLIENT amorcé au MONTAGE, exactement comme la
+   * proposition — parce que c'est la MÊME décision serveur, prise à l'autre embranchement du `if`.
+   *
+   * ⚠️ AUCUN CHAMP NUMÉRIQUE, ET C'EST L'AC5 [DUR]. Pas de compte, pas de « 3 », pas de liste : le serveur
+   * a compté, il a choisi, et le nombre n'a pas franchi la frontière. Le rendu ne PEUT pas l'afficher.
+   * `brancheCibleId` est un identifiant, pas un compte — c'est lui qui empêche l'invitation d'être un
+   * reproche : elle mène quelque part.
+   *
+   * EN CONVERSATION, JAMAIS EN BANDEAU (AC4, littéralement) : c'est un tour du fil, comme tout ce
+   * qu'Anam dit.
+   */
+  | {
+      readonly id: string;
+      readonly role: "invitation-integration";
+      readonly phrase: string;
+      readonly brancheCibleId: string;
     };
 
 /** Le petit cycle local d'une proposition de branche dans le fil (Story 4.5). */
 export type EtatProposition = "propose" | "nomme" | "refuse" | "nee";
 
-/** La prop serveur→client de la proposition d'ouverture (Story 4.5). Générique : aucun art. 9. */
-export interface PropositionBrancheData {
-  readonly signalId: string;
-  readonly phrase: string;
-}
+/**
+ * La prop serveur→client de l'OUVERTURE (Story 4.5, arbitrée en 4.10) — miroir de `Ouverture`
+ * (`lib/domain/arbitrage-ouverture.ts`). Le rendu ne peut pas importer `lib/` (frontière AD-7) : ce type
+ * est donc une copie volontaire, et une garde (`tests/arbitrage-frontiere.test.ts`) verrouille l'absence
+ * de champ numérique dans les DEUX.
+ *
+ * Générique : aucun art. 9. Deux identifiants et une phrase constante, rien d'autre.
+ */
+export type OuvertureData =
+  | { readonly type: "proposition"; readonly signalId: string; readonly phrase: string }
+  | { readonly type: "invitation"; readonly phrase: string; readonly brancheCibleId: string };

@@ -7,10 +7,14 @@ import { avecDelai } from "@/lib/domain/delai";
 import {
   DELAI_MODELE_MS,
   LOT_PAR_TICK,
+  LOT_RATTRAPAGE_ANNONCE,
   PLAFOND_ENTREES,
   PLAFOND_NOTIFICATION_HEURES,
   PLAFOND_OCTETS,
+  DELAI_ANNONCE_MS,
+  RATTRAPAGE_ANNONCE_JOURS,
   RESERVE_PERSONNE_MS,
+  RESERVE_RATTRAPAGE_MS,
   RETENTION_NOTIFICATION_JOURS,
   periodeDe,
   validerSortieSynthese,
@@ -91,6 +95,43 @@ export async function executerSyntheseAvec(ctx: ContexteJob, deps: DepsSynthese)
   // C'est la CADENCE, en base, qui décide s'il faut la servir aujourd'hui (sept jours depuis la dernière
   // période, sauf rattrapage en cours) ; la réclamation ne décide plus que « pas deux fois le même jour ».
   const jour = fenetreDe("quotidien", ctx.instant);
+
+  // ── LE RATTRAPAGE DE L'ANNONCE (Story 4.10, décision D4) ─────────────────────────────────────────────
+  //
+  // AVANT le fan-out, et sans aucune réclamation : c'est tout l'intérêt. L'annonce était accrochée à la
+  // PRODUCTION — `notifier()` n'était tentée que dans le tour où la synthèse venait d'être écrite. Refusée
+  // là (plafond de 72 h, canal non configuré, hoquet réseau), elle était perdue DÉFINITIVEMENT : la
+  // cadence retient la personne sept jours, et la synthèse existant déjà, `enregistrer` rend `null`.
+  //
+  // La migration 0030 décrivait exactement ce défaut et l'a CONTOURNÉ (plafond par motif) au lieu de le
+  // réparer ; le passage au plafond par FAMILLE (4.10) le rendrait plus fréquent. Voici la réparation :
+  // l'annonce est retrouvable par une requête, donc retentable, indépendamment de toute réclamation.
+  //
+  // `notifier` est idempotente par construction (la clé de réservation est l'identifiant de la synthèse),
+  // donc repasser dessus ne peut pas produire un second courriel.
+  //
+  // ⚠️ SANS CANAL, ON NE LIT MÊME PAS (revue 4.10) : interroger la base pour cinq annonces qui sortiront
+  // toutes immédiatement de `notifier` est du budget dépensé pour rien. Le job de rappel applique déjà
+  // cet ordre et documente pourquoi ; celui-ci ne l'avait pas suivi.
+  if (deps.courriel.estConfigure()) {
+    for (const attente of await deps.depot.syntheseesNonAnnoncees(LOT_RATTRAPAGE_ANNONCE, RATTRAPAGE_ANNONCE_JOURS)) {
+      // Le rattrapage rend la main PENDANT qu'il reste de quoi produire — pas au moment où il n'en reste
+      // plus. Sa réserve est STRICTEMENT au-dessus de celle du fan-out (voir `RESERVE_RATTRAPAGE_MS`) ;
+      // avec la réserve du fan-out, il ne s'arrêtait qu'au moment où la production s'arrêtait aussi.
+      if (ctx.echeance.getTime() - Date.now() < RESERVE_RATTRAPAGE_MS) {
+        journaliserExploitation("synthese_rattrapage_incomplet", { code: "budget" });
+        break;
+      }
+      // Bornée : une réserve ne réserve rien si l'opération qu'elle protège n'a pas de plafond.
+      // `notifier` avale déjà ses propres erreurs ; le délai ne peut donc pas faire échouer le job.
+      await avecDelai(
+        notifier(deps, attente.utilisatriceId, attente.syntheseId),
+        DELAI_ANNONCE_MS,
+        "synthese_rattrapage_timeout",
+      ).catch((e) => journaliserExploitation("synthese_rattrapage", { code: codeDErreur(e) }));
+    }
+  }
+
   const candidates = await deps.depot.candidates(NOM_JOB, LOT_PAR_TICK);
 
   // LE PLAFOND DE DÉBIT SE DIT (revue 4.9, T6-8). Vingt personnes par tick × sept jours = 140 synthèses

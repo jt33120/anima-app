@@ -1,6 +1,6 @@
 import "server-only";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
-import { jetonValide, type JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
+import { creerDepotCanalCourriel, type DepotCanalCourriel } from "@/lib/data/depot-canal-courriel";
 import type { MateriauSynthese } from "@/lib/domain/synthese";
 
 /**
@@ -24,9 +24,13 @@ import type { MateriauSynthese } from "@/lib/domain/synthese";
  * au passage (NFR-022), même leçon qu'en 4.8.
  */
 
-export type MotifNotification = "synthese_prete";
-
-export interface DepotSynthese {
+/**
+ * ⚠️ `MotifNotification` A DISPARU (Story 4.10). C'était un SECOND ensemble fermé de motifs, en face de
+ * `MotifCourriel` (`lib/courriel/port.ts`) — deux listes qui devaient rester d'accord sans qu'aucune
+ * garde ne le vérifie. Le canal n'a plus qu'une définition, et elle vit là où elle décide de quelque
+ * chose : dans la signature du port.
+ */
+export interface DepotSynthese extends DepotCanalCourriel {
   /** Les utilisatrices à servir maintenant, les plus longtemps en attente d'abord. */
   candidates(job: string, limite: number): Promise<readonly string[]>;
   /**
@@ -50,21 +54,16 @@ export interface DepotSynthese {
     contenu: string,
     tronquee: boolean,
   ): Promise<string | null>;
-  /** `true` si le canal est réservé et l'envoi autorisé. Réserve AVANT d'envoyer, jamais après. */
-  reserverNotification(
-    utilisatriceId: string,
-    motif: MotifNotification,
-    cle: string,
-    plafondHeures: number,
-  ): Promise<boolean>;
-  /** L'adresse vit dans `auth.users`, jamais recopiée dans une table `public`. */
-  adresse(utilisatriceId: string): Promise<string | null>;
   /**
-   * Le jeton opaque de désabonnement, créé au premier envoi (revue T5-2). `null` sur échec de lecture :
-   * un courriel sans lien de désabonnement ne part pas — l'absence de sortie est ce qui a rendu la
-   * première version indéfendable, et une panne de base n'est pas une raison de la reproduire.
+   * Story 4.10 (D4) — LES SYNTHÈSES ÉCRITES MAIS JAMAIS ANNONCÉES, dans la fenêtre récente.
+   *
+   * C'est ce qui rend l'annonce RETENTABLE indépendamment de la production. Avant, `notifier()` n'était
+   * tentée que dans le tour où la synthèse venait d'être écrite : refusée là (plafond, canal non
+   * configuré, panne réseau), elle était perdue DÉFINITIVEMENT — la cadence retient la personne sept
+   * jours, et la synthèse existant déjà, `enregistrer` rend `null`. C'était la contrepartie assumée du
+   * per-motif de 0030 ; le passage au per-famille l'aurait rendue plus fréquente, alors on la répare.
    */
-  jetonDesabonnement(utilisatriceId: string): Promise<JetonDesabonnement | null>;
+  syntheseesNonAnnoncees(limite: number, jours: number): Promise<{ utilisatriceId: string; syntheseId: string }[]>;
   /**
    * Efface les traces de notification devenues inutiles (revue T5-3). Rend le nombre de lignes
    * supprimées, ou `null` si la purge n'a pas pu s'exécuter — le silence serait pire, une rétention qui
@@ -77,6 +76,10 @@ export function creerDepotSynthese(): DepotSynthese {
   const supabase = createSupabaseAdminClient();
 
   return {
+    // Le canal courriel est COMPOSÉ, pas recopié (Story 4.10). Le rappel d'échéance utilise exactement
+    // les mêmes trois méthodes ; en garder deux exemplaires aurait laissé la garde de désabonnement de
+    // 0034 dans un seul des deux, sans que rien ne le dise.
+    ...creerDepotCanalCourriel(),
     async candidates(job, limite): Promise<readonly string[]> {
       const { data, error } = await supabase.rpc("utilisatrices_a_synthetiser", {
         p_job: job,
@@ -126,31 +129,18 @@ export function creerDepotSynthese(): DepotSynthese {
       return typeof data === "string" && data.length > 0 ? data : null;
     },
 
-    async reserverNotification(utilisatriceId, motif, cle, plafondHeures): Promise<boolean> {
-      const { data, error } = await supabase.rpc("reserver_notification", {
-        p_utilisatrice: utilisatriceId,
-        p_motif: motif,
-        p_cle: cle,
-        p_plafond_heures: plafondHeures,
+    async syntheseesNonAnnoncees(limite, jours): Promise<{ utilisatriceId: string; syntheseId: string }[]> {
+      const { data, error } = await supabase.rpc("syntheses_non_annoncees", {
+        p_limite: limite,
+        p_jours: jours,
       });
-      if (error) throw new Error(`reserver_notification: ${error.code ?? "echec"}`);
-      // Dans le doute : NE PAS envoyer. Un courriel de trop est irrattrapable ; un courriel de moins se
-      // rattrape à la prochaine ouverture de l'app, où la synthèse l'attend de toute façon.
-      return data === true;
-    },
-
-    async adresse(utilisatriceId): Promise<string | null> {
-      const { data, error } = await supabase.auth.admin.getUserById(utilisatriceId);
-      if (error) return null;
-      return data.user?.email ?? null;
-    },
-
-    async jetonDesabonnement(utilisatriceId): Promise<JetonDesabonnement | null> {
-      const { data, error } = await supabase.rpc("jeton_courriel", { p_utilisatrice: utilisatriceId });
-      if (error) return null;
-      // `jetonValide` n'est pas décoratif ici : c'est la frontière où une valeur venue de la base entre
-      // dans un type qui autorise à écrire dans un courriel. Elle la refuse si ce n'est pas un uuid.
-      return jetonValide(typeof data === "string" ? data : null);
+      // Le RATTRAPAGE n'a pas le droit de faire échouer le job : il est un bonus. Une lecture en panne
+      // rend une liste vide — on retentera demain, ce qui est exactement ce que ce mécanisme fait déjà.
+      if (error) return [];
+      return (Array.isArray(data) ? data : []).map((r: Record<string, unknown>) => ({
+        utilisatriceId: r.utilisatrice_id as string,
+        syntheseId: r.synthese_id as string,
+      }));
     },
 
     async purgerNotifications(jours): Promise<number | null> {

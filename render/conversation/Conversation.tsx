@@ -8,7 +8,7 @@ import { useFluxAnam, type MessageEnvoi } from "./useFluxAnam";
 import { insererTour } from "./fil-ops";
 import { LIGNE_QUOTA_EPUISEE } from "./ligne-quota";
 import { REPONSE_REFUS, CONFIRME_NAISSANCE, ECHEC_NAISSANCE } from "./copie-proposition";
-import type { Tour, PropositionBrancheData } from "./types";
+import type { Tour, OuvertureData } from "./types";
 import s from "./conversation.module.css";
 
 /**
@@ -31,29 +31,73 @@ const nouvelId = () => `t${++compteur}`;
 // Registre SYSTÈME (jamais signé Anam) — même texte que le tour en échec, pour l'annonce a11y.
 const MESSAGE_ECHEC = "Je n’ai pas pu répondre. Ton message est gardé.";
 
+/**
+ * La CLÉ STABLE d'une ouverture — ce qui permet de distinguer « une nouvelle chose à dire » de « la même
+ * chose, re-servie par un rafraîchissement ». L'identité de l'objet ne suffirait pas : chaque round-trip
+ * RSC en fabrique un neuf.
+ */
+function cleDOuverture(o?: OuvertureData | null): string | null {
+  if (!o) return null;
+  return o.type === "invitation" ? `i:${o.brancheCibleId}` : `p:${o.signalId}`;
+}
+
+/** Le ou les tours à ajouter au fil pour cette ouverture. Vide s'il n'y a rien à ouvrir. */
+function toursDOuverture(o?: OuvertureData | null): Tour[] {
+  if (!o) return [];
+  if (o.type === "invitation") {
+    return [
+      {
+        id: nouvelId(),
+        role: "invitation-integration",
+        phrase: o.phrase,
+        brancheCibleId: o.brancheCibleId,
+      },
+    ];
+  }
+  return [
+    { id: nouvelId(), role: "proposition-branche", signalId: o.signalId, phrase: o.phrase, etat: "propose" },
+  ];
+}
+
 export default function Conversation({
   onPreparation,
-  propositionBranche,
+  ouverture,
+  onAllerVersBranche,
 }: {
   onPreparation?: (prepare: boolean) => void;
-  /** Story 4.5 — proposition de branche « le lendemain » (serveur). Amorce le fil au montage si présente. */
-  propositionBranche?: PropositionBrancheData | null;
+  /**
+   * Story 4.5, arbitrée en 4.10 — ce que le SERVEUR a décidé d'ouvrir : une proposition de branche, une
+   * invitation à faire vivre celle qui attend, ou rien. Amorce le fil au montage. Aucun compte n'y figure
+   * (AC5 [DUR]) : le rendu ne peut pas afficher un chiffre qu'il n'a pas reçu.
+   */
+  ouverture?: OuvertureData | null;
+  /** L'invitation doit MENER quelque part, sinon c'est un reproche : ceci ouvre la fiche de la branche visée. */
+  onAllerVersBranche?: (brancheId: string) => void;
 }) {
-  // Amorçage au montage (miroir du beat visuel « ouverture ») : si le serveur a trouvé un moment à proposer,
-  // le fil s'ouvre sur le tour de proposition + Oui/Non. Sinon, fil vide (comportement 2.2 inchangé).
-  const [tours, setTours] = useState<Tour[]>(() =>
-    propositionBranche
-      ? [
-          {
-            id: nouvelId(),
-            role: "proposition-branche",
-            signalId: propositionBranche.signalId,
-            phrase: propositionBranche.phrase,
-            etat: "propose",
-          },
-        ]
-      : [],
-  );
+  // ⚠️ `ouverture` EST RÉACTIVE, et ça n'a rien d'optionnel (revue 4.10, défaut le plus grave trouvé).
+  //
+  // Cette Conversation reste MONTÉE en permanence (voir `scene-dom.tsx` : la démonter détruisait le fil
+  // de la séance en cours). Un initialiseur de `useState` ne s'exécute qu'au montage — jamais ensuite.
+  // Or entrer dans la région arbre déclenche `router.refresh()`, qui ré-exécute `app/page.tsx`, donc
+  // `chargerOuverture()`, donc — quand le seuil est franchi — `reserverParole()`, QUI ÉCRIT.
+  //
+  // Le parcours est ordinaire : elle nomme sa 3ᵉ branche, elle clique sur l'onglet arbre. La fenêtre de
+  // sept jours était alors CONSOMMÉE, la nouvelle prop arrivait, l'initialiseur ne rejouait pas, et
+  // l'invitation n'était JAMAIS affichée. Anam se taisait une semaine de plus au moment précis où elle
+  // devait parler — sans trace, sans erreur, sans que rien ne le dise.
+  //
+  // Le patron employé ici est celui déjà validé pour `projLocale` dans `scene-dom.tsx` (« props-into-state
+  // figé — revue 4.6 ») : ajustement d'état PENDANT le rendu, comparé sur une CLÉ STABLE. La clé, et pas
+  // l'identité de l'objet : deux rafraîchissements qui rendent la même proposition ne doivent pas
+  // l'empiler deux fois dans le fil.
+  const cle = cleDOuverture(ouverture);
+  const [tours, setTours] = useState<Tour[]>(() => toursDOuverture(ouverture));
+  const [clePrec, setClePrec] = useState(cle);
+  if (cle !== clePrec) {
+    setClePrec(cle);
+    const nouveaux = toursDOuverture(ouverture);
+    if (nouveaux.length > 0) setTours((prev) => [...prev, ...nouveaux]);
+  }
   const [annonce, setAnnonce] = useState("");
   // Allocation résiduelle épuisée (3.4, AC4) : le composeur passe désactivé-visible avec un motif.
   // Persistant pour la session (le fil est éphémère ; le mois se réévalue au prochain chargement réel).
@@ -317,6 +361,7 @@ export default function Conversation({
         onRefuserAbonnement={refuserAbonnement}
         onRepondreProposition={repondreProposition}
         onNommerBranche={nommerBranche}
+        onAllerVersBranche={onAllerVersBranche}
         nommage={nommage}
         quotaEpuise={quotaEpuise}
       />

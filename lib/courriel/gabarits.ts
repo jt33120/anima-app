@@ -54,29 +54,60 @@ export interface Adresses {
  * mais qu'un `as` ou une désérialisation peut produire. L'adaptateur refuse alors d'envoyer.
  */
 export function gabaritPour(motif: MotifCourriel, { origine, jeton }: Adresses): Gabarit | null {
-  if (motif !== "synthese_prete") return null;
-
-  const halte = `${origine}/synthese`;
   const desabonnement = `${origine}/desabonnement?j=${jeton}`;
+  const lienUnClic = `${origine}/api/desabonnement?j=${jeton}`;
+  const pied = ["", "— Anam", "", "Pour ne plus recevoir ces messages :", desabonnement];
 
-  return {
-    objet: "Ta synthèse est prête",
-    texte: [
-      "Bonjour,",
-      "",
-      // « dans le menu de compte » a été retiré : ce menu n'existe pas. Un courriel qui décrit une
-      // interface imaginaire fait douter la lectrice d'elle-même avant de la faire douter du produit.
-      "Ta synthèse est prête. Elle t'attend dans l'application :",
-      "",
-      halte,
-      "",
-      "— Anam",
-      "",
-      "Pour ne plus recevoir ces messages :",
-      desabonnement,
-    ].join("\n"),
-    lienUnClic: `${origine}/api/desabonnement?j=${jeton}`,
-  };
+  if (motif === "synthese_prete") {
+    return {
+      objet: "Ta synthèse est prête",
+      texte: [
+        "Bonjour,",
+        "",
+        // « dans le menu de compte » a été retiré : ce menu n'existe pas. Un courriel qui décrit une
+        // interface imaginaire fait douter la lectrice d'elle-même avant de la faire douter du produit.
+        "Ta synthèse est prête. Elle t'attend dans l'application :",
+        "",
+        `${origine}/synthese`,
+        ...pied,
+      ].join("\n"),
+      lienUnClic,
+    };
+  }
+
+  if (motif === "echeance_intention") {
+    // ── STORY 4.10 (AC3) — CE QUE CE TEXTE NE DIT PAS, ET POURQUOI ────────────────────────────────────
+    //
+    // Ni le « si », ni le « alors », ni le nom de la branche, ni combien d'échéances tombent aujourd'hui.
+    // NFR-015 : l'objet paraît sur un écran verrouillé, potentiellement devant quelqu'un d'autre. « Tu as
+    // dit que si tu sentais la boule au ventre, tu appellerais ta sœur » est exactement le genre de
+    // phrase qui ne doit jamais apparaître là — et la signature du port fait qu'on ne PEUT pas l'écrire :
+    // il n'existe aucun paramètre où la mettre.
+    //
+    // Le texte porte donc UNIQUEMENT le fait, et le fait est déjà tout ce qui compte : elle s'est fixé un
+    // rendez-vous avec elle-même, et c'est aujourd'hui.
+    //
+    // « que tu as fixée » n'est pas une politesse. C'est la différence entre un rappel et une injonction :
+    // le produit ne lui a rien demandé, il lui rend ce qu'elle a posé. Aucun « n'oublie pas », aucun
+    // « pense à », aucun point d'exclamation — la charte §6 interdit le décret, et un rappel d'échéance
+    // est l'endroit où l'on glisse vers l'injonction sans s'en apercevoir.
+    return {
+      objet: "Une échéance, aujourd'hui",
+      texte: [
+        "Bonjour,",
+        "",
+        "Une échéance que tu as fixée arrive aujourd'hui. Elle t'attend dans l'application :",
+        "",
+        `${origine}/`,
+        ...pied,
+      ].join("\n"),
+      lienUnClic,
+    };
+  }
+
+  // Motif hors de l'ensemble fermé — ce que le type interdit, mais qu'un `as` ou une désérialisation
+  // peut produire. L'adaptateur refuse alors d'envoyer.
+  return null;
 }
 
 /** L'expéditeur affiché. « Anam » seul : ni « Anima », ni un mot du registre ésotérique (NFR-015). */

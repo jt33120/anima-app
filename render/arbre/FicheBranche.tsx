@@ -15,6 +15,7 @@
 import { useEffect, useRef } from "react";
 import type { BrancheProjetee } from "@/lib/scene/projection";
 import ChampRenommage from "./ChampRenommage";
+import PlanEtapes from "./PlanEtapes";
 import { useState } from "react";
 import {
   ACTION_VOIR_CONVERSATION,
@@ -70,6 +71,14 @@ export interface ProprietesFiche {
    * faire lire « elle y restera », puis refuser.
    */
   gesteSuspendu?: boolean;
+  /**
+   * Story 4.10 (AC6 / FR-081) — le plan d'étapes est-il ouvert à l'ÉCRITURE ? Décidé SERVEUR
+   * (`projection.planOuvert`), constaté ici. Faux → le formulaire n'apparaît pas, et on n'explique pas
+   * pourquoi : c'est la leçon de la revue 4.7 sur le geste de rayonnement — mieux vaut ne rien proposer
+   * que proposer, la laisser écrire deux phrases intimes, puis refuser. Le plan DÉJÀ écrit reste lu et
+   * retirable dans tous les cas.
+   */
+  planOuvert?: boolean;
 }
 
 export default function FicheBranche({
@@ -81,6 +90,7 @@ export default function FicheBranche({
   onCentrer,
   onDeclarerRayonnement,
   gesteSuspendu,
+  planOuvert,
 }: ProprietesFiche) {
   const [renomme, setRenomme] = useState(false);
   const [confirme, setConfirme] = useState(false);
@@ -225,6 +235,11 @@ export default function FicheBranche({
           autoFocus
         />
       )}
+
+      {/* Story 4.10 (FR-081) — LE PLAN D'ÉTAPES, sous l'extrait et sous les actions : la branche
+          d'abord (d'où elle vient), le concret ensuite. C'est ici, sur la fiche, parce qu'une intention
+          est RATTACHÉE à une branche (AC1) — un volet séparé en referait des étapes flottantes. */}
+      <PlanEtapes brancheId={branche.id} ouvert={planOuvert} onAnnoncer={onAnnoncer} />
 
       <button type="button" className={s.ficheFermer} onClick={onFermer} aria-label={ACTION_FERMER}>
         <span aria-hidden>×</span>

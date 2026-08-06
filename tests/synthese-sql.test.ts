@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 /**
  * Story 4.9 (T7) — LES GARANTIES À L'ÉCRITURE ET À LA LECTURE, contre le vrai Postgres.
@@ -383,24 +381,21 @@ describe("[AC4] le plafond de notification, et l'idempotence du canal", () => {
     }
   });
 
-  it("[REVUE 4.9 / T1-2] le plafond regarde le MOTIF — sinon FR-033 mangerait le courriel de synthèse", async () => {
-    // Le plafond ne regardait que « une notification, n'importe laquelle, dans les 72 h », alors que
-    // l'unicité regardait `(utilisatrice, motif, clé)`. Les deux se contredisaient, et le mécanisme était
-    // structurellement incompatible avec l'Epic 6 : un motif QUOTIDIEN (FR-033, le socle) aurait mangé
-    // chaque semaine le courriel de synthèse.
-    //
-    // FRONTIÈRE HONNÊTE : la contrainte CHECK ne connaît encore qu'un seul motif, donc le comportement
-    // à deux motifs n'est PAS observable aujourd'hui — aucun test de comportement ne peut le prouver, et
-    // prétendre le contraire serait pire que ne rien tester. On assère donc sur le texte de la migration,
-    // en le disant. Mutation-cible : retirer `and n.motif = p_motif` de la clause de plafond ; ce test
-    // rougit, et il redeviendra un vrai test de comportement le jour où FR-033 ajoutera un motif.
-    const migration = readFileSync(
-      resolve(process.cwd(), "supabase/migrations/0030_synthese_rattrapage.sql"),
-      "utf-8",
-    );
-    const clausePlafond = migration.slice(migration.indexOf("where not exists"));
-    expect(clausePlafond.slice(0, 400), "le plafond filtre sur le motif").toContain("n.motif = p_motif");
-  });
+  // ── [REVUE 4.9 / T1-2] — CE TEST A ÉTÉ RETIRÉ PAR LA STORY 4.10, ET C'EST SON DÉNOUEMENT ────────────
+  //
+  // Il assérait sur le TEXTE de la migration 0030 (`and n.motif = p_motif`), faute de comportement
+  // observable : avec un seul motif, « plafond par motif » et « plafond tous motifs » donnent le même
+  // résultat pour toute entrée. Il le disait honnêtement, et il annonçait sa propre fin — « il
+  // redeviendra un vrai test de comportement le jour où un second motif existera ».
+  //
+  // Ce jour est arrivé (4.10 ajoute `echeance_intention`), et l'observation a renversé la conclusion :
+  // le per-motif laissait passer DEUX courriels d'Anam en 72 h, contre EXPERIENCE.md qui en promet un.
+  // Le plafond est désormais PAR FAMILLE (`anam` | `socle`), ce qui restaure la promesse tout en gardant
+  // la raison valable de 0030 (le socle quotidien FR-033 ne mangera pas le courriel de synthèse).
+  //
+  // Le voici, en vrai test de comportement : `tests/intention-sql.test.ts`, describe « [D4] deux motifs
+  // d'Anam ne font pas deux courriels d'Anam en 72 h ». Le laisser ici l'aurait rendu MENTEUR — vert en
+  // décrivant l'inverse de ce que fait la base.
 
   it("un motif hors de l'ensemble fermé est REFUSÉ par la base", async () => {
     const { error } = await admin.rpc("reserver_notification", {

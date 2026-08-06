@@ -13,7 +13,15 @@
 import { useRef, useState } from "react";
 import type { BrancheProjetee } from "@/lib/scene/projection";
 import ChampRenommage from "./ChampRenommage";
-import { LIBELLE_ETAT, ACTION_VOIR_CONVERSATION, ACTION_RENOMMER, VIDE_TITRE, VIDE_CORPS } from "./copie-arbre";
+import PlanEtapes from "./PlanEtapes";
+import {
+  LIBELLE_ETAT,
+  ACTION_VOIR_CONVERSATION,
+  ACTION_RENOMMER,
+  PLAN_TITRE,
+  VIDE_TITRE,
+  VIDE_CORPS,
+} from "./copie-arbre";
 import s from "./arbre.module.css";
 
 function dateLisible(iso?: string): string {
@@ -30,10 +38,31 @@ export interface ProprietesVueListe {
   onRenommer: (brancheId: string, nom: string) => Promise<boolean>;
   /** Dépose une annonce a11y dans la région live PERSISTANTE de la région arbre. */
   onAnnoncer?: (texte: string) => void;
+  /** Story 4.10 (AC6) — l'écriture du plan est-elle ouverte ? Décidé SERVEUR, constaté ici. */
+  planOuvert?: boolean;
 }
 
-export default function VueListe({ branches, onVoirDansConversation, onRenommer, onAnnoncer }: ProprietesVueListe) {
+export default function VueListe({
+  branches,
+  onVoirDansConversation,
+  onRenommer,
+  onAnnoncer,
+  planOuvert,
+}: ProprietesVueListe) {
   const [renomme, setRenomme] = useState<string | null>(null);
+  /**
+   * Story 4.10 — LE PLAN EST ATTEIGNABLE ICI AUSSI, et ce n'est pas du confort.
+   *
+   * La fiche n'est rendue QUE dans la vue canevas. Si le plan n'existait que là, quelqu'un qui navigue au
+   * clavier ou au lecteur d'écran ne pourrait tout simplement pas s'en servir — c'est MOT POUR MOT le
+   * défaut que la revue 4.6 a trouvé sur le renommage, et le « rang égal » d'UX-DR-37 redeviendrait faux.
+   *
+   * Ouvert À LA DEMANDE (comme le champ de renommage) plutôt que monté pour chaque branche : `PlanEtapes`
+   * charge son plan au montage, et lister vingt branches déclencherait vingt requêtes pour du contenu
+   * art. 9 que personne n'a demandé à lire (minimisation).
+   */
+  const [planOuvertPour, setPlanOuvertPour] = useState<string | null>(null);
+  const boutonsPlan = useRef<Map<string, HTMLButtonElement | null>>(new Map());
   // Le focus doit REVENIR au bouton qui a ouvert le champ : sans ça, refermer le renommage (succès ou
   // annulation) démonte l'élément focalisé et le focus retombe sur <body> — la navigation clavier
   // repart alors du début du document (re-revue).
@@ -81,7 +110,22 @@ export default function VueListe({ branches, onVoirDansConversation, onRenommer,
                 {ACTION_RENOMMER}
               </button>
             )}
+            {/* Le bouton reste MONTÉ et bascule (revue 4.10) : le démonter au clic faisait disparaître
+                l'élément focalisé — focus sur `<body>`, exactement le défaut que `fermerRenommage`
+                corrige trois lignes plus haut. Et sans lui, le plan n'était plus refermable du tout. */}
+            <button
+              type="button"
+              className={s.actionSecondaire}
+              ref={(el) => void boutonsPlan.current.set(b.id, el)}
+              aria-expanded={planOuvertPour === b.id}
+              onClick={() => setPlanOuvertPour((ouvert) => (ouvert === b.id ? null : b.id))}
+            >
+              {PLAN_TITRE}
+            </button>
           </div>
+          {planOuvertPour === b.id && (
+            <PlanEtapes key={b.id} brancheId={b.id} ouvert={planOuvert} onAnnoncer={onAnnoncer} />
+          )}
           {renomme === b.id && (
             <ChampRenommage
               key={b.id}

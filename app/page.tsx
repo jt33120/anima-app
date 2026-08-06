@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
-import { chargerPropositionOuverture } from "@/lib/safety/ouverture-branche";
+import { chargerOuverture } from "@/lib/safety/ouverture-branche";
 import { chargerProjectionArbre } from "@/lib/safety/projection-arbre";
 import SceneDom from "@/render/scene-dom";
 
@@ -33,12 +33,14 @@ export default async function Page() {
   if (etape === "revoque") redirect("/consentement/revoque"); // consentement retiré → écran suspendu
 
   // etape === "suite" : le seuil est franchi → la scène (adaptateur DOM/2D, AD-7).
-  // Story 4.5 : « le lendemain », y a-t-il un moment à proposer en branche ? (repli sûr → null).
+  // Story 4.5 / 4.10 : « le lendemain », y a-t-il un moment à ouvrir ? Et si oui, Anam PROPOSE-t-elle une
+  // branche de plus, ou INVITE-t-elle à faire vivre celles qui attendent (FR-030) ? La décision est
+  // serveur, et le compte de branches ouvertes ne franchit PAS cette ligne (FR-031). Repli sûr → null.
   // Story 4.6 : la PROJECTION RÉELLE de l'arbre (branches possédées + verbatim, AD-8), repli sûr → arbre vide.
   // Les deux lectures sous JWT, en parallèle ; jamais un 500 qui bloquerait l'ouverture de la scène.
-  const [propositionBranche, projection] = await Promise.all([
-    chargerPropositionOuverture(supabase),
+  const [ouverture, projection] = await Promise.all([
+    chargerOuverture(supabase),
     chargerProjectionArbre(supabase),
   ]);
-  return <SceneDom projection={projection} propositionBranche={propositionBranche} />;
+  return <SceneDom projection={projection} ouverture={ouverture} />;
 }

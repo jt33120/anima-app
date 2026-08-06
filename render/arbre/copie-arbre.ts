@@ -71,6 +71,47 @@ export const ECHEC_RAYONNEMENT = "Je n'ai pas pu enregistrer ça. Tu peux réess
  * n'explique PAS pourquoi — lui annoncer que le système l'a classée n'est autorisé nulle part.
  */
 export const REFUS_RAYONNEMENT = "Pas maintenant. Cette branche t'attend, elle ne bougera pas.";
+/* ── Story 4.10 — LE PLAN D'ÉTAPES (FR-032/FR-081) ──────────────────────────────────────────────────
+ *
+ * Aucun exemple, aucun placeholder rédigé, aucune suggestion. C'est la même règle que le nommage de
+ * branche (« Tes mots, pas les miens ») et elle est encore plus importante ici : une intention
+ * d'implémentation est une PRESCRIPTION COMPORTEMENTALE. Un exemple pré-rempli — « Si je me sens
+ * anxieuse, alors je respire » — serait Anam décidant à sa place de ce qu'elle devrait faire, ce que le
+ * PRD interdit. Les deux étiquettes ne portent donc que la CONJONCTION, jamais le contenu.
+ */
+export const PLAN_TITRE = "Plan d'étapes";
+export const PLAN_VIDE = "Rien encore.";
+export const PLAN_INDISPONIBLE = "Je n'arrive pas à afficher ce plan pour l'instant.";
+export const ACTION_AJOUTER_ETAPE = "Ajouter une étape";
+export const ACTION_ENREGISTRER_ETAPE = "Enregistrer l'étape";
+export const ACTION_ANNULER_ETAPE = "Annuler";
+export const ACTION_RETIRER_ETAPE = "Retirer";
+/** AC2 « modifiées » — le chemin qui manquait : la plomberie existait, le geste non (revue 4.10). */
+export const ACTION_MODIFIER_ETAPE = "Modifier";
+export const SUCCES_MODIF_ETAPE = "L'étape est modifiée.";
+/** Les deux moitiés. Le libellé EST la forme — c'est lui qui rend « si X, alors Y » sans rien dicter. */
+export const CHAMP_SI_LABEL = "Si…";
+export const CHAMP_ALORS_LABEL = "…alors…";
+export const CHAMP_ECHEANCE_LABEL = "Une date, si tu veux";
+export const SUCCES_ETAPE = "L'étape est enregistrée.";
+export const SUCCES_RETRAIT_ETAPE = "L'étape est retirée.";
+/** PANNE : réessayer a du sens. Neutre, sans dramatiser (patron `ECHEC_RENOMMAGE`). */
+export const ECHEC_ETAPE = "Je n'ai pas pu enregistrer cette étape. Tu peux réessayer.";
+/**
+ * REFUS (403/409) : réessayer n'a PAS de sens — la garde tiendra encore des heures. C'est le patron
+ * `REFUS_RAYONNEMENT` de la 4.7, qui manquait ici : promettre « tu peux réessayer » à quelqu'un qui sort
+ * d'une crise, c'est l'inviter à se heurter au même mur plusieurs fois. Et on n'explique PAS pourquoi.
+ */
+export const REFUS_ETAPE = "Pas maintenant. Ce que tu as écrit n'est pas perdu.";
+/** Le retrait a son PROPRE échec : annoncer « je n'ai pas pu enregistrer » après un retrait est un mensonge. */
+export const ECHEC_RETRAIT_ETAPE = "Je n'ai pas pu retirer cette étape. Tu peux réessayer.";
+/** Une échéance déjà passée — ou celle du jour, dont le rappel est déjà parti — ne se déclenchera jamais. */
+export const ECHEANCE_TROP_TOT = "Choisis une date à partir de demain : le rappel du jour est déjà passé.";
+/** Pendant le chargement : ni « rien encore », ni « panne » — on ne sait pas encore. */
+export const PLAN_EN_COURS = "Je regarde…";
+/** L'échéance rendue lisible — jamais un ISO nu à l'écran. */
+export const ECHEANCE_LE = (date: string) => `Pour le ${date}.`;
+
 /** Repère TEXTUEL du message exact dans le rejeu (l'identification ne repose jamais sur la teinte seule). */
 export const MENTION_MOMENT = "Le moment d'où vient cette branche";
 export const CHAMP_RENOMMER_LABEL = "Le nom de cette branche";

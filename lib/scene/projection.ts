@@ -63,6 +63,22 @@ export interface ProjectionScene {
    * Décidé dans `lib/scene` (AD-7) — le rendu constate, il ne déduit pas.
    */
   readonly gestesSuspendus?: true;
+  /**
+   * Story 4.10 (AC6 / FR-081) — le PLAN D'ÉTAPES est-il ouvert à l'écriture ?
+   *
+   * Vrai seulement si l'abonnement est actif ET qu'aucun geste n'est suspendu. Décidé dans `lib/scene`
+   * (AD-7) : le rendu constate, il ne déduit pas — et surtout il ne relit pas l'entitlement lui-même.
+   *
+   * ⚠️ CE DRAPEAU N'EST PAS LA GARDE. La garde vit dans le `WITH CHECK` des policies (migration 0036) :
+   * `authenticated` a le grant INSERT table-level, donc un gate d'interface seul est décoratif. Celui-ci
+   * ne sert qu'à ne pas MENTIR PAR OMISSION — proposer un champ, la laisser écrire deux phrases sur sa
+   * vie intérieure, puis refuser à l'enregistrement, c'est la faute exacte que la revue 4.7 a trouvée
+   * sur le geste de rayonnement.
+   *
+   * Absent ≠ « son plan disparaît » : la LECTURE reste ouverte (voir `intention_lecture`, 0036). Un
+   * paywall qui séquestre ce qui est déjà écrit n'est pas un paywall.
+   */
+  readonly planOuvert?: true;
 }
 
 /** STUB de départ : tronc présent, aucune branche. Gelé (lecture seule réelle, pas seulement au type). */

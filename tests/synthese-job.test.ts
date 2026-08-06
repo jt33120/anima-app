@@ -7,6 +7,8 @@ import {
   PLAFOND_NOTIFICATION_HEURES,
   PLAFOND_OCTETS,
   DELAI_MODELE_MS,
+  RESERVE_PERSONNE_MS,
+  RESERVE_RATTRAPAGE_MS,
   RETENTION_NOTIFICATION_JOURS,
   type MateriauSynthese,
 } from "@/lib/domain/synthese";
@@ -100,6 +102,8 @@ function depotSyntheseFactice(options: {
   jeton?: (id: string) => string | null;
   purge?: number | null;
   enEchecRepete?: number;
+  /** Story 4.10 (D4) — les synthèses écrites mais jamais annoncées, reprises AVANT le fan-out. */
+  nonAnnoncees?: { utilisatriceId: string; syntheseId: string }[];
 } = {}) {
   const trace: TraceSynthese = { appelsCandidates: [], materiaux: [], plafonds: [], enregistrements: [], reservations: [], purges: [], ordre: [] };
   const depot: DepotSynthese = {
@@ -109,6 +113,12 @@ function depotSyntheseFactice(options: {
     },
     async personnesEnEchecRepete() {
       return options.enEchecRepete ?? 0;
+    },
+    async syntheseesNonAnnoncees() {
+      return options.nonAnnoncees ?? [];
+    },
+    async libererNotification() {
+      /* la synthèse ne libère pas : sa clé se régénère à la période suivante (cf. depot-canal-courriel) */
     },
     async materiau(id, plafondEntrees, plafondOctets) {
       trace.materiaux.push(id);
@@ -189,6 +199,106 @@ function contexte(depot: DepotOrdonnanceur, echeanceDansMs = 3_600_000): Context
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[D4 / revue 4.10] LE RATTRAPAGE D'ANNONCE, câblé dans le job", () => {
+  /**
+   * ⚠️ AUCUN TEST N'EXERÇAIT CETTE BOUCLE. L'option `nonAnnoncees` du dépôt factice existait, servie à
+   * `[]`, et jamais renseignée : remplacer la boucle entière par `for (const a of [])` laissait les
+   * trente-sept tests de ce fichier verts. La requête SQL était prouvée (`intention-sql.test.ts`), le
+   * fait que le job l'APPELLE ne l'était pas — et c'est le mécanisme même que la 4.10 a ajouté pour
+   * réparer la perte silencieuse décrite par la migration 0030.
+   */
+  it("[LE CŒUR] chaque synthèse en attente est annoncée, AVANT le fan-out", async () => {
+    // Mutation-cible : supprimer la boucle de rattrapage. Rien d'autre ne rougit.
+    const { depot, trace } = depotSyntheseFactice({
+      candidates: [],
+      nonAnnoncees: [
+        { utilisatriceId: "u-attente-1", syntheseId: "syn-a" },
+        { utilisatriceId: "u-attente-2", syntheseId: "syn-b" },
+      ],
+    });
+    const { depot: ordo } = depotOrdoFactice();
+    const { ia } = iaFactice();
+    const { client } = supabaseFactice();
+    const courriel = creerPortCourrielFactice();
+    await executerSyntheseAvec(contexte(ordo), { depot, ia, supabase: client, courriel });
+
+    expect(trace.reservations.map((r) => r.cle), "la clé de réservation est la SYNTHÈSE elle-même").toEqual([
+      "syn-a",
+      "syn-b",
+    ]);
+    expect(courriel.envoyes.map((e) => e.destinataire)).toEqual([
+      "u-attente-1@exemple.fr",
+      "u-attente-2@exemple.fr",
+    ]);
+  });
+
+  it("une réservation REFUSÉE au rattrapage n'envoie rien (le plafond garde la main)", async () => {
+    const { depot, trace } = depotSyntheseFactice({
+      candidates: [],
+      reserver: () => false,
+      nonAnnoncees: [{ utilisatriceId: "u-attente-1", syntheseId: "syn-a" }],
+    });
+    const { depot: ordo } = depotOrdoFactice();
+    const { ia } = iaFactice();
+    const { client } = supabaseFactice();
+    const courriel = creerPortCourrielFactice();
+    await executerSyntheseAvec(contexte(ordo), { depot, ia, supabase: client, courriel });
+    expect(trace.reservations).toHaveLength(1);
+    expect(courriel.envoyes).toHaveLength(0);
+  });
+
+  it("[LE CŒUR] le rattrapage N'AFFAME PAS la production : il s'arrête AVANT le seuil du fan-out", async () => {
+    // ⚠️ IL L'AFFAMAIT. Sa borne était `RESERVE_PERSONNE_MS` — la MÊME que le fan-out — sur un budget de
+    // 36 s : il ne s'arrêtait donc qu'au moment précis où la production s'arrêtait aussi. Une itération
+    // lente et le fan-out cassait au premier candidat : zéro synthèse ce jour-là, job clos en `reussi`,
+    // aucun incident. Sa réserve est désormais STRICTEMENT au-dessus.
+    // Mutation-cible : remettre `RESERVE_PERSONNE_MS` comme borne du rattrapage.
+    expect(RESERVE_RATTRAPAGE_MS).toBeGreaterThan(RESERVE_PERSONNE_MS);
+
+    // Budget serré : assez pour le rattrapage, pas assez pour qu'il empiète sur la réserve du fan-out.
+    const { depot, trace } = depotSyntheseFactice({
+      candidates: ["u1"],
+      nonAnnoncees: [{ utilisatriceId: "u-attente-1", syntheseId: "syn-a" }],
+    });
+    const { depot: ordo } = depotOrdoFactice();
+    const { ia } = iaFactice();
+    const { client } = supabaseFactice();
+    const courriel = creerPortCourrielFactice();
+    const serre = { ...contexte(ordo), echeance: new Date(Date.now() + RESERVE_RATTRAPAGE_MS - 500) };
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await executerSyntheseAvec(serre, { depot, ia, supabase: client, courriel });
+    spy.mockRestore();
+
+    // ⚠️ C'EST TOUT LE POINT DU CORRECTIF : le rattrapage rend la main, ET la production tourne quand
+    // même. Avant, les deux partageaient la même borne, donc le rattrapage n'abandonnait qu'au moment où
+    // le fan-out abandonnait aussi — et une itération lente les emportait tous les deux.
+    expect(trace.reservations.map((r) => r.cle), "aucune annonce de rattrapage (`syn-a` absent)").not.toContain(
+      "syn-a",
+    );
+    expect(trace.materiaux, "mais la synthèse du jour, elle, est produite").toEqual(["u1"]);
+  });
+
+  it("sans canal configuré, on ne LIT même pas les synthèses en attente", async () => {
+    // Mutation-cible : retirer le `if (deps.courriel.estConfigure())`. Cinq allers-retours de base par
+    // tick pour cinq annonces qui sortiront toutes immédiatement de `notifier`.
+    const lectures: number[] = [];
+    const { depot } = depotSyntheseFactice({ candidates: [] });
+    const depotTrace = {
+      ...depot,
+      async syntheseesNonAnnoncees() {
+        lectures.push(1);
+        return [];
+      },
+    };
+    const { depot: ordo } = depotOrdoFactice();
+    const { ia } = iaFactice();
+    const { client } = supabaseFactice();
+    const muet = { estConfigure: () => false, async envoyer() {} };
+    await executerSyntheseAvec(contexte(ordo), { depot: depotTrace, ia, supabase: client, courriel: muet });
+    expect(lectures, "aucune lecture quand rien ne peut partir").toHaveLength(0);
+  });
+});
 
 describe("[LE CŒUR] la fenêtre RÉCLAMÉE par personne est HEBDOMADAIRE, sous un job QUOTIDIEN", () => {
   it("chaque personne est réclamée et close sur la semaine ISO, avec son identifiant en cible", async () => {

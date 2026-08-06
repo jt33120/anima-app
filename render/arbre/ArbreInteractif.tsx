@@ -351,6 +351,7 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
           onVoirDansConversation={p.onVoirDansConversation}
           onRenommer={p.onRenommer}
           onAnnoncer={setAnnonce}
+          planOuvert={p.projection.planOuvert === true}
         />
       ) : vide ? (
         <div className={s.vide}>
@@ -457,34 +458,56 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
             ))}
           </div>
 
-          {/* Couche de fiche : capte les clics → « un tap à côté ferme » (UX-DR-26), sans piège au focus. */}
-          {selectionnee && (
-            <div
-              className={s.ficheCouche}
-              data-couche-fiche=""
-              onPointerDown={(e) => {
-                if (e.target === e.currentTarget) fermerFiche();
-              }}
-            >
-              <FicheBranche
-                key={selectionnee.id}
-                branche={selectionnee}
-                onFermer={fermerFiche}
-                onVoirDansConversation={p.onVoirDansConversation}
-                onRenommer={p.onRenommer}
-                onDeclarerRayonnement={p.onDeclarerRayonnement}
-                gesteSuspendu={p.projection.gestesSuspendus === true}
-                onAnnoncer={setAnnonce}
-                onCentrer={() => {
-                  // Remplace le double-clic sur l'accroche, qui ne pouvait JAMAIS se déclencher : le
-                  // premier clic ouvrait la fiche, dont la couche `inset: 0` captait le second (re-revue).
-                  const pl = placees.find((q) => q.branche.id === selectionnee.id);
-                  fermerFiche();
-                  if (pl) cadrerBranche(pl.accroche);
-                }}
-              />
-            </div>
-          )}
+        </div>
+      )}
+
+      {/*
+        ⚠️ LA FICHE EST HORS DU TERNAIRE (revue 4.10), et ce déplacement corrige un cul-de-sac.
+
+        Elle n'était rendue que dans la branche CANEVAS. Or `allerVersBranche` — le geste de l'invitation
+        d'Anam (« La voir ») — fait `aller("arbre")` puis `ouvrirFiche`, et la préférence de vue est
+        PERSISTÉE en localStorage. Une utilisatrice passée en vue liste une seule fois arrivait donc sur
+        la région arbre et **rien ne s'ouvrait** : l'invitation redevenait exactement ce que la story
+        appelle « un reproche ». Idem quand l'arbre est vide ou indisponible.
+
+        C'est le pendant symétrique du défaut que la revue 4.6 avait corrigé sur le renommage (« un
+        utilisateur clavier ne pouvait tout simplement pas renommer ») : une action ne peut pas n'exister
+        que dans une des deux vues de rang égal.
+
+        Couche de fiche : capte les clics → « un tap à côté ferme » (UX-DR-26), sans piège au focus.
+      */}
+      {selectionnee && (
+        <div
+          className={s.ficheCouche}
+          data-couche-fiche=""
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget) fermerFiche();
+          }}
+        >
+          <FicheBranche
+            key={selectionnee.id}
+            branche={selectionnee}
+            onFermer={fermerFiche}
+            onVoirDansConversation={p.onVoirDansConversation}
+            onRenommer={p.onRenommer}
+            onDeclarerRayonnement={p.onDeclarerRayonnement}
+            gesteSuspendu={p.projection.gestesSuspendus === true}
+            planOuvert={p.projection.planOuvert === true}
+            onAnnoncer={setAnnonce}
+            /* Le recadrage n'a de sens qu'en vue canevas : hors d'elle, il n'y a rien à cadrer, et
+               proposer un bouton qui ne fait rien serait un cul-de-sac de plus. */
+            onCentrer={
+              vueListe || vide || indisponible
+                ? undefined
+                : () => {
+                    // Remplace le double-clic sur l'accroche, qui ne pouvait JAMAIS se déclencher : le
+                    // premier clic ouvrait la fiche, dont la couche `inset: 0` captait le second (re-revue).
+                    const pl = placees.find((q) => q.branche.id === selectionnee.id);
+                    fermerFiche();
+                    if (pl) cadrerBranche(pl.accroche);
+                  }
+            }
+          />
         </div>
       )}
     </div>

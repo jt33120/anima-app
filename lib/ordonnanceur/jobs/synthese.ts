@@ -93,6 +93,18 @@ export async function executerSyntheseAvec(ctx: ContexteJob, deps: DepsSynthese)
   const jour = fenetreDe("quotidien", ctx.instant);
   const candidates = await deps.depot.candidates(NOM_JOB, LOT_PAR_TICK);
 
+  // LE PLAFOND DE DÉBIT SE DIT (revue 4.9, T6-8). Vingt personnes par tick × sept jours = 140 synthèses
+  // par semaine pour tout le produit. Au-delà, le tri par attente fait TOURNER le service : chacune
+  // finit par être servie, mais une semaine sur deux — et comme un lot saturé n'a par définition aucun
+  // échec, il ne lève aucun incident. La dégradation est donc parfaitement silencieuse, et le premier à
+  // l'apprendre serait quelqu'un qui écrit pour se plaindre de ne plus rien recevoir.
+  //
+  // Un lot plein n'est pas encore un problème (il peut être exactement plein une fois), mais c'est le
+  // seul signal disponible avant que ça en devienne un.
+  if (candidates.length >= LOT_PAR_TICK) {
+    journaliserExploitation("synthese_lot_sature", { code: `lot_${LOT_PAR_TICK}` });
+  }
+
   // PAS de `if (candidates.length === 0) return;` ici, et c'est délibéré. Il ne faisait rien qu'une
   // boucle sur un tableau vide ne fasse déjà — mais il MASQUAIT la garde `echecs > 0` d'en bas : avec un
   // retour anticipé, on pouvait retirer ce `echecs > 0` sans qu'aucun test ne rougisse. Deux défenses du

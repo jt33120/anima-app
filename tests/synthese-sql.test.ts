@@ -558,12 +558,23 @@ describe("[le plafond de volume] il mord par le PLUS RÉCENT, et la tranche suiv
     await admin.from("synthese").delete().eq("utilisatrice_id", u.id);
   });
 
-  it("sous le plafond, rien n'est tronqué et le filigrane est l'instant de lecture", async () => {
+  it("[T6-17 — LE CŒUR] le filigrane vient de ce qui a été LU, même sans troncature", async () => {
+    // ── CE TEST ENCODAIT LE DÉFAUT ────────────────────────────────────────────────────────────────────
+    //
+    // Il exigeait `jusqu_a > la dernière entrée` — c'est-à-dire l'HORLOGE — et c'est exactement ce qui
+    // perdait des entrées. `now()` est figé au DÉBUT de la transaction, et `entree_journal.cree_le` vaut
+    // `now()`. Une entrée dont la transaction démarre à T₀ et commite à T₀+3 ms est invisible pour un job
+    // démarré à T₀+1 ms — mais elle porte `cree_le = T₀`, INFÉRIEUR au filigrane T₀+1 ms que ce job
+    // s'apprêtait à poser. L'intervalle suivant lisant `cree_le > filigrane`, elle n'est jamais racontée.
+    //
+    // La fenêtre est étroite ; la perte est définitive et silencieuse. Le filigrane est désormais le
+    // `cree_le` de la dernière entrée réellement lue, tronquée ou non — une seule borne au lieu de deux.
+    // Mutation-cible : `case when v_tronquee then v_borne else v_instant end`.
     const m = await materiau(u.id, 50);
     expect(m.tronquee).toBe(false);
     expect(m.entrees).toHaveLength(5);
-    expect(new Date(m.jusqu_a).getTime(), "pas de troncature → le filigrane est maintenant").toBeGreaterThan(
-      new Date("2026-04-05T10:00:00Z").getTime(),
+    expect(new Date(m.jusqu_a).toISOString(), "la dernière entrée lue, jamais l'horloge").toBe(
+      "2026-04-05T10:00:00.000Z",
     );
   });
 

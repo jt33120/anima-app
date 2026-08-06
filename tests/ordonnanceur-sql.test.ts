@@ -48,6 +48,51 @@ async function ligne(job: string, fenetre: string) {
   return data as { statut: string; tentatives: number; motif_echec: string | null; termine_le: string | null };
 }
 
+describe("[REVUE 4.9 / T6-19] une fenêtre TERMINÉE ne se rouvre pas", () => {
+  afterAll(async () => {
+    await admin.from("execution_job").delete().like("job", `${P}t619%`);
+  });
+
+  it("[LE CŒUR] une clôture tardive n'écrase pas un `reussi` — et ne le rend pas re-réclamable", async () => {
+    // La migration 0027 l'AFFIRMAIT en toutes lettres : « une ligne `reussi` n'est JAMAIS re-réclamable —
+    // c'est là que vit l'idempotence de la fenêtre ». C'était faux, et vérifié faux : `clore_execution`
+    // écrasait `reussi` en `echoue` sans condition, et une ligne `echoue` EST re-réclamable.
+    //
+    // Le scénario : une exécution lente clôt en échec APRÈS qu'une autre, relancée sur bail expiré, ait
+    // réussi. La fenêtre rouvre. Sans conséquence sur la synthèse (l'unicité de la période rattrape) ;
+    // aucun index ne rattrapera une PURGE de rétention rejouée (Epic 6), que `executer.ts` promet
+    // explicitement de protéger par ce mécanisme.
+    // Mutation-cible : retirer `and statut = 'en_cours'`.
+    const job = `${P}t619-tardive`;
+    expect(await reclamer(job, "f1", null, 60)).toBe(true);
+    await clore(job, "f1", null, true, null);
+
+    await clore(job, "f1", null, false, "arrivée trop tard");
+
+    const apres = await ligne(job, "f1");
+    expect(apres.statut, "toujours réussi").toBe("reussi");
+    expect(apres.motif_echec, "et aucun motif d'échec inventé après coup").toBeNull();
+    expect(await reclamer(job, "f1", null, 60), "et la fenêtre reste fermée").toBe(false);
+  });
+
+  it("[CONTRÔLE POSITIF] une exécution EN COURS se clôt bien, dans les deux sens", async () => {
+    // Sans lui, la garde ci-dessus serait satisfaite par un `clore_execution` qui ne ferait plus jamais
+    // rien — toutes les fenêtres resteraient `en_cours`, l'ordonnanceur ne fermerait plus rien, et le
+    // test le plus vert du fichier ne prouverait rien.
+    const job = `${P}t619-normale`;
+    expect(await reclamer(job, "ok", null, 60)).toBe(true);
+    await clore(job, "ok", null, true, null);
+    expect((await ligne(job, "ok")).statut).toBe("reussi");
+
+    expect(await reclamer(job, "ko", null, 60)).toBe(true);
+    await clore(job, "ko", null, false, "panne franche");
+    const echoue = await ligne(job, "ko");
+    expect(echoue.statut).toBe("echoue");
+    expect(echoue.motif_echec).toBe("panne franche");
+    expect(await reclamer(job, "ko", null, 60), "un échec, lui, se re-réclame").toBe(true);
+  });
+});
+
 describe("[AC2] la réclamation — une fenêtre, un effet", () => {
   afterAll(async () => {
     await admin.from("execution_job").delete().like("job", `${P}%`);

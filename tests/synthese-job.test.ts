@@ -294,6 +294,39 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     ]);
   });
 
+  it("[T6-8] un lot SATURÉ se dit — sinon la dégradation est parfaitement silencieuse", async () => {
+    // 20 par tick × 7 jours = 140 synthèses par semaine pour tout le produit. Au-delà, le tri par attente
+    // fait TOURNER le service : chacune est servie une semaine sur deux. Et comme un lot plein n'a par
+    // définition aucun échec, il ne lève aucun incident — personne ne l'apprend.
+    // Mutation-cible : retirer le signal, ou le poser sur `> LOT_PAR_TICK` (jamais atteint : la base est
+    // déjà bornée par `limit`).
+    const journal = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const plein = Array.from({ length: LOT_PAR_TICK }, (_, i) => `u${i}`);
+      await executerSyntheseAvec(contexte(depotOrdoFactice().depot), {
+        depot: depotSyntheseFactice({ candidates: plein }).depot,
+        ia: iaFactice().ia,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice(),
+      });
+      expect(JSON.stringify(journal.mock.calls)).toContain("synthese_lot_sature");
+
+      journal.mockClear();
+      await executerSyntheseAvec(contexte(depotOrdoFactice().depot), {
+        depot: depotSyntheseFactice({ candidates: plein.slice(0, LOT_PAR_TICK - 1) }).depot,
+        ia: iaFactice().ia,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice(),
+      });
+      expect(
+        JSON.stringify(journal.mock.calls),
+        "un lot NON plein ne dit rien : une alarme qui hurle tous les jours n'est pas lue",
+      ).not.toContain("synthese_lot_sature");
+    } finally {
+      journal.mockRestore();
+    }
+  });
+
   it("[T5-2] sans jeton de désabonnement, RIEN ne part — et la réservation n'est pas consommée", async () => {
     // Un courriel sans porte de sortie est exactement ce que la revue a refusé : la seule issue offerte
     // était de résilier ou de révoquer son consentement art. 9. Une panne de lecture du jeton n'est pas

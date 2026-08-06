@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { chercherInterdits } from "@/lib/domain/lexique-interdit";
 
@@ -38,12 +38,19 @@ function fichiersTs(dir: string): string[] {
 // santé », « ne dis jamais je ressens »), jamais renvoyées au client ; (b) le lexique interdit
 // lui-même, qui liste tous les termes bannis par construction (il s'auto-matcherait). Les scanner
 // produirait des faux positifs par conception.
+//
+// ── QUATRE EXCLUSIONS RETIRÉES (revue 4.9, T6-12) ──────────────────────────────────────────────────────
+//
+// `detecteur-detresse.ts`, `classer-detresse.ts`, `consigne-phase.ts` et `signaux-arc.ts` étaient exclus
+// et ne contenaient AUCUN terme interdit — leurs occurrences vivaient toutes en commentaire, donc étaient
+// déjà retirées par `sansCommentaires`. Quatre trous gratuits dans le seul contrôle bloquant du produit :
+// n'importe lequel de ces quatre fichiers pouvait gagner un terme clinique demain sans qu'une ligne ne
+// rougisse. Ils sont désormais scannés comme les autres (et propres).
+//
+// Le test « CHAQUE exclusion est nécessaire » ci-dessous interdit que cela se reproduise : une entrée
+// ajoutée ici doit PROUVER qu'elle protège d'un vrai match.
 const EXCLUS = new Set([
   "lib/safety/consigne-detresse.ts",
-  "lib/safety/detecteur-detresse.ts",
-  "lib/safety/classer-detresse.ts",
-  "lib/domain/consigne-phase.ts",
-  "lib/domain/signaux-arc.ts",
   "lib/domain/consigne-voix.ts",
   "lib/domain/consigne-bilan.ts", // consigne de génération du bilan (2.9) — lexique en instructions inverses
   "lib/domain/consigne-synthese.ts", // consigne de génération de la synthèse (4.9) — même nature
@@ -74,10 +81,36 @@ describe("Story 2.8 — contrôle bloquant : garde non-vacue + contrôle positif
     expect(chercherInterdits(passe).length, "un regex cassé passerait vert : le contrôle ne protégerait rien").toBeGreaterThan(0);
   });
 
-  it("les consignes système EXCLUES seraient bien attrapées si scannées (l'exclusion est nécessaire, pas cosmétique)", () => {
-    // Preuve que l'exclusion protège de VRAIS matches : consigne-detresse contient « santé » (négation).
-    const consigne = sansCommentaires(readFileSync(resolve(racine, "lib/safety/consigne-detresse.ts"), "utf-8"));
-    expect(chercherInterdits(consigne).length, "si cette exclusion sautait, le contrôle deviendrait rouge à tort").toBeGreaterThan(0);
+  it("CHAQUE exclusion est nécessaire — aucune n'est là par confort (T6-12)", () => {
+    // ── CE TEST NE REGARDAIT QU'UN SEUL FICHIER ─────────────────────────────────────────────────────
+    //
+    // Il lisait `lib/safety/consigne-detresse.ts`, codé en dur, et concluait sur l'ensemble d'`EXCLUS`.
+    // Neuf exclusions, une seule éprouvée : les huit autres pouvaient être devenues inutiles — ou pire,
+    // avoir été ajoutées pour faire taire un VRAI match — sans que rien ne le dise. Une exclusion est un
+    // trou dans le seul contrôle bloquant du produit ; c'est la dernière chose qu'on doit accorder sur
+    // parole.
+    //
+    // La règle : un fichier n'est exclu que s'il contient RÉELLEMENT du lexique interdit. Le jour où une
+    // consigne est réécrite sans terme clinique, son exclusion devient un trou gratuit — et ce test le
+    // dit. Mutation-cible : ajouter à `EXCLUS` un fichier propre (le geste exact qu'on veut empêcher).
+    for (const fichier of EXCLUS) {
+      const src = retirerAllowlist(sansCommentaires(readFileSync(resolve(racine, fichier), "utf-8")));
+      expect(
+        chercherInterdits(src).length,
+        `${fichier} ne contient AUCUN terme interdit : son exclusion ne protège de rien et ouvre un trou`,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it("les fichiers exclus EXISTENT — une exclusion périmée est un trou qui ne se voit pas", () => {
+    // Un fichier renommé laisse son exclusion derrière lui. Elle ne fait alors plus rien de visible…
+    // jusqu'au jour où un nouveau fichier reprend le chemin libéré et se retrouve exclu sans que
+    // personne ne l'ait décidé.
+    for (const fichier of EXCLUS) {
+      expect(existsSync(resolve(racine, fichier)), `${fichier} n'existe plus : exclusion à retirer`).toBe(
+        true,
+      );
+    }
   });
 });
 

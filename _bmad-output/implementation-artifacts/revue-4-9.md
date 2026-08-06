@@ -15,7 +15,7 @@ requêtes SQL contre le Postgres local (transactions annulées), exécution du p
 | **B — l'exploitation** | T3-1 → T3-7, plus T4-3 et T6-10 rencontrés en chemin | **CORRIGÉ** — migration 0031, 14 mutants / 14 tués, 1694 tests verts |
 | **C — la discipline de test** | T4-1, T4-2, T4-4 | **CORRIGÉ** — migrations 0032 et 0033, 21 mutants / 21 tués, 1720 tests verts |
 | **T5 — les portes pré-lancement** | T5-1 → T5-3, plus T6-14 (« dans le menu de compte ») en chemin | **CORRIGÉ côté code** — migration 0034, 28 mutants / 27 tués (1 équivalent, cf. plus bas), 1766 tests verts. Restent les portes HUMAINES : acheter un domaine, signer le DPA Resend, SPF/DKIM/DMARC, la politique de confidentialité |
-| Le reste | T6-3 → T6-20 | à trier |
+| **T6 — le reste** | T6-3, T6-6, T6-8, T6-12, T6-15, T6-17, T6-19, T6-20 | **TRIÉ** — migration 0035, 12 mutants / 12 tués, 1781 tests verts. **17 des 20 fermés** ; 3 gardés ouverts délibérément (T6-16, T6-13, T6-19 résiduel), motifs écrits dans `deferred-work.md` |
 
 **Deux défauts trouvés EN ÉCRIVANT les tests du lot C**, pas par relecture. `btrim(texte)` sans second
 argument ne retire que les espaces : la contrainte `synthese_contenu_non_vide` laissait passer un contenu
@@ -58,6 +58,21 @@ il appelait les trois fonctions avec un objet d'arguments fusionné, si bien que
 « fonction introuvable » et que rendre `execute` à `anon` le laissait VERT. Le sixième, `data as Jeton`
 dans le dépôt, est un **mutant équivalent** : la colonne est de type `uuid`, donc aucune exécution ne peut
 distinguer les deux versions. Il est laissé tel quel plutôt que couvert par un test de façade.
+
+**Le tri T6 a trouvé plus que les T6.** Deux gardes écrites pour fermer un défaut mineur en ont ouvert
+d'autres au passage. La garde du lexique, réécrite pour itérer sur `EXCLUS` au lieu de lire un seul
+fichier codé en dur (T6-12), a révélé que **quatre exclusions sur neuf ne protégeaient de rien** :
+`detecteur-detresse`, `classer-detresse`, `consigne-phase` et `signaux-arc` ne contenaient aucun terme
+interdit hors commentaire — quatre trous gratuits dans le SEUL contrôle bloquant du produit, chacun
+capable d'accueillir un terme clinique sans qu'une ligne rougisse. Et la garde des cibles tactiles (T6-6)
+a montré que la règle des 44 px, respectée dans onze fichiers, n'était tenue par **rien** : le
+`<summary>` de la halte l'avait perdue, et rien ne pouvait le dire.
+
+**Deux défauts dans MES gardes, trouvés par la mutation-vérification** : l'appartenance à un sélecteur
+groupé contaminait des non-commandes (un `:focus-visible` partagé entre un bouton et une zone de saisie
+faisait de la seconde une commande), et l'exclusion du pluriel `boutons` écartait aussi
+`.boutonSecondaire` — c'est-à-dire le patron le plus répandu du dépôt. Le contrôle non-vacue a dit le
+second ; le premier n'a été vu qu'en lisant les quatre « violations » qu'il rapportait.
 
 **Trois trous trouvés dans mes propres correctifs par la mutation-vérification**, et comblés : la case
 art. 9 et la case IA n'étaient éprouvées que par « aucune ligne de consentement » et « révoquée » ; le

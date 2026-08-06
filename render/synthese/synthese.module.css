@@ -14,6 +14,40 @@
   margin-top: var(--esp-4);
 }
 
+/*
+ * T6-6 — LA SEULE COMMANDE INTERACTIVE DE LA PAGE faisait ~19 px de haut : un `<summary>` en `t-meta`,
+ * sans hauteur imposée. DESIGN.md:534 : « 44 px est le minimum absolu ». Le token existait et n'était pas
+ * utilisé.
+ *
+ * `display: flex` est nécessaire et pas décoratif : `min-height` sur un `<summary>` en `display: list-item`
+ * n'agrandit pas la boîte de manière fiable selon les moteurs. Le marqueur est donc reconstruit —
+ * `list-style: none` + `::-webkit-details-marker` pour Safari, qui ignore le premier.
+ */
+.precedente > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  min-height: var(--cible-tactile);
+  cursor: pointer;
+  list-style: none;
+}
+.precedente > summary::-webkit-details-marker {
+  display: none;
+}
+/* Le chevron, tourné à l'ouverture — l'affordance que `list-style: none` vient de retirer. */
+.precedente > summary::before {
+  content: "›";
+  display: inline-block;
+  transition: transform var(--duree-standard) var(--courbe);
+}
+.precedente[open] > summary::before {
+  transform: rotate(90deg);
+}
+.precedente > summary:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
 .fiche {
   background: var(--surface-elevee);
   border: 1px solid var(--bordure-forte);

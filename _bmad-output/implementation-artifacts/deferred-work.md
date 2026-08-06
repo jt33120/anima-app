@@ -347,3 +347,45 @@ seul un humain peut franchir.
 - **Aucun lien entrant vers `/synthese` ni vers `/desabonnement` depuis l'application** (T6-14, non traité
   ici) : les deux haltes ne sont atteignables que par leur URL. À câbler avec le menu de compte, qui
   n'existe pas encore.
+
+## Story 4.9 — ce que le tri T6 a laissé de côté, et pourquoi
+
+Sur les vingt défauts mineurs de la revue, **dix-sept sont fermés** (neuf étaient tombés en corrigeant
+les lots A/B/C, sept ont été traités au tri, un — T6-3 — s'est révélé déjà résolu : les tris sont totaux
+dans les définitions vivantes, vérifié en base). Restent trois items, gardés ouverts **délibérément**.
+
+- **T6-16 — LA SYNTHÈSE N'A AUCUN FILET DE SÉCURITÉ EN SORTIE (AD-16).** C'est le plus important de tous
+  les résiduels, et le seul qui touche la sécurité. Le matériau d'entrée est bien filtré (les épisodes de
+  détresse en sont exclus, AC3), mais huit semaines classées niveau 0 peuvent s'agréger en quelque chose
+  de lourd — lu seul, à froid, sans personne en face, avec une consigne qui ordonne « c'est le moment où
+  tu peux être la plus DIRECTE ».
+  **Pourquoi ce n'est PAS un correctif de tri** : le faire proprement veut dire un SECOND appel modèle par
+  personne et par semaine (détection sur le texte produit, au modèle fort — NFR-012 interdit le tier
+  léger). Or l'enveloppe de temps du job vient d'être calée au plus juste (25 s pour le modèle, 6 s de
+  réserve par personne, 38 s pour le job dans une lambda à 60 s) : un second appel la fait exploser. C'est
+  une décision de coût et d'architecture, donc une story, pas une ligne.
+  **Piste** : détection sur la sortie + bloc ressources statique (non-IA, donc AD-15-compatible) en tête
+  de la synthèse quand le verdict est ≥ 1, et le job passe à deux personnes par tick au lieu de vingt le
+  jour où ça se produit. À arbitrer avec le PO.
+- **T6-13 — la mise en page rend le calendrier de détresse lisible.** Les périodes affichées sur
+  `/synthese` ne sont pas contiguës (les entrées d'épisode sont exclues du matériau), donc un trou de huit
+  jours épouse exactement un épisode. Ce n'est pas un chiffre au sens de FR-031, mais c'est de
+  l'information sur sa détresse restituée par la forme. Le correctif est un choix de design (afficher les
+  périodes autrement, ou ne pas les afficher) — pas un correctif technique. [app/synthese/page.tsx]
+- **T6-19 (résiduel) — `clore_execution` n'a toujours pas de jeton de propriété.** Les états terminaux
+  sont désormais terminaux (`and statut = 'en_cours'`, migration 0035), ce qui referme le trou que la
+  migration 0027 prétendait déjà fermé. Reste le cas de deux exécutions concurrentes après expiration de
+  bail : les deux voient `en_cours`, la seconde clôture écrase la première. Le vrai correctif demande une
+  colonne de bail et un identifiant d'exécution, donc une migration qui touche tous les appelants — à
+  faire AVANT que le moteur de rétention (Epic 6) ne s'appuie dessus. [supabase/migrations/0035]
+- **T6-6 (résiduel) — la garde de cible tactile ne couvre que les commandes NOMMÉES.** `tests/cible-tactile.test.ts`
+  attrape `button`, `summary`, `input`/`select`/`textarea` et les classes « bouton »/« champ ». Les
+  commandes dont le nom ne les trahit pas (`.sortieRapide`, `.numero` de la page d'aide) portent bien les
+  44 px mais restent tenues par la relecture. La garde empêche la RÉGRESSION, pas l'oubli sur un nom
+  inédit — c'est écrit dans son en-tête.
+
+**Fragilité de suite observée, non corrigée** : les fichiers de tests SQL frappent le même Postgres local
+en parallèle. Sous forte contention (typiquement pendant une campagne de mutation, qui remplace des
+fonctions sur cette même base), un fichier peut échouer de façon transitoire. Quatre passes complètes
+consécutives sont propres hors campagne. Si ça devient gênant, la réponse est un schéma par worker, pas
+un `retry`.

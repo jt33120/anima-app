@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { executerSyntheseAvec, NOM_JOB } from "@/lib/ordonnanceur/jobs/synthese";
+import { executerSyntheseAvec, NOM_JOB, BAIL_PERSONNE_S } from "@/lib/ordonnanceur/jobs/synthese";
 import { creerPortCourrielFactice } from "@/lib/courriel/adaptateurs/factice";
 import {
   LOT_PAR_TICK,
@@ -334,22 +334,131 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
       courriel: creerPortCourrielFactice({ echoue: true }),
     });
 
-    expect(trace.clos).toEqual([{ fenetre: JOUR, cible: "u1", reussi: true, motif: null }]);
-    expect(trace.incidents, "un courriel perdu n'est pas un incident système").toEqual([]);
-    espion.mockRestore();
+    try {
+      expect(trace.clos).toEqual([{ fenetre: JOUR, cible: "u1", reussi: true, motif: null }]);
+      expect(trace.incidents, "un courriel perdu n'est pas un incident système").toEqual([]);
+    } finally {
+      // Hors `finally`, un échec d'assertion laissait `console.error` muet pour TOUT le reste du
+      // fichier — les tests suivants perdaient leur capacité à observer les journaux sans le dire.
+      espion.mockRestore();
+    }
   });
 
-  it("[NFR-020] le port courriel ne reçoit qu'une adresse et un motif — jamais un mot de la synthèse", async () => {
-    // La signature du port rend la fuite impossible à écrire ; ce test fige ce qui SORT réellement.
+  it("[NFR-020] le job n'a que DEUX arguments à donner au port — l'adresse et le motif", async () => {
+    // ── CE TEST ÉTAIT UNE TAUTOLOGIE (revue 4.9, T4-4) ────────────────────────────────────────────────
+    //
+    // Il faisait `Object.keys(courriel.envoyes[0])` — c'est-à-dire qu'il interrogeait un objet que la
+    // DOUBLURE avait elle-même construit (`envoyes.push({ destinataire, motif })`). Il ne pouvait rien
+    // rendre d'autre, quoi que le job ait fait. Le titre annonçait ce que le port REÇOIT ; l'assertion
+    // mesurait ce que le test avait fabriqué.
+    //
+    // On capture donc les arguments BRUTS de l'appel, tels que le job les passe. Mutation-cible : ajouter
+    // un troisième argument à `envoyer` (un aperçu, un prénom, une date) — le test rougit, alors que
+    // l'ancienne version restait verte.
+    //
+    // Ce que ce fichier ne peut PAS prouver, et qu'il ne prétend plus prouver : ce qui part réellement
+    // sur le réseau. Ça, c'est `courriel-resend.test.ts`, qui inspecte la charge utile du `fetch`.
     const { depot } = depotOrdoFactice();
     const { depot: syn } = depotSyntheseFactice();
     const { ia } = iaFactice({ texte: "TEXTE INTIME QUI NE DOIT JAMAIS SORTIR" });
+    const arguments_: unknown[][] = [];
+    const courriel = {
+      estConfigure: () => true,
+      envoyer: async (...args: unknown[]) => {
+        arguments_.push(args);
+      },
+    } as unknown as ReturnType<typeof creerPortCourrielFactice>;
+
+    await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
+
+    expect(arguments_, "un seul envoi").toHaveLength(1);
+    expect(arguments_[0], "DEUX arguments, pas trois").toHaveLength(2);
+    expect(arguments_[0]).toEqual(["u1@exemple.fr", "synthese_prete"]);
+    expect(JSON.stringify(arguments_), "et pas un mot de la synthèse").not.toContain("INTIME");
+  });
+
+  it("[T4-1] l'adresse INTROUVABLE : aucune réservation consommée, et la synthèse reste écrite", async () => {
+    // Mutant survivant de la campagne d'origine : `if (!adresse) return;` supprimé. On appellerait alors
+    // `reserverNotification` puis `envoyer(null, …)` — la réservation serait consommée pour un envoi
+    // impossible, et le plafond bloquerait ensuite une annonce qui n'est jamais partie.
+    const { depot } = depotOrdoFactice();
+    const { depot: syn, trace } = depotSyntheseFactice({ adresse: () => null });
+    const { ia } = iaFactice();
     const courriel = creerPortCourrielFactice();
 
     await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
-    expect(JSON.stringify(courriel.envoyes)).not.toContain("INTIME");
-    expect(Object.keys(courriel.envoyes[0]).sort()).toEqual(["destinataire", "motif"]);
+    expect(trace.enregistrements, "la synthèse existe et se lit dans l'app").toHaveLength(1);
+    expect(trace.reservations, "aucune réservation brûlée").toEqual([]);
+    expect(courriel.envoyes).toEqual([]);
+  });
+
+  it("[T4-1] le bail par personne est celui du domaine, pas une valeur au hasard", async () => {
+    // Mutant survivant : `BAIL_PERSONNE_S = 180` → `1`. Le bail devient inopérant : deux invocations
+    // concurrentes (un rejeu de cron, un tick qui déborde) se marchent dessus sur la même personne.
+    // Aucun test ne le voyait — la trace collectait `bail` et ne l'assérait jamais.
+    const { depot, trace } = depotOrdoFactice();
+    const { depot: syn } = depotSyntheseFactice();
+    const { ia } = iaFactice();
+
+    await executerSyntheseAvec(contexte(depot), {
+      depot: syn,
+      ia,
+      supabase: supabaseFactice().client,
+      courriel: creerPortCourrielFactice(),
+    });
+
+    expect(trace.reclames[0].bail, "assez long pour couvrir un appel au modèle fort").toBe(BAIL_PERSONNE_S);
+    expect(BAIL_PERSONNE_S * 1000).toBeGreaterThan(DELAI_MODELE_MS);
+  });
+
+  it("[T4-1] la période écrite va du DÉBUT vers la FIN — les arguments ne sont pas inversés", async () => {
+    // Mutant survivant : `enregistrer(…, periode.fin, periode.debut, …)`. La contrainte SQL
+    // `periode_fin >= periode_debut` rejetterait TOUTES les insertions — donc aucune synthèse ne serait
+    // jamais écrite, pour personne — et la suite restait verte, parce que la trace collectait `debut` et
+    // `fin` sans jamais les assérer.
+    const { depot } = depotOrdoFactice();
+    const { depot: syn, trace } = depotSyntheseFactice();
+    const { ia } = iaFactice();
+
+    await executerSyntheseAvec(contexte(depot), {
+      depot: syn,
+      ia,
+      supabase: supabaseFactice().client,
+      courriel: creerPortCourrielFactice(),
+    });
+
+    const ecrit = trace.enregistrements[0];
+    expect(ecrit.debut).toBe(MATERIAU_PLEIN.entrees[0].cree_le);
+    expect(ecrit.fin).toBe(MATERIAU_PLEIN.jusqu_a);
+    expect(new Date(ecrit.debut).getTime()).toBeLessThan(new Date(ecrit.fin).getTime());
+    expect(ecrit.tronquee).toBe(MATERIAU_PLEIN.tronquee);
+  });
+
+  it("[T4-1] un courriel perdu LAISSE UNE TRACE — sinon il disparaît sans témoin", async () => {
+    // Mutant survivant : retirer la journalisation. L'envoi échoue, la synthèse est écrite, la fenêtre
+    // est close en réussite — et absolument rien nulle part ne dit qu'une annonce n'est pas partie. Le
+    // test d'origine figeait bien « ce n'est pas un incident système », mais n'exigeait aucune trace.
+    const espion = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { depot } = depotOrdoFactice();
+      const { depot: syn } = depotSyntheseFactice();
+      const { ia } = iaFactice();
+
+      await executerSyntheseAvec(contexte(depot), {
+        depot: syn,
+        ia,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice({ echoue: true }),
+      });
+
+      expect(espion).toHaveBeenCalledWith(
+        expect.stringContaining("exploitation"),
+        expect.objectContaining({ motif: "synthese_courriel" }),
+      );
+    } finally {
+      espion.mockRestore();
+    }
   });
 });
 

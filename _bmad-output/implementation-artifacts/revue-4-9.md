@@ -13,9 +13,16 @@ requêtes SQL contre le Postgres local (transactions annulées), exécution du p
 |---|---|---|
 | **A — ce qui atteint une personne** | T1-1 → T1-6, T2-1 → T2-4, plus T6-1 et T6-2 rencontrés en chemin | **CORRIGÉ** — migration 0030, 27 mutants appliqués / 27 tués, 1670 tests verts |
 | **B — l'exploitation** | T3-1 → T3-7, plus T4-3 et T6-10 rencontrés en chemin | **CORRIGÉ** — migration 0031, 14 mutants / 14 tués, 1694 tests verts |
-| C — la discipline de test | T4-1, T4-2 (sauf la fabrique et la halte, faites), T4-4 | à faire |
+| **C — la discipline de test** | T4-1, T4-2, T4-4 | **CORRIGÉ** — migrations 0032 et 0033, 21 mutants / 21 tués, 1720 tests verts |
 | Portes pré-lancement | T5-1 → T5-3 | à ouvrir avant le lancement |
 | Le reste | T6-3 → T6-20 | à trier |
+
+**Deux défauts trouvés EN ÉCRIVANT les tests du lot C**, pas par relecture. `btrim(texte)` sans second
+argument ne retire que les espaces : la contrainte `synthese_contenu_non_vide` laissait passer un contenu
+fait de retours à la ligne (migration 0032). Et le tri de `utilisatrices_a_synthetiser` était écrit DEUX
+fois — dans le `limit` interne et dans le `jsonb_agg` externe — si bien que muter l'une laissait l'autre
+rattraper le résultat : l'équité n'était gardée par rien. Corrigé en supprimant la seconde expression, pas
+en ajoutant un second test (migration 0033).
 
 **T3-8 et T3-9 sont tombés avec le lot A** — la cadence n'étant plus calendaire, une deuxième synthèse en
 24 h au passage de semaine ISO est devenue impossible, et un « rien à dire » ne brûle plus la semaine

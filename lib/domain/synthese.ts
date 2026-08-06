@@ -126,9 +126,21 @@ export interface PeriodeSynthese {
  * Le matériau arrive déjà purgé de la détresse (AC3) : une personne dont toute la période s'est passée
  * en épisode ouvert n'a donc rien d'éligible, et ne reçoit rien. C'est voulu — rien ne naît pendant la
  * détresse (AD-17).
+ *
+ * ── POURQUOI ELLE EST DÉRIVÉE DE `periodeDe`, ET PAS L'INVERSE (revue 4.9, T4-1) ────────────────────────
+ *
+ * La campagne de mutation d'origine avait montré que le job portait DEUX gardes pour un seul invariant :
+ * `if (!aQuelqueChoseADire(materiau) || !periode)`. Les deux disent exactement la même chose — « il y a
+ * au moins une entrée » — donc elles sont vraies ensemble et fausses ensemble, et AUCUNE des deux n'était
+ * prouvée : retirer l'une laissait l'autre couvrir le cas, et les tests restaient verts.
+ *
+ * C'est le piège payé en 4.7, puis retrouvé en 4.9, et il ne se corrige pas en ajoutant un test — il se
+ * corrige en supprimant la redondance. Il n'y a donc plus qu'UN prédicat dans tout le produit : le `[premiere]`
+ * de `periodeDe`. Celle-ci en est la lecture nommée, pour que le code qui parle de FR-034 puisse dire
+ * « a-t-elle quelque chose à dire ? » plutôt que « la période est-elle non nulle ? ».
  */
 export function aQuelqueChoseADire(materiau: MateriauSynthese): boolean {
-  return materiau.entrees.length > 0;
+  return periodeDe(materiau) !== null;
 }
 
 /**
@@ -142,7 +154,7 @@ export function aQuelqueChoseADire(materiau: MateriauSynthese): boolean {
  * fabrique pas une période à partir de rien.
  */
 export function periodeDe(materiau: MateriauSynthese): PeriodeSynthese | null {
-  const premiere = materiau.entrees[0];
+  const [premiere] = materiau.entrees;
   if (!premiere) return null;
   return { debut: premiere.cree_le, fin: materiau.jusqu_a, tronquee: materiau.tronquee };
 }

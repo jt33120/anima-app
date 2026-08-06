@@ -11,7 +11,6 @@ import {
   PLAFOND_NOTIFICATION_HEURES,
   PLAFOND_OCTETS,
   RESERVE_PERSONNE_MS,
-  aQuelqueChoseADire,
   periodeDe,
   validerSortieSynthese,
 } from "@/lib/domain/synthese";
@@ -67,7 +66,7 @@ import type { ContexteJob } from "@/lib/ordonnanceur/registre";
 export const NOM_JOB = "synthese-hebdomadaire";
 
 /** Le bail d'une SEULE personne : le modèle fort peut prendre du temps, mais pas éternellement. */
-const BAIL_PERSONNE_S = 180;
+export const BAIL_PERSONNE_S = 180;
 
 export interface DepsSynthese {
   readonly depot: DepotSynthese;
@@ -181,11 +180,15 @@ type IssuePersonne = "produite" | "rien_a_dire" | "bloquee" | "echec";
  */
 async function produirePour(deps: DepsSynthese, utilisatriceId: string): Promise<IssuePersonne> {
   const materiau = await deps.depot.materiau(utilisatriceId, PLAFOND_ENTREES, PLAFOND_OCTETS);
-  const periode = periodeDe(materiau);
 
   // D3 / FR-034 : rien à dire, donc rien. C'est une RÉUSSITE — le job a fait son travail, qui était de
   // constater qu'il n'y avait pas de travail.
-  if (!aQuelqueChoseADire(materiau) || !periode) return "rien_a_dire";
+  //
+  // UNE seule garde, et c'est le correctif (revue 4.9, T4-1). Il y en avait deux — `!aQuelqueChoseADire`
+  // ET `!periode` — qui disaient exactement la même chose, si bien qu'aucune n'était prouvée : retirer
+  // l'une laissait l'autre couvrir le cas. Le prédicat vit désormais à un seul endroit, dans `periodeDe`.
+  const periode = periodeDe(materiau);
+  if (!periode) return "rien_a_dire";
 
   // Le tier n'est pas choisi ici : la capacité `synthese` est résolue au modèle FORT par la politique
   // unique (AD-5). `contientArt9` est vrai — c'est le journal, et l'egress-guard relit l'état vivant

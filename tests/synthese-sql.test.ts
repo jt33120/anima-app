@@ -475,8 +475,12 @@ describe("[AD-12] ce qu'une SESSION peut et ne peut pas", () => {
     // `authenticated` sur toute nouvelle fonction du schéma `public` (leçon de la migration 0007) — et
     // ces fonctions sont en `security definer` : un grant oublié donnerait à n'importe quelle session le
     // droit de LIRE LE JOURNAL D'UNE AUTRE (`materiau_synthese` prend l'identifiant en paramètre).
-    const { data: notifs } = await sessionU.from("notification_envoyee").select("id");
-    expect(notifs ?? [], "deny-by-default").toEqual([]);
+    // `expect(notifs ?? []).toEqual([])` ne distinguait pas « la RLS ferme » de « la requête a échoué »
+    // (revue 4.9, T4-4) : une erreur PostgREST rendait `data === null`, et le `?? []` peignait ça en
+    // succès. On assère donc les DEUX : pas d'erreur, ET aucune ligne.
+    const { data: notifs, error: erreurNotifs } = await sessionU.from("notification_envoyee").select("id");
+    expect(erreurNotifs, "la requête aboutit — c'est la RLS qui filtre, pas une panne").toBeNull();
+    expect(notifs, "deny-by-default").toEqual([]);
 
     const appels = [
       sessionU.rpc("materiau_synthese", { p_utilisatrice: autre.id, p_plafond_entrees: 10, p_plafond_octets: 1000 }),
@@ -869,5 +873,104 @@ describe("[REVUE 4.9 / T3-2] le disjoncteur — une personne ne peut plus brûle
     // la synthèse — deux mécanismes sans rapport, couplés par un compteur trop large.
     const { data } = await admin.rpc("personnes_en_echec_repete", { p_job: `${JOB}-autre` });
     expect(data).toBe(0);
+  });
+});
+
+describe("[REVUE 4.9 / T4-1] les gardes que la campagne d'origine avait laissées sans preuve", () => {
+  const jamais = { email: `syn-ordre-a-${t}@exemple.fr`, id: "" };
+  const servie = { email: `syn-ordre-b-${t}@exemple.fr`, id: "" };
+
+  beforeAll(async () => {
+    // L'ORDRE DE CRÉATION COMPTE : `jamais` est inscrite en premier. C'est le second critère de tri.
+    jamais.id = await creerUtilisatrice(jamais.email);
+    await consentir(jamais.id);
+    await abonner(jamais.id);
+    await graver(jamais.id, `${t}-oa`, "elle écrit", "2026-06-15T10:00:00Z");
+
+    servie.id = await creerUtilisatrice(servie.email);
+    await consentir(servie.id);
+    await abonner(servie.id);
+    await graver(servie.id, `${t}-ob`, "elle écrit aussi", new Date(Date.now() - 3_600_000).toISOString());
+    // Servie il y a huit jours : au-delà de la cadence, donc de nouveau candidate — mais APRÈS celle qui
+    // n'a jamais rien reçu.
+    await admin.rpc("enregistrer_synthese", {
+      p_utilisatrice: servie.id,
+      p_debut: "2026-06-01T00:00:00Z",
+      p_fin: new Date(Date.now() - 8 * 24 * 3_600_000).toISOString(),
+      p_contenu: "une synthèse déjà ancienne",
+      p_tronquee: false,
+    });
+  });
+  afterAll(async () => {
+    await supprimer(jamais.id);
+    await supprimer(servie.id);
+  });
+
+  it("[LE CŒUR] celle qui n'a JAMAIS rien reçu passe devant celle qui a déjà été servie", async () => {
+    // Mutant survivant de la campagne d'origine : `nulls first` → `nulls last`. Le lot est BORNÉ ; servir
+    // d'abord celles qui ont déjà été servies affamerait indéfiniment les nouvelles — et ce sont
+    // précisément celles pour qui la première synthèse compte le plus.
+    const liste = await candidates();
+    const miennes = liste.filter((id) => id === jamais.id || id === servie.id);
+    expect(miennes, "jamais servie d'abord").toEqual([jamais.id, servie.id]);
+  });
+
+  it("les CHECK de `synthese` refusent ce que le code ne devrait jamais produire", async () => {
+    // Deux mutants survivants d'origine : les deux contraintes pouvaient être supprimées sans qu'un seul
+    // test ne rougisse. Elles sont le dernier filet — celui qui tient encore quand la validation du
+    // domaine a été contournée par un futur chemin d'écriture. `service_role` contourne la RLS, pas les
+    // contraintes : c'est bien la base qui refuse ici, pas une politesse.
+    const vide = await admin.from("synthese").insert({
+      utilisatrice_id: jamais.id,
+      periode_debut: "2026-05-01T00:00:00Z",
+      periode_fin: "2026-05-08T00:00:00Z",
+      contenu: "   \n  ",
+    });
+    expect(vide.error?.message, "un récit vide n'est pas un récit").toMatch(/synthese_contenu_non_vide/);
+
+    const aLEnvers = await admin.from("synthese").insert({
+      utilisatrice_id: jamais.id,
+      periode_debut: "2026-05-08T00:00:00Z",
+      periode_fin: "2026-05-01T00:00:00Z",
+      contenu: "une période à l'envers",
+    });
+    expect(aLEnvers.error?.message, "une période ne remonte pas le temps").toMatch(
+      /synthese_periode_coherente/,
+    );
+
+    // CONTRÔLE POSITIF : sans lui, les deux gardes ci-dessus seraient satisfaites par une table qui
+    // refuse TOUTE écriture — et la story entière serait morte sans qu'un test ne le dise.
+    const bonne = await admin.from("synthese").insert({
+      utilisatrice_id: jamais.id,
+      periode_debut: "2026-05-01T00:00:00Z",
+      periode_fin: "2026-05-08T00:00:00Z",
+      contenu: "un vrai récit",
+    });
+    expect(bonne.error, "une écriture bien formée passe").toBeNull();
+    await admin.from("synthese").delete().eq("utilisatrice_id", jamais.id);
+  });
+
+  it("[LE CŒUR] l'entrée qui porte EXACTEMENT le filigrane n'est jamais racontée deux fois", async () => {
+    // Mutant survivant d'origine : `j.cree_le > p_depuis` → `>=`. L'intervalle est semi-ouvert, et il
+    // DOIT l'être : quand le plafond mord, le filigrane vaut l'horodatage de la dernière entrée lue.
+    // Avec `>=`, cette entrée-là rentrerait dans les deux tranches — la synthèse suivante rouvrirait sur
+    // une phrase déjà racontée, et le rattrapage n'avancerait jamais d'un cran franc.
+    const instant = "2026-06-20T12:00:00Z";
+    await graver(jamais.id, `${t}-pile`, "PILE SUR LA BORNE", instant);
+    await admin.rpc("enregistrer_synthese", {
+      p_utilisatrice: jamais.id,
+      p_debut: "2026-06-15T10:00:00Z",
+      p_fin: instant, // le filigrane EST l'horodatage de cette entrée
+      p_contenu: "la tranche qui s'arrête pile là",
+      p_tronquee: true,
+    });
+
+    const suite = await materiau(jamais.id);
+    expect(
+      suite.entrees.map((e) => e.contenu),
+      "elle a déjà été racontée : elle ne revient pas",
+    ).not.toContain("PILE SUR LA BORNE");
+
+    await admin.from("synthese").delete().eq("utilisatrice_id", jamais.id);
   });
 });

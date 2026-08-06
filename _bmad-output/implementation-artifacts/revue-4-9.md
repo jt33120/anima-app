@@ -12,10 +12,21 @@ requêtes SQL contre le Postgres local (transactions annulées), exécution du p
 | Lot | Périmètre | État |
 |---|---|---|
 | **A — ce qui atteint une personne** | T1-1 → T1-6, T2-1 → T2-4, plus T6-1 et T6-2 rencontrés en chemin | **CORRIGÉ** — migration 0030, 27 mutants appliqués / 27 tués, 1670 tests verts |
-| B — l'exploitation | T3-1 → T3-9 | à faire |
-| C — la discipline de test | T4-1 → T4-4 (partiellement absorbé par A) | à faire |
+| **B — l'exploitation** | T3-1 → T3-7, plus T4-3 et T6-10 rencontrés en chemin | **CORRIGÉ** — migration 0031, 14 mutants / 14 tués, 1694 tests verts |
+| C — la discipline de test | T4-1, T4-2 (sauf la fabrique et la halte, faites), T4-4 | à faire |
 | Portes pré-lancement | T5-1 → T5-3 | à ouvrir avant le lancement |
 | Le reste | T6-3 → T6-20 | à trier |
+
+**T3-8 et T3-9 sont tombés avec le lot A** — la cadence n'étant plus calendaire, une deuxième synthèse en
+24 h au passage de semaine ISO est devenue impossible, et un « rien à dire » ne brûle plus la semaine
+(la réclamation porte sur le jour). Rien à corriger en B pour ces deux-là.
+
+**Deux choses ajoutées en lot B qui n'étaient dans aucune fiche.** Un DISJONCTEUR : trois échecs en sept
+jours et la personne est mise de côté — sans lui, le correctif T3-2 (borner l'appel modèle) laissait
+intacte la boucle où quelqu'un dont le matériau fait échouer le modèle de façon déterministe revient
+chaque jour, premier dans le tri, à vie. Et une garde `process.env.VITEST` dans la fabrique courriel :
+T4-3 corrige le fichier fautif, mais ce correctif-là demande à un test d'être discipliné ; la garde ne
+demande rien à personne.
 
 **Décision produit prise en cours de lot A** (Julian, contre ma recommandation, et il a eu raison sur
 le fond) : le trop-plein est traité par **rattrapage chronologique**, ce qui a imposé de remplacer la clé

@@ -62,6 +62,24 @@ export function journaliserRefusGarde(motif: string, detail?: unknown): void {
   });
 }
 
+/**
+ * Un fait d'EXPLOITATION : ni un refus de garde, ni un incident de sécurité. Un courriel qui n'est pas
+ * parti, un lot qui n'a pas eu le temps de tout servir.
+ *
+ * Troisième canal ajouté par la revue 4.9 (T6-10), et pour la même raison qui avait fait naître le
+ * deuxième : le job de synthèse journalisait ses échecs d'envoi par `journaliserIncidentSecurite`, dont
+ * le libellé annonce « indisponibilité d'une RPC de sécurité ». Un 5xx de Resend se lisait donc dans les
+ * journaux comme une panne de garde de sécurité — et c'était sa seule trace. Le canal réservé aux vrais
+ * incidents, celui où vivent les alertes de détresse, se retrouvait repollué là où la revue précédente
+ * venait tout juste de le nettoyer.
+ */
+export function journaliserExploitation(motif: string, detail?: unknown): void {
+  console.warn("exploitation: un effet secondaire n'a pas abouti — le travail principal, lui, a été fait", {
+    motif,
+    code: codeJournalisable(detail),
+  });
+}
+
 export function journaliserIncidentSecurite(motif: string, detail?: unknown): void {
   console.error("securite: indisponibilité d'une RPC de sécurité — repli sûr (AD-15)", {
     motif,

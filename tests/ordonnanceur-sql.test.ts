@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -372,5 +372,130 @@ describe("[AC3 — défaut n°2] une base FRAÎCHEMENT MIGRÉE ne s'accorde avec
     // franche, qui dit tout de suite ce qui a été cassé.
     const { error } = await admin.from("environnement").delete().eq("id", true);
     expect(error, "la suppression du marqueur lève").not.toBeNull();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// REVUE 4.9 / LOT B — les deux alarmes que la 4.9 avait cassées sans y toucher
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[T3-5] « la dernière réussite du job » veut de nouveau dire ça", () => {
+  const job = `${P}-etat`;
+  let cible = "";
+
+  beforeAll(async () => {
+    const { data } = await admin.auth.admin.createUser({
+      email: `ordo-etat-${t}@exemple.fr`,
+      password: MDP,
+      email_confirm: true,
+    });
+    cible = data.user!.id;
+  });
+  afterAll(async () => {
+    await admin.from("execution_job").delete().like("job", `${P}%`);
+    if (cible) await admin.auth.admin.deleteUser(cible);
+  });
+
+  async function reussites(): Promise<Record<string, string>> {
+    const { data, error } = await admin.rpc("etat_ordonnanceur");
+    if (error) throw new Error(`etat_ordonnanceur: ${error.message}`);
+    return (data as { reussites: Record<string, string> }).reussites;
+  }
+
+  it("[LE CŒUR] une personne servie ne fait plus passer le JOB pour à l'heure", async () => {
+    // En 4.8, il existait exactement une ligne par (job, fenêtre), avec `cible_id = null` : agréger
+    // `max(termine_le) group by job` était exact. La 4.9 écrit, sous le MÊME `job`, une ligne par
+    // personne — si bien qu'une seule personne servie suffisait à faire répondre `false` à `estEnRetard`,
+    // et `job_en_retard` n'était PLUS JAMAIS levé, quand bien même le fan-out échouerait depuis un mois.
+    //
+    // Mutation-cible : retirer `and cible_id is null` de l'agrégation.
+    await reclamer(job, "2026-08-05", null, 300);
+    await clore(job, "2026-08-05", null, false, "timeout"); // LE JOB a échoué…
+    await reclamer(job, "2026-08-05", cible, 300);
+    await clore(job, "2026-08-05", cible, true, null); // …mais une personne est passée
+
+    expect(await reussites(), "le job n'a AUCUNE réussite : une personne n'est pas le job").not.toHaveProperty(job);
+  });
+
+  it("[CONTRÔLE POSITIF] quand le JOB réussit, il apparaît bien", async () => {
+    // Sans lui, le test précédent serait satisfait par une fonction qui ne rend jamais rien.
+    const autre = `${P}-etat-ok`;
+    await reclamer(autre, "2026-08-06", null, 300);
+    await clore(autre, "2026-08-06", null, true, null);
+    expect(await reussites()).toHaveProperty(autre);
+  });
+});
+
+describe("[AC5 / T3-6] l'homme mort, et le sens du mot « dégradé »", () => {
+  /** Le nom que la migration 0028 code EN DUR dans la clause d'homme mort. */
+  const JOB_SANTE = "sante-ordonnanceur";
+  const FENETRE = `${P}-sante`;
+
+  async function sante(): Promise<string> {
+    const { data, error } = await admin.rpc("sante_ordonnanceur_publique");
+    if (error) throw new Error(`sante: ${error.message}`);
+    return data as string;
+  }
+
+  /**
+   * Terrain net. Ces tests lisent une fonction GLOBALE — sans maîtriser son état d'entrée, ils
+   * mesureraient ce que les tests voisins ont laissé. La purge est scopée : les lignes du job de santé
+   * (que seul ce bloc écrit) et les incidents préfixés par ce fichier.
+   */
+  async function terrainNet() {
+    await admin.from("execution_job").delete().eq("job", JOB_SANTE);
+    await admin.from("incident_systeme").delete().like("job", `${P}%`);
+  }
+
+  /** Une réussite datée du job de santé — c'est ce que la clause d'homme mort cherche. */
+  async function reussiteSante() {
+    await reclamer(JOB_SANTE, FENETRE, null, 300);
+    await clore(JOB_SANTE, FENETRE, null, true, null);
+  }
+
+  beforeEach(terrainNet);
+  afterAll(terrainNet);
+
+  it("[LE CŒUR] sans réussite récente du job de santé, le signal public dit `degrade`", async () => {
+    // LE DÉFAUT N°1 DE LA REVUE 4.8, et le plus retors : `sante_ordonnanceur_publique` ne regardait QUE
+    // les incidents. Or les incidents sont écrits PAR l'ordonnanceur. Un ordonnanceur qui ne tourne plus
+    // n'écrit plus rien — donc plus aucun incident, donc la sonde répondait « ok ». Et comme la fenêtre
+    // des incidents ne fait que deux jours, le signal s'AMÉLIORAIT à mesure que la panne durait.
+    //
+    // Ce test vivait dans `ordonnanceur-endpoint.test.ts`. Il en a été retiré par la revue 4.9 : ce
+    // fichier-là double désormais le registre (T4-3), si bien que sa précondition portait sur un nom de
+    // job doublé alors que la clause SQL code le VRAI nom en dur — elle ne prouvait plus rien.
+    // Mutation-cible : retirer la clause `not exists (… sante-ordonnanceur … 48 hours)`.
+    expect(await sante(), "un ordonnanceur qui ne tourne pas ne se déclare pas sain").toBe("degrade");
+  });
+
+  it("[CONTRÔLE POSITIF] une réussite récente rouvre le droit de se dire sain", async () => {
+    // Sans lui, la garde ci-dessus serait satisfaite par une fonction qui répond `degrade` en toutes
+    // circonstances — un signal tout aussi inutile, à l'envers.
+    await reussiteSante();
+    expect(await sante()).toBe("ok");
+  });
+
+  it("[LE CŒUR / T3-6] un `job_echoue` — une panne de FOURNISSEUR — ne dégrade plus la sonde", async () => {
+    // La clause d'origine regardait TOUT `incident_systeme` du jour, sans filtre sur le type. En 4.8 seul
+    // le job de santé y écrivait, donc `degrade` disait bien « l'ordonnanceur est en difficulté ».
+    // Depuis la 4.9, un lot de synthèses entièrement en échec y écrit aussi : Mistral tombe une heure à
+    // 06 h, et `/api/health` — route PUBLIQUE — répond `degrade` pendant DEUX JOURS pleins, longtemps
+    // après le retour du fournisseur, alors que l'ordonnanceur va parfaitement bien. Le mot avait changé
+    // de sens sans que la SQL, son commentaire ni son test ne bougent.
+    //
+    // Rien n'est perdu : un job qui échoue tous les jours cesse d'avoir des réussites, donc `estEnRetard`
+    // finit par le voir et lève `job_en_retard`. La panne durable remonte, le hoquet non — et c'est la
+    // couche du dessous qui fait ce tri, à sa place.
+    // Mutation-cible : retirer `and type = 'job_en_retard'`.
+    await reussiteSante();
+    await admin.rpc("lever_incident", { p_type: "job_echoue", p_job: `${P}-fournisseur`, p_detail: "lot" });
+    expect(await sante(), "un travail qui rate n'est pas un ordonnanceur qui va mal").toBe("ok");
+  });
+
+  it("[CONTRÔLE POSITIF] un `job_en_retard`, lui, dégrade — c'est bien l'ordonnanceur qui parle", async () => {
+    await reussiteSante();
+    await admin.rpc("lever_incident", { p_type: "job_en_retard", p_job: `${P}-arrete`, p_detail: "hors_tolerance" });
+    expect(await sante(), "un travail qui ne se fait PLUS, si").toBe("degrade");
   });
 });

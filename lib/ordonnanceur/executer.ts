@@ -73,7 +73,15 @@ export async function executerOrdonnanceur(deps: DepsOrdonnanceur): Promise<Rapp
       }
       try {
         await avecDelai(
-          job.executer({ depot: deps.depot, instant, registre }),
+          job.executer({
+            depot: deps.depot,
+            instant,
+            // L'échéance que le job doit s'imposer LUI-MÊME, calculée sur la même valeur que le `avecDelai`
+            // qui l'entoure. Un job par lots qui la respecte rend la main proprement ; celui qui l'ignore
+            // se fait couper, et se fait alors rapporter comme un échec alors qu'il a peut-être tout fait.
+            echeance: new Date(Date.now() + job.delaiMs),
+            registre,
+          }),
           job.delaiMs,
           `${job.nom.replace(/-/g, "_")}_timeout`,
         );

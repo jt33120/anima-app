@@ -281,7 +281,7 @@ describe("[AC5] le job de santé", () => {
         ]),
       },
     });
-    await executerSante({ depot, instant: maintenant, registre });
+    await executerSante({ depot, instant: maintenant, echeance: new Date(Date.now() + 60_000), registre });
     expect(trace.incidents).toEqual([
       { type: "job_en_retard", job: "mort", detail: "reussite_hors_tolerance" },
     ]);
@@ -292,7 +292,7 @@ describe("[AC5] le job de santé", () => {
     // aucun n'est en retard. Mutation-cible : `estEnRetard` traitant `null` comme « en retard » — le jour du
     // déploiement, le tableau de santé serait rouge partout, donc inutile pour toujours.
     const { depot, trace } = depotFactice({ etat: { naissance: null, reussites: new Map() } });
-    await executerSante({ depot, instant: maintenant, registre });
+    await executerSante({ depot, instant: maintenant, echeance: new Date(Date.now() + 60_000), registre });
     expect(trace.incidents).toEqual([]);
   });
 
@@ -300,7 +300,7 @@ describe("[AC5] le job de santé", () => {
     const { depot, trace } = depotFactice({
       etat: { naissance: new Date("2026-07-01T00:00:00Z"), reussites: new Map() },
     });
-    await executerSante({ depot, instant: maintenant, registre });
+    await executerSante({ depot, instant: maintenant, echeance: new Date(Date.now() + 60_000), registre });
     expect(trace.incidents).toEqual([
       { type: "job_en_retard", job: "frais", detail: "aucune_reussite_connue" },
       { type: "job_en_retard", job: "mort", detail: "aucune_reussite_connue" },
@@ -311,7 +311,7 @@ describe("[AC5] le job de santé", () => {
     const { depot, trace } = depotFactice({
       etat: { naissance: new Date("2026-07-01T00:00:00Z"), reussites: new Map() },
     });
-    await executerSante({ depot, instant: maintenant, registre });
+    await executerSante({ depot, instant: maintenant, echeance: new Date(Date.now() + 60_000), registre });
     for (const i of trace.incidents) {
       expect(["aucune_reussite_connue", "reussite_hors_tolerance"]).toContain(i.detail);
     }

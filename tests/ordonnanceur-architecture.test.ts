@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { REGISTRE } from "@/lib/ordonnanceur/registre";
+import { RESERVE_PERSONNE_MS } from "@/lib/domain/synthese";
 
 /**
  * Story 4.8 (T8) — LES GARDES D'ARCHITECTURE. C'est ici que « aucun mécanisme périodique hors de
@@ -231,5 +232,54 @@ describe("[AC5] le job de santé est le point fixe du signal public", () => {
     for (const j of REGISTRE) {
       expect(j.enServiceDepuis.getTime(), `${j.nom}`).toBeGreaterThan(new Date("2026-01-01").getTime());
     }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// REVUE 4.9 / T3-3 — le budget du registre doit tenir dans celui de la plateforme
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[T3-3] Σ delaiMs + marge ≤ maxDuration", () => {
+  it("[LE CŒUR] le registre ne peut pas promettre plus de temps que la lambda n'en a", () => {
+    // Le défaut, invisible à la lecture parce qu'il vit dans une ADDITION répartie sur deux fichiers :
+    // 15 000 (santé) + 50 000 (synthèse) = 65 s, contre `maxDuration = 60`. Le contrat écrit dans
+    // `lib/domain/ordonnanceur.ts` — « un job qui dépasse est clos en échec, il ne mange pas le budget des
+    // suivants » — ne tenait donc plus pour le dernier job du registre : la plateforme le tuait AVANT que
+    // son propre `avecDelai` ne s'arme. Rien de clos, aucun incident levé, la ligne laissée `en_cours`
+    // sous son bail. Un échec totalement muet — pas même le faux `job_echoue` du dépassement ordinaire.
+    //
+    // Aucun test ne l'attrapait : ce fichier vérifiait le nombre de crons, les tolérances et
+    // `enServiceDepuis`, jamais le budget. Une garde qui vérifie tout sauf l'addition.
+    //
+    // Mutation-cible : remonter n'importe quel `delaiMs` du registre au-delà de la marge.
+    const route = readFileSync(resolve(RACINE, "app/api/ordonnanceur/route.ts"), "utf-8");
+    const trouve = route.match(/export const maxDuration\s*=\s*(\d+)/);
+    expect(trouve, "`maxDuration` doit être déclaré sur la route").not.toBeNull();
+
+    const maxDurationMs = Number(trouve![1]) * 1000;
+    const somme = REGISTRE.reduce((total, job) => total + job.delaiMs, 0);
+
+    // La marge couvre ce qui vit HORS des `avecDelai` : la vérification d'environnement, les
+    // `reclamer`/`clore` de chaque job, la sérialisation de la réponse. Un aller-retour Supabase depuis
+    // une lambda se compte en dizaines de millisecondes, mais il y en a deux par job et ils peuvent
+    // traîner sur une base chargée.
+    const MARGE_MS = 8_000;
+    expect(
+      somme + MARGE_MS,
+      `Σ delaiMs = ${somme} ms + marge ${MARGE_MS} ms doit tenir dans maxDuration = ${maxDurationMs} ms`,
+    ).toBeLessThanOrEqual(maxDurationMs);
+  });
+
+  it("chaque job garde de quoi faire au moins une unité de travail", () => {
+    // Le pendant de la garde ci-dessus : rétrécir les budgets pour satisfaire l'addition n'est une
+    // solution que tant que chaque job peut encore faire quelque chose. Le fan-out de synthèse doit
+    // pouvoir servir AU MOINS une personne, sinon il rend la main à chaque tick et personne n'est jamais
+    // servi — un système qui ne fait rien, et qui le fait sans se plaindre.
+    const synthese = REGISTRE.find((j) => j.nom === "synthese-hebdomadaire");
+    expect(synthese, "le job de synthèse est au registre").toBeDefined();
+    expect(
+      synthese!.delaiMs,
+      "il faut de quoi tenter une personne : l'appel modèle plus ses allers-retours",
+    ).toBeGreaterThanOrEqual(RESERVE_PERSONNE_MS);
   });
 });

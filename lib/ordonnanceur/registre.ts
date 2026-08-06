@@ -22,6 +22,16 @@ import { executerSynthese, NOM_JOB as NOM_SYNTHESE } from "@/lib/ordonnanceur/jo
 export interface ContexteJob {
   readonly depot: DepotOrdonnanceur;
   readonly instant: Date;
+  /**
+   * L'ÉCHÉANCE du job — `instant + delaiMs` (revue 4.9, T3-1). Un job qui fait du travail par lots doit
+   * pouvoir s'arrêter DE LUI-MÊME avant que le répartiteur ne le coupe.
+   *
+   * La différence n'est pas cosmétique : coupé par `avecDelai`, le job est clos en `echoue` et lève un
+   * `job_echoue` — alors qu'il a peut-être servi tout le monde. Ce mensonge quotidien faisait répondre
+   * `degrade` à la sonde publique en permanence dès le premier jour de production, ce qui est la façon
+   * la plus sûre de rendre une alarme inutile. Rendre la main proprement, c'est réussir.
+   */
+  readonly echeance: Date;
   /** Le registre lui-même — le job de santé en a besoin, et le lui passer évite un cycle d'importation. */
   readonly registre: readonly JobEnregistre[];
 }
@@ -40,24 +50,30 @@ export const REGISTRE: readonly JobEnregistre[] = [
     // même panne alertait ou non selon le hasard de l'horaire. 60 h place le seuil au MILIEU de l'intervalle
     // [48 h, 72 h] : deux ticks manqués alertent toujours, un seul jamais (revue 4.8, défaut n°9).
     toleranceHeures: 60,
-    delaiMs: 15_000,
+    delaiMs: 12_000,
     // Le jour où ce job est entré au registre (Story 4.8). Lu seulement tant qu'il n'a jamais réussi.
     enServiceDepuis: new Date("2026-08-05T00:00:00Z"),
     executer: executerSante,
   },
   {
-    // ⚠️ QUOTIDIEN, alors que la synthèse est HEBDOMADAIRE. Ce n'est pas une erreur — c'est le mécanisme
-    // de reprise. Le job est un FAN-OUT : il repasse chaque jour et réclame une fenêtre HEBDOMADAIRE par
-    // personne. Une personne servie lundi est `deja_fait` mardi ; une personne en échec lundi est reprise
-    // mardi. Avec une cadence hebdomadaire ici, un fan-out partiellement réussi clôrait sa semaine et les
-    // personnes en échec ne seraient jamais reprises. Voir l'en-tête de `jobs/synthese.ts`.
+    // ⚠️ QUOTIDIEN, et la synthèse ne l'est pas. Ce n'est pas une erreur — c'est le mécanisme de reprise
+    // ET celui du rattrapage. Le job est un FAN-OUT : il repasse chaque jour et réclame une fenêtre
+    // QUOTIDIENNE par personne ; c'est la CADENCE, en base, qui décide s'il faut la servir aujourd'hui
+    // (sept jours depuis la dernière période racontée, sauf rattrapage en cours). Voir l'en-tête de
+    // `jobs/synthese.ts`.
     nom: NOM_SYNTHESE,
     cadence: "quotidien",
     // 60 h, pour la même raison que le job de santé : jamais pile sur un multiple de la cadence.
     toleranceHeures: 60,
-    // Le lot est de 20 personnes et chacune coûte un appel au modèle fort. Le délai borne le FAN-OUT
-    // entier, pas une personne — chaque personne a en plus son propre bail (`BAIL_PERSONNE_S`).
-    delaiMs: 50_000,
+    // Le délai borne le FAN-OUT entier, pas une personne — chaque personne a en plus son propre bail
+    // (`BAIL_PERSONNE_S`) et son propre délai sur l'appel modèle (`DELAI_MODELE_MS`).
+    //
+    // 38 s, et la somme du registre compte : 12 + 38 = 50 s pour une lambda bornée à 60 (`maxDuration`).
+    // À 15 + 50 = 65 s, le budget du registre dépassait celui de la plateforme, et le dernier job pouvait
+    // être tué par Vercel AVANT que son propre `avecDelai` ne s'arme — rien de clos, aucun incident levé,
+    // la ligne laissée `en_cours` : un échec totalement muet. Un test d'architecture garde désormais
+    // l'invariant `Σ delaiMs + marge ≤ maxDuration` (revue 4.9, T3-3).
+    delaiMs: 38_000,
     enServiceDepuis: new Date("2026-08-05T00:00:00Z"),
     executer: executerSynthese,
   },

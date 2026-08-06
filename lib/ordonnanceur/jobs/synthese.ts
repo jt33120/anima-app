@@ -2,12 +2,15 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { fenetreDe } from "@/lib/domain/ordonnanceur";
 import { codeDErreur } from "@/lib/domain/code-erreur";
-import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
+import { journaliserExploitation, journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
+import { avecDelai } from "@/lib/domain/delai";
 import {
+  DELAI_MODELE_MS,
   LOT_PAR_TICK,
   PLAFOND_ENTREES,
   PLAFOND_NOTIFICATION_HEURES,
   PLAFOND_OCTETS,
+  RESERVE_PERSONNE_MS,
   aQuelqueChoseADire,
   periodeDe,
   validerSortieSynthese,
@@ -88,93 +91,152 @@ export async function executerSyntheseAvec(ctx: ContexteJob, deps: DepsSynthese)
   // C'est la CADENCE, en base, qui décide s'il faut la servir aujourd'hui (sept jours depuis la dernière
   // période, sauf rattrapage en cours) ; la réclamation ne décide plus que « pas deux fois le même jour ».
   const jour = fenetreDe("quotidien", ctx.instant);
-  const candidates = await deps.depot.candidates(LOT_PAR_TICK);
+  const candidates = await deps.depot.candidates(NOM_JOB, LOT_PAR_TICK);
 
   // PAS de `if (candidates.length === 0) return;` ici, et c'est délibéré. Il ne faisait rien qu'une
   // boucle sur un tableau vide ne fasse déjà — mais il MASQUAIT la garde `echecs > 0` d'en bas : avec un
-  // retour anticipé, on pouvait retirer ce `echecs > 0` sans qu'aucun test ne rougisse, alors qu'il est
-  // le seul à empêcher un incident quotidien les jours où personne n'a rien à raconter. Deux défenses du
+  // retour anticipé, on pouvait retirer ce `echecs > 0` sans qu'aucun test ne rougisse. Deux défenses du
   // même invariant, et un test qui prouve « au moins une existe » sans jamais dire laquelle : c'est le
   // piège payé en 4.7, retrouvé ici par la mutation-vérification.
+  //
+  // `tentees` et `candidates.length` ne sont PAS la même chose, et les confondre cassait l'alarme dans
+  // les deux sens (revue 4.9, T3-4). Dix-neuf personnes « rien à dire » et une seule qui échoue, c'est
+  // 100 % du travail réel en échec — et l'ancien test `echecs === candidates.length` ne levait rien. À
+  // l'inverse, dans un produit qui compte une poignée d'utilisatrices, `candidates.length` vaut 1 presque
+  // toujours : le moindre hoquet devenait alors un incident système et faisait passer /api/health en
+  // `degrade`. Le dénominateur juste est ce qu'on a VRAIMENT tenté.
+  let tentees = 0;
   let echecs = 0;
 
-  for (const utilisatriceId of candidates) {
-    // LA réclamation par personne. Elle est la décision : si elle refuse, cette personne a déjà eu sa
-    // synthèse cette semaine (ou l'a en cours ailleurs) et il n'y a rien à décider de plus.
+  for (const [rang, utilisatriceId] of candidates.entries()) {
+    // RENDRE LA MAIN AVANT D'ÊTRE COUPÉ (T3-1). Se faire couper par `avecDelai` clôt le fan-out en
+    // `echoue` et lève un `job_echoue` — alors que tout le monde a peut-être été servi. Ce mensonge-là
+    // était quotidien, et il faisait répondre `degrade` à la sonde publique en permanence dès le premier
+    // jour de production. Une alarme qui hurle tous les jours est une alarme que personne ne lit.
+    if (ctx.echeance.getTime() - Date.now() < RESERVE_PERSONNE_MS) {
+      journaliserExploitation("synthese_lot_incomplet", { code: `restantes_${candidates.length - rang}` });
+      break;
+    }
+
+    // LA réclamation par personne. Elle est la décision : si elle refuse, cette personne a déjà été
+    // traitée aujourd'hui (ou l'est en ce moment ailleurs) et il n'y a rien à décider de plus.
     const reclame = await ctx.depot.reclamer(NOM_JOB, jour, utilisatriceId, BAIL_PERSONNE_S);
     if (!reclame) continue;
 
+    let issue: IssuePersonne;
+    let motifEchec: string | null = null;
     try {
-      const materiau = await deps.depot.materiau(utilisatriceId, PLAFOND_ENTREES, PLAFOND_OCTETS);
-      const periode = periodeDe(materiau);
-
-      // D3 / FR-034 : rien à dire, donc rien. On clôt en RÉUSSITE — le job a fait son travail, qui était
-      // de constater qu'il n'y avait pas de travail. Clore en échec ferait revenir cette personne demain
-      // pour reconstater la même chose, tous les jours, indéfiniment.
-      if (!aQuelqueChoseADire(materiau) || !periode) {
-        await ctx.depot.clore(NOM_JOB, jour, utilisatriceId, true, null);
-        continue;
-      }
-
-      // Le tier n'est pas choisi ici : la capacité `synthese` est résolue au modèle FORT par la politique
-      // unique (AD-5, `lib/ai/politique-tier.ts`). `contientArt9` est vrai — c'est le journal, et il est
-      // désormais LU par quelqu'un : l'egress-guard relit l'état vivant juste avant de poster.
-      const egress = await envoyerSousEgressArt9Ordonnanceur({
-        supabase: deps.supabase,
-        utilisatriceId,
-        adaptateur: deps.ia,
-        requete: {
-          capacite: "synthese",
-          // Le jeton rend les marqueurs du bloc journal imprévisibles : sans lui, une ligne écrite dans
-          // le journal peut imiter le délimiteur et se faire passer pour une consigne.
-          messages: [consigneSynthese(), ...messagesSynthese(materiau, randomUUID())],
-          contientArt9: true,
-        },
-      });
-      // Bloquée = elle n'est plus éligible depuis la constitution du lot (révocation, barrière, détresse),
-      // ou le ZDR n'est pas prouvé. Rien n'a été posté, et rien ne doit être écrit. On clôt en RÉUSSITE :
-      // le job a fait son travail, qui était de constater qu'il ne devait rien faire. Clore en échec la
-      // ferait revenir demain pour reconstater la même chose, tous les jours.
-      if (egress.bloque) {
-        journaliserIncidentSecurite("synthese_egress_bloque", { code: egress.raison });
-        await ctx.depot.clore(NOM_JOB, jour, utilisatriceId, true, null);
-        continue;
-      }
-
-      // La sortie du modèle est bornée AVANT d'entrer en base : un refus poli (« je ne peux pas vous
-      // aider ») serait stocké tel quel et lu comme le récit de sa semaine ; du blanc ferait lever la
-      // contrainte `contenu_non_vide`, donc échouer la tranche, donc la rejouer à l'identique demain.
-      const contenu = validerSortieSynthese(egress.reponse.texte);
-      if (contenu === null) throw new Error("synthese_sortie_vide");
-
-      const syntheseId = await deps.depot.enregistrer(
-        utilisatriceId,
-        periode.debut,
-        periode.fin,
-        contenu,
-        periode.tronquee,
-      );
-
-      // `null` : la tranche existait déjà, ou l'éligibilité a changé pendant la production. Rien de neuf
-      // n'a été produit, donc rien à annoncer. L'identifiant rendu est la clé d'idempotence de l'annonce :
-      // une synthèse, une annonce, et le lien entre les deux est la ligne elle-même.
-      if (syntheseId) await notifier(deps, utilisatriceId, syntheseId);
-
-      await ctx.depot.clore(NOM_JOB, jour, utilisatriceId, true, null);
+      issue = await produirePour(deps, utilisatriceId);
     } catch (e) {
+      issue = "echec";
       echecs += 1;
-      // Clore en ÉCHEC pour CETTE personne seulement : sa fenêtre redevient réclamable demain, celles des
-      // autres n'ont pas bougé. Aucun incident par personne — une panne de modèle en toucherait vingt et
-      // noierait la table sous vingt lignes disant la même chose.
-      await ctx.depot.clore(NOM_JOB, jour, utilisatriceId, false, codeDErreur(e));
+      motifEchec = codeDErreur(e);
+    }
+    // Une personne qui n'avait rien à dire, ou que l'egress a écartée, n'a pas été TENTÉE : rien n'a été
+    // produit, rien n'a échoué. La compter diluerait l'alarme d'en bas.
+    if (issue !== "rien_a_dire" && issue !== "bloquee") tentees += 1;
+
+    // LA CLÔTURE EST HORS DU TRY, et c'est exactement le patron que la revue 4.8 avait imposé au
+    // répartiteur (`executer.ts`, défauts n°3 et n°5) — patron que ce job avait perdu. Quand elle était
+    // dedans, un simple hoquet réseau sur `clore(true)` — après une synthèse écrite ET un courriel
+    // PARTI — tombait dans le catch : on écrivait `echoue`, et la trace disait le contraire de ce qui
+    // s'était produit. Le commentaire de `executer.ts` l'annonçait mot pour mot : « Sur la synthèse
+    // (4.9), c'eût été une seconde synthèse et une seconde notification. »
+    try {
+      await ctx.depot.clore(NOM_JOB, jour, utilisatriceId, motifEchec === null, motifEchec);
+    } catch (e) {
+      // Et elle est PROTÉGÉE. Sans ce catch, une base indisponible au moment de clore la première
+      // personne faisait sortir l'exception de la boucle : les suivantes n'étaient jamais réclamées, le
+      // compteur d'échecs était perdu, et l'unique signal — un `job_echoue` du répartiteur — ne disait
+      // rien du fait que dix-neuf personnes sur vingt n'avaient pas été regardées.
+      journaliserExploitation("synthese_cloture", { code: codeDErreur(e) });
     }
   }
 
-  // En revanche, un lot ENTIÈREMENT en échec est un vrai signal : ce n'est plus une personne, c'est le
-  // chemin. `lever_incident` dédoublonne par (type, job, jour) — au plus une ligne par jour.
-  if (echecs > 0 && echecs === candidates.length) {
+  // Un lot ENTIÈREMENT en échec est un vrai signal : ce n'est plus une personne, c'est le chemin. Le
+  // plancher de deux est ce qui empêche l'alarme de se déclencher sur une seule utilisatrice — pour
+  // celle-là, c'est le disjoncteur ci-dessous qui parle, et il attend trois jours avant de le faire.
+  if (echecs > 0 && echecs === tentees && tentees >= 2) {
     await ctx.depot.leverIncident("job_echoue", NOM_JOB, "lot_entierement_echoue");
   }
+
+  // LE DISJONCTEUR (T3-2). Une personne dont le matériau fait échouer le modèle de façon déterministe
+  // revenait chaque jour, première dans le tri (elle n'a jamais rien reçu), et brûlait un appel au modèle
+  // fort à vie. La base l'écarte après trois échecs en sept jours ; ici on le DIT — sinon l'écartement
+  // serait silencieux, et « cette personne n'a plus de synthèse » est précisément ce qu'il faut savoir.
+  // `lever_incident` dédoublonne par (type, job, jour) : au plus une ligne par jour.
+  const bloquees = await deps.depot.personnesEnEchecRepete(NOM_JOB);
+  if (bloquees > 0) {
+    await ctx.depot.leverIncident("job_echoue", NOM_JOB, "echecs_repetes");
+  }
+}
+
+/** Ce qu'il est advenu d'une personne. Un échec ne se dit pas ici : il se lève. */
+type IssuePersonne = "produite" | "rien_a_dire" | "bloquee" | "echec";
+
+/**
+ * Le travail d'UNE personne. Extrait de la boucle par la revue 4.9 pour que la clôture puisse vivre
+ * DEHORS : tant que la clôture était mêlée aux `continue` du corps, elle ne pouvait pas être hoistée, et
+ * c'est ce qui l'avait ramenée dans le `try`.
+ */
+async function produirePour(deps: DepsSynthese, utilisatriceId: string): Promise<IssuePersonne> {
+  const materiau = await deps.depot.materiau(utilisatriceId, PLAFOND_ENTREES, PLAFOND_OCTETS);
+  const periode = periodeDe(materiau);
+
+  // D3 / FR-034 : rien à dire, donc rien. C'est une RÉUSSITE — le job a fait son travail, qui était de
+  // constater qu'il n'y avait pas de travail.
+  if (!aQuelqueChoseADire(materiau) || !periode) return "rien_a_dire";
+
+  // Le tier n'est pas choisi ici : la capacité `synthese` est résolue au modèle FORT par la politique
+  // unique (AD-5). `contientArt9` est vrai — c'est le journal, et l'egress-guard relit l'état vivant
+  // juste avant de poster.
+  //
+  // `avecDelai` borne l'appel (T3-2) : sans lui, une seule réponse qui ne revient pas mangeait tout le
+  // budget du fan-out, et comme rien n'était écrit, la même personne repassait première le lendemain.
+  const egress = await avecDelai(
+    envoyerSousEgressArt9Ordonnanceur({
+      supabase: deps.supabase,
+      utilisatriceId,
+      adaptateur: deps.ia,
+      requete: {
+        capacite: "synthese",
+        // Le jeton rend les marqueurs du bloc journal imprévisibles : sans lui, une ligne écrite dans le
+        // journal peut imiter le délimiteur et se faire passer pour une consigne.
+        messages: [consigneSynthese(), ...messagesSynthese(materiau, randomUUID())],
+        contientArt9: true,
+      },
+    }),
+    DELAI_MODELE_MS,
+    "synthese_modele_timeout",
+  );
+
+  // Bloquée = elle n'est plus éligible depuis la constitution du lot (révocation, barrière, détresse), ou
+  // le ZDR n'est pas prouvé. Rien n'a été posté, et rien ne doit être écrit.
+  if (egress.bloque) {
+    journaliserIncidentSecurite("synthese_egress_bloque", { code: egress.raison });
+    return "bloquee";
+  }
+
+  // La sortie du modèle est bornée AVANT d'entrer en base : un refus poli (« je ne peux pas vous aider »)
+  // serait stocké tel quel et lu comme le récit de sa semaine ; du blanc ferait lever la contrainte
+  // `contenu_non_vide`, donc échouer la tranche, donc la rejouer à l'identique demain.
+  const contenu = validerSortieSynthese(egress.reponse.texte);
+  if (contenu === null) throw new Error("synthese_sortie_vide");
+
+  const syntheseId = await deps.depot.enregistrer(
+    utilisatriceId,
+    periode.debut,
+    periode.fin,
+    contenu,
+    periode.tronquee,
+  );
+
+  // `null` : la tranche existait déjà, ou l'éligibilité a changé pendant la production. Rien de neuf n'a
+  // été produit, donc rien à annoncer. L'identifiant rendu est la clé d'idempotence de l'annonce : une
+  // synthèse, une annonce, et le lien entre les deux est la ligne elle-même.
+  if (syntheseId) await notifier(deps, utilisatriceId, syntheseId);
+
+  return "produite";
 }
 
 /**
@@ -208,8 +270,13 @@ async function notifier(deps: DepsSynthese, utilisatriceId: string, syntheseId: 
   } catch (e) {
     // L'échec de l'ANNONCE ne fait pas échouer la SYNTHÈSE : le travail a bien été produit et il est
     // consultable. Le rétrograder en échec ferait revenir cette personne demain pour une synthèse qui
-    // existe déjà — et le journal du processus est le bon endroit pour dire qu'un courriel n'est pas parti.
-    journaliserIncidentSecurite("synthese_courriel", { code: codeDErreur(e) });
+    // existe déjà.
+    //
+    // Le CANAL a changé (revue 4.9, T6-10) : `journaliserIncidentSecurite` annonce « indisponibilité
+    // d'une RPC de sécurité », si bien qu'un 5xx de Resend se lisait dans les journaux comme une panne de
+    // garde de sécurité — et c'était sa seule trace. Le canal des vrais incidents, celui où vivent les
+    // alertes de détresse, se retrouvait repollué là où la revue 4.7 venait de le nettoyer.
+    journaliserExploitation("synthese_courriel", { code: codeDErreur(e) });
   }
 }
 

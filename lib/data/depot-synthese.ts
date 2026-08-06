@@ -27,7 +27,14 @@ export type MotifNotification = "synthese_prete";
 
 export interface DepotSynthese {
   /** Les utilisatrices à servir maintenant, les plus longtemps en attente d'abord. */
-  candidates(limite: number): Promise<readonly string[]>;
+  candidates(job: string, limite: number): Promise<readonly string[]>;
+  /**
+   * Combien de personnes le disjoncteur a écartées — trois échecs en sept jours. Le job s'en sert pour
+   * lever UN incident : sans ça, l'écartement serait silencieux, et « cette personne n'a plus de
+   * synthèse » est précisément ce qu'il faut savoir. C'est aussi le seul signal fiable dans un produit
+   * qui compte une poignée d'utilisatrices, où « tout le lot a échoué » ne veut rien dire.
+   */
+  personnesEnEchecRepete(job: string): Promise<number>;
   materiau(utilisatriceId: string, plafondEntrees: number, plafondOctets: number): Promise<MateriauSynthese>;
   /**
    * L'identifiant de la synthèse écrite, ou `null` si rien ne l'a été — la tranche existait déjà, ou
@@ -57,12 +64,21 @@ export function creerDepotSynthese(): DepotSynthese {
   const supabase = createSupabaseAdminClient();
 
   return {
-    async candidates(limite): Promise<readonly string[]> {
+    async candidates(job, limite): Promise<readonly string[]> {
       const { data, error } = await supabase.rpc("utilisatrices_a_synthetiser", {
+        p_job: job,
         p_limite: limite,
       });
       if (error) throw new Error(`utilisatrices_a_synthetiser: ${error.code ?? "echec"}`);
       return Array.isArray(data) ? (data as string[]) : [];
+    },
+
+    async personnesEnEchecRepete(job): Promise<number> {
+      const { data, error } = await supabase.rpc("personnes_en_echec_repete", { p_job: job });
+      // Dans le doute : ZÉRO. Un incident levé sur une lecture ratée serait un incident qui parle d'une
+      // panne de lecture en prétendant parler d'utilisatrices bloquées.
+      if (error) return 0;
+      return typeof data === "number" ? data : 0;
     },
 
     async materiau(utilisatriceId, plafondEntrees, plafondOctets): Promise<MateriauSynthese> {

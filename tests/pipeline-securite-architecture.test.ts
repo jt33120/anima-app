@@ -439,7 +439,12 @@ describe("[AD-13] l'egress art. 9 est un passage OBLIGÉ — pour TOUT le dépô
         // `lib/ai/` est le port lui-même : c'est là que vivent l'adaptateur et ses gardes.
         // `tests/` fabrique des doublures, dont c'est le métier d'implémenter le port.
         if (relatif.startsWith("lib/ai/") || relatif.startsWith("tests/")) continue;
-        const src = readFileSync(chemin, "utf-8");
+        // Les COMMENTAIRES sont dépouillés avant de scanner. Sans ça, la garde se déclenchait sur une
+        // phrase qui parle d'`.completer(` pour expliquer pourquoi il ne faut pas l'appeler — et un garde
+        // qui crie au loup est un garde qu'on finit par assouplir.
+        const src = readFileSync(chemin, "utf-8")
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .replace(/^\s*\/\/.*$/gm, "");
         if (/\.\s*completer\s*\(|\.\s*diffuser\s*\(/.test(src)) coupables.push(relatif);
       }
     }

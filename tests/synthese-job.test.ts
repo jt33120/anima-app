@@ -6,6 +6,7 @@ import {
   PLAFOND_ENTREES,
   PLAFOND_NOTIFICATION_HEURES,
   PLAFOND_OCTETS,
+  DELAI_MODELE_MS,
   type MateriauSynthese,
 } from "@/lib/domain/synthese";
 import type { DepotSynthese } from "@/lib/data/depot-synthese";
@@ -76,6 +77,7 @@ const MATERIAU_VIDE: MateriauSynthese = {
 };
 
 interface TraceSynthese {
+  appelsCandidates: { job: string; limite: number }[];
   materiaux: string[];
   plafonds: { entrees: number; octets: number }[];
   enregistrements: { id: string; debut: string; fin: string; contenu: string; tronquee: boolean }[];
@@ -89,11 +91,16 @@ function depotSyntheseFactice(options: {
   enregistrer?: (id: string) => string | null;
   reserver?: (id: string) => boolean;
   adresse?: (id: string) => string | null;
+  enEchecRepete?: number;
 } = {}) {
-  const trace: TraceSynthese = { materiaux: [], plafonds: [], enregistrements: [], reservations: [], ordre: [] };
+  const trace: TraceSynthese = { appelsCandidates: [], materiaux: [], plafonds: [], enregistrements: [], reservations: [], ordre: [] };
   const depot: DepotSynthese = {
-    async candidates() {
+    async candidates(job, limite) {
+      trace.appelsCandidates.push({ job, limite });
       return options.candidates ?? ["u1"];
+    },
+    async personnesEnEchecRepete() {
+      return options.enEchecRepete ?? 0;
     },
     async materiau(id, plafondEntrees, plafondOctets) {
       trace.materiaux.push(id);
@@ -155,8 +162,13 @@ function supabaseFactice(options: { eligible?: (id: string) => boolean; echoue?:
   return { client, appels };
 }
 
-function contexte(depot: DepotOrdonnanceur): ContexteJob {
-  return { depot, instant: INSTANT, registre: [] };
+/**
+ * `echeance` par défaut : très loin, pour que les tests qui ne parlent PAS du budget ne le rencontrent
+ * jamais. Ceux qui en parlent la passent explicitement — c'est plus lisible qu'une horloge simulée, et
+ * ça évite qu'un test échoue le jour où la machine est lente.
+ */
+function contexte(depot: DepotOrdonnanceur, echeanceDansMs = 3_600_000): ContexteJob {
+  return { depot, instant: INSTANT, echeance: new Date(Date.now() + echeanceDansMs), registre: [] };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -415,7 +427,7 @@ describe("le lot est BORNÉ — la lambda a 60 s, pas l'éternité", () => {
     const appel: { limite?: number } = {};
     const syn: DepotSynthese = {
       ...depotSyntheseFactice().depot,
-      async candidates(limite) {
+      async candidates(_job, limite) {
         appel.limite = limite;
         return [];
       },
@@ -546,5 +558,278 @@ describe("[T2-1 / AD-13] l'état vivant est relu JUSTE AVANT de poster le journa
     expect(traceSyn.enregistrements, "rien n'entre en base").toEqual([]);
     expect(trace.clos[0].reussi, "et c'est bien un échec : on a payé le modèle pour rien").toBe(false);
     expect(trace.clos[0].motif).toBe("synthese_sortie_vide");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// REVUE 4.9 — LOT B : le budget, les compteurs, et la clôture remise à sa place
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[T3-1] le job rend la main AVANT d'être coupé — se faire couper, c'est mentir", () => {
+  it("[LE CŒUR] budget épuisé → la boucle s'arrête, sans réclamer ni produire quoi que ce soit", async () => {
+    // Coupé par `avecDelai`, le fan-out est clos en `echoue` et lève un `job_echoue` — alors qu'il a
+    // peut-être servi tout le monde. Avec 20 personnes pour 38 s et un appel au modèle fort chacune, la
+    // coupure était la RÈGLE, pas le cas limite : le mensonge était quotidien, et il faisait répondre
+    // `degrade` à la sonde PUBLIQUE en permanence dès le premier jour de production. Une alarme qui hurle
+    // tous les jours est une alarme que personne ne lit — et c'est celle qui doit dire que la synthèse a
+    // cessé de fonctionner. Mutation-cible : retirer le `break` sur l'échéance.
+    const espion = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { depot, trace } = depotOrdoFactice();
+      const { depot: syn, trace: traceSyn } = depotSyntheseFactice({ candidates: ["u1", "u2", "u3"] });
+      const { ia, requetes } = iaFactice();
+
+      // Échéance dans 1 s : il en faut `RESERVE_PERSONNE_MS` pour tenter quelqu'un.
+      await executerSyntheseAvec(contexte(depot, 1_000), {
+        depot: syn,
+        ia,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice(),
+      });
+
+      expect(trace.reclames, "personne n'est réclamée : on n'ouvre pas ce qu'on ne peut pas finir").toEqual([]);
+      expect(requetes, "aucun appel au modèle").toEqual([]);
+      expect(traceSyn.enregistrements).toEqual([]);
+      expect(trace.incidents, "et surtout : AUCUN incident — rendre la main n'est pas échouer").toEqual([]);
+    } finally {
+      espion.mockRestore();
+    }
+  });
+
+  it("[CONTRÔLE POSITIF] avec du budget, tout le lot est servi", async () => {
+    // Sans lui, le test précédent serait satisfait par un job qui ne fait JAMAIS rien.
+    const { depot, trace } = depotOrdoFactice();
+    const { depot: syn } = depotSyntheseFactice({ candidates: ["u1", "u2", "u3"] });
+    const { ia, requetes } = iaFactice();
+
+    await executerSyntheseAvec(contexte(depot), {
+      depot: syn,
+      ia,
+      supabase: supabaseFactice().client,
+      courriel: creerPortCourrielFactice(),
+    });
+
+    expect(requetes).toHaveLength(3);
+    expect(trace.clos.filter((c) => c.reussi)).toHaveLength(3);
+  });
+
+  it("le reste du lot est DIT, pas avalé — sinon la dégradation serait invisible", async () => {
+    const espion = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { depot } = depotOrdoFactice();
+      const { depot: syn } = depotSyntheseFactice({ candidates: ["u1", "u2", "u3", "u4"] });
+      const { ia } = iaFactice();
+
+      await executerSyntheseAvec(contexte(depot, 1_000), {
+        depot: syn,
+        ia,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice(),
+      });
+
+      expect(espion).toHaveBeenCalledWith(
+        expect.stringContaining("exploitation"),
+        expect.objectContaining({ motif: "synthese_lot_incomplet", code: "restantes_4" }),
+      );
+    } finally {
+      espion.mockRestore();
+    }
+  });
+});
+
+describe("[T3-7] la clôture est HORS du try, et elle est protégée", () => {
+  it("[LE CŒUR] une clôture qui LÈVE n'emporte plus les personnes suivantes", async () => {
+    // Sans le catch autour de `clore`, une base indisponible au moment de clore la première personne
+    // faisait sortir l'exception de la boucle : u2 et u3 n'étaient JAMAIS réclamées, le compteur d'échecs
+    // était perdu, et l'unique signal — un `job_echoue` du répartiteur — ne disait rien du fait que deux
+    // personnes sur trois n'avaient pas été regardées. Une panne base de trente secondes au mauvais
+    // moment coûtait la journée entière. Mutation-cible : retirer le try/catch autour de `clore`.
+    const espion = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { depot, trace } = depotOrdoFactice();
+      const depotQuiCasse: DepotOrdonnanceur = {
+        ...depot,
+        async clore(j, fenetre, cible, reussi, motif) {
+          if (cible === "u1") throw new Error("clore_indisponible: 08006");
+          return depot.clore(j, fenetre, cible, reussi, motif);
+        },
+      };
+      const { depot: syn, trace: traceSyn } = depotSyntheseFactice({ candidates: ["u1", "u2", "u3"] });
+      const { ia } = iaFactice();
+
+      await executerSyntheseAvec(contexte(depotQuiCasse), {
+        depot: syn,
+        ia,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice(),
+      });
+
+      expect(traceSyn.materiaux, "les trois ont été traitées").toEqual(["u1", "u2", "u3"]);
+      expect(trace.clos.map((c) => c.cible), "u1 n'a pas pu être close, les autres si").toEqual(["u2", "u3"]);
+    } finally {
+      espion.mockRestore();
+    }
+  });
+
+  it("[LE CŒUR] une synthèse ÉCRITE et ANNONCÉE n'est jamais tracée comme un échec", async () => {
+    // C'est le défaut n°3 de la revue 4.8, que le répartiteur avait corrigé et que ce job avait
+    // réintroduit. Un hoquet réseau sur `clore(true)` — après une synthèse écrite et un courriel PARTI —
+    // tombait dans le catch du job : on écrivait `echoue`, et la trace disait le contraire de ce qui
+    // s'était produit. Mutation-cible : remettre `clore(true)` à l'intérieur du try.
+    const espion = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { depot } = depotOrdoFactice();
+      const clotures: { reussi: boolean; motif: string | null }[] = [];
+      const depotQuiCasse: DepotOrdonnanceur = {
+        ...depot,
+        async clore(_j, _f, _c, reussi, motif) {
+          clotures.push({ reussi, motif });
+          throw new Error("hoquet_reseau: 08006");
+        },
+      };
+      const { depot: syn, trace: traceSyn } = depotSyntheseFactice();
+      const { ia } = iaFactice();
+      const courriel = creerPortCourrielFactice();
+
+      await executerSyntheseAvec(contexte(depotQuiCasse), {
+        depot: syn,
+        ia,
+        supabase: supabaseFactice().client,
+        courriel,
+      });
+
+      expect(traceSyn.enregistrements, "la synthèse est bien écrite").toHaveLength(1);
+      expect(courriel.envoyes, "le courriel est bien parti").toHaveLength(1);
+      expect(clotures, "UNE seule tentative de clôture, et elle dit RÉUSSITE").toEqual([
+        { reussi: true, motif: null },
+      ]);
+    } finally {
+      espion.mockRestore();
+    }
+  });
+});
+
+describe("[T3-4] le dénominateur de l'alarme est ce qu'on a VRAIMENT tenté", () => {
+  it("[LE CŒUR] dix-neuf « rien à dire » ne diluent plus un lot réellement en échec", async () => {
+    // Ancien comportement : `echecs === candidates.length`. Dix-neuf personnes qui n'avaient rien à dire
+    // et une seule qui échoue → 1 ≠ 20 → aucun incident, alors que 100 % du travail RÉEL avait échoué.
+    // Mutation-cible : compter `candidates.length` au lieu de `tentees`.
+    const espion = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { depot, trace } = depotOrdoFactice();
+      const gens = ["a", "b", "c", "d"];
+      const { depot: syn } = depotSyntheseFactice({
+        candidates: gens,
+        // a et b travaillent (et échouent) ; c et d n'ont rien à dire.
+        materiau: (id) => (id === "c" || id === "d" ? MATERIAU_VIDE : MATERIAU_PLEIN),
+      });
+      const { ia } = iaFactice({ echoue: true });
+
+      await executerSyntheseAvec(contexte(depot), {
+        depot: syn,
+        ia,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice(),
+      });
+
+      expect(trace.incidents, "2 tentées, 2 échouées : le chemin est cassé, on le dit").toEqual([
+        { type: "job_echoue", job: NOM_JOB, detail: "lot_entierement_echoue" },
+      ]);
+    } finally {
+      espion.mockRestore();
+    }
+  });
+
+  it("[LE PIÈGE INVERSE] une SEULE personne en échec ne déclenche pas d'incident système", async () => {
+    // Ce produit a une poignée d'utilisatrices : `candidates.length` vaut 1 ou 2 presque toujours. Avec
+    // l'ancienne règle, CHAQUE échec individuel — une réponse de modèle vide, une contrainte violée sur
+    // une seule personne — devenait un incident système et faisait passer /api/health en `degrade`. Le
+    // commentaire d'origine disait « ce n'est plus une personne, c'est le chemin » : à N=1, c'est
+    // précisément une personne. Mutation-cible : retirer `tentees >= 2`.
+    const espion = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { depot, trace } = depotOrdoFactice();
+      const { depot: syn } = depotSyntheseFactice({ candidates: ["seule"] });
+      const { ia } = iaFactice({ echoue: true });
+
+      await executerSyntheseAvec(contexte(depot), {
+        depot: syn,
+        ia,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice(),
+      });
+
+      expect(trace.clos[0].reussi, "elle est bien close en échec").toBe(false);
+      expect(trace.incidents, "mais un hoquet isolé n'est pas un incident système").toEqual([]);
+    } finally {
+      espion.mockRestore();
+    }
+  });
+
+  it("[T3-2] en revanche, une personne qui échoue depuis TROIS JOURS, c'est un signal", async () => {
+    // Le disjoncteur. Sans lui, une personne dont le matériau fait échouer le modèle de façon
+    // déterministe revenait chaque jour, PREMIÈRE dans le tri (elle n'a jamais rien reçu), et brûlait un
+    // appel au modèle fort à vie. La base l'écarte après trois échecs en sept jours ; ici on le DIT,
+    // sinon l'écartement serait silencieux. Mutation-cible : retirer l'appel à `personnesEnEchecRepete`.
+    const { depot, trace } = depotOrdoFactice();
+    const { depot: syn } = depotSyntheseFactice({ candidates: [], enEchecRepete: 1 });
+    const { ia } = iaFactice();
+
+    await executerSyntheseAvec(contexte(depot), {
+      depot: syn,
+      ia,
+      supabase: supabaseFactice().client,
+      courriel: creerPortCourrielFactice(),
+    });
+
+    expect(trace.incidents).toEqual([
+      { type: "job_echoue", job: NOM_JOB, detail: "echecs_repetes" },
+    ]);
+  });
+});
+
+describe("[T3-2] l'appel au modèle est BORNÉ — sinon une seule personne affame tout le monde", () => {
+  it("[LE CŒUR] un appel qui pend est coupé, et les suivantes passent", async () => {
+    // Le tri sert d'abord celle qui a attendu le plus longtemps — donc celle qui n'a jamais rien reçu.
+    // Si son appel pend, il consommait tout le budget : personne d'autre n'était traité, sa ligne restait
+    // en cours, aucune synthèse n'était écrite, son attente restait nulle — et DEMAIN ELLE ÉTAIT DE
+    // NOUVEAU PREMIÈRE. Ce n'était pas une dégradation, c'était un arrêt du service pour tout le monde,
+    // déclenché par une seule personne. Mutation-cible : retirer `avecDelai` autour de l'egress.
+    vi.useFakeTimers();
+    try {
+      const { depot, trace } = depotOrdoFactice();
+      const { depot: syn } = depotSyntheseFactice({ candidates: ["pendante", "suivante"] });
+      const requetes: RequeteIa[] = [];
+      const ia: AiPort = {
+        async completer(req): Promise<ReponseIa> {
+          requetes.push(req);
+          // La première ne répond JAMAIS.
+          if (requetes.length === 1) return new Promise<ReponseIa>(() => {});
+          return { texte: "un récit", tier: "fort", modele: "factice", usage: { tokensEntree: 1, tokensSortie: 1 } };
+        },
+        async *diffuser() {
+          throw new Error("jamais");
+        },
+        estZdrProuve: () => true,
+      };
+
+      const promesse = executerSyntheseAvec(contexte(depot), {
+        depot: syn,
+        ia,
+        supabase: supabaseFactice().client,
+        courriel: creerPortCourrielFactice(),
+      });
+      await vi.advanceTimersByTimeAsync(DELAI_MODELE_MS + 1_000);
+      await promesse;
+
+      expect(requetes, "la seconde a bien été tentée").toHaveLength(2);
+      expect(trace.clos.map((c) => ({ cible: c.cible, reussi: c.reussi }))).toEqual([
+        { cible: "pendante", reussi: false },
+        { cible: "suivante", reussi: true },
+      ]);
+      expect(trace.clos[0].motif).toBe("synthese_modele_timeout");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

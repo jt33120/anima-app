@@ -15,6 +15,58 @@ const secret = process.env.SUPABASE_SECRET_KEY!;
 const admin = createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } });
 
 const SECRET = "secret-ordonnanceur-de-test";
+
+/**
+ * ── LE REGISTRE EST DOUBLÉ, ET C'EST UN CORRECTIF, PAS UNE FACILITÉ (revue 4.9, T4-3) ──────────────────
+ *
+ * Ce fichier appelle la VRAIE route, donc le vrai répartiteur, donc — jusqu'ici — le vrai registre. En 4.8
+ * c'était sans danger : le seul job n'avait d'effet que sur `execution_job` et `incident_systeme`, deux
+ * tables que ce fichier borne. La 4.9 y a ajouté un job à effets sur les tables UTILISATRICES, sans que
+ * personne ne remarque ce que ça changeait.
+ *
+ * Ce que ça changeait, prouvé pendant la revue : `synthese-sql.test.ts` crée en `beforeAll` des premium
+ * consentantes avec du journal, et Vitest exécute les fichiers EN PARALLÈLE contre la même base. La porte
+ * produisait donc de vraies synthèses pour de vraies lignes — ce qui (a) faisait virer au rouge, selon
+ * l'entrelacement, les assertions du fichier voisin, et (b) appelait `creerPortCourriel()`, c'est-à-dire
+ * l'adaptateur RESEND RÉEL dès qu'une clé traîne dans `.env.local`. Une suite de tests qui envoie du
+ * courrier est un défaut, pas un détail.
+ *
+ * Le doublage porte des noms de jobs PRÉFIXÉS, ce qui referme aussi le second piège du même fichier : sa
+ * purge visait les noms de PRODUCTION (`delete().in("job", JOBS)`) et détruisait donc les lignes des
+ * autres fichiers. `ordonnanceur-sql.test.ts` faisait l'inverse depuis toujours (`like('essai-%')`).
+ *
+ * Ce que ce fichier prouve reste intact : l'authentification, le refus d'environnement, les codes de
+ * retour, l'idempotence de la fenêtre. Que le registre RÉEL contienne les bons jobs est prouvé ailleurs,
+ * par `ordonnanceur-architecture.test.ts` — et c'est sa place.
+ */
+// `vi.hoisted` : les noms doivent exister AVANT la fabrique de `vi.mock`, qui est remontée en tête de
+// module. Un `const` ordinaire serait encore en zone morte au moment où la fabrique s'exécute.
+const { JOB_A, JOB_B } = vi.hoisted(() => {
+  const p = `porte-${Date.now()}`;
+  return { JOB_A: `${p}-alpha`, JOB_B: `${p}-beta` };
+});
+
+vi.mock("@/lib/ordonnanceur/registre", () => ({
+  REGISTRE: [
+    {
+      nom: JOB_A,
+      cadence: "quotidien",
+      toleranceHeures: 60,
+      delaiMs: 5_000,
+      enServiceDepuis: new Date("2026-08-05T00:00:00Z"),
+      executer: async () => {},
+    },
+    {
+      nom: JOB_B,
+      cadence: "quotidien",
+      toleranceHeures: 60,
+      delaiMs: 5_000,
+      enServiceDepuis: new Date("2026-08-05T00:00:00Z"),
+      executer: async () => {},
+    },
+  ],
+}));
+
 const { GET } = await import("@/app/api/ordonnanceur/route");
 
 function req(entete?: string): Request {
@@ -25,7 +77,7 @@ function req(entete?: string): Request {
 }
 
 /** Les jobs du registre — la purge et les compteurs suivent le registre, pas un nom en dur. */
-const JOBS = ["sante-ordonnanceur", "synthese-hebdomadaire"];
+const JOBS = [JOB_A, JOB_B];
 
 async function purger() {
   await admin.from("execution_job").delete().in("job", JOBS);
@@ -104,20 +156,18 @@ describe("GET /api/ordonnanceur — la porte unique", () => {
     expect(await executionsDuRegistre(), "aucune exécution n'a été réclamée").toBe(0);
   });
 
-  it("avec le bon secret → 200, et le job de santé a RÉELLEMENT tourné (ligne en base)", async () => {
+  it("avec le bon secret → 200, et le premier job a RÉELLEMENT tourné (ligne en base)", async () => {
     const r = await GET(req(`Bearer ${SECRET}`));
     expect(r.status).toBe(200);
     const corps = (await r.json()) as { execute: boolean; jobs: { nom: string; issue: string }[] };
     expect(corps.execute).toBe(true);
-    // Les DEUX jobs du registre tournent, dans l'ordre du registre. `synthese-hebdomadaire` ne trouve
-    // aucune candidate dans cette base (aucun abonnement actif) et se clôt donc en réussite sans rien
-    // produire — ce qui est exactement le comportement attendu d'un fan-out sans personne à servir.
+    // Les DEUX jobs du registre (doublé) tournent, dans l'ordre du registre.
     expect(corps.jobs).toEqual([
-      { nom: "sante-ordonnanceur", issue: "execute" },
-      { nom: "synthese-hebdomadaire", issue: "execute" },
+      { nom: JOB_A, issue: "execute" },
+      { nom: JOB_B, issue: "execute" },
     ]);
 
-    const { data } = await admin.from("execution_job").select("statut, tentatives").eq("job", "sante-ordonnanceur");
+    const { data } = await admin.from("execution_job").select("statut, tentatives").eq("job", JOB_A);
     expect(data).toHaveLength(1);
     expect(data![0].statut).toBe("reussi");
   });
@@ -134,7 +184,7 @@ describe("GET /api/ordonnanceur — la porte unique", () => {
       "deja_fait",
     ]);
 
-    const { data } = await admin.from("execution_job").select("tentatives").eq("job", "sante-ordonnanceur");
+    const { data } = await admin.from("execution_job").select("tentatives").eq("job", JOB_A);
     expect(data, "toujours UNE seule ligne").toHaveLength(1);
     expect(data![0].tentatives, "et une seule tentative").toBe(1);
   });
@@ -175,45 +225,11 @@ describe("GET /api/ordonnanceur — la porte unique", () => {
     espion.mockRestore();
   });
 
-  it("[AC5 — L'HOMME MORT] sans réussite récente du job de santé, le signal public dit `degrade`", async () => {
-    // LE DÉFAUT N°1 DE LA REVUE, et le plus retors : `sante_ordonnanceur_publique` ne regardait QUE les
-    // incidents. Or les incidents sont écrits PAR l'ordonnanceur. Un ordonnanceur qui ne tourne plus n'écrit
-    // plus rien — donc plus aucun incident, donc `/api/health` répondait « ok ». Et comme la fenêtre des
-    // incidents ne fait que deux jours, le signal s'AMÉLIORAIT à mesure que la panne durait. La sonde disait
-    // le contraire de la vérité précisément dans le cas où elle sert.
-    //
-    // La correction (migration 0028) : on ne déclare la santé que si l'on peut MONTRER une réussite récente.
-    // Une absence ne peut pas s'auto-signaler ; il faut donc lire l'absence, pas attendre un signal.
-    await purger();
-
-    // Précondition explicite : la clause d'homme mort est bien FAUSSE ici. Sans elle, l'assertion suivante
-    // pourrait être satisfaite par un incident laissé par un autre test et ne rien prouver.
-    const { count } = await admin
-      .from("execution_job")
-      .select("*", { count: "exact", head: true })
-      .eq("job", "sante-ordonnanceur")
-      .eq("statut", "reussi")
-      .gt("termine_le", new Date(Date.now() - 48 * 3_600_000).toISOString());
-    expect(count, "aucune réussite du job de santé dans les 48 h").toBe(0);
-
-    const { data } = await admin.rpc("sante_ordonnanceur_publique");
-    expect(data, "un ordonnanceur qui ne tourne pas ne se déclare pas sain").toBe("degrade");
-  });
-
-  it("[AC5] … et un vrai tick inscrit bien la réussite qui rouvre le droit de se dire sain", async () => {
-    // Le contrôle positif de l'homme mort : sans lui, la garde ci-dessus serait satisfaite par une fonction
-    // qui répond `degrade` en toutes circonstances — c'est-à-dire par un signal tout aussi inutile, à
-    // l'envers. On n'assère pas ici la valeur GLOBALE du mot (elle dépend des incidents que d'autres
-    // fichiers écrivent en parallèle), mais la seule chose que ce tick contrôle : sa propre réussite.
-    await GET(req(`Bearer ${SECRET}`));
-    const { count } = await admin
-      .from("execution_job")
-      .select("*", { count: "exact", head: true })
-      .eq("job", "sante-ordonnanceur")
-      .eq("statut", "reussi")
-      .gt("termine_le", new Date(Date.now() - 48 * 3_600_000).toISOString());
-    expect(count, "la réussite du tick est datée et visible de la clause d'homme mort").toBe(1);
-  });
+  // Les deux tests de L'HOMME MORT (AC5) ont été DÉPLACÉS vers `ordonnanceur-sql.test.ts` par la revue
+  // 4.9. Ils vérifiaient une clause SQL qui code `sante-ordonnanceur` EN DUR ; ce fichier double désormais
+  // le registre pour ne plus produire d'effets sur les tables utilisatrices (T4-3), si bien que leur
+  // précondition portait sur un nom de job doublé et ne prouvait plus rien. Un test qui reste vert après
+  // avoir cessé de mesurer son objet est pire qu'un test absent.
 
   it("[NFR-022] la réponse ne porte que des identifiants techniques", async () => {
     const corps = await (await GET(req(`Bearer ${SECRET}`))).text();
@@ -221,8 +237,8 @@ describe("GET /api/ordonnanceur — la porte unique", () => {
       JSON.stringify({
         execute: true,
         jobs: [
-          { nom: "sante-ordonnanceur", issue: "execute" },
-          { nom: "synthese-hebdomadaire", issue: "execute" },
+          { nom: JOB_A, issue: "execute" },
+          { nom: JOB_B, issue: "execute" },
         ],
       }),
     );

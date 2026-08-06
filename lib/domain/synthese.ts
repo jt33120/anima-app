@@ -68,6 +68,24 @@ export const PLAFOND_NOTIFICATION_HEURES = 72;
  */
 export const LOT_PAR_TICK = 20;
 
+/**
+ * Le délai d'UN appel au modèle fort (revue 4.9, T3-2).
+ *
+ * C'était le seul `.completer(` du dépôt qui n'était borné par rien, et l'absence se payait beaucoup plus
+ * cher qu'il n'y paraît. Le tri sert d'abord celle qui a attendu le plus longtemps — donc celle qui n'a
+ * jamais rien reçu. Si son appel PEND (un 429 en attente de reprise, une réponse qui ne revient pas), il
+ * consomme tout le budget du fan-out : personne d'autre n'est traité, sa ligne reste en cours, aucune
+ * synthèse n'est écrite, son attente reste nulle — et DEMAIN ELLE EST DE NOUVEAU PREMIÈRE. Ce n'est pas
+ * une dégradation, c'est un arrêt du service pour tout le monde, déclenché par une seule personne.
+ */
+export const DELAI_MODELE_MS = 25_000;
+
+/**
+ * Ce qu'il faut avoir en réserve pour tenter une personne de plus : l'appel modèle, plus la marge des
+ * quatre allers-retours en base et de l'envoi. En deçà, on rend la main — les restantes reviennent demain.
+ */
+export const RESERVE_PERSONNE_MS = DELAI_MODELE_MS + 6_000;
+
 export interface EntreeMateriau {
   readonly role: "utilisatrice" | "anam";
   readonly contenu: string;

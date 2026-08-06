@@ -106,8 +106,10 @@ async function materiau(id: string, plafond = 200, octets = 200_000) {
  */
 const LIMITE_LARGE = 5_000;
 
+const JOB = "synthese-hebdomadaire";
+
 async function candidates(limite = LIMITE_LARGE): Promise<string[]> {
-  const { data, error } = await admin.rpc("utilisatrices_a_synthetiser", { p_limite: limite });
+  const { data, error } = await admin.rpc("utilisatrices_a_synthetiser", { p_job: JOB, p_limite: limite });
   if (error) throw new Error(`utilisatrices_a_synthetiser: ${error.message}`);
   const liste = data as string[];
   if (liste.length >= limite) {
@@ -479,7 +481,8 @@ describe("[AD-12] ce qu'une SESSION peut et ne peut pas", () => {
     const appels = [
       sessionU.rpc("materiau_synthese", { p_utilisatrice: autre.id, p_plafond_entrees: 10, p_plafond_octets: 1000 }),
       sessionU.rpc("entrees_hors_detresse", { p_utilisatrice: autre.id, p_depuis: null, p_jusqu_a: new Date().toISOString() }),
-      sessionU.rpc("utilisatrices_a_synthetiser", { p_limite: 10 }),
+      sessionU.rpc("utilisatrices_a_synthetiser", { p_job: JOB, p_limite: 10 }),
+      sessionU.rpc("personnes_en_echec_repete", { p_job: JOB }),
       sessionU.rpc("reserver_notification", { p_utilisatrice: u.id, p_motif: "synthese_prete", p_cle: "x", p_plafond_heures: 1 }),
       sessionU.rpc("enregistrer_synthese", {
         p_utilisatrice: u.id, p_debut: "2099-03-01T00:00:00Z",
@@ -807,5 +810,64 @@ describe("[REVUE 4.9] les deux trous que la mutation-vérification a trouvés da
     } finally {
       await supprimer(muette.id);
     }
+  });
+});
+
+describe("[REVUE 4.9 / T3-2] le disjoncteur — une personne ne peut plus brûler le modèle fort à vie", () => {
+  const u = { email: `syn-disj-${t}@exemple.fr`, id: "" };
+
+  beforeAll(async () => {
+    u.id = await creerUtilisatrice(u.email);
+    await consentir(u.id);
+    await abonner(u.id);
+    await graver(u.id, `${t}-d`, "quelque chose à raconter", "2026-07-10T10:00:00Z");
+  });
+  afterAll(async () => {
+    await admin.from("execution_job").delete().eq("cible_id", u.id);
+    await supprimer(u.id);
+  });
+
+  async function echouer(jour: string) {
+    await admin.rpc("reclamer_execution", { p_job: JOB, p_fenetre: jour, p_cible_id: u.id, p_bail_secondes: 1 });
+    await admin.rpc("clore_execution", {
+      p_job: JOB, p_fenetre: jour, p_cible_id: u.id, p_reussi: false, p_motif: "synthese_modele_timeout",
+    });
+  }
+
+  it("[CONTRÔLE POSITIF] deux échecs ne suffisent pas — on ne renonce pas au premier hoquet", async () => {
+    await echouer("2026-07-11");
+    await echouer("2026-07-12");
+    expect(await candidates(), "elle revient, et c'est normal").toContain(u.id);
+    expect(await admin.rpc("personnes_en_echec_repete", { p_job: JOB }).then((r) => r.data)).toBe(0);
+  });
+
+  it("[LE CŒUR] au TROISIÈME échec en sept jours, elle est mise de côté", async () => {
+    // Le scénario n'a rien de tordu : une personne dont le matériau fait échouer le modèle de façon
+    // DÉTERMINISTE — un contenu qui déclenche un refus, une taille limite, un caractère qui casse un
+    // parseur chez le fournisseur. Rien n'est écrit, donc le filigrane n'avance pas, donc demain elle est
+    // candidate avec exactement le même matériau. Et comme le tri sert d'abord celle qui a attendu le
+    // plus longtemps, elle est PREMIÈRE. Tous les jours. Pour toujours — en brûlant un appel au modèle
+    // fort à chaque fois, et en occupant une place du lot pendant que les autres attendent.
+    //
+    // Ce n'est pas un abandon : la fenêtre de sept jours GLISSE, donc elle revient d'elle-même.
+    // Mutation-cible : retirer la sous-requête `< 3`, ou remonter le seuil.
+    await echouer("2026-07-13");
+    expect(await candidates(), "trois échecs : on passe son tour").not.toContain(u.id);
+  });
+
+  it("… et le job peut le SAVOIR, sinon l'écartement serait silencieux", async () => {
+    // « Cette personne n'a plus de synthèse » est précisément ce qu'il faut savoir. C'est aussi le seul
+    // signal fiable dans un produit qui compte une poignée d'utilisatrices, où « tout le lot a échoué »
+    // se déclenche au premier hoquet et ne veut rien dire.
+    // Mutation-cible : `having count(*) >= p_seuil` → un seuil inatteignable.
+    const { data } = await admin.rpc("personnes_en_echec_repete", { p_job: JOB });
+    expect(data, "une personne écartée, et le job en est informé").toBe(1);
+  });
+
+  it("les échecs d'un AUTRE job ne comptent pas", async () => {
+    // Sans le filtre sur le job, la rétention d'Epic 6 qui échoue trois fois écarterait la personne de
+    // la synthèse — deux mécanismes sans rapport, couplés par un compteur trop large.
+    const { data } = await admin.rpc("personnes_en_echec_repete", { p_job: `${JOB}-autre` });
+    expect(data).toBe(0);
   });
 });

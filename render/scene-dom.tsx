@@ -221,7 +221,10 @@ export default function SceneDom({ projection, ouverture }: ProprietesSceneRendu
           de secours est parmi les tout premiers arrêts de tabulation (AC3). Couche constante,
           jamais dans une région → jamais masquée/dissoute au changement de région (AC1). Le
           MODÈLE décide quoi porter (surimpressionPour) ; ce rendu ne fait que dessiner (AD-7). */}
-      <Surimpression modele={surimpressionPour(region)} prepare={anamPrepare} />
+      <Surimpression
+        modele={surimpressionPour(region, projection.abonnementGerable === true)}
+        prepare={anamPrepare}
+      />
 
       {/* Fond persistant — la scène est une, seul le premier plan se fond. */}
       <div className={s.ciel} aria-hidden>

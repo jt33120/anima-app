@@ -4,7 +4,8 @@ baseline_commit: e16035f12affe2c09805664e37be6c66d2dcc160
 
 # Story 4.10 : Les plans d'étapes et l'arbitrage d'ouverture — faire vivre une branche avant d'en ouvrir une autre
 
-Status: review
+Status: done <!-- 2026-08-07 : review → done. Revue de code en 8 couches le 2026-08-06 — 24 trouvailles retenues
+(11 bloquantes), TOUTES corrigées, zéro case laissée ouverte. Livrée en 67eff02. -->
 
 Epic 4 · Dépend de : 4.5 (naissance d'une branche), 4.6 (fiche de branche), 4.7 (cycle de vie), 4.8 (ordonnanceur unique), 4.9 (port courriel, `notification_envoyee`, désabonnement), 3.1 (abonnement premium), 2.4 (épisode de détresse).
 **Dernière story de l'Epic 4.**

@@ -26,6 +26,8 @@ export function creerDepotAbonnement(): DepotAbonnement {
         p_etat: e.etat,
         p_periode_fin: e.periodeFin,
         p_source_maj_le: e.sourceMajLe,
+        p_debut_le: e.debutLe,
+        p_resiliation_demandee_le: e.resiliationDemandeeLe,
       });
       if (error) {
         // Jamais de contenu art. 9 dans le message (code Postgres seul).

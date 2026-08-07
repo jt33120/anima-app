@@ -6,6 +6,9 @@ baseline_commit: 55083669fb22438b44dbc28c6db856e5ceeb0f24
 
 **Épic 3 — Devenir premium · Statut : done**
 
+Status: done <!-- 2026-08-07 : ligne ajoutée. Le statut n'existait que dans la phrase d'en-tête ci-dessus,
+que les workflows BMAD ne savent pas lire — ce fichier était donc invisible au balayage de statut. -->
+
 ## Story
 
 En tant qu'utilisatrice qui vient de terminer sa première séance, je veux voir une proposition

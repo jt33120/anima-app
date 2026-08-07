@@ -1,0 +1,69 @@
+/* Story 3.5 — /abonnement. Page HORS de la scène (comme /cgu et /desabonnement) : mêmes tokens, même
+   sobriété. Rien de commercial ne s'y monte, donc rien à mettre en avant : pas de carte, pas de cadre
+   accentué, pas de couleur d'appel. C'est une page de service, et elle en a l'air. */
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  align-items: flex-start;
+  max-width: var(--mesure);
+  margin: 0 auto;
+  padding: var(--esp-8) var(--marge-mobile);
+}
+
+/* Le retour d'une action. Neutre : ni vert, ni rouge, ni icône — le texte porte tout (FR-031, et le
+   principe « jamais la couleur seule » de FR-031/1.2). */
+.retour {
+  padding: var(--esp-3) var(--esp-4);
+  border-radius: var(--rayon);
+  background: var(--surface-douce, transparent);
+  border: 1px solid var(--bordure);
+}
+
+.geste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  margin-top: var(--esp-2);
+}
+
+/* `--cible-tactile` : 44 px est le minimum absolu (DESIGN.md). Le bouton de résiliation a EXACTEMENT
+   la même grammaire que celui de reprise — aucune asymétrie visuelle qui rendrait « rester » plus
+   facile à cliquer que « partir ». C'est là que se cachent les dark patterns les plus discrets. */
+.page :global(.t-bouton) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-5);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  background: transparent;
+  color: var(--texte);
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity var(--duree-standard) var(--courbe);
+}
+.page :global(.t-bouton):hover {
+  opacity: 0.85;
+}
+.page :global(.t-bouton):focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
+/* La confirmation. AUCUNE emphase supplémentaire : ni rouge, ni gras, ni « attention ». Résilier n'est
+   pas un accident dont il faudrait la dissuader. */
+.confirmer {
+  align-self: flex-start;
+}
+
+.garantie {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  margin-top: var(--esp-6);
+  padding-top: var(--esp-5);
+  border-top: 1px solid var(--bordure);
+}

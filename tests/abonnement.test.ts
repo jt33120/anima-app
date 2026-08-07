@@ -34,6 +34,12 @@ type Args = {
   p_etat: "actif" | "resilie" | "expire";
   p_periode_fin: string | null;
   p_source_maj_le: string;
+  // Story 3.5 : la RPC est passée en arité 10. Les deux paramètres sont ici avec un défaut `null` pour
+  // que les cas de la 3.1 restent lisibles — mais ils ne sont PAS optionnels côté SQL : l'ancienne arité
+  // à 8 a été SUPPRIMÉE par la 0038 (une surcharge résiduelle aurait laissé un chemin d'écriture sans
+  // `debut_le`, donc une garantie FR-089 qui ne se déclenche jamais).
+  p_debut_le: string | null;
+  p_resiliation_demandee_le: string | null;
 };
 const projeter = (a: Partial<Args> & Pick<Args, "cible" | "p_provider_event_id" | "p_etat" | "p_source_maj_le">) =>
   admin.rpc("traiter_evenement_abonnement", {
@@ -41,6 +47,8 @@ const projeter = (a: Partial<Args> & Pick<Args, "cible" | "p_provider_event_id" 
     p_stripe_customer_id: `cus_${t}`,
     p_stripe_subscription_id: `sub_${t}`,
     p_periode_fin: null,
+    p_debut_le: null,
+    p_resiliation_demandee_le: null,
     ...a,
   });
 
@@ -182,6 +190,8 @@ describe("abonnement — projection écrivain-unique, lecture propriétaire, ide
       subscriptionId: `sub_${t}`,
       periodeFin: "2027-07-01T00:00:00Z",
       sourceMajLe: "2026-07-01T00:00:00Z",
+      debutLe: "2026-07-01T00:00:00Z",
+      resiliationDemandeeLe: null,
     });
     expect(r).toBe("traite");
     const { data: ab } = await admin
@@ -224,6 +234,8 @@ describe("abonnement — projection écrivain-unique, lecture propriétaire, ide
         subscriptionId: null,
         periodeFin: null,
         sourceMajLe: new Date().toISOString(),
+        debutLe: null,
+        resiliationDemandeeLe: null,
       }),
     ).rejects.toThrow();
   });

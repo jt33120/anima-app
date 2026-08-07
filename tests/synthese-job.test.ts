@@ -294,7 +294,7 @@ describe("[D4 / revue 4.10] LE RATTRAPAGE D'ANNONCE, câblé dans le job", () =>
     const { depot: ordo } = depotOrdoFactice();
     const { ia } = iaFactice();
     const { client } = supabaseFactice();
-    const muet = { estConfigure: () => false, async envoyer() {} };
+    const muet = { estConfigure: () => false, async envoyer() {}, async envoyerInformationLegale() {} };
     await executerSyntheseAvec(contexte(ordo), { depot: depotTrace, ia, supabase: client, courriel: muet });
     expect(lectures, "aucune lecture quand rien ne peut partir").toHaveLength(0);
   });
@@ -543,7 +543,7 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     const { depot } = depotOrdoFactice();
     const { depot: syn, trace } = depotSyntheseFactice();
     const { ia } = iaFactice();
-    const muet = { estConfigure: () => false, envoyer: vi.fn(async () => {}) };
+    const muet = { estConfigure: () => false, envoyer: vi.fn(async () => {}), envoyerInformationLegale: vi.fn(async () => {}) };
 
     await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel: muet });
 

@@ -4,7 +4,8 @@ baseline_commit: 058be97
 
 # Story 4.9 : La synthèse périodique — le moment où Anam peut être la plus directe
 
-Status: review
+Status: done <!-- 2026-08-07 : review → done. Revue adversariale menée en 5 lots (42f580f lot A, dfc7354 lot B,
+abb7215 lot C, 0588f3d lot T5, e16035f lot T6) — le statut n'avait simplement jamais été reclos. -->
 
 Epic 4 · Dépend de : 4.1 (journal brut), 4.2 (faits extraits), 4.5/4.7 (branches), 2.4 (épisode de détresse), 3.1 (abonnement), **4.8 (l'ordonnanceur unique)**.
 Premier vrai pensionnaire du registre fondé en 4.8.

@@ -49,6 +49,25 @@ import type { JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
  */
 export type MotifCourriel = "synthese_prete" | "echeance_intention";
 
+/**
+ * Story 3.5 — L'ENSEMBLE FERMÉ DES INFORMATIONS LÉGALES, DÉLIBÉRÉMENT SÉPARÉ DE `MotifCourriel`.
+ *
+ * ⚠️ NE PAS FUSIONNER LES DEUX UNIONS. C'est le geste que cette séparation existe pour empêcher, et il
+ * est parfaitement naturel : « c'est un courriel de plus, ajoutons un motif ». Sauf que `MotifCourriel`
+ * n'est pas une liste de textes — c'est un RÉGIME. Tout ce qui y entre hérite de `reserver_notification`,
+ * donc du refus de canal (`preference_courriel.refuse_le`, 0034) et du plafond par famille (0036).
+ *
+ * Or ces deux gardes sont exactement ce qu'une information avant reconduction tacite ne doit PAS subir.
+ * Le refus de canal est un droit d'opposition (art. 21) sur les notifications produit ; l'information
+ * avant reconduction est une obligation contractuelle (art. L215-1 C. consommation). Les confondre, c'est
+ * décider qu'un clic dans un pied de courriel dispense de prévenir quelqu'un avant de le débiter de 69 €.
+ *
+ * La séparation est portée par le TYPE, et pas par une consigne : `envoyer` n'accepte pas un `MotifLegal`,
+ * `envoyerInformationLegale` n'accepte pas un `MotifCourriel`. Aucun des deux chemins ne peut emprunter
+ * les gardes de l'autre, ni s'en dispenser.
+ */
+export type MotifLegal = "reconduction_a_venir";
+
 
 export interface PortCourriel {
   /**
@@ -56,6 +75,16 @@ export interface PortCourriel {
    * Ne renvoie rien : il n'y a rien d'utile à rapporter qu'on ait le droit de journaliser.
    */
   envoyer(destinataire: string, motif: MotifCourriel, jeton: JetonDesabonnement): Promise<void>;
+  /**
+   * Story 3.5 — l'information légale. PAS de `jeton`, et l'absence est le message : il n'y a rien à
+   * désabonner. Proposer un lien de désabonnement sur une information contractuelle obligatoire serait
+   * une promesse qu'on ne peut pas tenir — le courriel suivant partirait quand même, et le lien
+   * n'aurait servi qu'à faire croire le contraire.
+   *
+   * Conséquence directe : aucun en-tête `List-Unsubscribe` non plus (RFC 8058 vise le courrier en
+   * volume, pas le transactionnel). Voir `gabaritLegalPour`.
+   */
+  envoyerInformationLegale(destinataire: string, motif: MotifLegal): Promise<void>;
   /**
    * Le port peut-il réellement envoyer ? Interrogé AVANT toute réservation : réserver puis découvrir
    * qu'on ne peut pas envoyer consommerait le droit d'envoyer sans avoir envoyé.

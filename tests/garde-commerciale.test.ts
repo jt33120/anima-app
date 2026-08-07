@@ -125,9 +125,43 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     expect(estCarteGardeeParGateServeur("/repo/app/(scene)/compte/CarteAbonnement.tsx"), "dérogation basename non ancrée — angle mort").toBe(false);
     expect(estCarteGardeeParGateServeur("/repo/app/(scene)/compte/ligne-quota.ts"), "dérogation quota basename non ancrée — angle mort").toBe(false);
 
+    // ── STORY 3.5 — LES SURFACES DE SORTIE SONT DÉROGÉES, ET C'EST L'INVERSE D'UN RELÂCHEMENT ───────────
+    //
+    // Cette garde a fait son travail : elle a attrapé `app/abonnement/page.tsx` et
+    // `app/api/abonnement/remboursement/route.ts` parce qu'ils contiennent « abonnement » et n'appliquent
+    // aucune garde AD-9. La tentation est de l'ajouter pour faire verdir. Ce serait une faute grave :
+    // `limites_levees` est vrai pendant un épisode de détresse OUVERT, donc la page se refuserait à
+    // s'afficher et les routes refuseraient d'agir — c'est-à-dire qu'on EMPÊCHERAIT DE RÉSILIER ou de se
+    // faire rembourser quelqu'un en crise. Le dark pattern maximal, sur la personne la plus vulnérable du
+    // produit, au nom d'une garde de sécurité.
+    //
+    // AD-9 protège du commerce ENTRANT (paywall, carte, Checkout, quota). Sortir n'en est pas.
+    //
+    // Dérogation ancrée aux CHEMINS EXACTS — jamais au dossier `abonnement`, sinon une future surface
+    // commerciale qu'on y poserait (`app/abonnement/souscrire/`) hériterait du trou.
+    const estSortie = (f: string) =>
+      /[/\\]app[/\\]api[/\\]abonnement[/\\](resilier|remboursement)[/\\]route\.ts$/.test(f) ||
+      /[/\\]app[/\\]abonnement[/\\]page\.tsx$/.test(f) ||
+      /[/\\]render[/\\]abonnement[/\\]copie-abonnement\.ts$/.test(f);
+    expect(estSortie("/repo/app/api/abonnement/resilier/route.ts"), "matcher de sortie cassé").toBe(true);
+    expect(estSortie("/repo/app/api/abonnement/remboursement/route.ts"), "matcher de sortie cassé").toBe(true);
+    expect(estSortie("/repo/app/abonnement/page.tsx"), "matcher de page de sortie cassé").toBe(true);
+    expect(estSortie("/repo/render/abonnement/copie-abonnement.ts"), "matcher de copie de sortie cassé").toBe(true);
+    // ANGLES MORTS fermés : tout le reste de ces dossiers reste soumis à la garde.
+    expect(
+      estSortie("/repo/app/api/abonnement/souscrire/route.ts"),
+      "dérogation trop large : une route commerciale du même dossier passerait non gardée",
+    ).toBe(false);
+    expect(
+      estSortie("/repo/app/abonnement/souscrire/page.tsx"),
+      "dérogation trop large : une page commerciale du même dossier passerait non gardée",
+    ).toBe(false);
+    expect(estSortie("/repo/app/api/stripe/checkout/route.ts"), "faux positif sur le Checkout").toBe(false);
+
     const uiCommerciales = [...fichiersSource("app"), ...fichiersSource("render")]
       .filter(estCommerciale)
       .filter((f) => !estRoute(f))
+      .filter((f) => !estSortie(f)) // la SORTIE ne se ferme jamais (3.5, AC3)
       .filter((f) => !estCarteGardeeParGateServeur(f)); // gardée par le gate serveur, pas par la balise
     for (const f of uiCommerciales) {
       // Exige la BALISE `<GardeCommerciale`, pas une simple mention d'import (tripwire, pas preuve
@@ -139,7 +173,7 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     }
 
     // Les ROUTES commerciales (app/api/**) appliquent la garde côté serveur, pas via la balise.
-    const routesCommerciales = fichiersSource("app").filter(estCommerciale).filter(estRoute);
+    const routesCommerciales = fichiersSource("app").filter(estCommerciale).filter(estRoute).filter((f) => !estSortie(f));
     for (const f of routesCommerciales) {
       expect(
         sansCommentaires(readFileSync(f, "utf-8")),
@@ -148,6 +182,17 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     }
     // Non-vacuité : depuis 3.1, la route Checkout EXISTE et doit être gardée (sinon la garde ne prouve rien).
     expect(routesCommerciales.length, "aucune route commerciale détectée — la garde serveur est vide").toBeGreaterThan(0);
+
+    // Non-vacuité de la dérogation « sortie » (3.5). Deux conditions, et la seconde est la vraie : les
+    // routes existent, ET une garde COMPORTEMENTALE prouve qu'elles restent ouvertes en détresse. Sans
+    // elle, cette dérogation ne serait qu'une allowlist — c'est-à-dire un trou qu'on aurait documenté.
+    for (const r of ["app/api/abonnement/resilier/route.ts", "app/api/abonnement/remboursement/route.ts"]) {
+      expect(existsSync(resolve(racine, r)), `dérogation « sortie » morte : ${r} absent`).toBe(true);
+    }
+    expect(
+      existsSync(resolve(racine, "tests/sortie-abonnement.test.ts")),
+      "la dérogation « sortie » ne prouve rien sans son test d'inversion (AC3)",
+    ).toBe(true);
 
     // Non-vacuité de la dérogation « gate serveur » (3.2) : la carte in-fil EXISTE et sa garde
     // COMPORTEMENTALE aussi — sinon la dérogation serait un trou (allowlist morte qui laisserait passer

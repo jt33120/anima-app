@@ -1,5 +1,5 @@
 import "server-only";
-import type { PortCourriel, MotifCourriel } from "@/lib/courriel/port";
+import type { PortCourriel, MotifCourriel, MotifLegal } from "@/lib/courriel/port";
 import type { JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
 
 /**
@@ -18,14 +18,30 @@ export interface CourrielEnvoye {
   readonly jeton: JetonDesabonnement;
 }
 
+/**
+ * Story 3.5 — les informations LÉGALES sont retenues SÉPARÉMENT, et pas dans `envoyes`.
+ *
+ * Les mélanger rendrait indémontrable la propriété qui compte : « ce courriel-ci part malgré un refus de
+ * canal ». Un test qui compte les envois dans un seul tableau ne saurait pas dire lequel des deux régimes
+ * il vient de vérifier — et c'est exactement l'ambiguïté qui a laissé passer la garde de désabonnement
+ * perdue en 4.10.
+ */
+export interface InformationLegaleEnvoyee {
+  readonly destinataire: string;
+  readonly motif: MotifLegal;
+}
+
 export interface PortCourrielFactice extends PortCourriel {
   readonly envoyes: readonly CourrielEnvoye[];
+  readonly legaux: readonly InformationLegaleEnvoyee[];
 }
 
 export function creerPortCourrielFactice(options: { echoue?: boolean } = {}): PortCourrielFactice {
   const envoyes: CourrielEnvoye[] = [];
+  const legaux: InformationLegaleEnvoyee[] = [];
   return {
     envoyes,
+    legaux,
     estConfigure: () => true,
     async envoyer(
       destinataire: string,
@@ -34,6 +50,10 @@ export function creerPortCourrielFactice(options: { echoue?: boolean } = {}): Po
     ): Promise<void> {
       if (options.echoue) throw new Error("courriel_refuse_500");
       envoyes.push({ destinataire, motif, jeton });
+    },
+    async envoyerInformationLegale(destinataire: string, motif: MotifLegal): Promise<void> {
+      if (options.echoue) throw new Error("courriel_refuse_500");
+      legaux.push({ destinataire, motif });
     },
   };
 }

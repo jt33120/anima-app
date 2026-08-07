@@ -617,6 +617,26 @@ En tant que développeuse, je veux une **entité de détresse possédée** dont 
 
 ---
 
+### Story 2.4b : L'idempotence du tour de détresse au retry
+
+> **Story née en cours de route, pas issue du découpage initial.** Ajoutée ici le 2026-08-07 : elle existait
+> depuis le 2026-07-30 comme fichier livré (`2-4b-idempotence-tour-detresse-au-retry.md`, statut `done`,
+> revue faite en `0e40f6f`) mais l'inventaire des epics ne la connaissait pas. Un découpage qui ignore une
+> story livrée ment sur ce qui a été construit.
+
+En tant que développeuse, je veux qu'un **tour de détresse rejoué** (retry réseau, double soumission, reprise de flux interrompu) ne compte **qu'une fois**, afin que la fenêtre 72 h, le compteur de tours sûrs et l'extinction ne dérivent pas d'un accident de transport.
+
+**Couvre :** FR-042, FR-046, AD-17 (durcissement de la Story 2.4)
+
+**Dépend de :** Story 2.4 (l'entité `episode_detresse` et sa transition d'extinction).
+
+**Critères d'acceptation :**
+
+- **Étant donné** un tour de détresse déjà enregistré, **Quand** la même requête est rejouée, **Alors** l'épisode n'est ni rouvert ni prolongé, et le compteur de tours sûrs n'est ni incrémenté ni remis à zéro une seconde fois.
+- **[DUR]** **Étant donné** que l'extinction dérive d'un comptage, **Quand** un retry survient, **Alors** l'idempotence est garantie **au point d'écriture** (clé possédée en base), jamais par une déduplication côté client ni par une fenêtre de temps approximative.
+
+---
+
 ### Story 2.5 : Le filet hors-IA, `/aide` et la garde des limites levées
 
 En tant qu'utilisatrice, je veux des **ressources d'aide toujours joignables** et **indépendantes de toute détection**, afin que le filet de sécurité ne dépende jamais du classifieur ni du fournisseur IA, et qu'aucun commerce ne m'atteigne en détresse.

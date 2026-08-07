@@ -91,6 +91,26 @@ export interface ProjectionScene {
    * drapeaux le jour même — pas continuer à en partager un qui ne dit plus la vérité pour l'un des deux.
    */
   readonly planOuvert?: true;
+  /**
+   * Story 3.5 (FR-060, décision D1) — y a-t-il un abonnement À GÉRER ?
+   *
+   * ⚠️ CE N'EST PAS UN MIROIR DE `planOuvert`, ET LA DIFFÉRENCE EST EXACTEMENT CELLE QUI COMPTE.
+   *
+   * Le réflexe R1-bis dirait de réutiliser `planOuvert` : les deux valent vrai pour une abonnée active,
+   * et un second champ toujours égal au premier est la faute que la note ci-dessus décrit. Sauf qu'ils
+   * ne sont PAS toujours égaux, et le cas où ils divergent est celui qui coûte de l'argent à quelqu'un :
+   *
+   *   • un paiement en échec (`past_due` chez Stripe) projette `etat = 'expire'` → `planOuvert` absent,
+   *     alors que la souscription Stripe est TOUJOURS VIVANTE et sera relancée. Si la sortie dépendait
+   *     de `planOuvert`, cette personne n'aurait plus AUCUN moyen de résilier depuis le produit — perdue
+   *     entre un accès fermé et un contrat ouvert ;
+   *   • pendant un épisode de détresse, `planOuvert` est retiré (AD-9) alors que la sortie, elle, ne se
+   *     ferme JAMAIS (AC3).
+   *
+   * Le prédicat est donc « un `stripe_subscription_id` existe », pas « le premium est ouvert ». Deux
+   * questions différentes, deux champs.
+   */
+  readonly abonnementGerable?: true;
 }
 
 /**

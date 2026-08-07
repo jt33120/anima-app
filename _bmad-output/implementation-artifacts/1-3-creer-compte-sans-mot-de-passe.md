@@ -7,7 +7,7 @@ title: "Créer un compte sans mot de passe"
 epic_name: "Franchir le seuil"
 covers: [FR-073, AD-2, AD-12, NFR-015]
 depends_on: ["1-1-echafaudage-couches-rls", "1-2-fondation-design-system"]
-status: ready-for-dev
+status: review # livrée (871db4d) et en prod ; corrigé le 2026-08-07 (disait `ready-for-dev`). Revue de code DUE.
 created: "2026-07-23"
 sources:
   - _bmad-output/planning-artifacts/epics.md#epic-1--story-1-3

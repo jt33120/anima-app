@@ -23,6 +23,12 @@ const NON_CONFIGURE: PortCourriel = {
   async envoyer(): Promise<void> {
     throw new Error("courriel_non_configure");
   },
+  // Story 3.5 : LÈVE aussi, comme l'autre chemin. Avaler silencieusement une information légale serait
+  // pire encore qu'avaler une synthèse — la réservation serait consommée, `information_reconduction`
+  // porterait la trace d'une annonce qui n'a jamais eu lieu, et la reconduction se ferait sans préavis.
+  async envoyerInformationLegale(): Promise<void> {
+    throw new Error("courriel_non_configure");
+  },
 };
 
 export function creerPortCourriel(): PortCourriel {

@@ -68,6 +68,13 @@ function courrielFactice(options: { configure?: boolean; echoue?: (destinataire:
       if (options.echoue?.(destinataire)) throw new Error("resend_500");
       envois.push({ destinataire, motif });
     },
+    // Story 3.5 : LÈVE si le job de rappel l'appelle. Ce chemin est réservé à l'information légale
+    // (reconduction), qui ne passe NI par ce job NI par `reserverNotification` — l'appeler d'ici serait
+    // la confusion des deux régimes que la séparation de `MotifCourriel` / `MotifLegal` existe pour
+    // empêcher. Un `async () => {}` complaisant laisserait cette erreur passer inaperçue.
+    async envoyerInformationLegale() {
+      throw new Error("le job de rappel n'a rien de légal à envoyer");
+    },
   };
   return { port, envois };
 }

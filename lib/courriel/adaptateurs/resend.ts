@@ -1,8 +1,8 @@
 import "server-only";
 import { avecDelai } from "@/lib/domain/delai";
-import { gabaritPour, EXPEDITEUR_NOM } from "@/lib/courriel/gabarits";
+import { gabaritPour, gabaritLegalPour, EXPEDITEUR_NOM } from "@/lib/courriel/gabarits";
 import type { Origine } from "@/lib/courriel/origine";
-import type { PortCourriel, MotifCourriel } from "@/lib/courriel/port";
+import type { PortCourriel, MotifCourriel, MotifLegal } from "@/lib/courriel/port";
 import type { JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
 
 /**
@@ -59,6 +59,34 @@ export function creerPortResend(cle: string, expediteur: string, origine: Origin
       // On ne lit PAS le corps de la réponse d'erreur pour le journaliser : il peut contenir l'adresse
       // que l'on vient d'envoyer, et une adresse est une donnée personnelle. Le code HTTP suffit à
       // diagnostiquer, et il ne peut rien porter (NFR-022).
+      if (!reponse.ok) throw new Error(`courriel_refuse_${reponse.status}`);
+    },
+
+    /**
+     * Story 3.5 — l'information légale. Même transport, DEUX différences, et les deux sont voulues :
+     * aucun jeton n'entre ici, et AUCUN en-tête `List-Unsubscribe` ne sort. Cf. `gabaritLegalPour` :
+     * proposer un désabonnement sur un courriel qui repartira de toute façon serait une promesse
+     * intenable, et Gmail l'afficherait à côté de l'expéditeur avant même l'ouverture.
+     */
+    async envoyerInformationLegale(destinataire: string, motif: MotifLegal): Promise<void> {
+      const gabarit = gabaritLegalPour(motif, origine);
+      if (!gabarit) throw new Error("courriel_motif_inconnu");
+
+      const reponse = await avecDelai(
+        fetch(API, {
+          method: "POST",
+          headers: { authorization: `Bearer ${cle}`, "content-type": "application/json" },
+          body: JSON.stringify({
+            from: `${EXPEDITEUR_NOM} <${expediteur}>`,
+            to: [destinataire],
+            subject: gabarit.objet,
+            text: gabarit.texte,
+          }),
+        }),
+        DELAI_MS,
+        "courriel_timeout",
+      );
+
       if (!reponse.ok) throw new Error(`courriel_refuse_${reponse.status}`);
     },
   };

@@ -16,7 +16,7 @@
  */
 
 import Link from "next/link";
-import { URL_AIDE, type Surimpression } from "@/lib/scene";
+import { URL_AIDE, URL_ABONNEMENT, type Surimpression } from "@/lib/scene";
 import s from "./monde.module.css";
 
 /**
@@ -57,6 +57,17 @@ export default function Surimpression({
       {modele.mentionIA && (
         <Link className={s.mentionIa} href={`${URL_AIDE}#transparence`}>
           <span className="t-meta">Anam est une IA</span>
+        </Link>
+      )}
+
+      {/* Story 3.5 (FR-060) — LA SORTIE. Même registre visuel que « Aide » : `t-meta`, flottant dans le
+          voile, aucun fond, aucun bord, aucune animation. Ce n'est pas une barre, et ça ne doit pas le
+          devenir. Le MODÈLE décide de sa présence (AD-7) : ce composant ne dérive rien, il dessine.
+          Placé AVANT la porte de secours pour que « Aide » reste le dernier arrêt de tabulation le plus
+          à droite — la porte de secours ne cède sa place à rien. */}
+      {modele.cheminAbonnement && (
+        <Link className={s.cheminAbonnement} href={URL_ABONNEMENT}>
+          <span className="t-meta">L&apos;abonnement</span>
         </Link>
       )}
 

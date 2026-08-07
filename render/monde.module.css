@@ -426,6 +426,40 @@
   border-radius: var(--rayon-sm);
 }
 
+/* Story 3.5 (FR-060) — « L'abonnement ». MÊME grammaire que .porteSecours, délibérément : c'est un
+   chemin de service, pas une offre. Aucun fond, aucun bord, aucune pastille, aucune majuscule — la
+   surimpression n'est pas une barre et ne le devient pas parce qu'on y ajoute un mot.
+
+   `margin-left: auto` ici ET sur .porteSecours : l'espace libre se répartit entre les deux, les deux
+   liens flottent à droite avec le même intervalle, et « Aide » reste le dernier. La position d'« Aide »
+   change donc légèrement quand ce lien apparaît — c'est le seul compromis de ce placement, et il est
+   préférable à l'alternative (poser « L'abonnement » à gauche, où il se retrouverait au bord de l'écran
+   sur les régions sans mention IA). */
+.cheminAbonnement {
+  margin-left: auto;
+  flex: none;
+  pointer-events: auto;
+  min-height: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  padding: var(--esp-1) var(--esp-2);
+  color: var(--texte-doux);
+  text-transform: none;
+  text-decoration: none;
+  transition: color var(--duree-standard) var(--courbe);
+}
+.cheminAbonnement:hover {
+  color: var(--texte);
+}
+.cheminAbonnement .t-meta {
+  color: inherit;
+}
+.cheminAbonnement:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+  border-radius: var(--rayon-sm);
+}
+
 /* Porte de secours — un mot « Aide », discret, TOUJOURS au même endroit (à droite). Jamais
    rouge / --alerte / pastille / icône / majuscule (FR-077, AD-9). Même grammaire que .navLien. */
 .porteSecours {

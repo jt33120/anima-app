@@ -167,7 +167,10 @@ describe("Câblage scène (AC3, revue 1.8 [4]) — surimpression en tête, hors 
   });
 
   it("le modèle de la surimpression est câblé depuis lib/scene (surimpressionPour)", () => {
-    expect(scene).toMatch(/surimpressionPour\(region\)/);
+    // Story 3.5 : la fonction prend un second argument (`abonnementGerable`) — le MODÈLE décide de la
+    // présence du chemin « L'abonnement », le rendu ne dérive rien (AD-7). On matche donc l'appel avec
+    // sa région en premier argument, sans figer la liste des suivants.
+    expect(scene).toMatch(/surimpressionPour\(\s*region\b/);
   });
 });
 

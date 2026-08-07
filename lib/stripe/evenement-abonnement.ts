@@ -41,6 +41,16 @@ export function interpreterEvenementAbonnement(event: Stripe.Event): EvenementAb
       ? new Date(item.current_period_end * 1000).toISOString()
       : null;
 
+  // Story 3.5 — ces deux-là sont restés AU NIVEAU RACINE en dahlia, contrairement à `current_period_end`
+  // (vérifié dans `stripe@22.3.2` : `start_date: number`, `cancel_at: number | null`). Ne pas les
+  // chercher sur l'item par symétrie avec la ligne ci-dessus : ils n'y sont pas, et la lecture rendrait
+  // `undefined` sans erreur — donc une garantie qui ne se déclencherait jamais, en silence.
+  const debutLe = typeof sub.start_date === "number" ? new Date(sub.start_date * 1000).toISOString() : null;
+  // `cancel_at` plutôt que `cancel_at_period_end` : le booléen dit QU'ELLE a résilié, la date dit JUSQU'À
+  // QUAND elle garde l'accès — et c'est cette seconde information que l'écran doit rendre (AC1/AC8).
+  const resiliationDemandeeLe =
+    typeof sub.cancel_at === "number" ? new Date(sub.cancel_at * 1000).toISOString() : null;
+
   return {
     providerEventId: event.id,
     type: event.type,
@@ -50,5 +60,7 @@ export function interpreterEvenementAbonnement(event: Stripe.Event): EvenementAb
     subscriptionId: sub.id,
     periodeFin,
     sourceMajLe: new Date(event.created * 1000).toISOString(), // horloge d'ordre = event.created
+    debutLe,
+    resiliationDemandeeLe,
   };
 }

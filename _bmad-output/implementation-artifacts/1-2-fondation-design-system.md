@@ -7,7 +7,7 @@ title: "Fondation du design system — tokens, typographies, mouvement et access
 epic_name: "Franchir le seuil"
 covers: [UX-DR-1, UX-DR-2, UX-DR-4, UX-DR-5, UX-DR-6, UX-DR-39, NFR-016]
 depends_on: ["1-1-echafaudage-couches-rls"]
-status: ready-for-dev
+status: review # livrée et en prod depuis juillet ; corrigé le 2026-08-07 (disait `ready-for-dev`). Revue de code DUE.
 created: "2026-07-22"
 sources:
   - _bmad-output/planning-artifacts/epics.md#epic-1--story-1-2

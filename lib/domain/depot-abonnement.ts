@@ -15,6 +15,18 @@ export type EvenementAbonnementProjete = {
   readonly subscriptionId: string | null;
   readonly periodeFin: string | null; // ISO 8601 UTC, ou null si inconnu
   readonly sourceMajLe: string; // ISO 8601 UTC — horodatage de l'event Stripe (anti-régression d'ordre)
+  /**
+   * Story 3.5 — la PREMIÈRE souscription (`subscription.start_date`), base des trois mois de la garantie
+   * FR-089. Distincte de la période courante : elle ne bouge pas à la reconduction. `null` si l'event ne
+   * la porte pas — la RPC conserve alors la valeur déjà projetée (coalesce), elle ne l'efface pas.
+   */
+  readonly debutLe: string | null;
+  /**
+   * Story 3.5 — `subscription.cancel_at` : la date à laquelle la résiliation prendra effet, ou `null` si
+   * aucune résiliation n'est en cours. `null` est une VALEUR, pas une absence : une résiliation annulée
+   * doit effacer la date côté projection (sinon l'écran dirait « résilié » à quelqu'un qui est revenu).
+   */
+  readonly resiliationDemandeeLe: string | null;
 };
 
 /** Résultat de la projection écrivain-unique (miroir des retours de la RPC `traiter_evenement_abonnement`). */

@@ -1,5 +1,5 @@
 import "server-only";
-import type { MotifCourriel } from "@/lib/courriel/port";
+import type { MotifCourriel, MotifLegal } from "@/lib/courriel/port";
 import type { JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
 import type { Origine } from "@/lib/courriel/origine";
 
@@ -107,6 +107,59 @@ export function gabaritPour(motif: MotifCourriel, { origine, jeton }: Adresses):
 
   // Motif hors de l'ensemble fermé — ce que le type interdit, mais qu'un `as` ou une désérialisation
   // peut produire. L'adaptateur refuse alors d'envoyer.
+  return null;
+}
+
+/**
+ * Story 3.5 — LE GABARIT LÉGAL. Une fonction séparée, sans `jeton` et sans `lienUnClic`.
+ *
+ * ── CE QU'IL N'A PAS, ET POURQUOI L'ABSENCE EST LE POINT ────────────────────────────────────────────────
+ *
+ * Pas de pied de désabonnement. Le pied de `gabaritPour` promet « pour ne plus recevoir ces messages » —
+ * une promesse tenable pour une synthèse, intenable ici : l'information avant reconduction tacite est due
+ * (art. L215-1 C. consommation), et elle repartira l'an prochain quoi qu'elle clique. Offrir le lien
+ * quand même serait mentir poliment ; et le mensonge serait découvert exactement au moment où elle
+ * recevrait le courriel suivant.
+ *
+ * Pas d'en-têtes `List-Unsubscribe` non plus, pour la même raison — RFC 8058 vise le courrier en volume,
+ * pas le transactionnel. Un bouton « Se désabonner » affiché par Gmail à côté de l'expéditeur ferait la
+ * même promesse, en plus visible.
+ *
+ * ── CE QU'IL DIT, ET CE QU'IL NE DIT PAS ────────────────────────────────────────────────────────────────
+ *
+ * L'objet reste neutre (NFR-015) : il paraît sur un écran verrouillé. « Ton abonnement Anam va être
+ * reconduit » nomme déjà un produit et une dépense devant qui regarde par-dessus l'épaule.
+ *
+ * Le texte NE PORTE NI LA DATE NI LE MONTANT — pas par prudence de registre, mais parce qu'ils ne peuvent
+ * pas être écrits ici : la table est constante et ses deux seuls trous sont typés nominalement. Les
+ * interpoler rouvrirait le paramètre libre que toute la 4.9 a servi à fermer. Ils sont sur la page, qui
+ * est derrière une authentification — c'est-à-dire au seul endroit où ils regardent quelqu'un.
+ *
+ * Le chemin de résiliation est nommé DANS le courriel : prévenir quelqu'un d'une reconduction sans lui
+ * dire où l'arrêter serait le respect de la lettre contre l'esprit.
+ */
+export function gabaritLegalPour(motif: MotifLegal, origine: Origine): Gabarit | null {
+  if (motif === "reconduction_a_venir") {
+    return {
+      objet: "Ton abonnement va se renouveler",
+      texte: [
+        "Bonjour,",
+        "",
+        "Ton abonnement Anam arrive à échéance et sera reconduit automatiquement.",
+        "La date et le montant sont dans l'application :",
+        "",
+        `${origine}/abonnement`,
+        "",
+        "Tu peux résilier depuis cette même page, en quelques secondes, quand tu veux.",
+        "",
+        "— Anam",
+      ].join("\n"),
+      // Le champ existe pour satisfaire `Gabarit`, mais l'adaptateur NE POSE PAS l'en-tête sur ce chemin.
+      // Il pointe vers la page d'abonnement : si quelqu'un l'utilisait un jour, il mènerait au vrai geste
+      // (résilier) plutôt qu'à une préférence d'envoi qui n'existe pas pour ce courriel.
+      lienUnClic: `${origine}/abonnement`,
+    };
+  }
   return null;
 }
 

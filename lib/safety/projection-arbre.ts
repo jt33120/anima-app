@@ -56,10 +56,39 @@ async function planOuvert(supabase: SupabaseClient): Promise<boolean> {
   return premiumSousJwt(supabase, "projection_arbre_plan");
 }
 
+/**
+ * Story 3.5 (FR-060, décision D1) — un abonnement existe-t-il À GÉRER ?
+ *
+ * Ni `premiumSousJwt`, ni `etat = 'actif'` : la SEULE question est « une souscription Stripe est-elle
+ * rattachée à ce compte ». Un paiement en échec projette `expire` alors que la souscription vit toujours
+ * chez Stripe ; faire dépendre la sortie de l'entitlement enfermerait cette personne entre un accès fermé
+ * et un contrat ouvert.
+ *
+ * REPLI = `false`, et ce n'est PAS « le doute ferme la sortie ». La projection ne sert qu'à AFFICHER le
+ * chemin ; en cas de panne de lecture, `chargerProjectionArbre` retombe de toute façon sur
+ * `ARBRE_INDISPONIBLE`, et la page `/abonnement` reste atteignable par son URL, qui relit elle-même.
+ * Aucune porte ne se ferme ici — seul un raccourci disparaît le temps d'une panne.
+ */
+async function abonnementGerable(supabase: SupabaseClient): Promise<boolean> {
+  // ⚠️ `try/catch` INTERNE, et pas seulement le `if (error)`. Sans lui, cette lecture vit dans le `try`
+  // de `chargerProjectionArbre` : la moindre panne ferait retomber TOUT l'arbre sur `ARBRE_INDISPONIBLE`,
+  // c'est-à-dire « je n'arrive pas à afficher ton arbre » — pour un raccourci de navigation. La revue 4.6
+  // a déjà payé ce mensonge une fois dans l'autre sens. Un chemin d'abonnement illisible fait disparaître
+  // un raccourci, jamais l'arbre.
+  try {
+    const { data, error } = await supabase.from("abonnement").select("stripe_subscription_id").maybeSingle();
+    if (error) return false;
+    return typeof data?.stripe_subscription_id === "string" && data.stripe_subscription_id.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export async function chargerProjectionArbre(supabase: SupabaseClient): Promise<ProjectionScene> {
   try {
     const branches = await creerDepotBranche(supabase).chargerBranches();
     const suspendus = await gestesSuspendus(supabase);
+    const gerable = await abonnementGerable(supabase);
     // Écrire une intention est un dépôt de contenu art. 9 : la fenêtre de détresse la ferme aussi
     // (AD-17, miroir du WITH CHECK de `intention_insertion`). Deux conditions, une seule question posée
     // au rendu — il n'a pas à savoir laquelle des deux a fermé le champ, et surtout pas à le dire.
@@ -84,6 +113,10 @@ export async function chargerProjectionArbre(supabase: SupabaseClient): Promise<
       // ailleurs ici (`indisponible`, `gestesSuspendus`). Un champ absent ne se lit pas de travers.
       ...(suspendus ? { gestesSuspendus: true as const } : {}),
       ...(ouvert ? { planOuvert: true as const } : {}),
+      // ⚠️ PAS de `&& !suspendus` ici, contrairement à `planOuvert` juste au-dessus. AD-9 retire le
+      // commerce pendant un épisode de détresse ; il ne retire pas la SORTIE. Masquer le chemin de
+      // résiliation à quelqu'un en crise serait l'exact inverse de ce que la garde protège (AC3).
+      ...(gerable ? { abonnementGerable: true as const } : {}),
     };
   } catch (e) {
     // L'extraction du code Postgres vit DÉSORMAIS dans le journaliseur (`codeJournalisable`) : elle

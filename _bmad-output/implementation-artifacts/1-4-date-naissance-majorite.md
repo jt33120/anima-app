@@ -7,7 +7,7 @@ title: "Déclarer sa date de naissance et bloquer les moins de 18 ans"
 epic_name: "Franchir le seuil"
 covers: [FR-069, FR-070, FR-072, AD-6, NFR-023]
 depends_on: ["1-3-creer-compte-sans-mot-de-passe"]
-status: ready-for-dev
+status: done # revue de code faite (0f14ec2, barrière mineur persistante) ; corrigé le 2026-08-07 (disait `ready-for-dev`).
 created: "2026-07-23"
 sources:
   - _bmad-output/planning-artifacts/epics.md#epic-1--story-1-4

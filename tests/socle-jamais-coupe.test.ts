@@ -54,7 +54,9 @@ const FR055: readonly ItemSocle[] = [
   { item: "la lecture de tout ce qu'elle a déjà écrit", existe: true, detecteur: /projection-arbre|depot-branche/i },
   // ── Epic 5 : rien de tout cela n'existe. Le jour où ça existe, ce fichier le dit. ──
   { item: "numérologie complète", existe: false, detecteur: /numerolog|numérolog/i },
-  { item: "thème natal", existe: false, detecteur: /theme-natal|theme_natal|natal/i },
+  // ⚠️ ARRIVÉ LE 2026-08-07 (Story 5.1). Ce filet a rougi exactement comme il avait été armé pour
+  // le faire, et il exige maintenant la preuve positive ci-dessous : aucun gate premium sur le socle.
+  { item: "thème natal", existe: true, detecteur: /theme-natal|theme_natal|natal/i },
   { item: "horoscope quotidien", existe: false, detecteur: /horoscope/i },
   { item: "mantra du jour", existe: false, detecteur: /mantra/i },
   { item: "test d'ennéagramme", existe: false, detecteur: /enneagramme|ennéagramme/i },
@@ -143,6 +145,34 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
     expect(p.planOuvert, "témoin : ce compte n'est PAS premium (sinon le test ne prouverait rien)").toBeUndefined();
     expect(p.gestesSuspendus, "témoin : ni en détresse").toBeUndefined();
     expect(p.tronc.present, "le tronc est gratuit — il ne se négocie pas").toBe(true);
+  });
+
+  it("[FR-055 / Story 5.1] le THÈME NATAL n'est gardé par AUCUN chemin premium", () => {
+    // Le socle calculé est GRATUIT À VIE (FR-055/FR-088 : « le tronc est gratuit »). Il ne dépend
+    // donc d'aucun entitlement — la seule garde qui pèse sur lui est celle du consentement art. 9
+    // (AD-13), qui est une garde LÉGALE et non commerciale. Les confondre serait faire payer une
+    // conformité.
+    const socle = [
+      "lib/astro/theme-natal.ts",
+      "lib/astro/port.ts",
+      "lib/astro/adapters/astronomy-engine.ts",
+      "lib/data/depot-theme-natal.ts",
+    ];
+    // PRÉSENCE D'ABORD : on prouve qu'on lit bien les fichiers du socle et qu'ils calculent bien
+    // le thème — sans quoi « aucun mot premium » serait vrai d'un fichier vide ou inexistant.
+    const sources = socle.map((f) => {
+      const chemin = resolve(racine, f);
+      expect(existsSync(chemin), `fichier de socle introuvable : ${f}`).toBe(true);
+      return { f, src: readFileSync(chemin, "utf-8") };
+    });
+    expect(sources.some((s) => /calculerThemeNatal/.test(s.src)), "témoin : le socle calcule bien").toBe(true);
+    expect(sources.some((s) => /a_consenti_art9|theme_natal/.test(s.src)), "témoin : il persiste bien").toBe(true);
+
+    for (const { f, src } of sources) {
+      for (const gate of [/premium/i, /abonnement/i, /entitlement/i, /planOuvert/, /GardeCommerciale/, /stripe/i]) {
+        expect(src, `garde COMMERCIALE sur le socle gratuit dans ${f} : ${gate}`).not.toMatch(gate);
+      }
+    }
   });
 
   it("même une PANNE totale de lecture laisse le tronc debout (repli sûr AD-15)", async () => {

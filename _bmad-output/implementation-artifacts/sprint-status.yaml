@@ -19,7 +19,7 @@
 # prod. Ce qui manque, c'est leur revue. C'est une dette réelle, pas un artefact de comptabilité.
 
 generated: 2026-08-07
-last_updated: 2026-08-07 # 3.5 livrée (in-progress → review)
+last_updated: 2026-08-07 # 5.1 livrée (thème natal) — couche lib/astro posée, migration 0039
 project: Anam
 project_key: ANAM
 tracking_system: file-system
@@ -54,6 +54,9 @@ development_status:
   epic-2-retrospective: optional
 
   # ── Epic 3 : Devenir premium ──────────────────────────────────────────────────
+  # Les 5 stories sont LIVRÉES et en production. L'epic reste `in-progress` et non `done` parce que
+  # 3.1, 3.3 et 3.5 n'ont aucune revue de code au dossier (voir action_items) — la règle en tête de
+  # fichier ne laisse pas passer un `done` sans revue attestée.
   epic-3: in-progress
   3-1-ossature-abonnement-stripe: review # livrée ; revue jamais faite
   3-2-paywall-cloture-premiere-seance: done
@@ -77,8 +80,8 @@ development_status:
   epic-4-retrospective: optional
 
   # ── Epic 5 : Le socle & la lecture ────────────────────────────────────────────
-  epic-5: backlog
-  5-1-theme-natal-calcule-une-fois-grave: backlog
+  epic-5: in-progress
+  5-1-theme-natal-calcule-une-fois-grave: review # livrée 2026-08-07 (migration 0039 non déployée) ; revue DUE
   5-2-numerologie-complete-deterministe: backlog
   5-3-degradation-gracieuse-sans-heure-completion-tronc: backlog
   5-4-horoscope-mantra-du-jour: backlog
@@ -110,9 +113,24 @@ pre_launch_gates:
   - gate: "DPA + zéro-rétention signés avec le fournisseur de modèle (NFR-019)"
     concerne: "Epic 2 (2.1), transverse"
     status: open
-  - gate: "Licence éphémérides pour le thème natal"
-    concerne: "Epic 5 (5.1)"
-    status: open
+  - gate: "Licence Swiss Ephemeris pro (700 CHF) — UNIQUEMENT pour Chiron et les astéroïdes"
+    concerne: "Epic 5 (5.1, 5.3, 5.4)"
+    status: reduit # 2026-08-07 : ne bloque plus le développement
+    note: >
+      RE-CADRÉE le 2026-08-07 (décision Julian). L'adaptateur v1 est `astronomy-engine@2.1.19` (MIT,
+      zéro dépendance, ±1 minute d'arc, VSOP87/NOVAS) : il couvre les dix corps, le temps sidéral
+      (donc ascendant/MC/maisons) et les nœuds lunaires moyen ET vrai. Le développement de l'Epic 5
+      n'est donc PLUS bloqué, et le calcul est gratuit et sans copyleft.
+      CE QUI RESTE OUVERT : `astronomy-engine` n'a AUCUN astéroïde — donc pas de CHIRON, que Julian a
+      déclaré indispensable le 2026-08-07. Le thème natal porte un créneau `chiron: non_calcule` avec
+      sa raison (discipline FR-050) et il est VERSIONNÉ : le jour où une source de Chiron existe,
+      l'adaptateur la fournit, la version s'incrémente, zéro ligne de domaine à réécrire.
+      Trois voies pour Chiron, à trancher avant lancement : (a) licence Swiss Ephemeris pro, 700 CHF
+      paiement unique — sans elle `sweph` est AGPL-3.0 et l'app entière devrait passer en open source ;
+      (b) table d'éphéméride Chiron pré-calculée depuis JPL Horizons (données NASA non copyrightées),
+      interpolée — Chiron bouge ~7°/an, une table à pas de 10 jours sur 1900-2050 tient en ~60 Ko ;
+      (c) renoncer à Chiron. NE JAMAIS l'approximer par propagation képlérienne : la dérive atteint
+      plusieurs signes, et un Chiron faux est pire qu'un Chiron absent — il a l'air juste.
   - gate: "Domaine réel pour ANIMA_SITE_URL + SPF/DKIM/DMARC + DPA Resend"
     concerne: "Epic 4 (4.9 canal courriel)"
     status: open
@@ -131,6 +149,19 @@ pre_launch_gates:
 
 # Dette de revue de code identifiée le 2026-08-07 en reconstruisant ce fichier.
 action_items:
+  - epic: 5
+    action: "Déployer la migration 0039 sur zlhlzoalmszohrxrnsmo (theme_natal + entrées de naissance) — la 5.1 est livrée mais pas en base cloud"
+    owner: "Julian"
+    status: open
+  - epic: 5
+    action: >
+      DÉCISION PRODUIT à confirmer : les maisons sont livrées en SIGNES ENTIERS, pas en Placidus.
+      Placidus est le système par défaut en astrologie francophone, mais son solveur itératif a un
+      mode d'échec silencieux (une erreur de signe range chaque planète dans une maison voisine —
+      plausible, invérifiable). L'ascendant, lui, est exact dans les deux cas. À trancher avec la
+      médium qui porte le produit ; le système est un paramètre, le changer n'affecte pas le domaine.
+    owner: "Julian"
+    status: open
   - epic: 1
     action: "Revue de code jamais faite sur 1.1 (échafaudage + RLS), 1.2 (design system), 1.3 (magic link) — c'est le socle de tout le reste"
     owner: "Julian"
@@ -144,7 +175,7 @@ action_items:
     owner: "Julian"
     status: open
   - epic: 3
-    action: "Déployer la migration 0038 sur zlhlzoalmszohrxrnsmo (résiliation/remboursement) — la 3.5 est livrée mais pas en base cloud"
+    action: "Déployer la migration 0038 sur zlhlzoalmszohrxrnsmo (résiliation/remboursement)"
     owner: "Julian"
-    status: open
+    status: done # 2026-08-07 — déployée et vérifiée (parité fichiers 38 / local 38 / cloud 38)
 

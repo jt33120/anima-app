@@ -52,8 +52,9 @@ const FR055: readonly ItemSocle[] = [
   { item: "les ressources d'aide (FR-077)", existe: true, detecteur: /[/\\]aide[/\\]/i },
   { item: "le tronc de l'arbre", existe: true, detecteur: /[/\\]arbre[/\\]/i },
   { item: "la lecture de tout ce qu'elle a déjà écrit", existe: true, detecteur: /projection-arbre|depot-branche/i },
-  // ── Epic 5 : rien de tout cela n'existe. Le jour où ça existe, ce fichier le dit. ──
-  { item: "numérologie complète", existe: false, detecteur: /numerolog|numérolog/i },
+  // ── Epic 5 : ce qui reste ci-dessous n'existe pas. Le jour où ça existe, ce fichier le dit. ──
+  // ⚠️ ARRIVÉE LE 2026-08-07 (Story 5.2). Deuxième rougissement de ce filet, deuxième honoré.
+  { item: "numérologie complète", existe: true, detecteur: /numerolog|numérolog/i },
   // ⚠️ ARRIVÉ LE 2026-08-07 (Story 5.1). Ce filet a rougi exactement comme il avait été armé pour
   // le faire, et il exige maintenant la preuve positive ci-dessous : aucun gate premium sur le socle.
   { item: "thème natal", existe: true, detecteur: /theme-natal|theme_natal|natal/i },
@@ -73,8 +74,6 @@ describe("[T6-2] LE FILET POUR L'EPIC 5 — l'inventaire vieillit en rougissant,
     // Chaque détecteur d'item À VENIR est prouvé sur un chemin FABRIQUÉ : le jour où le vrai
     // fichier arrivera, on sait déjà que l'expression l'attrapera.
     const fabriques: Record<string, string> = {
-      "numérologie complète": "app/(scene)/numerologie/page.tsx",
-      "thème natal": "lib/socle/theme-natal.ts",
       "horoscope quotidien": "app/api/horoscope/route.ts",
       "mantra du jour": "render/socle/MantraDuJour.tsx",
       "test d'ennéagramme": "app/(scene)/enneagramme/page.tsx",
@@ -167,6 +166,36 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
     });
     expect(sources.some((s) => /calculerThemeNatal/.test(s.src)), "témoin : le socle calcule bien").toBe(true);
     expect(sources.some((s) => /a_consenti_art9|theme_natal/.test(s.src)), "témoin : il persiste bien").toBe(true);
+
+    for (const { f, src } of sources) {
+      for (const gate of [/premium/i, /abonnement/i, /entitlement/i, /planOuvert/, /GardeCommerciale/, /stripe/i]) {
+        expect(src, `garde COMMERCIALE sur le socle gratuit dans ${f} : ${gate}`).not.toMatch(gate);
+      }
+    }
+  });
+
+  it("[FR-055 / Story 5.2] la NUMÉROLOGIE n'est gardée par AUCUN chemin premium", () => {
+    // « Numérologie complète » est le PREMIER item de FR-055 et le socle le moins cher du produit :
+    // de l'arithmétique sur une date et un nom. Le garder derrière un abonnement serait faire payer
+    // ce qui ne coûte rien — exactement l'inverse de la frontière voulue (le coût est l'IA, pas le
+    // calcul). Ici la seule contrainte est l'absence de nom, qui est une ABSENCE DE DONNÉE, jamais
+    // une garde commerciale.
+    const socle = [
+      "lib/astro/numerologie.ts",
+      "lib/corpus/port.ts",
+      "lib/corpus/numerologie.ts",
+      "lib/data/lire-numerologie.ts",
+    ];
+    // PRÉSENCE D'ABORD : on prouve qu'on lit bien des fichiers qui calculent et servent vraiment la
+    // numérologie — sans quoi « aucun mot premium » serait vrai d'un fichier vide ou inexistant.
+    const sources = socle.map((f) => {
+      const chemin = resolve(racine, f);
+      expect(existsSync(chemin), `fichier de socle introuvable : ${f}`).toBe(true);
+      return { f, src: readFileSync(chemin, "utf-8") };
+    });
+    expect(sources.some((s) => /calculerNumerologie/.test(s.src)), "témoin : le socle calcule bien").toBe(true);
+    expect(sources.some((s) => /cheminDeVie/.test(s.src)), "témoin : le chemin de vie est bien là").toBe(true);
+    expect(sources.some((s) => /CORPUS_NUMEROLOGIE/.test(s.src)), "témoin : le corpus est bien branché").toBe(true);
 
     for (const { f, src } of sources) {
       for (const gate of [/premium/i, /abonnement/i, /entitlement/i, /planOuvert/, /GardeCommerciale/, /stripe/i]) {

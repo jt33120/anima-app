@@ -19,7 +19,7 @@
 # prod. Ce qui manque, c'est leur revue. C'est une dette réelle, pas un artefact de comptabilité.
 
 generated: 2026-08-07
-last_updated: 2026-08-07 # 5.1 livrée (thème natal) — couche lib/astro posée, migration 0039
+last_updated: 2026-08-07 # 5.2 livrée (numérologie) — couche lib/corpus posée, porte « corpus d'Anima » ouverte
 project: Anam
 project_key: ANAM
 tracking_system: file-system
@@ -82,7 +82,7 @@ development_status:
   # ── Epic 5 : Le socle & la lecture ────────────────────────────────────────────
   epic-5: in-progress
   5-1-theme-natal-calcule-une-fois-grave: review # livrée 2026-08-07 (7c60fcb + migration 0039 déployée) ; revue DUE
-  5-2-numerologie-complete-deterministe: backlog
+  5-2-numerologie-complete-deterministe: review # livrée 2026-08-07 ; AUCUNE migration ; revue DUE
   5-3-degradation-gracieuse-sans-heure-completion-tronc: backlog
   5-4-horoscope-mantra-du-jour: backlog
   5-5-enneagramme-test-court-hypothese-anam: backlog
@@ -131,6 +131,30 @@ pre_launch_gates:
       interpolée — Chiron bouge ~7°/an, une table à pas de 10 jours sur 1900-2050 tient en ~60 Ko ;
       (c) renoncer à Chiron. NE JAMAIS l'approximer par propagation képlérienne : la dérive atteint
       plusieurs signes, et un Chiron faux est pire qu'un Chiron absent — il a l'air juste.
+  - gate: "LE CORPUS D'ANIMA — les textes d'interprétation, écrits par Anima et par personne d'autre"
+    concerne: "Epic 5 (5.2, 5.4, 5.5, 5.7, 5.8) — transverse à tout le socle"
+    status: open
+    note: >
+      OUVERTE le 2026-08-07 en contextant la 5.2. FR-054 exige que les interprétations viennent du
+      CORPUS D'ANIMA, et FR-086 rappelle qu'Anima est une PERSONNE RÉELLE dont Anam ne fabrique
+      jamais une parole. Les trois façons de remplir ces textes sans elle sont toutes interdites :
+      les faire générer par un modèle (FR-047 + FR-054), les écrire moi-même (c'est alors du texte
+      générique repris, exactement ce que FR-054 bannit), les acheter ou les recopier (FR-054 + droit
+      d'auteur). Dans les trois cas ils finissent signés du nom d'une personne identifiable.
+      CONSÉQUENCE ASSUMÉE : la 5.2 livre la numérologie avec ZÉRO interprétation écrite. Le corpus
+      est une structure COMPLÈTE et VIDE — 69 créneaux déclarés, tous `non_ecrit`, chacun rendu
+      honnêtement comme non écrit plutôt que rempli d'un texte plausible (même discipline que Chiron
+      en 5.1 et que FR-050, « je préfère ne pas te l'inventer »).
+      CE QU'IL FAUT D'ANIMA, par ordre d'urgence : (a) les 12 textes du CHEMIN DE VIE — c'est le
+      nombre que les gens connaissent, il suffit à rendre la carte de numérologie vivante ;
+      (b) les 12 du nombre d'EXPRESSION ; (c) les 45 restants (intime, personnalité, jour de
+      naissance, année personnelle). La fiche d'écriture est
+      `_bmad-output/implementation-artifacts/corpus-numerologie-a-ecrire.md` : un créneau par ligne,
+      avec les règles de voix (aucune prédiction — FR-053 ; aucun lexique médical — NFR-008 ; aucune
+      revendication d'affect). Chaque texte livré passe automatiquement sous le contrôle bloquant de
+      la 2.8 dès qu'il est déposé dans `lib/corpus/`.
+      Le même corpus alimentera les MANTRAS (5.4), l'ENNÉAGRAMME (5.5) et le SENS DES CARTES (5.7) :
+      c'est le plus gros travail d'écriture du produit et il n'a qu'un seul auteur possible.
   - gate: "Domaine réel pour ANIMA_SITE_URL + SPF/DKIM/DMARC + DPA Resend"
     concerne: "Epic 4 (4.9 canal courriel)"
     status: open

@@ -537,6 +537,46 @@ troisième policy sera réécrite, pas avant.
 
 ---
 
+## Story 5.2 — la numérologie complète et déterministe
+
+- **Les comptes DÉJÀ créés n'ont ni prénom ni nom complet, et aucun chemin ne le leur demandera.** La
+  capture (T4) vit dans le formulaire du seuil, que seuls les comptes sans `date_naissance` traversent.
+  Pour tous les autres, `prenom` et `nom_complet` restent `null` : Anam n'a pas de quoi les nommer, et
+  trois des six nombres numérologiques (expression, intime, personnalité) restent `non_calcule` avec la
+  raison `nom_absent`. L'absence est honnête et non bloquante — mais elle est **définitive** tant qu'aucun
+  écran de correction n'existe. Le rattrapage appartient à « ce qu'Anam retient d'elle » (FR-063/FR-064,
+  **Story 6.5**), qui doit permettre d'ajouter ces deux champs au même titre que de corriger un fait.
+  Sans lui, l'application accumulera des comptes à numérologie partielle. [app/(auth)/naissance/actions.ts]
+
+- **Le corpus d'interprétation est vide, et c'est la seule forme conforme.** 69 créneaux déclarés, 0 écrit
+  (FR-054 + FR-086 : seule Anima peut les écrire). Ce n'est pas de la dette technique mais une **porte
+  pré-lancement** — suivie dans `sprint-status.yaml`, avec sa fiche d'écriture
+  (`corpus-numerologie-a-ecrire.md`). Conséquence à ne pas perdre de vue : la Story 5.6 (l'accueil en
+  cartes) devra afficher une carte de numérologie dont **tous** les textes sont absents. Le rendu de cette
+  absence est une vraie question de conception, pas un cas dégradé à traiter à la va-vite.
+  [lib/corpus/numerologie.ts]
+
+- **Le détecteur de prédiction ne couvre que le français, et volontairement plus large que nécessaire.**
+  « tu pourras » est signalé alors qu'il est souvent anodin — arbitrage assumé (un faux positif coûte une
+  reformulation, un faux négatif publie une prédiction sous le nom d'une personne réelle). Deux angles
+  morts connus : la prédiction sans marqueur grammatical (« une rencontre, bientôt ») et la prédiction
+  portée par une image plutôt que par un temps verbal. Aucun détecteur lexical ne les attrapera ; c'est une
+  relecture humaine qui les attrape. [lib/domain/marqueurs-prediction.ts]
+
+- **`tests/socle-jamais-coupe.test.ts` balaie les commentaires autant que le code.** Un fichier du socle
+  qui cite simplement une couche de facturation en commentaire fait rougir la garde — c'est arrivé pendant
+  cette story. Le comportement est défendable (le registre commercial n'a rien à faire dans le socle
+  gratuit) mais il n'est écrit nulle part dans le test lui-même, et le prochain qui le rencontrera perdra
+  du temps. [tests/socle-jamais-coupe.test.ts]
+
+- **`app/(auth)/naissance/actions.ts` n'avait AUCUN test avant cette story.** La Story 1.4 avait livré le
+  contrôle de majorité côté serveur (NFR-023, FR-070/FR-071) sans jamais l'exercer : la barrière de
+  minorité était garantie par relecture seule. `tests/naissance-actions.test.ts` la couvre désormais, mais
+  le constat vaut d'être retenu — **d'autres actions du seuil sont peut-être dans le même cas**, et
+  personne n'a fait l'inventaire. [app/(auth)/]
+
+---
+
 **Fragilité de suite observée, non corrigée** : les fichiers de tests SQL frappent le même Postgres local
 en parallèle. Sous forte contention (typiquement pendant une campagne de mutation, qui remplace des
 fonctions sur cette même base), un fichier peut échouer de façon transitoire. Quatre passes complètes

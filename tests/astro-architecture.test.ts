@@ -54,10 +54,12 @@ const TOUTES_SOURCES = [...fichiersTs("app"), ...fichiersTs("lib"), ...fichiersT
 
 describe("[AD-6/DUR] la frontière de déterminisme : lib/astro ne connaît aucun modèle de langage", () => {
   it("[CONTRÔLE DU CONTRÔLE] la couche astro a bien été balayée", () => {
-    expect(FICHIERS_ASTRO.length, "aucun fichier trouvé dans lib/astro — garde vide").toBeGreaterThanOrEqual(3);
+    expect(FICHIERS_ASTRO.length, "aucun fichier trouvé dans lib/astro — garde vide").toBeGreaterThanOrEqual(4);
     expect(FICHIERS_ASTRO).toContain("lib/astro/theme-natal.ts");
     expect(FICHIERS_ASTRO).toContain("lib/astro/port.ts");
     expect(FICHIERS_ASTRO).toContain("lib/astro/adapters/astronomy-engine.ts");
+    // Story 5.2 — la numérologie est du socle, elle vit sous les mêmes gardes.
+    expect(FICHIERS_ASTRO).toContain("lib/astro/numerologie.ts");
   });
 
   it("aucun module de lib/astro n'importe @/lib/ai — le socle est calculé, jamais généré", () => {
@@ -66,6 +68,43 @@ describe("[AD-6/DUR] la frontière de déterminisme : lib/astro ne connaît aucu
       expect(src, `${f} importe la couche IA — AD-6 est franchi`).not.toMatch(/from\s*["']@\/lib\/ai/);
       // Un SDK fournisseur importé en direct serait la même faute par un autre chemin.
       expect(src, `${f} importe un SDK de modèle`).not.toMatch(/from\s*["'](@mistralai|openai|@anthropic)/);
+    }
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// 1 bis. Aucune horloge, aucun hasard (Story 5.2, AC3)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[AC3/DUR] lib/astro n'a ni horloge implicite ni hasard", () => {
+  /**
+   * Le déterminisme d'un socle ne se prouve pas seulement par « deux appels rendent la même chose » :
+   * un module qui lit l'heure passe ce test-là tant qu'on l'exécute vite. Ce qui le prouve
+   * vraiment, c'est qu'il n'existe AUCUN moyen de lire l'heure depuis la couche.
+   *
+   * `new Date(...)` AVEC arguments reste permis : c'est une construction de date à partir de
+   * valeurs, pas une lecture de « maintenant » — `theme-natal.ts` s'en sert pour bâtir l'instant de
+   * naissance. C'est la forme SANS argument qui est bannie, avec `Date.now()` et `Math.random()`.
+   */
+  it("[CONTRÔLE DU CONTRÔLE] les motifs bannis attrapent bien ce qu'ils visent", () => {
+    const SANS_ARG = /new\s+Date\s*\(\s*\)/;
+    expect(SANS_ARG.test("const d = new Date();"), "le motif rate `new Date()`").toBe(true);
+    expect(SANS_ARG.test("new Date(Date.UTC(2026, 0, 1))"), "le motif mord sur du légitime").toBe(false);
+  });
+
+  it("[CONTRÔLE POSITIF] les constructions de date à partir de valeurs sont bien présentes", () => {
+    // Sans ce témoin, « aucune horloge » serait vrai d'une couche qui n'aurait aucune date du tout.
+    const natal = sansCommentaires(readFileSync(resolve(RACINE, "lib/astro/theme-natal.ts"), "utf-8"));
+    expect(natal).toMatch(/new\s+Date\s*\(\s*Date\.UTC/);
+  });
+
+  it("aucun module de lib/astro ne lit l'heure ni ne tire au hasard", () => {
+    for (const f of FICHIERS_ASTRO) {
+      const src = sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"));
+      expect(src, `${f} lit « maintenant » — le déterminisme est perdu`).not.toMatch(/new\s+Date\s*\(\s*\)/);
+      expect(src, `${f} lit l'horloge`).not.toMatch(/\bDate\.now\s*\(/);
+      expect(src, `${f} tire au hasard`).not.toMatch(/\bMath\.random\s*\(/);
+      expect(src, `${f} lit une variable d'environnement`).not.toMatch(/process\.env/);
     }
   });
 });

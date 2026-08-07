@@ -10,6 +10,7 @@ import {
   type Ouverture,
 } from "@/lib/domain/arbitrage-ouverture";
 import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
+import { premiumSousJwt } from "@/lib/safety/entitlement-premium";
 
 /**
  * Story 4.5 (T4), ARBITRÉE PAR LA 4.10 — LE SEUL ENDROIT DU PRODUIT OÙ L'ON DÉCIDE D'OUVRIR UNE BRANCHE.
@@ -48,6 +49,17 @@ import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
  * REPLI SÛR : toute panne → `null`. L'ouverture est un bonus ; jamais elle ne bloque l'entrée dans la
  * scène (aucun 500). L'incident est journalisé sans art. 9 (NFR-022). Ce qui part au client ne porte que
  * des identifiants et une phrase GÉNÉRIQUE — aucun verbatim.
+ *
+ * ── ⚠️ DEUX DOUTES OPPOSÉS COHABITENT ICI, ET C'EST VOULU (Story 3.3) ─────────────────────────────────
+ *
+ *   • une panne du GATE PREMIUM → on se TAIT (`premiumSousJwt` retombe sur `false`) ;
+ *   • une panne de l'ARBITRAGE  → on PROPOSE (le `catch` local, ci-dessous).
+ *
+ * Ce n'est pas une incohérence, c'est la même règle appliquée deux fois : on se trompe du côté qui coûte
+ * le moins. Se taire à tort coûte une question différée — le germe reste en attente, il reviendra. Parler
+ * à tort sur le gate premium lui fait écrire le nom d'une prise de conscience que la policy refusera
+ * ensuite. Les deux coûts ne sont pas du même ordre, donc les deux replis ne vont pas du même côté.
+ * Quiconque « harmonise » ces deux directions casse l'une des deux.
  */
 export type { Ouverture } from "@/lib/domain/arbitrage-ouverture";
 
@@ -56,6 +68,29 @@ export async function chargerOuverture(
   maintenant: Date = new Date(),
 ): Promise<Ouverture | null> {
   try {
+    // ── Story 3.3 (D2-A, FR-088) : SUR UN COMPTE GRATUIT, ANAM NE PROPOSE PAS ────────────────────────
+    //
+    // Depuis 0037, la naissance d'une branche est gardée dans le `WITH CHECK` de `branche_insertion`.
+    // Sans ce gate, Anam proposerait, l'utilisatrice écrirait le nom — un contenu art. 9 qu'elle vient de
+    // composer sur elle-même — et l'écriture serait refusée. C'est MOT POUR MOT la faute que les revues
+    // 4.7 (le geste de rayonnement offert pendant la fenêtre de détresse) puis 4.10 (le champ d'intention
+    // offert sans abonnement) ont trouvée, et elle est pire ici que partout ailleurs : ce qu'on lui fait
+    // écrire pour rien, c'est le nom qu'elle donne à une prise de conscience.
+    //
+    // ⚠️ ON FERME LA PROPOSITION, ON NE TOUCHE PAS AU SIGNAL. `evaluerReconceptualisationDuTour` continue
+    // d'enregistrer les signaux d'un compte gratuit, à l'identique. C'est la doctrine que ce module porte
+    // déjà pour l'arbitrage — « l'écarter serait perdre définitivement une prise de conscience, sans trace
+    // et sans recours » — et elle vaut ici mot pour mot : le jour où elle s'abonne, ses moments mûrs sont
+    // là, intacts, et Anam les lui propose. Un gate posé sur le signal les aurait effacés en silence.
+    //
+    // FR-059 n'est pas entamée : `charger_proposition_branche` n'ouvre un moment qu'à partir du JOUR CIVIL
+    // SUIVANT sa naissance (0021), donc aucune proposition ne peut survenir pendant la première séance du
+    // premier jour ; et FR-055 n'a jamais fait figurer une branche dans le gratuit à vie.
+    //
+    // ORDRE DÉLIBÉRÉ : le gate d'abord. Un compte gratuit ne déclenche alors AUCUNE lecture du germe —
+    // c'est aussi de la minimisation, la proposition portant un pointeur vers de l'art. 9.
+    if (!(await premiumSousJwt(supabase, "ouverture_branche_premium"))) return null;
+
     const p = await creerDepotSignalReconcept(supabase).chargerProposition();
     if (!p) return null;
 

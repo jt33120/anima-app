@@ -14,13 +14,12 @@ import { useRef, useState } from "react";
 import type { BrancheProjetee } from "@/lib/scene/projection";
 import ChampRenommage from "./ChampRenommage";
 import PlanEtapes from "./PlanEtapes";
+import EtatVideArbre from "./EtatVideArbre";
 import {
   LIBELLE_ETAT,
   ACTION_VOIR_CONVERSATION,
   ACTION_RENOMMER,
   PLAN_TITRE,
-  VIDE_TITRE,
-  VIDE_CORPS,
 } from "./copie-arbre";
 import s from "./arbre.module.css";
 
@@ -40,6 +39,8 @@ export interface ProprietesVueListe {
   onAnnoncer?: (texte: string) => void;
   /** Story 4.10 (AC6) — l'écriture du plan est-elle ouverte ? Décidé SERVEUR, constaté ici. */
   planOuvert?: boolean;
+  /** Story 3.3 (AC6) — la phrase sobre de l'état vide. Décidé par le modèle, constaté ici (AD-7). */
+  direOuNaissentLesBranches?: boolean;
 }
 
 export default function VueListe({
@@ -48,6 +49,7 @@ export default function VueListe({
   onRenommer,
   onAnnoncer,
   planOuvert,
+  direOuNaissentLesBranches,
 }: ProprietesVueListe) {
   const [renomme, setRenomme] = useState<string | null>(null);
   /**
@@ -72,13 +74,9 @@ export default function VueListe({
     requestAnimationFrame(() => boutonsRenommer.current.get(id)?.focus());
   };
 
+  // AC2 [DUR] — LE MÊME composant que la vue canevas, jamais une seconde copie de l'écran vide.
   if (branches.length === 0) {
-    return (
-      <div className={s.vide}>
-        <p className={s.videTitre}>{VIDE_TITRE}</p>
-        <p className={s.videCorps}>{VIDE_CORPS}</p>
-      </div>
-    );
+    return <EtatVideArbre direOuNaissentLesBranches={direOuNaissentLesBranches} />;
   }
   return (
     <ul className={s.liste}>

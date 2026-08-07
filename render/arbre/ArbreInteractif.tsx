@@ -26,6 +26,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
   reconcilierProjection,
   intensiteBornee,
+  doitDireOuNaissentLesBranches,
   ZOOM_MIN,
   ZOOM_MAX,
   type BrancheProjetee,
@@ -33,11 +34,10 @@ import {
   type ProjectionScene,
 } from "@/lib/scene";
 import { placerBranches, CANEVAS } from "./geometrie";
+import EtatVideArbre from "./EtatVideArbre";
 import {
   ARIA_CANEVAS,
   ARIA_ZONE_ARBRE,
-  VIDE_TITRE,
-  VIDE_CORPS,
   INDISPONIBLE_TITRE,
   INDISPONIBLE_CORPS,
   BASCULE_LISTE,
@@ -129,6 +129,17 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
   const indisponible = p.projection.indisponible === true;
   const vide = !indisponible && affichees.length === 0;
   const canevasVisible = !indisponible && !vueListe && !vide;
+  /**
+   * Story 3.3 (AC6) — la DÉCISION vient du modèle (`lib/scene`), jamais d'un test local sur l'entitlement.
+   * Le rendu ne sait pas ce qu'est un abonnement et n'a pas à l'apprendre (AD-7) : il appelle une fonction
+   * pure, il reçoit un booléen. La même valeur est passée aux DEUX vues — la liste et le canevas rendent le
+   * même état vide, par le même composant, avec la même phrase.
+   *
+   * On lui passe `affichees`, pas `p.projection.branches` : c'est la liste RÉELLEMENT à l'écran (le repère
+   * anti-régression peut la faire différer le temps d'un rendu). Sinon la phrase se déciderait sur un état
+   * que personne ne voit — le genre d'écart d'une frame qui ne se reproduit jamais quand on le cherche.
+   */
+  const direOuNaissentLesBranches = doitDireOuNaissentLesBranches({ ...p.projection, branches: affichees });
 
   // ── Le CARRÉ effectif du canevas : SVG et accroches partagent EXACTEMENT ce repère (fin du décalage) ──
   const canevasRef = useRef<HTMLDivElement>(null);
@@ -352,12 +363,11 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
           onRenommer={p.onRenommer}
           onAnnoncer={setAnnonce}
           planOuvert={p.projection.planOuvert === true}
+          direOuNaissentLesBranches={direOuNaissentLesBranches}
         />
       ) : vide ? (
-        <div className={s.vide}>
-          <p className={s.videTitre}>{VIDE_TITRE}</p>
-          <p className={s.videCorps}>{VIDE_CORPS}</p>
-        </div>
+        // AC2 [DUR] — LE MÊME composant que la vue liste (voir `EtatVideArbre`).
+        <EtatVideArbre direOuNaissentLesBranches={direOuNaissentLesBranches} />
       ) : (
         <div
           ref={canevasRef}

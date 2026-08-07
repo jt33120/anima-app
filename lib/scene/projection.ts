@@ -77,8 +77,41 @@ export interface ProjectionScene {
    *
    * Absent ≠ « son plan disparaît » : la LECTURE reste ouverte (voir `intention_lecture`, 0036). Un
    * paywall qui séquestre ce qui est déjà écrit n'est pas un paywall.
+   *
+   * ── Story 3.3 : CE DRAPEAU PORTE MAINTENANT DEUX GESTES, ET C'EST DÉLIBÉRÉ ─────────────────────────
+   *
+   * Depuis 0037, la NAISSANCE d'une branche est gardée par exactement le même prédicat que l'écriture
+   * d'une intention : abonnement actif ET hors fenêtre de détresse. Ajouter un second champ
+   * `naissanceOuverte` aurait fabriqué un MIROIR — deux valeurs toujours égales, jusqu'au jour où l'une
+   * dérive sans l'autre. C'est la faute R1-bis, celle qui a coûté un test d'équivalence à
+   * `render/intention.ts`. Un seul champ, donc.
+   *
+   * ⚠️ SI UN JOUR LES DEUX GESTES DIVERGENT (par exemple : écrire une intention redevient possible
+   * pendant un épisode, alors qu'une branche ne peut toujours pas naître), il faudra SÉPARER les deux
+   * drapeaux le jour même — pas continuer à en partager un qui ne dit plus la vérité pour l'un des deux.
    */
   readonly planOuvert?: true;
+}
+
+/**
+ * Story 3.3 (AC6, décision D3-A) — faut-il dire OÙ naissent les branches ?
+ *
+ * La décision vit ICI, dans le modèle, pas dans le rendu (AD-7 : le rendu constate, il ne déduit pas).
+ * Fonction PURE : quatre conditions, toutes nécessaires.
+ *
+ *   • l'arbre est VIDE — dès qu'une branche existe, la phrase n'a plus rien à expliquer et disparaît
+ *     d'elle-même. C'est ça, « une seule fois » (D3-A) : elle n'APPARAÎT jamais, elle EST là ;
+ *   • la lecture a RÉUSSI — sur une panne, l'écran dit « je n'arrive pas à afficher ton arbre » ; y
+ *     ajouter une explication commerciale serait répondre à côté, et à quelqu'un qu'on fait déjà patienter ;
+ *   • le compte est GRATUIT (`planOuvert` absent) — sinon on expliquerait à une abonnée ce qu'elle a déjà ;
+ *   • AUCUN geste n'est suspendu — AD-9 [DUR] : rien de commercial ne se monte pendant un épisode de
+ *     détresse ni dans les 72 h. Cette condition n'est PAS redondante avec la précédente : un compte
+ *     PREMIUM en détresse a lui aussi `planOuvert` absent, et il ne doit rien voir non plus.
+ */
+export function doitDireOuNaissentLesBranches(p: ProjectionScene): boolean {
+  return (
+    p.branches.length === 0 && p.indisponible !== true && p.planOuvert !== true && p.gestesSuspendus !== true
+  );
 }
 
 /** STUB de départ : tronc présent, aucune branche. Gelé (lecture seule réelle, pas seulement au type). */

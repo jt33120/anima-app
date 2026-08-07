@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { creerDepotBranche } from "@/lib/data/depot-branche";
 import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
+import { premiumSousJwt } from "@/lib/safety/entitlement-premium";
 import { intensiteBornee, type ProjectionScene, type BrancheProjetee } from "@/lib/scene/projection";
 
 /**
@@ -45,23 +46,14 @@ async function gestesSuspendus(supabase: SupabaseClient): Promise<boolean> {
 
 /**
  * Story 4.10 (AC6 / FR-081) — le plan d'étapes est-il ouvert à l'ÉCRITURE ? Repli SÛR = `false` : le
- * doute FERME l'écriture. C'est l'inverse du repli d'`estPremiumCourante` côté commerce (où le doute
- * suspend la vente), et pour la même raison de fond — on se trompe du côté qui ne fait de mal à personne.
- * Ici, se tromper en fermant coûte un champ absent pendant quelques secondes ; se tromper en ouvrant lui
- * fait écrire deux phrases intimes que le point d'écriture refusera ensuite.
+ * doute FERME l'écriture.
+ *
+ * Le corps a été EXTRAIT en 3.3 vers `lib/safety/entitlement-premium.ts` — la même lecture y servait une
+ * seconde fois (l'ouverture d'une branche), et deux copies d'un même prédicat divergent tôt ou tard
+ * (R1-bis). Le repli, sa direction et sa justification vivent désormais là-bas, écrits une fois.
  */
 async function planOuvert(supabase: SupabaseClient): Promise<boolean> {
-  try {
-    const { data, error } = await supabase.rpc("est_premium_courante");
-    if (error) {
-      journaliserIncidentSecurite("projection_arbre_plan", error);
-      return false;
-    }
-    return data === true;
-  } catch (e) {
-    journaliserIncidentSecurite("projection_arbre_plan", e);
-    return false;
-  }
+  return premiumSousJwt(supabase, "projection_arbre_plan");
 }
 
 export async function chargerProjectionArbre(supabase: SupabaseClient): Promise<ProjectionScene> {

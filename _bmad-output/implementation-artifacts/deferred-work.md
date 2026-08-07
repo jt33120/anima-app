@@ -384,7 +384,27 @@ dans les définitions vivantes, vérifié en base). Restent trois items, gardés
   44 px mais restent tenues par la relecture. La garde empêche la RÉGRESSION, pas l'oubli sur un nom
   inédit — c'est écrit dans son en-tête.
 
-## FR-088 — « les branches sont premium » n'est gardé nulle part (constaté à la création de la 4.10)
+## ✅ FR-088 — FERMÉ par la Story 3.3 (migration `0037`, 2026-08-07)
+
+`branche_insertion` porte désormais `est_premium_courante()` dans son `WITH CHECK`, et
+`chargerOuverture` ne propose plus de branche à un compte gratuit (D2-A). Les quatre décisions PO qui
+bloquaient ce report ont été tranchées :
+
+- **D1-A** — seule la **naissance** est premium. `branche_maj` (l'unique policy UPDATE, qui couvre
+  renommage + feuillaison + rayonnement) reste **ouverte** : le paywall porte sur ce qui s'ajoute,
+  jamais sur ce qui est déjà à elle (FR-029, 3.5). Gardé par `tests/tronc-branche-sql.test.ts`.
+- **D2-A** — Anam ne propose plus, mais **le SIGNAL n'est jamais gaté** : un compte gratuit continue
+  d'accumuler ses moments mûrs, intacts, pour le jour où il s'abonne (garde FR-059 dans
+  `tests/ouverture-branche.test.ts`).
+- **D3-A** — la phrase sobre d'AC6 vit dans l'état vide, sans persistance ni bouton.
+- **D4-A** — `ALLOCATION_RESIDUELLE_TOURS` reste **non configurée** (voir l'entrée dédiée ci-dessous).
+
+Le second point de l'analyse d'origine reste vrai et **assumé** : la détection de reconceptualisation
+n'a toujours aucune garde premium, et c'est délibéré — la gater détruirait en silence des prises de
+conscience réelles. Le coût du modèle fort sur un compte gratuit est donc une **dépense consentie**, à
+relire le jour où `ALLOCATION_RESIDUELLE_TOURS` sera posée.
+
+<details><summary>Le constat d'origine (conservé pour l'historique)</summary>
 
 **Le fait.** `creer_branche_depuis_signal` (migration 0021) ne porte **aucune** condition d'abonnement,
 ni dans la RPC, ni dans le `WITH CHECK` de la policy `branche`. `app/api/anam/branche/route.ts` non plus
@@ -417,6 +437,49 @@ ligne**, en même temps que la valeur de `ALLOCATION_RESIDUELLE_TOURS`. Hors pé
 garde que ce qu'elle crée (les plans d'étapes, FR-081).
 [supabase/migrations/0021_branche.sql, app/api/anam/branche/route.ts, lib/ai/allocation-config.ts,
 lib/safety/reconceptualisation-pipeline.ts]
+
+</details>
+
+## Story 3.3 — ce qu'elle laisse ouvert (2026-08-07)
+
+### FR-056 « la mémoire longue » — non gardée, et pas par oubli
+
+**Le fait.** Les trois couches de mémoire (4.1 journal brut, 4.2 faits extraits, 4.3 rappel opportun)
+existent et **aucune n'est gardée par l'entitlement**. FR-056 (`prd.md:185`) classe pourtant « la
+mémoire longue » en premium. La 3.3 a inventorié cette surface (T1-3) et a **choisi de ne pas la
+garder**.
+
+**Pourquoi.** Garder le **stockage** ferait qu'Anam **oublie** ce qu'on lui a confié le jour où
+l'abonnement s'éteint — c'est-à-dire exactement la régression que D1-A vient d'interdire pour les
+branches, et que la 4.10 avait déjà refusée pour le plan d'étapes (« un paywall qui séquestre ce qui
+est déjà écrit n'est pas un paywall »). Le seul découpage défendable porterait sur le **rappel
+opportun au-delà de la séance courante** (4.3) : Anam se souviendrait toujours, mais ne ramènerait
+spontanément un souvenir ancien que pour une abonnée.
+
+**Ce qu'il faut pour trancher.** Une décision de PO à part entière, pas un correctif technique — et
+elle interagit avec FR-059 (la qualité d'Anam n'est pas dégradée pendant la première séance). **À
+trancher avant mise en ligne.** La garder en douce dans une story de paywall aurait été le pire des
+deux mondes.
+[lib/data/depot-faits.ts, lib/data/depot-rappel.ts, lib/safety/mesure-rappel.ts, prd.md:185]
+
+### Les cinq items FR-055 de l'Epic 5 — armés, pas implémentés
+
+Numérologie, thème natal, horoscope, mantra du jour, ennéagramme sont **gratuits à vie** (FR-055) et
+n'existent pas encore. `tests/socle-jamais-coupe.test.ts` porte leur inventaire avec un **détecteur par
+item** : le jour où l'un d'eux apparaît dans `app/`, `render/` ou `lib/`, **le test rougit** et exige
+qu'on l'inscrive et qu'on prouve qu'aucun gate premium ne le garde. Ce n'est pas une dette : c'est le
+filet qui empêche AC4 de devenir un constat daté.
+
+### La conservation des clauses de policy — généralisable, non généralisée
+
+`tests/tronc-branche-sql.test.ts` compare, pour `branche_insertion`, les clauses de **toutes** les
+définitions historiques avec celles de la dernière, et rougit si une clause disparaît (la faute
+`reserver_notification` de la 4.10, rejouée). L'analyseur est générique ; la garde ne couvre
+aujourd'hui que `branche_insertion` et `branche_maj`, seules policies dont la 3.3 raisonne. L'étendre à
+**toutes** les policies redéfinies du dépôt (aujourd'hui : `art9_temoin_ecriture`) fermerait la classe
+entière — au prix d'une liste d'exemptions pour les relâchements délibérés. À faire quand une
+troisième policy sera réécrite, pas avant.
+[tests/tronc-branche-sql.test.ts]
 
 ---
 

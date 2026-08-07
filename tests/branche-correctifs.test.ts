@@ -36,9 +36,31 @@ async function donnerConsentement(c: SupabaseClient, id: string) {
   );
   if (error) throw new Error(`consentement: ${error.message}`);
 }
+/**
+ * Story 3.3 — TOUTE UTILISATRICE DE CE FICHIER EST ABONNÉE, et ce n'est pas une commodité.
+ *
+ * Depuis la migration 0037, `branche_insertion` porte `est_premium_courante()` : sans abonnement
+ * actif, AUCUNE branche ne naît. Ce fichier n'éprouve pas le paywall (c'est
+ * `tests/tronc-branche-sql.test.ts` qui s'en charge) — il éprouve le consentement art. 9, la barrière
+ * minorité, la fenêtre de détresse (AD-17) et l'isolation.
+ *
+ * ⚠️ ET SURTOUT : sans cet abonnement, ses REFUS deviendraient ambigus. Un insert refusé pourrait
+ * l'être à cause de la clause premium au lieu de la clause sous test, et chaque garde passerait pour
+ * une raison qui n'est pas la sienne — le piège des défenses redondantes qui se couvrent l'une
+ * l'autre. L'abonnement rétablit la précondition pour que chaque garde continue d'isoler CE qu'elle
+ * prétend isoler.
+ */
+async function abonnerActive(id: string) {
+  const { error } = await admin
+    .from("abonnement")
+    .upsert({ utilisatrice_id: id, etat: "actif", source_maj_le: new Date().toISOString() }, { onConflict: "utilisatrice_id" });
+  if (error) throw new Error(`abonner: ${error.message}`);
+}
+
 async function creerUtilisatrice(email: string) {
   const { data, error } = await admin.auth.admin.createUser({ email, password: MDP, email_confirm: true });
   if (error) throw new Error(`createUser: ${error.message}`);
+  await abonnerActive(data.user!.id);
   return data.user!.id;
 }
 async function graverEntree(id: string, cleTour: string, contenu = "un tour", creeLe?: string): Promise<string> {

@@ -18,6 +18,38 @@ export const ARIA_ZONE_ARBRE = "Zone de l'arbre — utilise les flèches pour te
 export const VIDE_TITRE = "Rien n'a encore été nommé.";
 export const VIDE_CORPS = "C'est normal, ça vient en parlant.";
 
+/**
+ * Story 3.3 (AC6) — LA PHRASE SOBRE, et la seule surface commerciale de toute la région arbre.
+ *
+ * Registre PRODUIT, jamais la voix d'Anam : Anam ne vend rien (3.2), et lui faire dire une phrase de
+ * périmètre serait la transformer en commerciale au moment précis où l'écran est vide. Elle constate
+ * comment les branches viennent — c'est une information, pas une offre.
+ *
+ * Ce qu'elle NE contient PAS, et chaque absence est un choix :
+ *   • aucun prix, aucun lien, aucun bouton (AC6 : « sans bouton d'achat ») ;
+ *   • aucun impératif — ni « passe au premium », ni « abonne-toi », ni « débloque », ni « découvre » ;
+ *   • aucun compte, aucune jauge, aucun « il te manque N branches » (FR-031 et AC2 [DUR]) ;
+ *   • aucun futur promis (« tu pourras… ») : on dit ce qui est, pas ce qu'elle gagnerait.
+ *
+ * ⚠️ ELLE MENTIONNE L'ABONNEMENT, ET C'EST DÉLIBÉRÉ. AC6 n'exige littéralement que « les branches se
+ * posent en conversation ». S'en tenir là serait pourtant, sur un compte gratuit, la faute même que
+ * cette story passe son temps à fermer : depuis la 3.3, Anam ne propose plus de branche sans
+ * abonnement. Une phrase qui dirait seulement « ça vient en parlant » enverrait quelqu'un parler en
+ * attendant quelque chose qui n'arrivera pas — un mensonge par omission, avec l'attente en plus.
+ * FR-088 demande « la représentation HONNÊTE de ce qu'elle n'a pas encore » : honnête veut dire
+ * complète. On nomme donc le périmètre, une fois, platement, sans rien vendre.
+ *
+ * Le mot est « abonnement », jamais « premium » : « premium » est le registre de l'étiquette et de la
+ * pastille (AC1 l'interdit explicitement), « abonnement » est le mot neutre qui décrit ce qui est.
+ *
+ * « Une seule fois » (D3-A) se lit littéralement : elle n'apparaît jamais — elle EST là, dans l'état
+ * vide, et elle s'en va d'elle-même dès qu'une branche existe. Aucune persistance, aucun marqueur,
+ * aucune relance : fabriquer une colonne `vu_le` pour une phrase en ferait un événement commercial
+ * daté, ce que FR-057 refuse.
+ */
+export const VIDE_OU_NAISSENT_LES_BRANCHES =
+  "Les branches se posent en conversation avec Anam, et elles font partie de l'abonnement.";
+
 /** Une PANNE de lecture n'est pas un arbre vide : dire « rien n'a été nommé » à quelqu'un qui a des
  *  branches serait un mensonge, et la pire régression au sens de FR-029 (revue 4.6). */
 export const INDISPONIBLE_TITRE = "Je n'arrive pas à afficher ton arbre pour l'instant.";

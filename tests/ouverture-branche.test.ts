@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -22,7 +24,14 @@ vi.mock("@/lib/data/depot-arbitrage", () => ({
 import { chargerOuverture } from "@/lib/safety/ouverture-branche";
 import { SEUIL_BRANCHES_OUVERTES, PHRASE_INVITATION } from "@/lib/domain/arbitrage-ouverture";
 
-const supa = {} as SupabaseClient;
+/**
+ * Story 3.3 — le client factice répond désormais à `est_premium_courante` : depuis D2-A, l'ouverture
+ * commence par le gate premium. Par défaut PREMIUM, pour que tout ce fichier continue d'éprouver
+ * l'arbitrage de la 4.10 et rien d'autre ; le comportement du compte GRATUIT a son propre bloc en bas.
+ */
+const client = (premium: boolean) =>
+  ({ rpc: async () => ({ data: premium, error: null }) }) as unknown as SupabaseClient;
+const supa = client(true);
 const MAINTENANT = new Date("2026-03-15T10:00:00+01:00");
 const SIGNAL_HIER = { signalId: "sig-7", signalCreeLe: new Date("2026-03-14T22:00:00+01:00") };
 
@@ -168,6 +177,21 @@ describe("repli sûr (AD-15) : l'ouverture ne bloque JAMAIS l'entrée dans la sc
     spy.mockRestore();
   });
 
+  it("[3.3] une panne du GATE PREMIUM fait TAIRE — l'autre sens du doute, et il est voulu", async () => {
+    // Deux doutes opposés cohabitent dans ce fichier : une panne de l'ARBITRAGE fait PROPOSER (test
+    // ci-dessus), une panne du GATE PREMIUM fait SE TAIRE. Se taire à tort coûte une question différée
+    // (le germe reste en attente) ; parler à tort ferait écrire à quelqu'un le nom d'une prise de
+    // conscience que la policy 0037 refuserait ensuite. Les deux coûts diffèrent, les deux replis aussi.
+    // Mutation-cible : passer le repli de `premiumSousJwt` à `true`.
+    chargerProposition.mockResolvedValue(SIGNAL_HIER);
+    faits.mockResolvedValue(PEU_DE_BRANCHES);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const enPanne = { rpc: async () => ({ data: null, error: { code: "42501" } }) } as unknown as SupabaseClient;
+    expect(await chargerOuverture(enPanne, MAINTENANT)).toBeNull();
+    expect(spy, "et l'incident est journalisé (AD-15)").toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
   it("mais une parole REFUSÉE (pas en panne) reste un SILENCE", async () => {
     // La distinction est tout le sujet : un refus est une décision (« Anam a déjà dit ça »), une panne
     // est une ignorance. On ne retombe sur la proposition que dans le second cas — retomber sur le
@@ -176,5 +200,58 @@ describe("repli sûr (AD-15) : l'ouverture ne bloque JAMAIS l'entrée dans la sc
     faits.mockResolvedValue(TROP_DE_BRANCHES);
     reserverParole.mockResolvedValue(false);
     expect(await chargerOuverture(supa, MAINTENANT)).toBeNull();
+  });
+});
+
+/**
+ * Story 3.3 (T3, décision D2-A) — SUR UN COMPTE GRATUIT, ANAM NE PROPOSE PAS.
+ *
+ * Depuis 0037, la naissance d'une branche est gardée dans le `WITH CHECK`. Proposer quand même
+ * ferait écrire le nom d'une prise de conscience — un contenu art. 9 composé à l'instant — pour
+ * un refus. C'est la faute « mentir par omission » des revues 4.7 et 4.10, à l'endroit où elle
+ * coûte le plus cher.
+ */
+describe("[3.3 / D2-A] le gate premium de l'ouverture", () => {
+  it("[LE CŒUR] compte GRATUIT → silence, et le germe n'est même pas lu", async () => {
+    // Mutation-cible : retirer le `if (!(await premiumSousJwt(...))) return null`. Tout redeviendrait
+    // vert ailleurs — c'est le seul test qui tombe.
+    // La seconde assertion n'est pas décorative : elle prouve que le gate passe AVANT la lecture du
+    // signal. Un compte gratuit ne déclenche donc AUCUNE lecture d'un pointeur vers de l'art. 9.
+    chargerProposition.mockResolvedValue(SIGNAL_HIER);
+    faits.mockResolvedValue(PEU_DE_BRANCHES);
+    expect(await chargerOuverture(client(false), MAINTENANT)).toBeNull();
+    expect(chargerProposition, "gratuit : on ne lit même pas le germe (minimisation)").not.toHaveBeenCalled();
+    expect(faits, "…ni les faits d'arbitrage").not.toHaveBeenCalled();
+  });
+
+  it("[CONTRÔLE POSITIF] compte PREMIUM → la proposition 4.5 est intacte", async () => {
+    // Sans ce contrôle, un gate qui refuserait TOUT LE MONDE satisferait le test ci-dessus.
+    chargerProposition.mockResolvedValue(SIGNAL_HIER);
+    faits.mockResolvedValue(PEU_DE_BRANCHES);
+    expect((await chargerOuverture(client(true), MAINTENANT))?.type).toBe("proposition");
+  });
+});
+
+describe("[3.3 / FR-059] on ferme la PROPOSITION, jamais le SIGNAL", () => {
+  const pipeline = resolve(process.cwd(), "lib/safety/reconceptualisation-pipeline.ts");
+  const src = readFileSync(pipeline, "utf-8");
+
+  it("[NON-VACUITÉ] le fichier examiné est bien le pipeline de détection", () => {
+    // ⚠️ LA CONDITION DE VALIDITÉ de l'assertion d'absence qui suit : chercher un mot absent dans un
+    // fichier vide (ou dans le mauvais fichier) réussit TOUJOURS. On prouve d'abord qu'on regarde au
+    // bon endroit, par deux symboles qu'on sait y être.
+    expect(src).toMatch(/export async function evaluerReconceptualisationDuTour/);
+    expect(src, "c'est ICI que le germe est persisté").toMatch(/depotSignal\.enregistrer/);
+  });
+
+  it("[LE CŒUR] la détection et la persistance du germe IGNORENT totalement l'entitlement", () => {
+    // C'est la garantie réelle de FR-059, et elle vaut bien au-delà de la première séance : un compte
+    // gratuit continue d'accumuler ses moments mûrs. Le jour où elle s'abonne, ils sont là — intacts,
+    // datés, aucun perdu. Un gate posé ICI les aurait effacés en silence, un par un, sans qu'elle sache
+    // qu'ils ont existé. C'est le seul endroit de cette story où l'on pouvait détruire quelque chose.
+    // Mutation-cible : ajouter un `if (!premium) return` dans `evaluerReconceptualisationDuTour`.
+    for (const interdit of [/est_premium_courante/, /premiumSousJwt/, /\babonnement\b/, /\bpremium\b/i]) {
+      expect(src, `l'entitlement s'est invité dans le pipeline de détection : ${interdit}`).not.toMatch(interdit);
+    }
   });
 });

@@ -16,6 +16,7 @@ vi.mock("@/lib/safety/limites-commerciales", () => ({
 }));
 
 import { GardeCommerciale } from "@/app/_commerce/GardeCommerciale";
+import { doitDireOuNaissentLesBranches, type ProjectionScene } from "@/lib/scene/projection";
 
 const racine = process.cwd();
 function sansCommentaires(src: string): string {
@@ -173,6 +174,47 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     console.info(
       `[garde-commerciale] ${uiCommerciales.length} UI + ${routesCommerciales.length} route(s) commerciale(s) + 1 carte gardée par gate serveur.`,
     );
+  });
+});
+
+describe("[Story 3.3 / AD-9] la phrase sobre de l'arbre vide est du COMMERCE, et elle passe sous la garde", () => {
+  /**
+   * ⚠️ POURQUOI CE BLOC EST ICI ET PAS DANS UN NOUVEAU FICHIER. AD-9 dit « aucun commerce ne
+   * s'interpose sur la sécurité ». La 3.3 ajoute une surface commerciale — une phrase de périmètre
+   * dans l'état vide de l'arbre (AC6) — et la question « est-elle gardée en détresse ? » appartient
+   * à CETTE garde, celle qui tient l'inventaire du commerce. Une seconde garde ailleurs se serait
+   * désynchronisée de celle-ci le jour où l'une des deux aurait bougé.
+   *
+   * Son gate n'est pas la balise `<GardeCommerciale>` : la phrase vit dans un composant de rendu MUET
+   * (AD-7), qui ne peut pas s'envelopper d'un composant SERVEUR async. Sa garde est donc le GATE
+   * SERVEUR — même dérogation nommée que `CarteAbonnement` (3.2) et `ligne-quota` (3.4) — et ce gate
+   * est la fonction pure `doitDireOuNaissentLesBranches` de `lib/scene`, alimentée par
+   * `chargerProjectionArbre` (qui pose `gestesSuspendus` depuis `branche_bloquee_par_detresse()`).
+   */
+  const VIDE_GRATUIT: ProjectionScene = { tronc: { present: true }, branches: [] };
+
+  it("[CONTRÔLE POSITIF] hors détresse, sur un compte gratuit, la phrase EST de mise", () => {
+    // Sans ce contrôle, un gate qui refuserait toujours satisferait le test ci-dessous — et la
+    // surface serait morte sans que personne ne le sache.
+    expect(doitDireOuNaissentLesBranches(VIDE_GRATUIT)).toBe(true);
+  });
+
+  it("[LE CŒUR / AD-9] pendant l'épisode et les 72 h, elle ne se monte PAS", () => {
+    // Mutation-cible : retirer `p.gestesSuspendus !== true` de `doitDireOuNaissentLesBranches`.
+    expect(doitDireOuNaissentLesBranches({ ...VIDE_GRATUIT, gestesSuspendus: true })).toBe(false);
+  });
+
+  it("la dérogation « gate serveur » n'est pas morte : la surface ET sa garde comportementale existent", () => {
+    // Même discipline que pour `CarteAbonnement` : une allowlist qui pointe vers du vide laisserait
+    // passer, demain, une surface non gardée sous couvert d'une dérogation qui ne protège plus rien.
+    expect(
+      existsSync(resolve(racine, "render/arbre/EtatVideArbre.tsx")),
+      "surface AC6 absente — la dérogation `gate serveur` de la 3.3 est morte",
+    ).toBe(true);
+    expect(
+      existsSync(resolve(racine, "tests/rendu/arbre-gratuit.test.tsx")),
+      "garde comportementale AC6 absente — la dérogation ne prouve rien",
+    ).toBe(true);
   });
 });
 

@@ -541,7 +541,39 @@ Restauration depuis un instantané `cp`, jamais `git checkout` (le dépôt porte
 - `tsc --noEmit` ✅ · `eslint .` ✅ · `next build` ✅
 - **2274 tests / 165 fichiers** ✅
 - Mutation : **22 / 22** ✅
-- Migration 0039 **non encore déployée sur le cloud** (`zlhlzoalmszohrxrnsmo`).
+- Migration 0039 **déployée et vérifiée** sur `zlhlzoalmszohrxrnsmo` (2026-08-07), enregistrée sous
+  la version `0039` / nom `theme_natal`. Parité fichiers 39 / local 39 / cloud 39.
+
+#### Vérifications post-déploiement
+
+| Contrôle | Résultat |
+|---|---|
+| 7 colonnes de naissance, toutes `nullable` | ✅ |
+| `theme_natal` : `relrowsecurity` **et** `relforcerowsecurity` | ✅ |
+| `WITH CHECK` = `auth.uid() = utilisatrice_id AND a_consenti_art9() AND NOT est_barre_minorite()` | ✅ les deux gardes |
+| Les 3 triggers (recalcul déclaré, write-once, immuabilité 0003) actifs | ✅ |
+| Fonctions-trigger : `{postgres, service_role}` seulement, **aucun `anon`** | ✅ |
+| 3 contraintes de plage sur les coordonnées | ✅ |
+| Non-régression 0038 — `traiter_evenement_abonnement` toujours en arité 10 | ✅ |
+| Non-régression 0003 — `date_naissance` toujours immuable | ✅ |
+
+#### ⚠️ Correction d'une affirmation de l'AC3
+
+L'AC3 dit « **aucun grant `anon`** ». C'est **vrai des FONCTIONS** (vérifié ci-dessus) et **faux au
+niveau TABLE** : `anon` porte les 7 privilèges de table par défaut sur `theme_natal` — exactement
+comme sur les neuf autres tables art. 9 du projet (`art9_temoin`, `entree_journal`, `branche`,
+`fait_extrait`, `consentement`, `intention`, `synthese`, `seance`), vérifié par comparaison.
+
+Ce sont les *default privileges* que Supabase pose sur le schéma `public` — ceux-là mêmes que la
+migration 0007 documente pour les fonctions. Ils ne constituent pas une fuite : la garde est la
+**RLS forcée**, et sous `anon` `auth.uid()` est nul, donc le `USING` ne rend aucune ligne et le
+`WITH CHECK` refuse toute écriture. Les deux tests comportementaux le prouvent (lecture anonyme →
+`[]`, écriture anonyme → erreur), et c'est le même raisonnement que celui écrit dans 0007.
+
+**Ce qui est corrigé ici, c'est la formulation de l'AC, pas le code** : `theme_natal` n'introduit
+aucune régression, elle est strictement alignée sur la posture existante. Si un jour le projet décide
+de révoquer les grants de table `anon`, ce sera une migration transverse sur les dix tables, pas un
+correctif de la 5.1.
 
 ---
 

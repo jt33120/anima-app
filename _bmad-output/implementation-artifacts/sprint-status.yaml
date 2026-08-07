@@ -81,7 +81,7 @@ development_status:
 
   # ── Epic 5 : Le socle & la lecture ────────────────────────────────────────────
   epic-5: in-progress
-  5-1-theme-natal-calcule-une-fois-grave: review # livrée 2026-08-07 (migration 0039 non déployée) ; revue DUE
+  5-1-theme-natal-calcule-une-fois-grave: review # livrée 2026-08-07 (7c60fcb + migration 0039 déployée) ; revue DUE
   5-2-numerologie-complete-deterministe: backlog
   5-3-degradation-gracieuse-sans-heure-completion-tronc: backlog
   5-4-horoscope-mantra-du-jour: backlog
@@ -150,9 +150,9 @@ pre_launch_gates:
 # Dette de revue de code identifiée le 2026-08-07 en reconstruisant ce fichier.
 action_items:
   - epic: 5
-    action: "Déployer la migration 0039 sur zlhlzoalmszohrxrnsmo (theme_natal + entrées de naissance) — la 5.1 est livrée mais pas en base cloud"
+    action: "Déployer la migration 0039 sur zlhlzoalmszohrxrnsmo (theme_natal + entrées de naissance)"
     owner: "Julian"
-    status: open
+    status: done # 2026-08-07 — déployée et vérifiée (parité fichiers 39 / local 39 / cloud 39)
   - epic: 5
     action: >
       DÉCISION PRODUIT à confirmer : les maisons sont livrées en SIGNES ENTIERS, pas en Placidus.

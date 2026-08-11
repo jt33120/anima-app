@@ -19,7 +19,7 @@
 # prod. Ce qui manque, c'est leur revue. C'est une dette réelle, pas un artefact de comptabilité.
 
 generated: 2026-08-07
-last_updated: 2026-08-11 # 5.3 livrée (dégradation sans heure + complétion du tronc) — migration 0040 à déployer
+last_updated: 2026-08-11 # 5.3 livrée et commitée (c14ed9a) ; migration 0040 déployée et vérifiée sur le cloud
 project: Anam
 project_key: ANAM
 tracking_system: file-system
@@ -83,7 +83,7 @@ development_status:
   epic-5: in-progress
   5-1-theme-natal-calcule-une-fois-grave: review # livrée 2026-08-07 (7c60fcb + migration 0039 déployée) ; revue DUE
   5-2-numerologie-complete-deterministe: review # livrée 2026-08-07 ; AUCUNE migration ; revue DUE
-  5-3-degradation-gracieuse-sans-heure-completion-tronc: review # livrée 2026-08-11 ; migration 0040 NON DÉPLOYÉE ; revue DUE
+  5-3-degradation-gracieuse-sans-heure-completion-tronc: review # livrée 2026-08-11 (c14ed9a + migration 0040 déployée) ; revue DUE
   5-4-horoscope-mantra-du-jour: backlog
   5-5-enneagramme-test-court-hypothese-anam: backlog
   5-6-accueil-bibliotheque-en-cartes: backlog
@@ -185,7 +185,9 @@ action_items:
       pour la première fois. Au premier chargement, CHAQUE compte déclenche un calcul de thème et
       une écriture — c'est aussi la première mise à l'épreuve réelle du write-gate art. 9 de 0039.
     owner: "Julian"
-    status: open
+    status: done # 2026-08-11 — déployée et vérifiée (parité fichiers 40 / local 40 / cloud 40 ;
+    # colonne timestamptz nullable, fonction security definer + search_path='' , EXECUTE à
+    # `authenticated` seul — ni `anon` ni `public` ; 27 tables / 72 fonctions / 28 policies des deux côtés)
   - epic: 5
     action: >
       DÉCISION PRODUIT à confirmer : les maisons sont livrées en SIGNES ENTIERS, pas en Placidus.

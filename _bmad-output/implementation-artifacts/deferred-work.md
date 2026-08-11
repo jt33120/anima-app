@@ -624,6 +624,53 @@ troisième policy sera réécrite, pas avant.
   ~663 lectures d'éphéméride. C'est une fois par compte, jamais deux — mais c'est aussi la première
   mise à l'épreuve réelle du write-gate art. 9 de 0039. [lib/data/depot-theme-natal.ts]
 
+## Story 5.4 — l'horoscope et le mantra du jour
+
+- **87 créneaux de corpus de plus, tous vides — le total passe à 156.** Décision Julian du
+  2026-08-11 (option complète). C'est une **porte pré-lancement**, pas de la dette technique : seule
+  Anima peut les écrire (FR-054, FR-086). Fiche d'écriture : `corpus-quotidien-a-ecrire.md`. Les 27
+  textes d'horoscope suffisent à rendre la carte du jour vivante ; les 60 mantras peuvent suivre.
+  [lib/corpus/mantra.ts, lib/corpus/horoscope.ts]
+
+- **Le jour bascule à minuit À PARIS, pour tout le monde.** Il n'existe aucune colonne de fuseau de
+  RÉSIDENCE — le seul fuseau stocké est celui du lieu de NAISSANCE (5.3), qui n'a rien à voir. Une
+  utilisatrice en Guadeloupe voit donc le jour changer à 20 h locales, et une expatriée à Tokyo à
+  7 h du matin. La correction est une colonne de préférence, pas une réécriture. [lib/data/lire-quotidien.ts]
+
+- **`lune_relative` ne change que tous les ~2,5 jours** — le même texte sort donc deux à trois jours
+  de suite. C'est le ciel qui est comme ça, pas le code : la Lune met 2,5 jours à traverser un signe.
+  La configuration dominante par-dessus (~un jour sur deux) est ce qui distingue les jours. **La 5.6
+  doit le savoir avant de dessiner la carte** — afficher deux jours de suite un texte identique sans
+  rien d'autre autour se lirait comme une panne. [→ 5.6]
+
+- **Environ un jour sur deux n'a AUCUNE configuration dominante.** Estimé, pas mesuré finement : la
+  mesure sur août 2026 avec un thème d'exemple donne ≥10 changements de dominante sur 31 jours, mais
+  la fréquence des jours « vides » dépend du thème. Si la carte paraît creuse à l'usage, le levier est
+  `ORBE_DEGRES` (3° aujourd'hui) — un paramètre, à trancher avec une astrologue, jamais au feeling.
+  [lib/astro/quotidien.ts]
+
+- **Les aspects MINEURS et les transits LENTS sont absents, et c'est un choix.** Pas de semi-carré,
+  pas de quinconce ; pas de Jupiter→Pluton. Les transits lents sont réels et importants en astrologie
+  — ils ne sont simplement pas l'unité du JOUR (un aspect de Pluton dure deux ans). Le jour où le
+  produit voudra une lecture « de cycle », ce sera une story distincte, pas un ajout à
+  `CORPS_TRANSITANTS`. [lib/astro/quotidien.ts]
+
+- **L'échantillonnage horaire du ciel du jour a le même angle mort qu'en 5.3.** Un corps qui
+  sortirait d'un signe et y reviendrait en moins d'une heure échapperait à `changementsDe`. Suppose
+  une station à moins de ~0,05° d'une cuspide. Résidu écrit plutôt que tu. [lib/astro/quotidien.ts]
+
+- **La mémoïsation du ciel est PAR PROCESSUS.** En serverless, chaque instance froide recalcule
+  (~138 lectures d'éphéméride, quelques millisecondes). Ce n'est pas un problème aujourd'hui, mais
+  « servi depuis le cache » ne veut pas dire « calculé une fois par jour dans le monde » — ça veut
+  dire « une fois par instance et par jour ». [lib/data/lire-quotidien.ts]
+
+- **Un corpus vide rend toute assertion sur son CONTENU vacue — et deux mutants l'ont prouvé.**
+  `mantraDuJour` figé sur le premier créneau, et le mantra indexé sur l'utilisatrice, ont tous deux
+  SURVÉCU à la première campagne : les 60 créneaux étant `non_ecrit`, deux mantras sont égaux. La
+  parade adoptée (exporter la CLÉ, espionner l'ARGUMENT) vaut pour **tous les corpus à venir** —
+  5.5 (ennéagramme) et 5.7 (sens des cartes) hériteront du même angle mort s'ils l'oublient.
+  [lib/corpus/mantra.ts, → 5.5, → 5.7]
+
 ---
 
 **Fragilité de suite observée, non corrigée** : les fichiers de tests SQL frappent le même Postgres local

@@ -69,9 +69,12 @@ const FICHIERS_CORPUS = fichiersTs("lib/corpus");
 
 describe("[AD-1/DUR] lib/corpus est une couche PURE", () => {
   it("[CONTRÔLE DU CONTRÔLE] la couche a bien été balayée", () => {
-    expect(FICHIERS_CORPUS.length, "aucun fichier trouvé dans lib/corpus — garde vide").toBe(2);
+    expect(FICHIERS_CORPUS.length, "aucun fichier trouvé dans lib/corpus — garde vide").toBe(4);
     expect(FICHIERS_CORPUS).toContain("lib/corpus/port.ts");
     expect(FICHIERS_CORPUS).toContain("lib/corpus/numerologie.ts");
+    // Story 5.4 — les deux corpus du socle quotidien vivent sous EXACTEMENT les mêmes gardes.
+    expect(FICHIERS_CORPUS).toContain("lib/corpus/mantra.ts");
+    expect(FICHIERS_CORPUS).toContain("lib/corpus/horoscope.ts");
   });
 
   it("[FR-054/FR-047] n'importe AUCUN modèle de langage — un corpus ne se génère pas", () => {

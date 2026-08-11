@@ -19,7 +19,7 @@
 # prod. Ce qui manque, c'est leur revue. C'est une dette réelle, pas un artefact de comptabilité.
 
 generated: 2026-08-07
-last_updated: 2026-08-11 # 5.3 livrée et commitée (c14ed9a) ; migration 0040 déployée et vérifiée sur le cloud
+last_updated: 2026-08-11 # 5.3 livrée + 0040 déployée ; 5.4 livrée (aucune migration)
 project: Anam
 project_key: ANAM
 tracking_system: file-system
@@ -84,7 +84,7 @@ development_status:
   5-1-theme-natal-calcule-une-fois-grave: review # livrée 2026-08-07 (7c60fcb + migration 0039 déployée) ; revue DUE
   5-2-numerologie-complete-deterministe: review # livrée 2026-08-07 ; AUCUNE migration ; revue DUE
   5-3-degradation-gracieuse-sans-heure-completion-tronc: review # livrée 2026-08-11 (c14ed9a + migration 0040 déployée) ; revue DUE
-  5-4-horoscope-mantra-du-jour: backlog
+  5-4-horoscope-mantra-du-jour: review # livrée 2026-08-11 ; AUCUNE migration ; 87 créneaux de corpus à écrire ; revue DUE
   5-5-enneagramme-test-court-hypothese-anam: backlog
   5-6-accueil-bibliotheque-en-cartes: backlog
   5-7-tirage-isole-jeu-proprietaire: backlog

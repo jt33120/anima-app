@@ -58,8 +58,10 @@ const FR055: readonly ItemSocle[] = [
   // ⚠️ ARRIVÉ LE 2026-08-07 (Story 5.1). Ce filet a rougi exactement comme il avait été armé pour
   // le faire, et il exige maintenant la preuve positive ci-dessous : aucun gate premium sur le socle.
   { item: "thème natal", existe: true, detecteur: /theme-natal|theme_natal|natal/i },
-  { item: "horoscope quotidien", existe: false, detecteur: /horoscope/i },
-  { item: "mantra du jour", existe: false, detecteur: /mantra/i },
+  // ⚠️ ARRIVÉS LE 2026-08-11 (Story 5.4). Troisième et quatrième rougissement de ce filet, honorés
+  // comme les précédents — avec la preuve positive ci-dessous.
+  { item: "horoscope quotidien", existe: true, detecteur: /horoscope/i },
+  { item: "mantra du jour", existe: true, detecteur: /mantra/i },
   { item: "test d'ennéagramme", existe: false, detecteur: /enneagramme|ennéagramme/i },
 ];
 
@@ -204,6 +206,38 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
     });
     expect(sources.some((s) => /calculerThemeNatal/.test(s.src)), "témoin : le socle calcule bien").toBe(true);
     expect(sources.some((s) => /a_consenti_art9|theme_natal/.test(s.src)), "témoin : il persiste bien").toBe(true);
+
+    for (const { f, src } of sources) {
+      for (const gate of [/premium/i, /abonnement/i, /entitlement/i, /planOuvert/, /GardeCommerciale/, /stripe/i]) {
+        expect(src, `garde COMMERCIALE sur le socle gratuit dans ${f} : ${gate}`).not.toMatch(gate);
+      }
+    }
+  });
+
+  it("[FR-055 / Story 5.4] le SOCLE QUOTIDIEN n'est gardé par AUCUN chemin premium", () => {
+    // « Horoscope quotidien » et « mantra du jour » sont deux items distincts de FR-055 — et le
+    // mantra est celui qui coûte le moins cher du produit entier : une rotation modulo sur une date.
+    // Le garder derrière un abonnement serait faire payer une soustraction.
+    //
+    // ⚠️ FR-080 vit ici aussi : le mantra du jour est GRATUIT, l'ancrage est premium. Ce sont deux
+    // choses différentes, et les confondre ferait basculer le mantra du mauvais côté de la
+    // frontière commerciale — la faute exacte que FR-080 nomme.
+    const socle = [
+      "lib/astro/quotidien.ts",
+      "lib/corpus/mantra.ts",
+      "lib/corpus/horoscope.ts",
+      "lib/data/lire-quotidien.ts",
+    ];
+    const sources = socle.map((f) => {
+      const chemin = resolve(racine, f);
+      expect(existsSync(chemin), `fichier de socle introuvable : ${f}`).toBe(true);
+      return { f, src: readFileSync(chemin, "utf-8") };
+    });
+    // PRÉSENCE D'ABORD : on prouve qu'on lit bien des fichiers qui calculent et servent vraiment le
+    // socle quotidien — sans quoi « aucun mot premium » serait vrai d'un fichier vide.
+    expect(sources.some((s) => /horoscopeDuJour/.test(s.src)), "témoin : l'horoscope est calculé").toBe(true);
+    expect(sources.some((s) => /mantraDuJour/.test(s.src)), "témoin : le mantra est servi").toBe(true);
+    expect(sources.some((s) => /CORPUS_MANTRA/.test(s.src)), "témoin : le corpus est branché").toBe(true);
 
     for (const { f, src } of sources) {
       for (const gate of [/premium/i, /abonnement/i, /entitlement/i, /planOuvert/, /GardeCommerciale/, /stripe/i]) {

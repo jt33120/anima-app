@@ -194,8 +194,12 @@ function decalageMinutes(instantUtc: Date, fuseau: string): number {
  * JETTE si `Intl` ne connaît pas l'identifiant de fuseau — c'est aux appelants de décider quoi en
  * faire, et ils ne décident pas la même chose (`resoudreInstant` dégrade, `fenetreIncertitude`
  * élargit).
+ *
+ * ⚠️ EXPORTÉE depuis la Story 5.4 : `lib/data/lire-quotidien.ts` en a besoin pour résoudre minuit et
+ * midi du jour civil parisien. **Ne pas en écrire une seconde ailleurs** — deux implémentations de
+ * cette conversion divergeront un jour de changement d'heure, et ce jour-là personne ne regardera.
  */
-function instantDepuisLocal(naif: number, fuseau: string): Date {
+export function instantDepuisLocal(naif: number, fuseau: string): Date {
   let instant = new Date(naif - decalageMinutes(new Date(naif), fuseau) * 60000);
   instant = new Date(naif - decalageMinutes(instant, fuseau) * 60000);
   return instant;

@@ -63,6 +63,8 @@ describe("[AD-6/DUR] la frontière de déterminisme : lib/astro ne connaît aucu
     // Story 5.3 — le référentiel des lieux est une ENTRÉE du socle : même couche, mêmes gardes.
     expect(FICHIERS_ASTRO).toContain("lib/astro/lieux.ts");
     expect(FICHIERS_ASTRO).toContain("lib/astro/adapters/lieux-france.ts");
+    // Story 5.4 — le socle QUOTIDIEN (ciel du jour, configurations) est du calcul comme le reste.
+    expect(FICHIERS_ASTRO).toContain("lib/astro/quotidien.ts");
   });
 
   it("aucun module de lib/astro n'importe @/lib/ai — le socle est calculé, jamais généré", () => {
@@ -182,9 +184,11 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
      *   • `app/heure-naissance/actions.ts` — compose le référentiel de LIEUX pour la recherche de
      *     commune (5.3). Il est dans `app/` et pas dans `lib/data/` parce qu'il n'y a rien à
      *     stocker : la recherche ne touche aucune table, elle lit un fichier embarqué.
+     *   • `lib/data/lire-quotidien.ts` — compose l'éphéméride pour le CIEL DU JOUR (5.4), et la
+     *     passe à `lireThemeNatal` pour qu'une seule source serve les deux calculs du chemin.
      *
-     * Aucun de ces deux fichiers ne dépend du CONTENU de son adaptateur : tous deux ne manipulent
-     * que les types du port.
+     * Aucun de ces trois fichiers ne dépend du CONTENU de son adaptateur : tous ne manipulent que
+     * les types du port.
      */
     const referents = TOUTES_SOURCES.filter(
       (f) =>
@@ -196,7 +200,81 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
     expect(referents.sort()).toEqual([
       "app/heure-naissance/actions.ts",
       "lib/data/depot-theme-natal.ts",
+      "lib/data/lire-quotidien.ts",
     ]);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// 2 bis. Story 5.4 — la prose ne remonte pas dans le socle, le personnel n'y descend pas
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[5.4 / D9 / DUR] lib/astro n'importe JAMAIS lib/corpus — la dépendance va dans l'autre sens", () => {
+  it("[CONTRÔLE POSITIF] le sens AUTORISÉ existe bien — sinon la garde ne prouve rien", () => {
+    // `lib/corpus/` connaît le domaine : c'est ainsi que `mantra.ts` obtient sa rotation et que
+    // `horoscope.ts` connaît les aspects. Si plus personne ne le faisait, la garde inverse
+    // ci-dessous serait vraie pour rien.
+    const versAstro = fichiersTs("lib/corpus").filter((f) =>
+      /from\s*["']@\/lib\/astro\//.test(sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"))),
+    );
+    expect(versAstro.length, "aucun corpus n'importe le domaine — sens autorisé disparu").toBeGreaterThan(0);
+  });
+
+  it("aucun module de lib/astro n'importe lib/corpus", () => {
+    // C'est la garde qui maintient « le socle ne contient AUCUNE prose » (FR-053) vraie. Le jour où
+    // `lib/astro` importerait un corpus, il pourrait rendre du texte — et la garde d'absence sur
+    // `ThemeNatal` / `HoroscopeDuJour`, qui surveille l'apparition d'un champ de prose, cesserait
+    // de protéger quoi que ce soit.
+    for (const f of FICHIERS_ASTRO) {
+      const src = sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"));
+      expect(src, `${f} importe lib/corpus — la prose entre dans le socle`).not.toMatch(
+        /from\s*["']@?[./]*lib\/corpus/,
+      );
+    }
+  });
+});
+
+describe("[5.4 / FR-033 / P8/DUR] le socle quotidien ne peut PAS atteindre l'histoire personnelle", () => {
+  /*
+   * « Il ne référence jamais le journal, une branche ou un échange » (FR-033) est le contrat qui
+   * rend le rythme quotidien acceptable. Le rendre structurel, c'est refuser à ces modules l'ACCÈS
+   * MÊME à ces notions : une consigne s'enfreint par distraction, un import manquant non.
+   *
+   * La signature de `mantraDuJour(jour)` et de `horoscopeDuJour(theme, jour, ephemeride)` ferme la
+   * porte côté paramètres ; cette garde la ferme côté imports.
+   */
+  const MODULES_QUOTIDIENS = [
+    "lib/astro/quotidien.ts",
+    "lib/corpus/mantra.ts",
+    "lib/corpus/horoscope.ts",
+  ];
+
+  const PERSONNEL: Array<[RegExp, string]> = [
+    [/depot-journal|\bjournal\b/, "le journal"],
+    [/lib\/domain\/branche|depot-branche/, "les branches"],
+    [/depot-seance|lib\/domain\/seance|arc-seance/, "les séances"],
+    [/lib\/domain\/synthese|depot-synthese/, "les synthèses"],
+    [/depot-faits|fusion-fait/, "les faits extraits"],
+  ];
+
+  it("[CONTRÔLE DU CONTRÔLE] les trois modules existent et sont lus", () => {
+    for (const f of MODULES_QUOTIDIENS) {
+      expect(existsSync(resolve(RACINE, f)), `${f} introuvable — garde vide`).toBe(true);
+    }
+  });
+
+  it("[CONTRÔLE DU CONTRÔLE] les motifs mordent bien sur du code qui ATTEINDRAIT le personnel", () => {
+    const faux = 'import { lireJournal } from "@/lib/data/depot-journal";';
+    expect(PERSONNEL.some(([m]) => m.test(faux)), "les motifs ne mordent pas").toBe(true);
+  });
+
+  it("aucun des trois ne connaît le journal, une branche, une séance, une synthèse ou un fait", () => {
+    for (const f of MODULES_QUOTIDIENS) {
+      const src = sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"));
+      for (const [motif, nom] of PERSONNEL) {
+        expect(motif.test(src), `${f} atteint ${nom} — FR-033 est franchi`).toBe(false);
+      }
+    }
   });
 });
 

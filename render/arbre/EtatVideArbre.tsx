@@ -14,6 +14,7 @@
  */
 
 import { VIDE_TITRE, VIDE_CORPS, VIDE_OU_NAISSENT_LES_BRANCHES } from "./copie-arbre";
+import BoutonTronc from "./BoutonTronc";
 import s from "./arbre.module.css";
 
 export interface ProprietesEtatVideArbre {
@@ -23,9 +24,16 @@ export interface ProprietesEtatVideArbre {
    * compte gratuit, aucun geste suspendu (AD-9).
    */
   direOuNaissentLesBranches?: boolean;
+  /**
+   * Story 5.3 — le chemin vers la fiche du tronc, quand il manque son heure. Il vit ICI parce que
+   * l'écran vide REMPLACE le canevas : sans lui, la personne qui n'a encore aucune branche — c'est-à-dire
+   * exactement celle qui n'a pas donné son heure — n'aurait aucun moyen d'atteindre la fiche.
+   * Absent ⇒ rien ne s'affiche : un tronc complet n'a aucune affordance (AC4).
+   */
+  onOuvrirTronc?: () => void;
 }
 
-export default function EtatVideArbre({ direOuNaissentLesBranches }: ProprietesEtatVideArbre) {
+export default function EtatVideArbre({ direOuNaissentLesBranches, onOuvrirTronc }: ProprietesEtatVideArbre) {
   return (
     <div className={s.vide}>
       <p className={s.videTitre}>{VIDE_TITRE}</p>
@@ -33,6 +41,7 @@ export default function EtatVideArbre({ direOuNaissentLesBranches }: ProprietesE
       {/* Un `<p>` nu, dans le flux, sans bouton ni lien ni fermeture : la phrase n'est pas une bannière,
           elle fait partie de l'écran. Rien à cliquer, donc rien à refuser. */}
       {direOuNaissentLesBranches && <p className={s.videCorps}>{VIDE_OU_NAISSENT_LES_BRANCHES}</p>}
+      {onOuvrirTronc && <BoutonTronc onOuvrir={onOuvrirTronc} />}
     </div>
   );
 }

@@ -76,8 +76,14 @@ function corpsComplet(source: string, nom: string, variantes: readonly string[])
   return corps;
 }
 
-/** Les deux variantes de l'union — leur présence est ce qui rend l'extraction crédible. */
-const VARIANTES = ['"proposition"', '"invitation"'] as const;
+/**
+ * Les variantes de l'union — leur présence est ce qui rend l'extraction crédible.
+ *
+ * ⚠️ TOUTE NOUVELLE VARIANTE S'INSCRIT ICI. Sans cela, l'extraction s'arrêterait avant elle et la
+ * garde deviendrait vraie pour un corps tronqué : un champ numérique ajouté à la dernière variante
+ * ne serait jamais vu. `socle-complete` (Story 5.3) est la troisième.
+ */
+const VARIANTES = ['"proposition"', '"invitation"', '"socle-complete"'] as const;
 
 const DOMAINE = "lib/domain/arbitrage-ouverture.ts";
 const RENDU = "render/conversation/types.ts";

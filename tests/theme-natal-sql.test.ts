@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { lireThemeNatal } from "@/lib/data/depot-theme-natal";
+import { calculerThemeNatal } from "@/lib/astro/theme-natal";
+import { ephemerideAstronomyEngine } from "@/lib/astro/adapters/astronomy-engine";
 import type { EphemerisPort, LectureCorps } from "@/lib/astro/port";
 
 /**
@@ -31,15 +33,31 @@ const clientScope = () =>
 
 const t = Date.now();
 
-/** Un thème minimal de la BONNE forme (schema 1) — ce que `themeExploitable` accepte. */
-const contenuValide = {
-  schema: 1,
-  adaptateur: "test",
-  positions: [],
-  absents: [],
-  angles: { statut: "non_calcule", raison: "heure_absente" },
-  precision: "midi_par_defaut",
-};
+/**
+ * Un thème de la BONNE forme — PRODUIT PAR LE DOMAINE, jamais recopié à la main.
+ *
+ * ⚠️ Il l'était, et c'était un piège à retardement : le littéral disait `schema: 1` et un commentaire
+ * affirmait « ce que `themeExploitable` accepte ». Le jour où la forme a changé (Story 5.3, D4), le
+ * littéral est devenu faux ET le commentaire est devenu un mensonge — sans qu'un seul test rougisse,
+ * puisque les assertions de ce bloc portent sur la BASE (RLS, triggers) et se moquent du contenu.
+ * Le prochain test qui aurait relu ce contenu par `lireThemeNatal` aurait déclenché un recalcul
+ * silencieux et mesuré autre chose que ce qu'il croyait.
+ *
+ * Le faire produire par `calculerThemeNatal` supprime la classe entière : la forme suit le code.
+ */
+const contenuValide = JSON.parse(
+  JSON.stringify(
+    calculerThemeNatal(
+      { date: "1990-06-15" },
+      {
+        identifiant: "test",
+        longitudeEcliptique: (): LectureCorps => ({ statut: "calcule", longitude: 12.5 }),
+        tempsSideralGreenwich: () => 6,
+        obliquiteVraie: () => 23.44,
+      },
+    ),
+  ),
+) as Record<string, unknown>;
 
 /**
  * Port doublé qui COMPTE ses appels. C'est l'instrument de l'AC4 : « coût marginal nul » n'est pas
@@ -61,6 +79,34 @@ function ephemerideCompteuse(): EphemerisPort & { appels: () => number } {
     obliquiteVraie(): number {
       appels += 1;
       return 23.44;
+    },
+  };
+}
+
+/**
+ * Compte les appels d'un port RÉEL sans changer ce qu'il rend — ni son identifiant, sauf demande
+ * explicite. Story 5.3 : l'identifiant entre dans l'empreinte, donc un port doublé provoque un
+ * recalcul légitime. Pour mesurer « on ne recalcule plus », il faut envelopper, pas remplacer.
+ */
+function compteurAutour(
+  port: EphemerisPort,
+  identifiant = port.identifiant,
+): EphemerisPort & { appels: () => number } {
+  let appels = 0;
+  return {
+    identifiant,
+    appels: () => appels,
+    longitudeEcliptique: (corps, t) => {
+      appels += 1;
+      return port.longitudeEcliptique(corps, t);
+    },
+    tempsSideralGreenwich: (t) => {
+      appels += 1;
+      return port.tempsSideralGreenwich(t);
+    },
+    obliquiteVraie: (t) => {
+      appels += 1;
+      return port.obliquiteVraie(t);
     },
   };
 }
@@ -381,6 +427,158 @@ describe("[AC4] lireThemeNatal : calculé une fois, relu ensuite — l'éphémé
     if (r1.statut === "calcule" && r2.statut === "calcule") {
       expect(r2.version).toBe(r1.version);
       expect(r2.theme).toEqual(r1.theme);
+    }
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Story 5.3 (T4) — LE RECALCUL PARESSEUX, CONTRE LE VRAI SQL
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[5.3 / AC4] lireThemeNatal : ajouter son heure RECALCULE le thème", () => {
+  let u: Awaited<ReturnType<typeof creerUtilisatrice>>;
+
+  beforeAll(async () => {
+    u = await creerUtilisatrice("recalcul");
+    await consentir(u.id);
+  });
+  afterAll(async () => {
+    if (u?.id) await admin.auth.admin.deleteUser(u.id);
+  });
+
+  it("[LE CŒUR] heure + lieu ajoutés → version 2, empreinte différente, ascendant calculé", async () => {
+    // 1. Premier passage : pas d'heure. Le thème existe, sans angles.
+    const avant = await lireThemeNatal(u.client, u.id, ephemerideAstronomyEngine());
+    expect(avant.statut).toBe("calcule");
+    if (avant.statut !== "calcule") return;
+    expect(avant.version).toBe(1);
+    expect(avant.theme.angles.statut).toBe("non_calcule");
+
+    const { data: ligneAvant } = await admin
+      .from("theme_natal")
+      .select("empreinte_entrees")
+      .eq("utilisatrice_id", u.id)
+      .single();
+
+    // 2. Elle ajoute son heure ET son lieu — un seul `update`, comme le fait la Server Action.
+    const { error: eEcriture } = await u.client
+      .from("utilisatrice")
+      .update({
+        heure_naissance: "07:15:00",
+        lieu_naissance: "Paris",
+        lieu_latitude: 48.8566,
+        lieu_longitude: 2.3522,
+        lieu_fuseau: "Europe/Paris",
+      })
+      .eq("id", u.id);
+    expect(eEcriture).toBeNull();
+
+    // 3. Lecture suivante : le recalcul se déclenche TOUT SEUL. Personne ne l'a demandé.
+    const apres = await lireThemeNatal(u.client, u.id, ephemerideAstronomyEngine());
+    expect(apres.statut).toBe("calcule");
+    if (apres.statut !== "calcule") return;
+    expect(apres.version, "la version n'a pas été incrémentée — AD-6").toBe(2);
+    expect(apres.theme.angles.statut, "l'ascendant manque encore après l'ajout de l'heure").toBe(
+      "calcule",
+    );
+
+    const { data: ligneApres } = await admin
+      .from("theme_natal")
+      .select("empreinte_entrees")
+      .eq("utilisatrice_id", u.id)
+      .single();
+    expect(ligneApres?.empreinte_entrees).not.toBe(ligneAvant?.empreinte_entrees);
+  });
+
+  it("[DUR] et il ne se rejoue PAS : la lecture suivante n'appelle plus l'éphéméride", async () => {
+    // Sans cette garde, chaque affichage recalculerait et tenterait un `version + 1` — le socle
+    // « bougerait » à chaque page, ce que FR-051 interdit, et la version partirait à l'infini.
+    //
+    // ⚠️ Le compteur enveloppe le VRAI adaptateur, il ne le remplace pas. Un port doublé porterait
+    // un autre `identifiant`, donc une autre empreinte, donc un recalcul légitime — et ce test
+    // mesurerait le recalcul qu'il croit interdire. (Écrit d'abord de travers, corrigé par la
+    // base : elle a rendu version 3.)
+    const compteur = compteurAutour(ephemerideAstronomyEngine());
+    const r = await lireThemeNatal(u.client, u.id, compteur);
+    expect(r.statut).toBe("calcule");
+    if (r.statut === "calcule") expect(r.version).toBe(2);
+    expect(compteur.appels(), "le thème est recalculé à chaque affichage").toBe(0);
+  });
+
+  it("[AD-6] changer d'ADAPTATEUR, lui, déclenche bien un recalcul", async () => {
+    // C'est le contrat écrit dans le commentaire de colonne de 0039 : l'identifiant d'adaptateur
+    // entre dans l'empreinte EXPRÈS, pour que l'arrivée d'une source de Chiron puisse recalculer
+    // alors que les entrées de naissance n'auront pas bougé.
+    const autre = compteurAutour(ephemerideAstronomyEngine(), "source-fictive@2");
+    const r = await lireThemeNatal(u.client, u.id, autre);
+    expect(autre.appels(), "l'adaptateur a changé et rien n'a été recalculé").toBeGreaterThan(0);
+    expect(r.statut).toBe("calcule");
+    if (r.statut === "calcule") expect(r.version).toBe(3);
+  });
+});
+
+describe("[5.3 / P1 / AC6] une forme de thème PÉRIMÉE se répare toute seule", () => {
+  it("[LE MUTANT QUI COMPTE] un contenu d'ancienne forme est recalculé, pas déclaré illisible", async () => {
+    // C'est LE piège de la story. `themeExploitable` refuse l'ancienne forme ; sans le recalcul par
+    // empreinte, la lecture rendrait `lecture_impossible` À VIE pour tous les comptes déjà calculés,
+    // et sans une seule erreur nulle part. On simule exactement ça : une ligne gravée avec un
+    // contenu d'ancien schéma et l'empreinte qui allait avec.
+    const u = await creerUtilisatrice("vieilleforme");
+    try {
+      await consentir(u.id);
+      const { error } = await u.client.from("theme_natal").insert({
+        utilisatrice_id: u.id,
+        empreinte_entrees: "v1|1990-06-15|||||signes_entiers|astronomy-engine@2.1.19",
+        contenu: { schema: 1, adaptateur: "vieux", positions: [], absents: [] },
+      });
+      expect(error).toBeNull();
+
+      const r = await lireThemeNatal(u.client, u.id, ephemerideAstronomyEngine());
+      expect(r.statut, "le socle est mort pour tous les comptes existants").toBe("calcule");
+      if (r.statut !== "calcule") return;
+      expect(r.theme.schema).toBe(2);
+      expect(r.version, "un recalcul incrémente la version").toBe(2);
+      expect(r.theme.positions.length, "le thème recalculé est vide").toBeGreaterThan(5);
+    } finally {
+      await admin.auth.admin.deleteUser(u.id);
+    }
+  });
+});
+
+describe("[5.3 / P2 / DUR] un recalcul REFUSÉ ne détruit pas le socle déjà gravé", () => {
+  it("consentement révoqué : le thème d'origine reste servi, tel quel", async () => {
+    // Le write-gate art. 9 refuse l'`update`. Rendre `indisponible` reviendrait à faire disparaître
+    // un socle PARFAITEMENT VALIDE pour améliorer un détail. Le nouveau thème serait meilleur ;
+    // l'ancien reste vrai.
+    const u = await creerUtilisatrice("revoque-recalcul");
+    try {
+      await consentir(u.id);
+      const initial = await lireThemeNatal(u.client, u.id, ephemerideAstronomyEngine());
+      expect(initial.statut).toBe("calcule");
+
+      // Elle ajoute son heure — puis révoque son consentement avant la lecture suivante.
+      await u.client
+        .from("utilisatrice")
+        .update({
+          heure_naissance: "07:15:00",
+          lieu_naissance: "Paris",
+          lieu_latitude: 48.8566,
+          lieu_longitude: 2.3522,
+          lieu_fuseau: "Europe/Paris",
+        })
+        .eq("id", u.id);
+      await admin
+        .from("consentement")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("utilisatrice_id", u.id);
+
+      const apres = await lireThemeNatal(u.client, u.id, ephemerideAstronomyEngine());
+      expect(apres.statut, "un socle valide a disparu à cause d'un recalcul refusé").toBe("calcule");
+      if (apres.statut !== "calcule") return;
+      expect(apres.version, "le recalcul a été accepté malgré la révocation").toBe(1);
+      expect(apres.theme.angles.statut).toBe("non_calcule");
+    } finally {
+      await admin.auth.admin.deleteUser(u.id);
     }
   });
 });

@@ -44,8 +44,10 @@ import {
   BASCULE_ARBRE,
   ZOOM_PLUS,
   ZOOM_MOINS,
+  ARIA_TRONC_A_COMPLETER,
 } from "./copie-arbre";
 import FicheBranche, { type ResultatGeste } from "./FicheBranche";
+import FicheTronc from "./FicheTronc";
 import VueListe from "./VueListe";
 import s from "./arbre.module.css";
 
@@ -324,6 +326,32 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
     p.onOuvrirFiche(id);
   };
 
+  /*
+   * Story 5.3 — la fiche du TRONC. État LOCAL, et pas dans le réducteur de `lib/scene/vue.ts` :
+   * ouvrir une étiquette explicative n'est pas un cadrage du monde, ça ne se mémorise pas au retour
+   * depuis la conversation, et ça ne survit pas à un changement de région. Même rang que `vueListe`.
+   */
+  const troncIncomplet = p.projection.tronc.incomplet;
+  const [ficheTronc, setFicheTronc] = useState(false);
+  const declencheurTronc = useRef<HTMLButtonElement | null>(null);
+  const fermerFicheTronc = useCallback(() => {
+    setFicheTronc(false);
+    requestAnimationFrame(() => declencheurTronc.current?.focus());
+  }, []);
+  useEffect(() => {
+    if (!ficheTronc) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") fermerFicheTronc();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [ficheTronc, fermerFicheTronc]);
+  // Le jour où elle ajoute son heure, le drapeau disparaît : la fiche ne doit pas rester ouverte sur
+  // une phrase devenue fausse. Aucune animation, aucun « débloqué » — elle n'a simplement plus lieu (AC4).
+  useEffect(() => {
+    if (!troncIncomplet) setFicheTronc(false);
+  }, [troncIncomplet]);
+
   return (
     <div className={s.arbre}>
       {/* Région d'annonce a11y PERSISTANTE (même patron que la conversation). Elle vit ICI, et pas dans le
@@ -364,10 +392,14 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
           onAnnoncer={setAnnonce}
           planOuvert={p.projection.planOuvert === true}
           direOuNaissentLesBranches={direOuNaissentLesBranches}
+          onOuvrirTronc={troncIncomplet ? () => setFicheTronc(true) : undefined}
         />
       ) : vide ? (
         // AC2 [DUR] — LE MÊME composant que la vue liste (voir `EtatVideArbre`).
-        <EtatVideArbre direOuNaissentLesBranches={direOuNaissentLesBranches} />
+        <EtatVideArbre
+          direOuNaissentLesBranches={direOuNaissentLesBranches}
+          onOuvrirTronc={troncIncomplet ? () => setFicheTronc(true) : undefined}
+        />
       ) : (
         <div
           ref={canevasRef}
@@ -392,10 +424,13 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
             }}
           >
             <svg viewBox={`0 0 ${CANEVAS.largeur} ${CANEVAS.hauteur}`} className={s.svg} role="img" aria-label={ARIA_CANEVAS}>
-              {/* Tronc + racines — matière argentée, présent d'emblée (FR-088). */}
+              {/* Tronc + racines — matière argentée, présent d'emblée (FR-088).
+                  Story 5.3 (AC3) : sans son heure, la MATIÈRE est « en réserve » — le contour reste
+                  ENTIER (jamais un pointillé, jamais un fantôme), seule la densité change. Un tronc
+                  en pointillés dirait « cassé » ; celui-ci dit « pas encore rempli ». */}
               <path
                 d="M 500 950 C 470 900 450 880 430 880 M 500 950 C 530 900 550 880 570 880 M 500 950 L 500 560"
-                className={s.tronc}
+                className={`${s.tronc} ${troncIncomplet ? s.troncEnReserve : ""}`}
               />
               {placees.map((pl) => {
                 const intensite = intensiteBornee(pl.branche.intensite);
@@ -443,6 +478,27 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
                 );
               })}
             </svg>
+
+            {/* Story 5.3 — la cible du TRONC, dans la même couche et le même repère que les accroches.
+                Elle n'existe que s'il manque quelque chose : un tronc complet n'a AUCUNE affordance,
+                rien à fermer, rien à découvrir (AC4). */}
+            {troncIncomplet && (
+              <button
+                type="button"
+                ref={declencheurTronc}
+                className={`${s.accroche} ${s.cibleTronc}`}
+                style={{
+                  left: `${(500 / CANEVAS.largeur) * 100}%`,
+                  top: `${(760 / CANEVAS.hauteur) * 100}%`,
+                  transform: `translate(-50%, -50%) scale(${1 / p.camera.zoom})`,
+                }}
+                aria-label={ARIA_TRONC_A_COMPLETER}
+                onClick={() => {
+                  if (aGlisse.current) return; // un glisser n'ouvre pas la fiche
+                  setFicheTronc(true);
+                }}
+              />
+            )}
 
             {/* Accroches CLIQUABLES — dans le MÊME repère carré que le SVG (alignement exact), taille CSS
                 constante ≥44px quel que soit le zoom (contre-échelle 1/zoom). */}
@@ -517,6 +573,24 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
                     if (pl) cadrerBranche(pl.accroche);
                   }
             }
+          />
+        </div>
+      )}
+
+      {/* Story 5.3 (AC5) — la fiche du tronc. Même couche, même comportement que celle d'une branche :
+          un tap à côté ferme, Échap ferme, le focus revient au déclencheur. */}
+      {ficheTronc && troncIncomplet && (
+        <div
+          className={s.ficheCouche}
+          data-couche-fiche=""
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget) fermerFicheTronc();
+          }}
+        >
+          <FicheTronc
+            phrase={troncIncomplet.phrase}
+            ouTrouver={troncIncomplet.ouTrouver}
+            onFermer={fermerFicheTronc}
           />
         </div>
       )}

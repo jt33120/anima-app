@@ -15,6 +15,7 @@ import type { BrancheProjetee } from "@/lib/scene/projection";
 import ChampRenommage from "./ChampRenommage";
 import PlanEtapes from "./PlanEtapes";
 import EtatVideArbre from "./EtatVideArbre";
+import BoutonTronc from "./BoutonTronc";
 import {
   LIBELLE_ETAT,
   ACTION_VOIR_CONVERSATION,
@@ -41,6 +42,13 @@ export interface ProprietesVueListe {
   planOuvert?: boolean;
   /** Story 3.3 (AC6) — la phrase sobre de l'état vide. Décidé par le modèle, constaté ici (AD-7). */
   direOuNaissentLesBranches?: boolean;
+  /**
+   * Story 5.3 — le chemin vers la fiche du tronc. Il est ICI pour la même raison que le plan d'étapes
+   * l'est : la vue liste est le doublage NON SPATIAL DE RANG ÉGAL (UX-DR-37). Un chemin qui n'existerait
+   * que sur le canevas serait inatteignable au clavier et au lecteur d'écran — le défaut exact que la
+   * revue 4.6 a trouvé sur le renommage.
+   */
+  onOuvrirTronc?: () => void;
 }
 
 export default function VueListe({
@@ -50,6 +58,7 @@ export default function VueListe({
   onAnnoncer,
   planOuvert,
   direOuNaissentLesBranches,
+  onOuvrirTronc,
 }: ProprietesVueListe) {
   const [renomme, setRenomme] = useState<string | null>(null);
   /**
@@ -76,10 +85,21 @@ export default function VueListe({
 
   // AC2 [DUR] — LE MÊME composant que la vue canevas, jamais une seconde copie de l'écran vide.
   if (branches.length === 0) {
-    return <EtatVideArbre direOuNaissentLesBranches={direOuNaissentLesBranches} />;
+    return (
+      <EtatVideArbre
+        direOuNaissentLesBranches={direOuNaissentLesBranches}
+        onOuvrirTronc={onOuvrirTronc}
+      />
+    );
   }
   return (
     <ul className={s.liste}>
+      {/* Le tronc en tête : il porte l'arbre, il ouvre la liste. Absent quand rien ne manque (AC4). */}
+      {onOuvrirTronc && (
+        <li className={s.listeItem}>
+          <BoutonTronc onOuvrir={onOuvrirTronc} />
+        </li>
+      )}
       {branches.map((b) => (
         <li key={b.id} className={s.listeItem}>
           <p className={s.ficheNom}>{b.nom ?? ""}</p>

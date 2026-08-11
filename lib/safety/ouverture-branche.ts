@@ -6,6 +6,7 @@ import { phraseProposition } from "@/lib/domain/branche";
 import {
   FENETRE_INVITATION_HEURES,
   PHRASE_INVITATION,
+  PHRASE_SOCLE_COMPLETE,
   tropDeBranchesOuvertes,
   type Ouverture,
 } from "@/lib/domain/arbitrage-ouverture";
@@ -68,6 +69,34 @@ export async function chargerOuverture(
   maintenant: Date = new Date(),
 ): Promise<Ouverture | null> {
   try {
+    // ══════════════════════════════════════════════════════════════════════════════════════════
+    // Story 5.3 (AC4) — LA MENTION DE COMPLÉTION DU SOCLE, ET POURQUOI ELLE EST *AVANT* LE GATE
+    // ══════════════════════════════════════════════════════════════════════════════════════════
+    //
+    // ⚠️ NE JAMAIS DÉPLACER CE BLOC SOUS `premiumSousJwt`. Ce serait le réflexe d'harmonisation —
+    // « toutes les ouvertures passent par le même gate » — et il fabriquerait une COUPURE DU SOCLE
+    // GRATUIT : le socle est gratuit à vie (FR-055), le tronc est gratuit (FR-088), et une
+    // utilisatrice gratuite qui vient d'aller chercher son acte de naissance à la mairie
+    // n'entendrait JAMAIS qu'Anam a bien reçu son heure. `tests/socle-jamais-coupe.test.ts` garde
+    // cette position.
+    //
+    // Elle passe aussi EN PREMIER parmi les ouvertures, et pour une raison qui n'est pas la
+    // politesse : elle est ponctuelle et s'auto-éteint. Une mention qui perdrait l'arbitrage à
+    // chaque fois ne serait jamais dite — alors que la proposition, elle, revient d'elle-même.
+    //
+    // ⚠️ ELLE ÉCRIT (la réservation EST la décision, 0040). Donc son propre `try` : une panne de
+    // cette lecture-écriture ne doit pas faire taire la proposition de la 4.5, qui n'a besoin de
+    // rien de tout ça. C'est exactement la faute que la revue 4.10 a trouvée sur l'arbitrage.
+    // Direction du doute : ON SE TAIT — la mention n'a qu'une seule chance, et se taire à tort la
+    // reporte au prochain chargement, tandis que parler à tort la dépense pour rien.
+    try {
+      if (await creerDepotArbitrage(supabase).reserverAnnonceSocle()) {
+        return { type: "socle-complete", phrase: PHRASE_SOCLE_COMPLETE };
+      }
+    } catch (e) {
+      journaliserIncidentSecurite("ouverture_socle_complete", e);
+    }
+
     // ── Story 3.3 (D2-A, FR-088) : SUR UN COMPTE GRATUIT, ANAM NE PROPOSE PAS ────────────────────────
     //
     // Depuis 0037, la naissance d'une branche est gardée dans le `WITH CHECK` de `branche_insertion`.

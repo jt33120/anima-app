@@ -9,6 +9,8 @@ import {
   maisonsSignesEntiers,
   ascendantEtMilieuDuCiel,
   chaineEmpreinte,
+  fenetreIncertitude,
+  signeAmbigu,
   SIGNES,
   type EntreesNaissance,
 } from "@/lib/astro/theme-natal";
@@ -513,5 +515,202 @@ describe("chaineEmpreinte", () => {
 
   it("est stable pour des entrées identiques (sinon chaque lecture forcerait un recalcul)", () => {
     expect(chaineEmpreinte(complet, "a@1")).toBe(chaineEmpreinte(complet, "a@1"));
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Story 5.3 (T1) — LA FENÊTRE D'INCERTITUDE
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Sans heure, `resoudreInstant` prend MIDI. Le calcul aboutit, la longitude est un nombre fini,
+// `placer()` rend un signe — et RIEN ne signale que ce signe est un pari. La fenêtre est ce qui
+// rend le pari visible : c'est l'intervalle d'instants où la naissance a RÉELLEMENT pu avoir lieu.
+
+describe("[5.3 / D2] fenetreIncertitude — l'intervalle des instants possibles", () => {
+  it("heure ET fuseau connus : la fenêtre est un POINT (aucun échantillonnage, aucun surcoût)", () => {
+    const f = fenetreIncertitude(complet);
+    expect(f.min.getTime()).toBe(f.max.getTime());
+    expect(f.min.toISOString()).toBe("1990-06-15T05:15:00.000Z"); // Paris UTC+2 en juin
+  });
+
+  it("heure absente, fuseau CONNU : exactement le jour LOCAL, bornes comprises", () => {
+    // Paris est à UTC+2 en juin : le jour local du 15 va de 22 h la veille à 22 h le jour même.
+    const f = fenetreIncertitude({ date: "1990-06-15", fuseau: "Europe/Paris" });
+    expect(f.min.toISOString()).toBe("1990-06-14T22:00:00.000Z");
+    expect(f.max.toISOString()).toBe("1990-06-15T22:00:00.000Z");
+  });
+
+  it("[DUR] le jour local d'un changement d'heure ne dure PAS 24 h, et la fenêtre le sait", () => {
+    // 25 mars 1990 : la France passe à l'heure d'été à 2 h du matin. Le jour local dure 23 h.
+    // Une fenêtre codée « minuit + 24 h » déborderait d'une heure sur le jour suivant — une heure
+    // pendant laquelle la Lune parcourt un demi-degré, largement de quoi fabriquer une ambiguïté
+    // qui n'existe pas. On résout les DEUX bornes, on n'en additionne aucune.
+    const f = fenetreIncertitude({ date: "1990-03-25", fuseau: "Europe/Paris" });
+    expect(f.min.toISOString()).toBe("1990-03-24T23:00:00.000Z");
+    expect(f.max.toISOString()).toBe("1990-03-25T22:00:00.000Z");
+    expect(f.max.getTime() - f.min.getTime()).toBe(23 * 3600_000);
+  });
+
+  it("[P7/DUR] heure absente ET fuseau inconnu : 50 h, jamais 24 h", () => {
+    // Le jour LOCAL n'est pas connu si le fuseau ne l'est pas. Les décalages réels vont de UTC−12
+    // à UTC+14 : l'instant vrai est donc quelque part entre « minuit à UTC+14 » et « minuit du
+    // lendemain à UTC−12 ». Prendre 24 h déclarerait « signe certain » des corps qui ne le sont pas.
+    const f = fenetreIncertitude({ date: "1990-06-15" });
+    expect(f.min.toISOString()).toBe("1990-06-14T10:00:00.000Z");
+    expect(f.max.toISOString()).toBe("1990-06-16T12:00:00.000Z");
+    expect(f.max.getTime() - f.min.getTime()).toBe(50 * 3600_000);
+  });
+
+  it("heure connue mais fuseau absent : 26 h — on ignore le décalage, pas l'heure", () => {
+    const f = fenetreIncertitude({ date: "1990-06-15", heure: "07:15" });
+    expect(f.max.getTime() - f.min.getTime()).toBe(26 * 3600_000);
+    expect(f.min.toISOString()).toBe("1990-06-14T17:15:00.000Z");
+    expect(f.max.toISOString()).toBe("1990-06-15T19:15:00.000Z");
+  });
+
+  it("un fuseau INVALIDE dégrade comme un fuseau absent (26 h), il ne fait pas tout échouer", () => {
+    const f = fenetreIncertitude({ date: "1990-06-15", heure: "07:15", fuseau: "Mars/Olympus_Mons" });
+    expect(f.max.getTime() - f.min.getTime()).toBe(26 * 3600_000);
+  });
+
+  it("une date illisible est une erreur, jamais une fenêtre de repli", () => {
+    expect(() => fenetreIncertitude({ date: "15/06/1990" })).toThrow();
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Story 5.3 (T1 / D1) — L'AMBIGUÏTÉ DE SIGNE
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+//
+// FAITS EXTÉRIEURS VÉRIFIÉS (astronomy-engine, 2026-08-07) — ils ne dépendent d'aucun code à nous :
+//   • jour local Paris du 1990-06-14 : la Lune passe du VERSEAU aux POISSONS ;
+//   • jour local Paris du 1990-06-15 : la Lune reste en POISSONS de bout en bout ;
+//   • jour local Paris du 1990-08-23 : le SOLEIL passe du LION à la VIERGE.
+
+describe("[5.3 / D1] signeAmbigu — le signe est-il le même partout dans la fenêtre ?", () => {
+  const paris = (date: string) => fenetreIncertitude({ date, fuseau: "Europe/Paris" });
+
+  it("[PRÉSENCE AVANT ABSENCE] une fenêtre PONCTUELLE n'est jamais ambiguë", () => {
+    // Sinon toutes les assertions d'ambiguïté seraient vraies pour rien.
+    const f = fenetreIncertitude(complet);
+    for (const corps of CORPS_CLASSIQUES) {
+      expect(signeAmbigu(corps, f, ephemeride), `${corps} déclaré ambigu sur un instant unique`).toBe(false);
+    }
+  });
+
+  it("[FAIT EXTÉRIEUR] la Lune du 14 juin 1990 à Paris est AMBIGUË (verseau → poissons)", () => {
+    expect(signeAmbigu("lune", paris("1990-06-14"), ephemeride)).toBe(true);
+  });
+
+  it("[FAIT EXTÉRIEUR] la Lune du 15 juin 1990 à Paris ne l'est PAS — elle reste en poissons", () => {
+    // Le contre-exemple compte autant que l'exemple : un détecteur qui rendrait toujours `true`
+    // ferait disparaître la Lune de tous les thèmes sans heure, et passerait le test précédent.
+    expect(signeAmbigu("lune", paris("1990-06-15"), ephemeride)).toBe(false);
+  });
+
+  it("[D1/DUR] ce n'est PAS un cas particulier de la Lune : le SOLEIL du 23 août 1990 est ambigu", () => {
+    // Mutation-cible : `if (corps !== "lune") return false;`. Un Soleil sur trente change de signe
+    // dans la journée — et le Soleil est LE nombre que tout le monde connaît.
+    expect(signeAmbigu("soleil", paris("1990-08-23"), ephemeride)).toBe(true);
+    expect(signeAmbigu("soleil", paris("1990-08-21"), ephemeride)).toBe(false);
+  });
+
+  it("un corps que l'éphéméride ignore n'est pas « ambigu » — il est absent pour sa raison", () => {
+    expect(signeAmbigu("chiron", paris("1990-06-14"), ephemeride)).toBe(false);
+  });
+
+  it("[P5] l'échantillonnage est INTERNE, pas seulement aux deux bornes", () => {
+    // Port doublé : mêmes signes aux deux bornes, autre signe au milieu. Un détecteur qui ne
+    // regarderait que `min` et `max` rendrait `false` et laisserait passer le mensonge. Le cas réel
+    // est une planète proche d'une station qui sort d'un signe et y revient.
+    const debut = new Date("1990-06-15T00:00:00Z").getTime();
+    const port: EphemerisPort = {
+      identifiant: "double@1",
+      // 10° du Bélier aux bornes, 40° (= 10° du Taureau) partout au milieu.
+      longitudeEcliptique: (_corps: Corps, t: Date): LectureCorps => {
+        const h = Math.round((t.getTime() - debut) / 3600_000);
+        return { statut: "calcule", longitude: h === 0 || h === 24 ? 10 : 40 };
+      },
+      tempsSideralGreenwich: () => 6,
+      obliquiteVraie: () => 23.44,
+    };
+    const f = { min: new Date(debut), max: new Date(debut + 24 * 3600_000) };
+    expect(signeAmbigu("mars", f, port)).toBe(true);
+  });
+});
+
+describe("[5.3 / AC1] calculerThemeNatal — un signe indéterminable est DÉCLARÉ, jamais deviné", () => {
+  const sansHeure = (date: string): EntreesNaissance => ({
+    date,
+    fuseau: "Europe/Paris",
+    latitude: 48.8566,
+    longitude: 2.3522,
+  });
+
+  it("[LE CŒUR] la Lune du 14 juin 1990 sort des positions et entre dans les absents", () => {
+    const theme = calculerThemeNatal(sansHeure("1990-06-14"), ephemeride);
+    expect(theme.positions.map((p) => p.corps)).not.toContain("lune");
+    expect(theme.absents).toContainEqual({ corps: "lune", raison: "signe_ambigu_sans_heure" });
+  });
+
+  it("le 15 juin, elle est là — l'absence est conditionnelle, pas systématique (FR-049)", () => {
+    const theme = calculerThemeNatal(sansHeure("1990-06-15"), ephemeride);
+    expect(theme.positions.map((p) => p.corps)).toContain("lune");
+    expect(theme.absents.map((a) => a.corps)).not.toContain("lune");
+  });
+
+  it("[FR-049] « la quasi-totalité des planètes » : le soleil reste là un jour ordinaire", () => {
+    const theme = calculerThemeNatal(sansHeure("1990-06-15"), ephemeride);
+    expect(theme.positions.map((p) => p.corps)).toContain("soleil");
+    // …et il s'absente le jour où il change de signe.
+    const bascule = calculerThemeNatal(sansHeure("1990-08-23"), ephemeride);
+    expect(bascule.absents).toContainEqual({ corps: "soleil", raison: "signe_ambigu_sans_heure" });
+  });
+
+  it("[DUR] avec l'heure, PLUS AUCUNE ambiguïté — la fenêtre est un point", () => {
+    // Mutation-cible : échantillonner même quand l'heure est connue. Le thème complet perdrait des
+    // corps sans raison, et le surcoût frapperait le cas nominal.
+    const theme = calculerThemeNatal({ ...complet, date: "1990-06-14" }, ephemeride);
+    expect(theme.positions.map((p) => p.corps)).toContain("lune");
+    expect(theme.absents.map((a) => a.raison)).not.toContain("signe_ambigu_sans_heure");
+  });
+
+  it("Chiron garde SA raison — l'ambiguïté ne la recouvre pas", () => {
+    const theme = calculerThemeNatal(sansHeure("1990-06-14"), ephemeride);
+    expect(theme.absents).toContainEqual({ corps: "chiron", raison: "ephemeride_sans_asteroides" });
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Story 5.3 (T1 / D4 / P1) — LE LEVIER DE MIGRATION DE FORME
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[5.3 / P1 / DUR] le numéro de SCHÉMA et le préfixe d'EMPREINTE sont liés", () => {
+  /**
+   * ⚠️ LE TEST LE PLUS IMPORTANT DE LA STORY 5.3.
+   *
+   * `themeExploitable` (couche data) refuse tout contenu dont le `schema` n'est pas celui du jour.
+   * Le SEUL moyen de recalculer un thème déjà gravé est le trigger `theme_natal_recalcul_declare`
+   * (0039), qui exige une EMPREINTE DIFFÉRENTE. Or l'empreinte ne dépend que des entrées de
+   * naissance et de l'adaptateur : changer la forme du thème ne la change pas.
+   *
+   * Conséquence si l'on bumpe `schema` seul : le thème stocké devient inexploitable, le recalcul
+   * est refusé par la base, et le socle est mort pour tous les comptes existants — SANS une seule
+   * erreur nulle part. Le préfixe de `chaineEmpreinte` est le levier qui débloque exactement UN
+   * recalcul par compte. Les deux se bumpent ensemble, ou pas du tout.
+   */
+  it("le préfixe d'empreinte porte le MÊME numéro que le schéma du thème", () => {
+    const schema = calculerThemeNatal(complet, ephemeride).schema;
+    const prefixe = chaineEmpreinte(complet, "a@1").split("|")[0];
+    expect(
+      prefixe,
+      `schéma ${schema} mais empreinte « ${prefixe} » : bumper l'un sans l'autre brique tous les ` +
+        `thèmes déjà gravés (Story 5.3, D4/P1). Bumpe les deux, ou aucun.`,
+    ).toBe(`v${schema}`);
+  });
+
+  it("[NON-VACUITÉ] le préfixe est bien la PREMIÈRE composante, et elle n'est pas vide", () => {
+    // Sans ça, un `split` qui ne trouverait rien rendrait `undefined` des deux côtés un jour.
+    expect(chaineEmpreinte(complet, "a@1").split("|")[0]).toMatch(/^v\d+$/);
   });
 });

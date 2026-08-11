@@ -106,4 +106,7 @@ export type EtatProposition = "propose" | "nomme" | "refuse" | "nee";
  */
 export type OuvertureData =
   | { readonly type: "proposition"; readonly signalId: string; readonly phrase: string }
-  | { readonly type: "invitation"; readonly phrase: string; readonly brancheCibleId: string };
+  | { readonly type: "invitation"; readonly phrase: string; readonly brancheCibleId: string }
+  /** Story 5.3 (AC4) — la mention UNIQUE de la complétion du socle. Une phrase, rien d'autre :
+   *  rien à ouvrir, rien à répondre, rien à consommer. */
+  | { readonly type: "socle-complete"; readonly phrase: string };

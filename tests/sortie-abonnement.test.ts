@@ -127,7 +127,7 @@ const client = (opts: { enDetresse: boolean; abonnement: string | null }) =>
 describe("[AC3] le CHEMIN vers /abonnement survit à un épisode de détresse", () => {
   it("hors détresse : le chemin est là ET les gestes sont ouverts (contrôle positif)", async () => {
     chargerBranches.mockResolvedValue([]);
-    const p = await chargerProjectionArbre(client({ enDetresse: false, abonnement: "sub_123" }));
+    const p = await chargerProjectionArbre(client({ enDetresse: false, abonnement: "sub_123" }), "11111111-1111-4111-8111-111111111111");
     expect(p.indisponible, "témoin : on a pris le chemin nominal, pas le repli").toBeUndefined();
     expect(p.abonnementGerable).toBe(true);
     expect(p.planOuvert).toBe(true);
@@ -135,7 +135,7 @@ describe("[AC3] le CHEMIN vers /abonnement survit à un épisode de détresse", 
 
   it("[LE TEST QUI COMPTE] en détresse : les gestes se ferment, le chemin de sortie RESTE", async () => {
     chargerBranches.mockResolvedValue([]);
-    const p = await chargerProjectionArbre(client({ enDetresse: true, abonnement: "sub_123" }));
+    const p = await chargerProjectionArbre(client({ enDetresse: true, abonnement: "sub_123" }), "11111111-1111-4111-8111-111111111111");
     expect(p.indisponible, "témoin : on a pris le chemin nominal, pas le repli").toBeUndefined();
     // Ce que AD-9 ferme, il le ferme bien — sans ça, l'assertion suivante ne prouverait rien.
     expect(p.gestesSuspendus, "la garde de détresse ne mord plus").toBe(true);
@@ -149,7 +149,7 @@ describe("[AC3] le CHEMIN vers /abonnement survit à un épisode de détresse", 
 
   it("sans souscription Stripe, aucun chemin — un compte gratuit n'a rien à résilier", async () => {
     chargerBranches.mockResolvedValue([]);
-    const p = await chargerProjectionArbre(client({ enDetresse: false, abonnement: null }));
+    const p = await chargerProjectionArbre(client({ enDetresse: false, abonnement: null }), "11111111-1111-4111-8111-111111111111");
     expect(p.abonnementGerable).toBeUndefined();
   });
 
@@ -169,7 +169,7 @@ describe("[AC3] le CHEMIN vers /abonnement survit à un épisode de détresse", 
         select: () => ({ maybeSingle: async () => ({ data: { stripe_subscription_id: "sub_impaye" }, error: null }) }),
       }),
     } as unknown as SupabaseClient;
-    const p = await chargerProjectionArbre(impaye);
+    const p = await chargerProjectionArbre(impaye, "11111111-1111-4111-8111-111111111111");
     expect(p.planOuvert, "témoin : l'entitlement est bien fermé").toBeUndefined();
     expect(p.abonnementGerable, "sortie fermée sur un paiement en échec — personne piégée").toBe(true);
   });

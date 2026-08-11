@@ -105,6 +105,19 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* Story 5.3 (AC3) — la MATIÈRE EN RÉSERVE.
+   Le contour reste ENTIER : ni `stroke-dasharray`, ni fantôme, ni rouge, ni cadenas. Seule la densité
+   de la matière change. Un tronc en pointillés dirait « cassé » ou « à débloquer » ; celui-ci dit
+   « pas encore rempli », ce qui est exactement l'état des faits. La différence reste perceptible
+   sans dépendre de la couleur seule : la fiche, elle, l'écrit en toutes lettres. */
+.troncEnReserve {
+  opacity: 0.55;
+}
+/* La cible du tronc : même taille de touche que les accroches (≥44 px), sans point dessiné —
+   le tronc EST son propre repère visuel, un pastille de plus ferait un objet qui n'existe pas. */
+.cibleTronc {
+  cursor: pointer;
+}
 .branche {
   fill: none;
   stroke: var(--arbre-branche);
@@ -226,6 +239,15 @@
   flex-wrap: wrap;
   gap: var(--esp-2);
   margin-top: var(--esp-3);
+}
+/* Story 5.3 — « Ajouter mon heure » est un LIEN (il change de page), pas un bouton. Il doit
+   néanmoins se lire comme ses voisins : un lien nu à côté de deux boutons ferait croire à deux
+   rangs différents alors que les deux actions de la fiche du tronc sont de rang égal (AC5). */
+.actionLien {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 .renommage {
   display: flex;

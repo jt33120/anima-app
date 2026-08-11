@@ -61,7 +61,13 @@ export const FENETRE_INVITATION_HEURES = 24 * 7;
  */
 export type Ouverture =
   | { readonly type: "proposition"; readonly signalId: string; readonly phrase: string }
-  | { readonly type: "invitation"; readonly phrase: string; readonly brancheCibleId: string };
+  | { readonly type: "invitation"; readonly phrase: string; readonly brancheCibleId: string }
+  /**
+   * Story 5.3 (AC4) — la mention UNIQUE de la complétion du socle. Elle ne porte QUE sa phrase :
+   * rien à ouvrir, rien à répondre, rien à consommer. C'est un accusé de réception, pas une
+   * proposition — et surtout pas une récompense.
+   */
+  | { readonly type: "socle-complete"; readonly phrase: string };
 
 /**
  * La voix de l'invitation — CONSTANTE, déterministe, jamais un modèle (patron `phraseProposition`).
@@ -72,6 +78,28 @@ export type Ouverture =
  */
 export const PHRASE_INVITATION =
   "Il y a quelque chose que tu as déjà nommé et qui attend encore. Tu veux le faire vivre d'abord ?";
+
+/**
+ * Story 5.3 (AC4) — la mention de complétion. Dite UNE FOIS, puis plus jamais.
+ *
+ * ── CE QU'ELLE DIT, ET CE QU'ELLE SE GARDE DE DIRE ─────────────────────────────────────────────
+ *
+ * Elle rapporte un FAIT — l'heure est là, le thème a été recalculé — et elle s'arrête. Trois
+ * tentations écartées, chacune pour une raison précise :
+ *
+ *   • « ton thème est enfin COMPLET » — ce serait faux dans un cas au moins : une naissance au pôle
+ *     géographique exact n'a pas d'ascendant, quelle que soit l'heure. On ne promet pas un état
+ *     qu'on n'a pas vérifié ; on rapporte le geste, qui est vrai partout.
+ *   • « bravo », « tu as débloqué » — le socle n'est pas une récompense qu'on décroche (charte §6,
+ *     et FR-051 : « motif de retour honnête, jamais une carotte »).
+ *   • « va voir ton ascendant » — un impératif ferait de l'accusé de réception une relance.
+ *
+ * Aucun futur adressé (`tests/socle-incomplet.test.ts` applique `chercherPredictions` aux phrases de
+ * cette story) : « tu le verras » deviendrait une petite promesse, là où « il est là » est un fait.
+ */
+export const PHRASE_SOCLE_COMPLETE =
+  "Ton heure de naissance est enregistrée. J'ai repris ton thème avec elle — l'ascendant et les " +
+  "maisons en font partie maintenant.";
 
 /**
  * Y a-t-il trop de branches ouvertes sans intégration ? Le prédicat est ici, seul, et il ne rend qu'un

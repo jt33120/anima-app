@@ -144,6 +144,27 @@ export const PLAN_EN_COURS = "Je regarde…";
 /** L'échéance rendue lisible — jamais un ISO nu à l'écran. */
 export const ECHEANCE_LE = (date: string) => `Pour le ${date}.`;
 
+/* ── Story 5.3 — LE TRONC QUI SE COMPLÈTE (FR-050/FR-051) ───────────────────────────────────────
+ *
+ * ⚠️ SEULEMENT DES LIBELLÉS ICI. Les deux PHRASES (l'aveu « je préfère ne pas te l'inventer » et
+ * l'indication de la mairie) sont la voix d'Anam : elles vivent dans `lib/domain/message-sans-heure.ts`
+ * et VOYAGENT jusqu'ici par la projection (`tronc.incomplet`), comme `Ouverture.phrase` depuis la
+ * 4.10. Les recopier ci-dessous fabriquerait un second texte qui divergerait à la première correction.
+ *
+ * ⚠️ LE MOT « INCOMPLET » N'APPARAÎT NULLE PART, et c'est un critère d'acceptation (AC3) : le dessin
+ * dit ce qui manque par sa MATIÈRE, pas par une étiquette. `tests/tronc-absence.test.ts` le garde,
+ * `aria-label` compris — un lecteur d'écran ne doit pas entendre ce que l'œil ne voit pas.
+ */
+export const ARIA_TRONC = "Le tronc de ton arbre.";
+/** Honnête sans être une étiquette : il dit CE QUI MANQUE, pas un jugement sur l'état du tronc. */
+export const ARIA_TRONC_A_COMPLETER = "Le tronc de ton arbre — il manque ton heure de naissance.";
+export const TRONC_TITRE = "Ton heure de naissance";
+/** AC5 : la fiche porte EXACTEMENT ces deux actions, et aucune autre. */
+export const ACTION_AJOUTER_HEURE = "Ajouter mon heure";
+export const ACTION_OU_TROUVER = "Où la trouver";
+/** La destination de « Ajouter mon heure ». Source unique, jamais écrite en dur ailleurs. */
+export const URL_HEURE_NAISSANCE = "/heure-naissance";
+
 /** Repère TEXTUEL du message exact dans le rejeu (l'identification ne repose jamais sur la teinte seule). */
 export const MENTION_MOMENT = "Le moment d'où vient cette branche";
 export const CHAMP_RENOMMER_LABEL = "Le nom de cette branche";

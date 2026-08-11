@@ -17,6 +17,13 @@ vi.mock("@/lib/data/supabase/server", () => ({
   createSupabaseServerClient: vi.fn(async () => ({ auth: { getUser } })),
 }));
 
+/** Story 5.3 — le socle est doublé ici : ce qu'on teste est le CÂBLAGE, pas `manqueLHeure`
+ *  (éprouvée pour elle-même dans `tests/socle-incomplet.test.ts`). */
+// `vi.hoisted` et pas un `const` ordinaire : la fabrique de `vi.mock` est remontée en tête de
+// fichier et s'exécute AVANT les déclarations — elle ne peut référencer qu'une valeur hoistée.
+const { lireThemeNatal } = vi.hoisted(() => ({ lireThemeNatal: vi.fn() }));
+vi.mock("@/lib/data/depot-theme-natal", () => ({ lireThemeNatal }));
+
 import { chargerProjectionArbre } from "@/lib/safety/projection-arbre";
 import { codeJournalisable } from "@/lib/safety/rpc-repli";
 import { POST as incident } from "@/app/api/incident/route";
@@ -42,7 +49,7 @@ describe("chargerProjectionArbre — composition & repli sûr", () => {
         extraitCreeLe: "2026-03-11T09:00:00Z",
       },
     ]);
-    const projection = await chargerProjectionArbre(supa);
+    const projection = await chargerProjectionArbre(supa, "11111111-1111-4111-8111-111111111111");
     expect(projection.tronc.present).toBe(true);
     expect(projection.branches).toHaveLength(1);
     expect(projection.branches[0]).toMatchObject({
@@ -58,7 +65,7 @@ describe("chargerProjectionArbre — composition & repli sûr", () => {
   it("repli sûr : une panne du dépôt → arbre marqué INDISPONIBLE (jamais « rien n'a été nommé »), incident journalisé", async () => {
     chargerBranches.mockResolvedValue(null); // `null.map` lève DANS le try → exerce le catch proprement
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const projection = await chargerProjectionArbre(supa);
+    const projection = await chargerProjectionArbre(supa, "11111111-1111-4111-8111-111111111111");
     // [AC2 / revue 4.6] Une PANNE doit être distinguable d'un arbre vide : sans ce marqueur, l'écran
     // affichait « Rien n'a encore été nommé » à quelqu'un qui a des branches — la pire régression (FR-029).
     expect(projection.indisponible, "une panne n'est pas un arbre vide").toBe(true);
@@ -72,9 +79,9 @@ describe("chargerProjectionArbre — composition & repli sûr", () => {
     // point d'écriture refusait — à quelqu'un qui venait de traverser une crise. La décision vit ICI
     // (lib/scene), pas dans le rendu : le rendu constate, il ne déduit pas (AD-7).
     chargerBranches.mockResolvedValue([]);
-    const dedans = await chargerProjectionArbre(supaFenetre(true));
+    const dedans = await chargerProjectionArbre(supaFenetre(true), "11111111-1111-4111-8111-111111111111");
     expect(dedans.gestesSuspendus).toBe(true);
-    const dehors = await chargerProjectionArbre(supaFenetre(false));
+    const dehors = await chargerProjectionArbre(supaFenetre(false), "11111111-1111-4111-8111-111111111111");
     expect(dehors.gestesSuspendus, "hors fenêtre, rien n'est suspendu").toBeUndefined();
   });
 
@@ -84,13 +91,14 @@ describe("chargerProjectionArbre — composition & repli sûr", () => {
     chargerBranches.mockResolvedValue([]);
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const enPanne = { rpc: async () => ({ data: null, error: { code: "42501" } }) } as unknown as SupabaseClient;
-    expect((await chargerProjectionArbre(enPanne)).gestesSuspendus).toBe(true);
+    expect((await chargerProjectionArbre(enPanne, "11111111-1111-4111-8111-111111111111")).gestesSuspendus).toBe(true);
     const quiLeve = { rpc: async () => { throw new Error("réseau"); } } as unknown as SupabaseClient;
-    expect((await chargerProjectionArbre(quiLeve)).gestesSuspendus).toBe(true);
+    expect((await chargerProjectionArbre(quiLeve, "11111111-1111-4111-8111-111111111111")).gestesSuspendus).toBe(true);
     spy.mockRestore();
   });
 
   it("[NFR-022] le code Postgres est PRÉSERVÉ pour le journal (un refus RLS reste distinguable d'une panne)", () => {
+    // (voir plus bas pour l'état du tronc, Story 5.3)
     // Le dépôt lève une Error dont le message ne porte QUE le code Postgres. Sans extraction, le
     // journaliseur (qui ne lit que `.code`) jetait l'information : tout devenait « panne inconnue ».
     expect(codeJournalisable(new Error("branche.chargerBranches: 42501"))).toBe("42501");
@@ -106,6 +114,87 @@ describe("chargerProjectionArbre — composition & repli sûr", () => {
     expect(codeJournalisable(new Error("sans deux-points"))).toBe("Error");
     // …et un vrai code passe toujours (sinon la garde serait un bâillon, pas un filtre).
     expect(codeJournalisable(new Error("depot: 22P02"))).toBe("22P02");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Story 5.3 (T5 / AC3) — L'ÉTAT DU TRONC
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[5.3 / AC3] le tronc est marqué incomplet — et JAMAIS par erreur", () => {
+  const ID = "11111111-1111-4111-8111-111111111111";
+  /** Un thème minimal : seul ce que `manqueLHeure` regarde compte ici. */
+  const theme = (angles: unknown, absents: unknown[] = []) =>
+    ({ statut: "calcule", theme: { angles, absents }, version: 1 });
+
+  beforeEach(() => {
+    chargerBranches.mockReset();
+    chargerBranches.mockResolvedValue([]);
+    lireThemeNatal.mockReset();
+  });
+
+  it("sans heure de naissance : le drapeau est posé", async () => {
+    lireThemeNatal.mockResolvedValue(theme({ statut: "non_calcule", raison: "heure_absente" }));
+    const t = (await chargerProjectionArbre(supa, ID)).tronc;
+    expect(t.incomplet?.phrase, "l'aveu ne voyage pas avec le drapeau").toMatch(/heure de naissance/i);
+    expect(t.incomplet?.ouTrouver, "où la trouver ne voyage pas").toMatch(/mairie/i);
+  });
+
+  it("[PRÉSENCE AVANT ABSENCE] socle complet : AUCUN drapeau, et rien d'autre ne bouge", async () => {
+    // Le tronc « complet » n'est pas un état spécial : c'est le tronc. Sans cette assertion, un
+    // drapeau posé en permanence passerait le test précédent.
+    lireThemeNatal.mockResolvedValue(theme({ statut: "calcule", ascendant: 12, milieuDuCiel: 3, maisons: [], systeme: "signes_entiers" }));
+    expect((await chargerProjectionArbre(supa, ID)).tronc).toEqual({ present: true });
+  });
+
+  it("[D6/DUR] socle ILLISIBLE : aucun drapeau — on n'annonce pas un manque qu'on n'a pas constaté", async () => {
+    // Mutation-cible : `incomplet: r.statut !== "calcule"`. On dirait « il me manque ton heure » à
+    // quelqu'un qui vient de la donner, juste après le geste qu'on lui avait demandé.
+    lireThemeNatal.mockResolvedValue({ statut: "indisponible", raison: "lecture_impossible" });
+    expect((await chargerProjectionArbre(supa, ID)).tronc).toEqual({ present: true });
+  });
+
+  it("[DUR] une PANNE du socle ne fait pas tomber l'arbre — les branches restent affichées", async () => {
+    // C'est la raison du `try/catch` INTERNE. Sous le `try` global, une panne de lecture du thème
+    // aurait remplacé des branches RÉELLES par « je n'arrive pas à afficher ton arbre » — pour un
+    // drapeau décoratif. La revue 4.6 a déjà payé ce mensonge une fois.
+    chargerBranches.mockResolvedValue([
+      { id: "b1", etat: "naissance", intensite: 0, extraitSourceId: "e1" },
+    ]);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    lireThemeNatal.mockRejectedValue(new Error("socle: 42501"));
+    const p = await chargerProjectionArbre(supa, ID);
+    expect(p.indisponible, "l'arbre entier est tombé pour une panne du socle").toBeUndefined();
+    expect(p.branches).toHaveLength(1);
+    expect(p.tronc).toEqual({ present: true });
+    expect(spy, "l'incident est journalisé").toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("une Lune indéterminable suffit, même sans problème d'angles", async () => {
+    lireThemeNatal.mockResolvedValue(
+      theme({ statut: "calcule", ascendant: 12, milieuDuCiel: 3, maisons: [], systeme: "signes_entiers" }, [
+        { corps: "lune", raison: "signe_ambigu_sans_heure" },
+      ]),
+    );
+    expect((await chargerProjectionArbre(supa, ID)).tronc.incomplet).toBeDefined();
+  });
+
+  it("[DUR] Chiron absent ne rend PAS le tronc incomplet", async () => {
+    // Chiron manque pour TOUT LE MONDE, toujours. S'il comptait, la fiche inviterait chacune à
+    // fournir une heure qu'elle a déjà donnée — pour toujours.
+    lireThemeNatal.mockResolvedValue(
+      theme({ statut: "calcule", ascendant: 12, milieuDuCiel: 3, maisons: [], systeme: "signes_entiers" }, [
+        { corps: "chiron", raison: "ephemeride_sans_asteroides" },
+      ]),
+    );
+    expect((await chargerProjectionArbre(supa, ID)).tronc).toEqual({ present: true });
+  });
+
+  it("l'identifiant reçu est bien celui transmis au socle (jamais un autre compte)", async () => {
+    lireThemeNatal.mockResolvedValue({ statut: "indisponible", raison: "naissance_absente" });
+    await chargerProjectionArbre(supa, ID);
+    expect(lireThemeNatal).toHaveBeenCalledWith(supa, ID);
   });
 });
 

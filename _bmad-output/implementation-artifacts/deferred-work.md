@@ -575,6 +575,55 @@ troisième policy sera réécrite, pas avant.
   le constat vaut d'être retenu — **d'autres actions du seuil sont peut-être dans le même cas**, et
   personne n'a fait l'inventaire. [app/(auth)/]
 
+## Story 5.3 — dégradation gracieuse sans heure & complétion du tronc
+
+- **L'échantillonnage horaire laisse un angle mort étroit.** `signeAmbigu` teste le signe d'un corps
+  toutes les heures sur la fenêtre d'incertitude. Un corps qui franchirait une cuspide **et
+  reviendrait en moins d'une heure** y échapperait — cela suppose une station (fin de
+  rétrogradation) à moins de ~0,05° d'une cuspide. La correction exacte est un solveur de changement
+  de signe (recherche de racine) sur chaque corps ; elle coûte plus cher que ce qu'elle rattrape
+  aujourd'hui, et le résidu est écrit plutôt que tu. [lib/astro/theme-natal.ts]
+
+- **Le référentiel de lieux couvre la FRANCE, et rien d'autre.** 34 969 communes (métropole +
+  outre-mer), source officielle Etalab/INSEE. Une naissance à l'étranger ne trouve pas sa commune :
+  l'ascendant reste absent, **déclaré**, avec sa raison — jamais un point placé au hasard. C'est la
+  discipline Chiron appliquée à la géographie. L'extension mondiale est un **remplacement
+  d'adaptateur** (`LieuxPort`), pas une réécriture : le domaine ne bouge pas. Décision prise avec
+  Julian le 2026-08-11. [lib/astro/adapters/lieux-france.ts]
+
+- **Le référentiel est DATÉ et doit être rejoué.** Le Code officiel géographique bouge (fusions de
+  communes). `scripts/construire-lieux-france.mjs` le refabrique depuis la source ; rien ne signale
+  aujourd'hui qu'il a vieilli. Une commune fusionnée reste trouvable sous son ancien nom, ce qui est
+  le bon comportement pour une naissance ancienne — mais une commune NOUVELLE serait introuvable.
+  [scripts/construire-lieux-france.mjs]
+
+- **Le DEGRÉ d'un corps est incertain dès que `precision = "midi_par_defaut"`, et rien ne l'empêche
+  encore de s'afficher.** La 5.3 traite le SIGNE (absent s'il est indéterminable) ; le degré, lui,
+  reste stocké — c'est la position à midi, un fait sur un instant défini. Mais l'afficher comme
+  « Lune à 12°34' du Cancer » quand la vérité est 12° ± 7° serait fabriquer de la précision. **La
+  Story 5.6 doit brancher sur `precision`** ; aucune garde ne l'y oblige aujourd'hui. Un champ
+  `degreIncertain` sur chaque position aurait été un MIROIR de `precision` (faute R1-bis) — c'est
+  pourquoi il n'existe pas. [lib/astro/theme-natal.ts, → 5.6]
+
+- **L'heure de naissance reste WRITE-ONCE : une faute de frappe est définitive.** Décision confirmée
+  par Julian le 2026-08-11 : on n'affaiblit pas une garde déployée (0039) comme effet de bord d'une
+  autre story. Le formulaire prévient AVANT l'écriture et exige une confirmation explicite (AC8). **Si
+  des demandes de correction apparaissent**, la réponse est une décision produit avec sa propre
+  migration — jamais un contournement applicatif. [supabase/migrations/0039_theme_natal.sql]
+
+- **L'état VIDE de l'arbre ne dessine pas le tronc.** Quand aucune branche n'existe, la région arbre
+  remplace le canevas par un écran de texte : le tronc n'y est pas *dessiné*, alors que FR-088 dit
+  « elle voit son tronc, y compris incomplet ». La 5.3 rend la fiche atteignable dans les trois états
+  (un bouton nommé), donc rien n'est inaccessible — mais le DESSIN manque. Antérieur à cette story
+  (Story 3.3) ; à traiter avec l'accueil en cartes. [render/arbre/EtatVideArbre.tsx, → 5.6]
+
+- **Le thème natal va être calculé pour de vrai pour la première fois, en production.**
+  `lireThemeNatal` n'avait AUCUN appelant applicatif avant cette story. Au premier chargement après
+  déploiement, chaque compte déclenche un calcul + une écriture, et ce calcul emprunte le **cas
+  dégradé** (aucun lieu n'est capturé aujourd'hui) : fenêtre de 50 h, échantillonnage horaire,
+  ~663 lectures d'éphéméride. C'est une fois par compte, jamais deux — mais c'est aussi la première
+  mise à l'épreuve réelle du write-gate art. 9 de 0039. [lib/data/depot-theme-natal.ts]
+
 ---
 
 **Fragilité de suite observée, non corrigée** : les fichiers de tests SQL frappent le même Postgres local

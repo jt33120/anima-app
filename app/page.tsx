@@ -40,7 +40,7 @@ export default async function Page() {
   // Les deux lectures sous JWT, en parallèle ; jamais un 500 qui bloquerait l'ouverture de la scène.
   const [ouverture, projection] = await Promise.all([
     chargerOuverture(supabase),
-    chargerProjectionArbre(supabase),
+    chargerProjectionArbre(supabase, user.id),
   ]);
   return <SceneDom projection={projection} ouverture={ouverture} />;
 }

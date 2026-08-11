@@ -28,6 +28,13 @@ export interface DepotArbitrage {
   faits(): Promise<FaitsArbitrage>;
   /** `true` si Anam a le droit de dire l'invitation MAINTENANT — au plus une fois par fenêtre, réarmée par un mouvement. */
   reserverParole(fenetreHeures: number): Promise<boolean>;
+  /**
+   * Story 5.3 (AC4) — `true` si Anam a le droit de mentionner la complétion du socle MAINTENANT.
+   * Vrai AU PLUS UNE FOIS dans la vie d'un compte (0040). Toutes les conditions vivent en SQL —
+   * jamais dit, heure présente, thème recalculé, hors fenêtre de détresse — parce qu'une garde
+   * écrite ici serait une garde qu'un second appelant pourrait oublier.
+   */
+  reserverAnnonceSocle(): Promise<boolean>;
 }
 
 export function creerDepotArbitrage(client?: SupabaseClient): DepotArbitrage {
@@ -56,6 +63,15 @@ export function creerDepotArbitrage(client?: SupabaseClient): DepotArbitrage {
       if (error) throw new Error(`arbitrage.reserverParole: ${error.code ?? "echec"}`);
       // Dans le doute : NE PAS parler. Une phrase de trop est irrattrapable et se répète dans le souvenir ;
       // une phrase de moins ne coûte rien — la proposition ordinaire reprendra son cours.
+      return data === true;
+    },
+
+    async reserverAnnonceSocle(): Promise<boolean> {
+      const supabase = await clientOu();
+      const { data, error } = await supabase.rpc("reserver_annonce_socle_complet");
+      if (error) throw new Error(`arbitrage.reserverAnnonceSocle: ${error.code ?? "echec"}`);
+      // Même direction de doute que ci-dessus, et elle est plus forte ici : la mention n'a qu'une
+      // seule chance. Se taire à tort la reporte au prochain chargement ; parler à tort la dépense.
       return data === true;
     },
   };

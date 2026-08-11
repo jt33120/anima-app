@@ -1,0 +1,126 @@
+/*
+ * heure-naissance.module.css — La halte de complétion du socle (Story 5.3, T7).
+ *
+ * Bâtie sur les MÊMES tokens que le formulaire de naissance (`app/(auth)/naissance/`) : c'est le
+ * même geste, à un autre moment de la vie du compte, et il ne doit pas donner l'impression d'un
+ * autre produit. Aucune couleur d'alerte, aucune jauge, aucun pourcentage (AC2).
+ */
+
+.halte {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--esp-5);
+  padding: var(--esp-7) var(--marge-mobile);
+  max-width: var(--mesure);
+  margin: 0 auto;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  width: 100%;
+  max-width: 24rem;
+}
+.etiquette {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  text-align: left;
+}
+.champ {
+  font-family: var(--pile-ui);
+  font-size: 1rem;
+  color: var(--texte);
+  background: var(--surface-elevee);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  padding: var(--esp-3) var(--esp-4);
+  min-height: var(--cible-tactile);
+}
+.champ:focus-visible,
+.resultat:focus-visible,
+.bouton:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
+/* Les propositions de commune. Une LISTE, pas une surimpression flottante : elle pousse le contenu
+   plutôt que de le recouvrir — au clavier comme au doigt, rien ne disparaît sous les résultats. */
+.resultats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  overflow: hidden;
+}
+.resultat {
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-4);
+  text-align: left;
+  font-family: var(--pile-ui);
+  font-size: 1rem;
+  color: var(--texte);
+  background: var(--surface);
+  border: 0;
+  cursor: pointer;
+}
+
+/* La confirmation d'irréversibilité (AC8). Volontairement SOBRE : pas de rouge, pas de bordure
+   d'alerte. Ce n'est pas un danger, c'est une information — et la dramatiser ferait hésiter sur un
+   geste parfaitement normal.
+   Forme reprise TELLE QUELLE de l'écran de consentement (`app/(auth)/consentement/`) : c'est
+   l'ÉTIQUETTE qui est la cible de pointeur (WCAG 2.5.8), pas la case de 1,35 rem. Une seconde
+   manière de dessiner une case à cocher dans le même produit serait une divergence gratuite. */
+.case {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--esp-3);
+  padding: var(--esp-3);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+}
+.case:focus-within {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+.checkbox {
+  flex: 0 0 auto;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: 0.1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-5);
+  background: var(--accent);
+  color: var(--sur-accent);
+  border: 0;
+  border-radius: var(--rayon);
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity var(--duree-standard) var(--courbe);
+}
+.bouton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.erreur {
+  font-family: var(--pile-ui);
+  color: var(--texte);
+  margin: 0;
+}

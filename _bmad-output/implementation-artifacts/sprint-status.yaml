@@ -19,7 +19,7 @@
 # prod. Ce qui manque, c'est leur revue. C'est une dette réelle, pas un artefact de comptabilité.
 
 generated: 2026-08-07
-last_updated: 2026-08-07 # 5.2 livrée (numérologie) — couche lib/corpus posée, porte « corpus d'Anima » ouverte
+last_updated: 2026-08-11 # 5.3 livrée (dégradation sans heure + complétion du tronc) — migration 0040 à déployer
 project: Anam
 project_key: ANAM
 tracking_system: file-system
@@ -83,7 +83,7 @@ development_status:
   epic-5: in-progress
   5-1-theme-natal-calcule-une-fois-grave: review # livrée 2026-08-07 (7c60fcb + migration 0039 déployée) ; revue DUE
   5-2-numerologie-complete-deterministe: review # livrée 2026-08-07 ; AUCUNE migration ; revue DUE
-  5-3-degradation-gracieuse-sans-heure-completion-tronc: backlog
+  5-3-degradation-gracieuse-sans-heure-completion-tronc: review # livrée 2026-08-11 ; migration 0040 NON DÉPLOYÉE ; revue DUE
   5-4-horoscope-mantra-du-jour: backlog
   5-5-enneagramme-test-court-hypothese-anam: backlog
   5-6-accueil-bibliotheque-en-cartes: backlog
@@ -177,6 +177,15 @@ action_items:
     action: "Déployer la migration 0039 sur zlhlzoalmszohrxrnsmo (theme_natal + entrées de naissance)"
     owner: "Julian"
     status: done # 2026-08-07 — déployée et vérifiée (parité fichiers 39 / local 39 / cloud 39)
+  - epic: 5
+    action: >
+      Déployer la migration 0040 sur zlhlzoalmszohrxrnsmo (marqueur de mention + RPC
+      reserver_annonce_socle_complet). Parité actuelle : fichiers 40 / local 40 / CLOUD 39.
+      ⚠️ À NE PAS OUBLIER AU DÉPLOIEMENT : la 5.3 branche `lireThemeNatal` sur le chemin nominal
+      pour la première fois. Au premier chargement, CHAQUE compte déclenche un calcul de thème et
+      une écriture — c'est aussi la première mise à l'épreuve réelle du write-gate art. 9 de 0039.
+    owner: "Julian"
+    status: open
   - epic: 5
     action: >
       DÉCISION PRODUIT à confirmer : les maisons sont livrées en SIGNES ENTIERS, pas en Placidus.

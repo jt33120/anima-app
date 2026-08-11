@@ -40,7 +40,47 @@ export interface BrancheProjetee {
 }
 
 export interface ProjectionScene {
-  readonly tronc: { readonly present: true };
+  /**
+   * Le tronc. `incomplet` est posé UNIQUEMENT quand il manque au socle quelque chose que SON HEURE
+   * DE NAISSANCE comblerait (Story 5.3, FR-051).
+   *
+   * ── POURQUOI UN DRAPEAU, ET PAS `etat: "complet" | "incomplet"` (décision D6) ────────────────
+   *
+   * Il y a TROIS situations, pas deux : complet, incomplet, et « je n'ai pas réussi à savoir » (le
+   * thème n'a pas pu être lu). Un énuméré à deux valeurs oblige à mentir dans la troisième — et le
+   * mensonge le plus coûteux est celui-là : annoncer « il me manque ton heure » à quelqu'un qui
+   * vient précisément de la donner, juste après le geste qu'on lui avait demandé.
+   *
+   * Absent ⇒ le tronc se dessine normalement et RIEN n'est annoncé. Le tronc « complet » n'est pas
+   * un état spécial : c'est le tronc. C'est aussi ce qui rend vraie par construction la promesse
+   * « il passe à complet sans animation ni déblocage » — il n'y a rien à animer, un drapeau
+   * disparaît. Même convention que `gestesSuspendus` / `planOuvert` / `abonnementGerable`
+   * ci-dessous : la projection ne porte que ce qui est VRAI.
+   *
+   * ── POURQUOI LE TEXTE VOYAGE ICI, ET PAS DANS `render/` ─────────────────────────────────────
+   *
+   * `render/` ne peut pas importer `lib/domain` (AD-10, gardé par `tests/scene-architecture.test.ts`).
+   * Recopier les phrases dans `copie-arbre.ts` fabriquerait deux versions du même texte, qui
+   * divergeraient le jour où l'une est corrigée. On les fait donc VOYAGER comme données — exactement
+   * ce que fait `Ouverture.phrase` depuis la 4.10 pour la parole d'Anam. La source unique reste
+   * `lib/domain/message-sans-heure.ts`, sous le contrôle de voix de la 2.8.
+   */
+  readonly tronc: {
+    readonly present: true;
+    readonly incomplet?: {
+      /**
+       * Ce qui manque, pourquoi, et ce qui reste (FR-050). Voix d'Anam.
+       *
+       * ⚠️ Le champ s'appelle `phrase` et NON `message` : `tests/scene-architecture.test.ts` bannit ce
+       * mot de tout `lib/scene/`, pour que le concept de CONVERSATION ne fuie pas dans le modèle de
+       * scène (AD-7/B6). La garde a rougi sur la première version de ce champ, et elle avait raison —
+       * c'est aussi le nom qu'emploie déjà `Ouverture.phrase` (4.10) pour la même chose.
+       */
+      readonly phrase: string;
+      /** Où trouver son heure : copie intégrale de l'acte de naissance, mairie (FR-050). */
+      readonly ouTrouver: string;
+    };
+  };
   /** Les branches projetées (état persisté). Vide = arbre sans branche (« rien n'a encore été nommé »). */
   readonly branches: readonly BrancheProjetee[];
   /**

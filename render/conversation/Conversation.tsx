@@ -38,25 +38,45 @@ const MESSAGE_ECHEC = "Je n’ai pas pu répondre. Ton message est gardé.";
  */
 function cleDOuverture(o?: OuvertureData | null): string | null {
   if (!o) return null;
-  return o.type === "invitation" ? `i:${o.brancheCibleId}` : `p:${o.signalId}`;
+  // `switch` exhaustif plutôt qu'un ternaire : le ternaire d'origine traitait « tout ce qui n'est
+  // pas une invitation » comme une proposition. À l'arrivée d'un troisième type (Story 5.3), il
+  // aurait fabriqué la clé `p:undefined` — donc DEUX ouvertures différentes partageant la même
+  // clé, donc l'une des deux jamais servie. TypeScript rend maintenant l'oubli impossible.
+  switch (o.type) {
+    case "invitation":
+      return `i:${o.brancheCibleId}`;
+    case "proposition":
+      return `p:${o.signalId}`;
+    case "socle-complete":
+      // Une seule mention possible dans la vie d'un compte (0040) : la clé n'a rien à distinguer.
+      return "s:socle";
+  }
 }
 
 /** Le ou les tours à ajouter au fil pour cette ouverture. Vide s'il n'y a rien à ouvrir. */
 function toursDOuverture(o?: OuvertureData | null): Tour[] {
   if (!o) return [];
-  if (o.type === "invitation") {
-    return [
-      {
-        id: nouvelId(),
-        role: "invitation-integration",
-        phrase: o.phrase,
-        brancheCibleId: o.brancheCibleId,
-      },
-    ];
+  switch (o.type) {
+    case "invitation":
+      return [
+        {
+          id: nouvelId(),
+          role: "invitation-integration",
+          phrase: o.phrase,
+          brancheCibleId: o.brancheCibleId,
+        },
+      ];
+    case "proposition":
+      return [
+        { id: nouvelId(), role: "proposition-branche", signalId: o.signalId, phrase: o.phrase, etat: "propose" },
+      ];
+    case "socle-complete":
+      // Story 5.3 (AC4) — un TOUR D'ANAM ORDINAIRE, et c'est le point. Pas de rôle dédié, pas de
+      // bouton, pas de carte : il n'y a rien à faire de cette phrase. Lui fabriquer une forme
+      // propre en ferait un événement — donc une récompense — alors que FR-051 demande « un motif
+      // de retour honnête, jamais une carotte ». Elle se lit, et elle s'en va avec le fil.
+      return [{ id: nouvelId(), role: "anam", texte: o.phrase, etat: "complet" }];
   }
-  return [
-    { id: nouvelId(), role: "proposition-branche", signalId: o.signalId, phrase: o.phrase, etat: "propose" },
-  ];
 }
 
 export default function Conversation({

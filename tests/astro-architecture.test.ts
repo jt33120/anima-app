@@ -60,6 +60,9 @@ describe("[AD-6/DUR] la frontière de déterminisme : lib/astro ne connaît aucu
     expect(FICHIERS_ASTRO).toContain("lib/astro/adapters/astronomy-engine.ts");
     // Story 5.2 — la numérologie est du socle, elle vit sous les mêmes gardes.
     expect(FICHIERS_ASTRO).toContain("lib/astro/numerologie.ts");
+    // Story 5.3 — le référentiel des lieux est une ENTRÉE du socle : même couche, mêmes gardes.
+    expect(FICHIERS_ASTRO).toContain("lib/astro/lieux.ts");
+    expect(FICHIERS_ASTRO).toContain("lib/astro/adapters/lieux-france.ts");
   });
 
   it("aucun module de lib/astro n'importe @/lib/ai — le socle est calculé, jamais généré", () => {
@@ -144,10 +147,45 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
     expect(coupables, `moteur d'éphéméride hors de son adaptateur : ${coupables.join(", ")}`).toEqual([]);
   });
 
+  /**
+   * Story 5.3 — MÊME MONOPOLE POUR LE RÉFÉRENTIEL DES LIEUX, et pour une raison de plus que la
+   * frontière : le fichier pèse 1,4 Mo. Un import égaré ailleurs le ferait parser au démarrage à
+   * froid d'une fonction qui ne cherche jamais de lieu. La contrainte d'architecture et la
+   * contrainte de coût pointent ici dans le même sens.
+   */
+  it("[DUR] `communes-france.json` n'est importé QUE par son adaptateur", () => {
+    const autorise = "lib/astro/adapters/lieux-france.ts";
+    // CONTRÔLE POSITIF d'abord : sans lui, un fichier de données renommé rendrait la garde vraie
+    // pour rien — et le référentiel aurait disparu sans un seul rouge.
+    expect(
+      sansCommentaires(readFileSync(resolve(RACINE, autorise), "utf-8")),
+      "l'adaptateur n'importe plus son référentiel",
+    ).toMatch(/from\s*["']\.\/communes-france\.json["']/);
+
+    const coupables = TOUTES_SOURCES.filter(
+      (f) =>
+        f !== autorise &&
+        /communes-france\.json/.test(sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"))),
+    );
+    expect(coupables, `référentiel de lieux importé hors de son adaptateur : ${coupables.join(", ")}`).toEqual([]);
+  });
+
   it("le reste du produit ne connaît que le PORT, jamais l'adaptateur nommé", () => {
-    // `lib/data/depot-theme-natal.ts` importe la FABRIQUE de l'adaptateur (c'est son rôle de
-    // composition), mais aucun module ne doit dépendre de son contenu. On vérifie qu'un seul
-    // fichier hors `lib/astro/` référence l'adaptateur : le point de composition.
+    /*
+     * Les POINTS DE COMPOSITION, énumérés — pas une famille de chemins tolérée.
+     *
+     * Un adaptateur doit bien être instancié quelque part ; ce qui compte est que la liste des
+     * endroits où cela arrive soit COURTE et ÉCRITE, de sorte qu'en ajouter un soit une décision
+     * visible en revue plutôt qu'un import de plus.
+     *
+     *   • `lib/data/depot-theme-natal.ts` — compose l'éphéméride pour le calcul du thème (5.1) ;
+     *   • `app/heure-naissance/actions.ts` — compose le référentiel de LIEUX pour la recherche de
+     *     commune (5.3). Il est dans `app/` et pas dans `lib/data/` parce qu'il n'y a rien à
+     *     stocker : la recherche ne touche aucune table, elle lit un fichier embarqué.
+     *
+     * Aucun de ces deux fichiers ne dépend du CONTENU de son adaptateur : tous deux ne manipulent
+     * que les types du port.
+     */
     const referents = TOUTES_SOURCES.filter(
       (f) =>
         !f.startsWith("lib/astro/") &&
@@ -155,7 +193,10 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
           sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8")),
         ),
     );
-    expect(referents).toEqual(["lib/data/depot-theme-natal.ts"]);
+    expect(referents.sort()).toEqual([
+      "app/heure-naissance/actions.ts",
+      "lib/data/depot-theme-natal.ts",
+    ]);
   });
 });
 

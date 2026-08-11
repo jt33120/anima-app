@@ -185,15 +185,43 @@ function decalageMinutes(instantUtc: Date, fuseau: string): number {
  * un ascendant faux d'un à douze signes, avec l'air d'être juste. On préfère déclarer l'heure
  * inconnue — c'est moins que ce qu'on aimerait, mais c'est vrai.
  */
-export function resoudreInstant(entrees: EntreesNaissance): InstantResolu {
-  const jour = /^(\d{4})-(\d{2})-(\d{2})$/.exec(entrees.date);
+/**
+ * Une lecture de calendrier LOCALE (`naif`, exprimée comme si elle était UTC) résolue en instant UTC.
+ *
+ * Point fixe en deux passes : le décalage dépend de l'instant, qui dépend du décalage. La première
+ * passe donne le bon décalage sauf tout près d'un changement d'heure ; la seconde converge.
+ *
+ * JETTE si `Intl` ne connaît pas l'identifiant de fuseau — c'est aux appelants de décider quoi en
+ * faire, et ils ne décident pas la même chose (`resoudreInstant` dégrade, `fenetreIncertitude`
+ * élargit).
+ */
+function instantDepuisLocal(naif: number, fuseau: string): Date {
+  let instant = new Date(naif - decalageMinutes(new Date(naif), fuseau) * 60000);
+  instant = new Date(naif - decalageMinutes(instant, fuseau) * 60000);
+  return instant;
+}
+
+/** Les composantes de calendrier d'une date ISO. Regex, JAMAIS `new Date(chaîne)` — voir P6. */
+function eclaterDate(iso: string): { a: number; m: number; j: number } {
+  const jour = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!jour) {
     throw new Error("theme-natal : date de naissance illisible (attendu AAAA-MM-JJ)");
   }
-  const [, a, m, j] = jour;
+  return { a: Number(jour[1]), m: Number(jour[2]), j: Number(jour[3]) };
+}
+
+/** Les composantes d'une heure `HH:MM` ou `HH:MM:SS`. */
+function eclaterHeure(texte: string): { hh: number; mi: number; ss: number } {
+  const hm = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(texte);
+  if (!hm) throw new Error("theme-natal : heure de naissance illisible (attendu HH:MM)");
+  return { hh: Number(hm[1]), mi: Number(hm[2]), ss: Number(hm[3] ?? 0) };
+}
+
+export function resoudreInstant(entrees: EntreesNaissance): InstantResolu {
+  const { a, m, j } = eclaterDate(entrees.date);
 
   const sansHeure = (raison: RaisonSansHeure): InstantResolu => ({
-    instantUtc: new Date(Date.UTC(Number(a), Number(m) - 1, Number(j), 12, 0, 0)),
+    instantUtc: new Date(Date.UTC(a, m - 1, j, 12, 0, 0)),
     heureConnue: false,
     raisonSansHeure: raison,
   });
@@ -201,25 +229,11 @@ export function resoudreInstant(entrees: EntreesNaissance): InstantResolu {
   if (!entrees.heure) return sansHeure("heure_absente");
   if (!entrees.fuseau) return sansHeure("fuseau_absent");
 
-  const hm = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(entrees.heure);
-  if (!hm) throw new Error("theme-natal : heure de naissance illisible (attendu HH:MM)");
-  const [, hh, mi, ss] = hm;
-
-  const naif = Date.UTC(
-    Number(a),
-    Number(m) - 1,
-    Number(j),
-    Number(hh),
-    Number(mi),
-    Number(ss ?? 0),
-  );
+  const { hh, mi, ss } = eclaterHeure(entrees.heure);
+  const naif = Date.UTC(a, m - 1, j, hh, mi, ss);
 
   try {
-    // Point fixe en deux passes : le décalage dépend de l'instant, qui dépend du décalage. La
-    // première passe donne le bon décalage sauf tout près d'un changement d'heure ; la seconde converge.
-    let instant = new Date(naif - decalageMinutes(new Date(naif), entrees.fuseau) * 60000);
-    instant = new Date(naif - decalageMinutes(instant, entrees.fuseau) * 60000);
-    return { instantUtc: instant, heureConnue: true };
+    return { instantUtc: instantDepuisLocal(naif, entrees.fuseau), heureConnue: true };
   } catch {
     // `Intl` jette sur un identifiant de fuseau inconnu. On DÉGRADE plutôt que de propager : le
     // reste du thème (les dix corps, les nœuds) ne dépend pas du fuseau et reste juste. Faire
@@ -227,6 +241,133 @@ export function resoudreInstant(entrees: EntreesNaissance): InstantResolu {
     // mais la raison est nommée pour que le défaut de donnée reste trouvable (AC6).
     return sansHeure("fuseau_invalide");
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Story 5.3 — LA FENÊTRE D'INCERTITUDE
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Sans heure, `resoudreInstant` prend MIDI et le calcul aboutit : longitude finie, signe rendu,
+// rien qui signale que ce signe est un PARI. La fenêtre est ce qui rend le pari visible — elle
+// borne les instants où la naissance a réellement pu avoir lieu.
+
+/** Les décalages UTC extrêmes réellement en vigueur : Baker à UTC−12, Kiribati à UTC+14. */
+const DECALAGE_MAX_EST_MS = 14 * 3600_000;
+const DECALAGE_MAX_OUEST_MS = 12 * 3600_000;
+
+/**
+ * L'intervalle des instants UTC où la naissance a pu avoir lieu.
+ *
+ * `min === max` ⇒ l'instant est connu exactement : aucun signe n'est ambigu, et RIEN n'est
+ * échantillonné (le surcoût ne frappe que le cas dégradé).
+ */
+export interface FenetreInstant {
+  readonly min: Date;
+  readonly max: Date;
+}
+
+/**
+ * Les quatre cas, et ce qu'on ignore dans chacun (Story 5.3, décision D2).
+ *
+ * | heure | fuseau | ce qu'on ignore | durée |
+ * |---|---|---|---|
+ * | connue | connu   | rien              | 0     |
+ * | absente| connu   | l'heure du jour   | le jour LOCAL (23, 24 ou 25 h) |
+ * | absente| inconnu | l'heure ET le décalage | 50 h |
+ * | connue | inconnu | le décalage       | 26 h  |
+ *
+ * ⚠️ LE JOUR LOCAL N'EST PAS « MINUIT + 24 H ». Aux changements d'heure il dure 23 h ou 25 h. On
+ * résout les DEUX bornes par le fuseau ; on n'en additionne aucune. Une heure de trop, c'est un
+ * demi-degré de Lune, largement de quoi fabriquer une ambiguïté qui n'existe pas.
+ *
+ * ⚠️ SANS FUSEAU, LA FENÊTRE N'EST PAS DE 24 H. Le jour LOCAL n'est pas connu si le fuseau ne l'est
+ * pas : l'instant vrai va de « minuit à UTC+14 » à « minuit du lendemain à UTC−12 ». Prendre 24 h
+ * déclarerait certains des signes qui ne le sont pas (P7) — le mensonge exact que la 5.3 refuse.
+ */
+export function fenetreIncertitude(entrees: EntreesNaissance): FenetreInstant {
+  const { a, m, j } = eclaterDate(entrees.date);
+
+  // Heure ET fuseau exploitables → un point. `resoudreInstant` est la SOURCE UNIQUE de cette
+  // décision : la dupliquer ici ferait diverger les deux le jour où l'une des deux évolue.
+  const resolu = resoudreInstant(entrees);
+  if (resolu.heureConnue) return { min: resolu.instantUtc, max: resolu.instantUtc };
+
+  if (resolu.raisonSansHeure === "heure_absente" && entrees.fuseau) {
+    try {
+      // `Date.UTC(a, m-1, j+1)` gère le débordement de mois et d'année tout seul.
+      return {
+        min: instantDepuisLocal(Date.UTC(a, m - 1, j, 0, 0, 0), entrees.fuseau),
+        max: instantDepuisLocal(Date.UTC(a, m - 1, j + 1, 0, 0, 0), entrees.fuseau),
+      };
+    } catch {
+      // Fuseau inconnu ET heure absente : on retombe sur la fenêtre large ci-dessous. `resoudreInstant`
+      // ne l'a pas signalé parce qu'il teste l'absence d'heure AVANT la validité du fuseau.
+    }
+  }
+
+  // Le décalage est inconnu. `naif` = la lecture de calendrier locale prise comme si elle était UTC ;
+  // l'instant vrai est `naif − décalage`, donc quelque part dans `[naif − 14 h, naif + 12 h]`.
+  const heure = resolu.raisonSansHeure === "heure_absente" ? null : eclaterHeure(entrees.heure!);
+  const naifDebut = Date.UTC(a, m - 1, j, heure?.hh ?? 0, heure?.mi ?? 0, heure?.ss ?? 0);
+  // Sans heure, `naif` couvre tout le jour : la borne haute part de MINUIT DU LENDEMAIN.
+  const naifFin = heure ? naifDebut : Date.UTC(a, m - 1, j + 1, 0, 0, 0);
+  return {
+    min: new Date(naifDebut - DECALAGE_MAX_EST_MS),
+    max: new Date(naifFin + DECALAGE_MAX_OUEST_MS),
+  };
+}
+
+/**
+ * Pas d'échantillonnage de la fenêtre (Story 5.3, décision D3).
+ *
+ * Tester seulement les deux bornes serait plus simple, et faux dans un cas précis : un corps proche
+ * d'une STATION (fin de rétrogradation) peut sortir d'un signe et y revenir à l'intérieur de la
+ * fenêtre. Les deux bornes donneraient le même signe, la vérité serait l'autre.
+ *
+ * Coût maximal : 51 instants × 13 corps = 663 lectures, UNE FOIS, au calcul (le thème est gravé —
+ * AD-6). Quand l'heure est connue, la fenêtre est un point et ce code ne tourne pas.
+ *
+ * RÉSIDU ASSUMÉ : un corps qui franchirait une cuspide et reviendrait en moins d'une heure
+ * échapperait encore — cela suppose une station à moins de ~0,05° d'une cuspide. La correction
+ * exacte est un solveur de changement de signe ; elle est déférée, et le résidu est écrit.
+ */
+const PAS_ECHANTILLONNAGE_MS = 3600_000;
+
+/**
+ * Le signe de ce corps est-il le même PARTOUT dans la fenêtre ?
+ *
+ * ⚠️ CE N'EST PAS UN CAS PARTICULIER DE LA LUNE (décision D1). En 24 h la Lune parcourt ~13,2° et
+ * traverse une cuspide environ deux fois sur cinq ; mais le Soleil le fait un jour sur trente, et
+ * le Soleil est LE nombre que tout le monde connaît. Un `if (corps === "lune")` laisserait donc
+ * passer un Soleil faux sur trente naissances sans heure — invérifiable, et d'apparence normale.
+ *
+ * Une lecture illisible (corps inconnu de la source, date hors plage, valeur non finie) est
+ * IGNORÉE plutôt que traitée comme ambiguë : l'existence du corps est décidée par la lecture
+ * centrale dans `calculerThemeNatal`. Confondre les deux ferait disparaître Chiron sous une raison
+ * qui n'est pas la sienne.
+ */
+export function signeAmbigu(
+  corps: Corps,
+  fenetre: FenetreInstant,
+  ephemeride: EphemerisPort,
+): boolean {
+  const debut = fenetre.min.getTime();
+  const fin = fenetre.max.getTime();
+  if (!(fin > debut)) return false;
+
+  const instants: number[] = [];
+  for (let t = debut; t < fin; t += PAS_ECHANTILLONNAGE_MS) instants.push(t);
+  instants.push(fin); // la borne haute est TOUJOURS échantillonnée, même si le pas ne tombe pas juste
+
+  let reference: Signe | null = null;
+  for (const t of instants) {
+    const lecture = ephemeride.longitudeEcliptique(corps, new Date(t));
+    if (lecture.statut !== "calcule" || !Number.isFinite(lecture.longitude)) continue;
+    const { signe } = placer(lecture.longitude);
+    if (reference === null) reference = signe;
+    else if (signe !== reference) return true;
+  }
+  return false;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -323,14 +464,34 @@ export interface PositionCorps {
   readonly maison?: number;
 }
 
+/**
+ * Pourquoi un corps ne figure pas dans le thème.
+ *
+ * `RaisonNonCalcule` vient du PORT : ce que la SOURCE ne sait pas faire (Chiron, date hors plage).
+ * `signe_ambigu_sans_heure` vient du DOMAINE : la source sait parfaitement calculer ce corps — c'est
+ * l'INSTANT qui n'est pas connu assez précisément pour que son signe le soit (Story 5.3, D1).
+ *
+ * ⚠️ NE PAS ajouter cette raison à `RaisonNonCalcule` dans `port.ts`. Un adaptateur ne peut pas la
+ * produire : il ne connaît ni la fenêtre, ni l'heure de naissance. L'y mettre inviterait le prochain
+ * lecteur à croire qu'une éphéméride peut en décider.
+ */
+export type RaisonAbsenceCorps = RaisonNonCalcule | "signe_ambigu_sans_heure";
+
 export interface CorpsNonCalcule {
   readonly corps: Corps;
-  readonly raison: RaisonNonCalcule;
+  readonly raison: RaisonAbsenceCorps;
 }
 
 export interface ThemeNatal {
-  /** Version de FORME du document (pas la version de la ligne `theme_natal`, qui compte les recalculs). */
-  readonly schema: 1;
+  /**
+   * Version de FORME du document (pas la version de la ligne `theme_natal`, qui compte les recalculs).
+   *
+   * ⚠️ CE NUMÉRO ET LE PRÉFIXE DE `chaineEmpreinte` SE BUMPENT ENSEMBLE (Story 5.3, D4/P1). Bumper
+   * celui-ci seul rend inexploitable tout thème déjà gravé, ET le trigger de 0039 refuse le recalcul
+   * (l'empreinte n'aurait pas changé) : le socle meurt pour tous les comptes existants, sans une
+   * seule erreur nulle part. `tests/theme-natal.test.ts` lie les deux.
+   */
+  readonly schema: 2;
   /** Identifiant de la source d'éphéméride employée — entre dans l'empreinte d'entrées (0039). */
   readonly adaptateur: string;
   readonly positions: readonly PositionCorps[];
@@ -386,6 +547,11 @@ export function calculerThemeNatal(
   const angles = calculerAngles(entrees, instantUtc, heureConnue, raisonSansHeure, ephemeride);
   const maisons = angles.statut === "calcule" ? angles.maisons : null;
 
+  // Story 5.3 (D1) — la fenêtre des instants possibles. Ponctuelle quand l'heure est connue : le
+  // `fenetreOuverte` ci-dessous coupe alors TOUT échantillonnage, et le cas nominal ne paie rien.
+  const fenetre = fenetreIncertitude(entrees);
+  const fenetreOuverte = fenetre.max.getTime() > fenetre.min.getTime();
+
   const positions: PositionCorps[] = [];
   const absents: CorpsNonCalcule[] = [];
 
@@ -393,6 +559,14 @@ export function calculerThemeNatal(
     const lecture = ephemeride.longitudeEcliptique(corps, instantUtc);
     if (lecture.statut === "non_calcule") {
       absents.push({ corps, raison: lecture.raison });
+      continue;
+    }
+    // Story 5.3 (AC1/FR-049) — le corps est calculable, mais son SIGNE l'est-il ? Si la fenêtre
+    // traverse une cuspide, le signe de midi est un pari. On le déclare absent plutôt que de le
+    // servir avec l'autorité d'un calcul — même règle que Chiron, appliquée au temps au lieu de
+    // la source.
+    if (fenetreOuverte && signeAmbigu(corps, fenetre, ephemeride)) {
+      absents.push({ corps, raison: "signe_ambigu_sans_heure" });
       continue;
     }
     // `normaliserDegres` jette sur non fini : une éphéméride qui rend NaN est un incident, pas une
@@ -409,7 +583,7 @@ export function calculerThemeNatal(
   }
 
   return {
-    schema: 1,
+    schema: 2,
     adaptateur: ephemeride.identifiant,
     positions: Object.freeze(positions),
     absents: Object.freeze(absents),
@@ -472,7 +646,12 @@ function calculerAngles(
  */
 export function chaineEmpreinte(entrees: EntreesNaissance, identifiantAdaptateur: string): string {
   return [
-    "v1",
+    // ⚠️ CE PRÉFIXE EST LE LEVIER DE MIGRATION DE FORME, pas une décoration de version (Story 5.3,
+    // D4/P1). L'empreinte ne dépend que des entrées de naissance et de l'adaptateur : changer la
+    // FORME du thème ne la changerait pas, et le trigger de 0039 refuserait donc le recalcul —
+    // laissant tous les thèmes déjà gravés inexploitables et impossibles à réparer. Bumper ce
+    // préfixe en même temps que `ThemeNatal.schema` débloque exactement UN recalcul par compte.
+    `v${2 satisfies ThemeNatal["schema"]}`,
     entrees.date,
     entrees.heure ?? "",
     entrees.fuseau ?? "",

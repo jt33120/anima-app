@@ -1,6 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { creerDepotBranche } from "@/lib/data/depot-branche";
+import { lireThemeNatal } from "@/lib/data/depot-theme-natal";
+import { manqueLHeure } from "@/lib/domain/socle-incomplet";
+import { MESSAGE_SANS_HEURE, OU_TROUVER_SON_HEURE } from "@/lib/domain/message-sans-heure";
 import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
 import { premiumSousJwt } from "@/lib/safety/entitlement-premium";
 import { intensiteBornee, type ProjectionScene, type BrancheProjetee } from "@/lib/scene/projection";
@@ -84,11 +87,40 @@ async function abonnementGerable(supabase: SupabaseClient): Promise<boolean> {
   }
 }
 
-export async function chargerProjectionArbre(supabase: SupabaseClient): Promise<ProjectionScene> {
+/**
+ * Story 5.3 (AC3, FR-051) — LE TRONC EST-IL INCOMPLET ?
+ *
+ * ⚠️ `try/catch` INTERNE, même raison qu'`abonnementGerable` juste au-dessus, et elle est plus forte
+ * ici : `lireThemeNatal` fait deux requêtes et peut ÉCRIRE (le premier calcul, ou un recalcul). Sous
+ * le `try` global, la moindre de ces pannes ferait retomber TOUT l'arbre sur « je n'arrive pas à
+ * afficher ton arbre » — pour un drapeau décoratif, alors que ses branches, elles, sont là.
+ *
+ * REPLI = `false`, c'est-à-dire AUCUN DRAPEAU (décision D6). Se tromper en n'annonçant rien coûte une
+ * invitation différée ; se tromper dans l'autre sens annonce « il me manque ton heure » à quelqu'un
+ * qui vient précisément de la donner — un mensonge, juste après le geste qu'on lui avait demandé.
+ *
+ * `naissance_absente` / `ecriture_refusee` / `lecture_impossible` mènent tous au même silence : sans
+ * thème, on ne sait pas ce qui manque, et on ne le devine pas.
+ */
+async function troncIncomplet(supabase: SupabaseClient, utilisatriceId: string): Promise<boolean> {
+  try {
+    const r = await lireThemeNatal(supabase, utilisatriceId);
+    return r.statut === "calcule" && manqueLHeure(r.theme);
+  } catch (e) {
+    journaliserIncidentSecurite("projection_arbre_socle", e);
+    return false;
+  }
+}
+
+export async function chargerProjectionArbre(
+  supabase: SupabaseClient,
+  utilisatriceId: string,
+): Promise<ProjectionScene> {
   try {
     const branches = await creerDepotBranche(supabase).chargerBranches();
     const suspendus = await gestesSuspendus(supabase);
     const gerable = await abonnementGerable(supabase);
+    const incomplet = await troncIncomplet(supabase, utilisatriceId);
     // Écrire une intention est un dépôt de contenu art. 9 : la fenêtre de détresse la ferme aussi
     // (AD-17, miroir du WITH CHECK de `intention_insertion`). Deux conditions, une seule question posée
     // au rendu — il n'a pas à savoir laquelle des deux a fermé le champ, et surtout pas à le dire.
@@ -107,7 +139,13 @@ export async function chargerProjectionArbre(supabase: SupabaseClient): Promise<
       extraitContenu: b.extraitContenu,
     }));
     return {
-      tronc: { present: true },
+      // Story 5.3 — `incomplet` n'est posé que quand il l'est VRAIMENT. Le tronc « complet » n'est
+      // pas un état : c'est le tronc. Rien à animer le jour où le drapeau disparaît (AC4).
+      // Les deux phrases voyagent AVEC le drapeau : `render/` ne peut pas importer `lib/domain`, et
+      // les recopier là-bas fabriquerait un second texte qui divergerait (patron `Ouverture.phrase`).
+      tronc: incomplet
+        ? { present: true, incomplet: { phrase: MESSAGE_SANS_HEURE, ouTrouver: OU_TROUVER_SON_HEURE } }
+        : { present: true },
       branches: projetees,
       // `undefined` plutôt que `false` : la projection ne porte que ce qui est VRAI, comme partout
       // ailleurs ici (`indisponible`, `gestesSuspendus`). Un champ absent ne se lit pas de travers.

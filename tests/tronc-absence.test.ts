@@ -52,6 +52,10 @@ const SURFACES: readonly string[] = [
   "render/arbre/FicheBranche.tsx",
   "render/arbre/ChampRenommage.tsx",
   "render/arbre/PlanEtapes.tsx",
+  // Story 5.3 — les deux surfaces du tronc incomplet. Une surface non inventoriée est une surface
+  // non gardée, et personne ne s'en apercevrait (discipline c).
+  "render/arbre/FicheTronc.tsx",
+  "render/arbre/BoutonTronc.tsx",
   // La NAVIGATION : les trois destinations et leurs libellés (AC1).
   "render/scene-dom.tsx",
   "lib/scene/regions.ts",
@@ -79,13 +83,38 @@ export function texteVisible(src: string): string[] {
   for (const m of sans.matchAll(/(["'`])((?:\\.|(?!\1).)*)\1/g)) trouves.push(m[2]);
   // Textes JSX : ce qui vit entre `>` et `<` sans accolade ni balise.
   for (const m of sans.matchAll(/>([^<>{}]+)</g)) trouves.push(m[1]);
-  return trouves.map((s) => s.trim()).filter((s) => s.length > 0);
+  return (
+    trouves
+      // Les INTERPOLATIONS `${…}` d'un gabarit sont des EXPRESSIONS, jamais du texte — exactement
+      // comme les accolades JSX, déjà écartées ci-dessus. Sans ça, un nom de variable devenait du
+      // « texte visible » : `${troncIncomplet ? … }` faisait rougir la garde du mot « incomplet »
+      // pour un identifiant que personne ne lit jamais. La garde aurait fini par être assouplie.
+      .map((s) => s.replace(/\$\{[^{}]*\}/g, " "))
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // LE VOCABULAIRE INTERDIT (AC2 [DUR], AC1, FR-031)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-const INTERDITS: readonly { motif: RegExp; pourquoi: string }[] = [
+/**
+ * Une chaîne de STYLE est du placement, pas du texte.
+ *
+ * ⚠️ Introduit parce que la garde du POURCENTAGE (Story 5.3) rougissait sur
+ * `translate(-50%, -50%)` — la contre-échelle qui garde les cibles à 44 px quel que soit le zoom.
+ * L'alternative aurait été de retirer le motif : on aurait perdu la garde entière pour un faux
+ * positif. L'exception est donc NOMMÉE, ÉTROITE, et éprouvée pour elle-même juste en dessous —
+ * jamais un assouplissement discret de l'extracteur, qui affaiblirait TOUS les motifs à la fois.
+ */
+export function estValeurCss(chaine: string): boolean {
+  return (
+    /(?:translate|translateX|translateY|scale|rotate|calc|var|rgba?|hsla?)\s*\(/.test(chaine) ||
+    /^-?\d+(?:[.,]\d+)?%$/.test(chaine.trim())
+  );
+}
+
+const INTERDITS: readonly { motif: RegExp; pourquoi: string; sauf?: (s: string) => boolean }[] = [
   { motif: /cadenas|verrou|\block\b|locked/i, pourquoi: "AC2 — jamais un verrou ostentatoire" },
   { motif: /flout|\bflou\b|\bblur/i, pourquoi: "AC2 — jamais un aperçu flouté" },
   { motif: /fantôme|fantome|pointillé|pointille|dashed/i, pourquoi: "AC2 — jamais de branches fantômes" },
@@ -96,6 +125,17 @@ const INTERDITS: readonly { motif: RegExp; pourquoi: string }[] = [
   { motif: /abonne[- ]?toi|abonnez[- ]?vous|\boffre\b|\bpromo|réduction|upgrade/i, pourquoi: "AC6 — aucun appât" },
   { motif: /\d+\s*€|€\s*\d+|\beuros?\b/i, pourquoi: "AC6 — aucun prix, la région arbre ne vend pas" },
   { motif: /\bil te manque\b|branches? restante|sur \d+ branche/i, pourquoi: "AC2/FR-031 — aucun compteur" },
+  // ── Story 5.3 (AC2/AC3) ────────────────────────────────────────────────────────────────────────
+  // Le POURCENTAGE : AC2 l'interdit explicitement, et la liste ci-dessus n'avait aucun motif pour
+  // lui. Il ne manque pas « 40 % du socle » — il manque une information, elle a un nom, et on dit
+  // où la chercher. (Le placement CSS `left: 50%` ne passe pas par ici : cette garde ne lit que
+  // les CHAÎNES du source, pas les styles calculés — et `tests/rendu/tronc-incomplet.test.tsx`
+  // ferme l'angle du DOM réellement rendu.)
+  { motif: /\d\s*%|pourcentage/i, pourquoi: "AC2 — jamais un pourcentage", sauf: estValeurCss },
+  // Le mot « INCOMPLET » lui-même : AC3 exige qu'il ne soit jamais écrit sur le dessin. Il vit dans
+  // le MODÈLE (`tronc.incomplet`) et dans les commentaires — les deux sont hors de portée de
+  // `texteVisible`. Ce qui est interdit, c'est qu'il atteigne l'écran, `aria-label` compris.
+  { motif: /incomplet|incomplète/i, pourquoi: "AC3 — le mot n'est jamais écrit sur le dessin" },
 ];
 
 /**
@@ -120,6 +160,12 @@ const TEMOINS_ATTENDUS: readonly string[] = [
   copieArbre.BASCULE_ARBRE,
   copieArbre.ACTION_RENOMMER,
   copieArbre.PLAN_TITRE,
+  // Story 5.3 — les libellés du tronc : s'ils disparaissaient du balayage, les interdits
+  // ci-dessus deviendraient vrais pour rien sur ces deux surfaces.
+  copieArbre.TRONC_TITRE,
+  copieArbre.ACTION_AJOUTER_HEURE,
+  copieArbre.ACTION_OU_TROUVER,
+  copieArbre.ARIA_TRONC_A_COMPLETER,
   ...REGIONS.map((r) => r.nom),
 ];
 
@@ -139,6 +185,15 @@ describe("[T5-2 / discipline a] L'EXTRACTEUR est éprouvé POUR LUI-MÊME", () =
     expect(v.join(" "), "un chemin d'import s'est invité dans l'extrait").not.toContain("copie-arbre");
   });
 
+  it("[5.3] il IGNORE les INTERPOLATIONS d'un gabarit — un identifiant n'est pas du texte", () => {
+    // Même principe que l'accolade JSX ci-dessus. Mutation-cible : retirer le nettoyage — le nom de
+    // variable `troncIncomplet` deviendrait « visible » et ferait rougir la garde du mot.
+    const v = texteVisible("const c = `${s.tronc} ${troncIncomplet ? s.reserve : \"\"}`;");
+    expect(v.join(" ")).not.toContain("troncIncomplet");
+    // …et ce qui EST du texte dans le même gabarit survit.
+    expect(texteVisible("const t = `Bonjour ${prenom}, ça va ?`;").join(" ")).toContain("Bonjour");
+  });
+
   it("il IGNORE les commentaires — un avertissement qui nomme l'interdit ne doit pas le déclencher", () => {
     // Ce fichier-ci en est la preuve vivante : il écrit « passe au premium » une dizaine de fois.
     expect(texteVisible('// ne jamais écrire "passe au premium"\nconst A = "ok";')).toEqual(["ok"]);
@@ -150,6 +205,27 @@ describe("[T5-2 / discipline a] L'EXTRACTEUR est éprouvé POUR LUI-MÊME", () =
     // d'absence de ce fichier, en silence et pour toujours.
     expect(texteVisible(readFileSync(resolve(racine, "render/arbre/copie-arbre.ts"), "utf-8")).length)
       .toBeGreaterThan(20);
+  });
+});
+
+describe("[5.3 / discipline a] LA SEULE EXCEPTION du fichier est éprouvée POUR ELLE-MÊME", () => {
+  it("elle épargne le placement CSS…", () => {
+    expect(estValeurCss("translate(-50%, -50%) scale(1)")).toBe(true);
+    expect(estValeurCss("50%")).toBe(true);
+    expect(estValeurCss("calc(100% - 2rem)")).toBe(true);
+  });
+
+  it("…et surtout, elle n'épargne PAS une jauge écrite en français", () => {
+    // Mutation-cible : élargir l'exception en `/%/`. La garde du pourcentage deviendrait creuse,
+    // et « ton socle est complété à 40 % » passerait sans un rouge.
+    for (const jauge of [
+      "Ton socle est complété à 40 %.",
+      "40% de ton thème",
+      "Il te manque 60 % des informations",
+    ]) {
+      expect(estValeurCss(jauge), `exception trop large : « ${jauge} »`).toBe(false);
+      expect(/\d\s*%|pourcentage/i.test(jauge), "le motif lui-même ne mord pas").toBe(true);
+    }
   });
 });
 
@@ -183,8 +259,8 @@ describe("[T5-1 / AC1 + AC2 DUR] aucun verrou, aucun appât, aucun compteur", ()
   for (const chemin of SURFACES) {
     it(`${chemin} — rien du vocabulaire interdit n'atteint l'écran`, () => {
       const visible = texteVisible(readFileSync(resolve(racine, chemin), "utf-8"));
-      for (const { motif, pourquoi } of INTERDITS) {
-        const fautif = visible.filter((s) => motif.test(s));
+      for (const { motif, pourquoi, sauf } of INTERDITS) {
+        const fautif = visible.filter((s) => motif.test(s) && !sauf?.(s));
         expect(fautif, `${pourquoi} — trouvé dans ${chemin} : ${JSON.stringify(fautif)}`).toEqual([]);
       }
     });
@@ -267,6 +343,7 @@ describe("[T7-1 / AC6] la phrase sobre : registre PRODUIT, jamais la voix d'Anam
   });
 
   it("elle passe SA PROPRE garde de vocabulaire (elle n'est pas dérogée)", () => {
+    // (voir aussi le bloc `estValeurCss` : la seule exception de tout ce fichier est éprouvée)
     // Une phrase commerciale exemptée de la garde d'absence serait le trou parfait : la seule surface
     // qui vend, et la seule qu'on ne regarde pas.
     for (const { motif, pourquoi } of INTERDITS) {

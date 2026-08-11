@@ -139,11 +139,49 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
         return { data: false, error: null }; // ni premium, ni fenêtre de détresse
       },
     } as unknown as SupabaseClient;
-    const p = await chargerProjectionArbre(compteGratuit);
+    const p = await chargerProjectionArbre(compteGratuit, "11111111-1111-4111-8111-111111111111");
     expect(p.indisponible, "témoin : on a bien pris le chemin NOMINAL, pas le repli").toBeUndefined();
     expect(p.planOuvert, "témoin : ce compte n'est PAS premium (sinon le test ne prouverait rien)").toBeUndefined();
     expect(p.gestesSuspendus, "témoin : ni en détresse").toBeUndefined();
     expect(p.tronc.present, "le tronc est gratuit — il ne se négocie pas").toBe(true);
+  });
+
+  it("[FR-055 / Story 5.3 / DUR] la MENTION DE COMPLÉTION n'est pas derrière le gate premium", async () => {
+    /*
+     * ⚠️ LA GARDE LA PLUS FRAGILE DE LA STORY 5.3, parce qu'elle protège un ORDRE.
+     *
+     * `chargerOuverture` ouvre sur `if (!premiumSousJwt(...)) return null` depuis la 3.3 : sur un
+     * compte gratuit, Anam ne propose plus de branche. La mention de complétion du socle est
+     * évaluée AVANT cette ligne — et le réflexe d'harmonisation (« toutes les ouvertures passent
+     * par le même gate ») la ferait descendre dessous en une seconde, sans rien casser d'apparent.
+     *
+     * Ce serait pourtant une COUPURE DU SOCLE GRATUIT : le socle est gratuit à vie (FR-055), le
+     * tronc est gratuit (FR-088), et une utilisatrice gratuite qui vient d'aller chercher son acte
+     * de naissance à la mairie n'entendrait jamais qu'Anam a bien reçu son heure.
+     *
+     * On l'éprouve par le COMPORTEMENT, pas par la lecture du source : un compte explicitement NON
+     * premium doit quand même recevoir la mention.
+     */
+    const { chargerOuverture } = await import("@/lib/safety/ouverture-branche");
+    const appels: string[] = [];
+    const compteGratuit = {
+      rpc: async (nom: string) => {
+        appels.push(nom);
+        // `reserver_annonce_socle_complet` dit oui ; TOUT le reste dit non — en particulier
+        // l'entitlement premium (`premium_actif`), qui doit rester sans effet sur cette mention.
+        if (nom === "reserver_annonce_socle_complet") return { data: true, error: null };
+        return { data: false, error: null };
+      },
+    } as unknown as SupabaseClient;
+
+    const o = await chargerOuverture(compteGratuit);
+    expect(
+      o,
+      "un compte GRATUIT n'a pas entendu la mention — le gate premium est repassé devant",
+    ).toEqual({ type: "socle-complete", phrase: expect.any(String) });
+    // Témoin : la réservation a bien été TENTÉE avant tout le reste (sinon l'assertion ci-dessus
+    // pourrait être satisfaite par un chemin qui ne passe pas par là).
+    expect(appels[0]).toBe("reserver_annonce_socle_complet");
   });
 
   it("[FR-055 / Story 5.1] le THÈME NATAL n'est gardé par AUCUN chemin premium", () => {
@@ -211,7 +249,7 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
       },
     } as unknown as SupabaseClient;
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const p = await chargerProjectionArbre(quiLeve);
+    const p = await chargerProjectionArbre(quiLeve, "11111111-1111-4111-8111-111111111111");
     expect(p.tronc.present).toBe(true);
     spy.mockRestore();
   });

@@ -31,7 +31,7 @@ export default async function PageEntrer({
             <FormulaireEntree />
           </>
         )}
-        {process.env.NODE_ENV !== "production" && (
+        {process.env.NODE_ENV === "development" && (
           <div style={{ marginTop: "var(--esp-7)" }}>
             <p className="t-meta" style={{ marginBottom: "var(--esp-2)" }}>
               Dev — accès sans email (n&apos;existe pas en production)

@@ -4,7 +4,10 @@ baseline_commit: a3296531eea18d0aae46ffac28b22306fa3d4367
 
 # Story 2.8: La voix d'Anam et le contrôle automatisé bloquant
 
-Status: review
+Status: done
+
+> **Revue de code : 2026-08-13.** Entités HTML invisibles aux détecteurs, miroir divergent entre les deux normalisations, règle emoji inversée, et la clause médicale absente de la voix vivante.
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

@@ -9,6 +9,20 @@
 .env
 .env*.local
 
+# bancs d'exploit de revue — scripts jetables qui REJOUENT une attaque contre la base (barrière de
+# minorité, écriture directe REST…). Utiles à garder sous la main, à ne jamais publier : le dépôt est
+# PUBLIC, et un mode d'emploi d'attaque n'a pas à s'y trouver. Ils ne portent aucun secret (tout vient
+# de l'environnement) — c'est le mode d'emploi qui n'a pas sa place, pas la clé.
+_exploit-*.mjs
+_fixation-*.mjs
+
+# scripts de vérification jetables qui portent des clés EN DUR (verif-upsert-revocation.mjs contient
+# le `sb_secret_…` de la pile locale). Ils ne passaient sous AUCUNE règle : un `git add -A` distrait
+# publiait la clé sur un dépôt PUBLIC. La règle est large exprès — un fichier de vérif à la racine
+# est toujours jetable, jamais un livrable.
+/verif-*.mjs
+/_verif-*.mjs
+
 # divers
 .DS_Store
 /coverage

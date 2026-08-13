@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { reposerConsentement } from "./_rig-consentement";
 
 /**
  * Story 4.2 — la table `fait_extrait` (faits extraits, AD-8 couche 2). Preuves BLOQUANTES contre un
@@ -206,7 +207,7 @@ describe("fait_extrait — write-gate art. 9 & droits RGPD survivants (AC5, poin
     await admin.from("fait_extrait").insert({ utilisatrice_id: u.id, origine: "extrait", cle_dedoublonnage: cle, contenu: "un fait initial" });
     const c = clientScope();
     await c.auth.signInWithPassword({ email: u.email, password: MDP });
-    await donnerConsentement(c, u.id); // re-consent puis révoque → état propre
+    await reposerConsentement(admin, u.id); // le test précédent a révoqué — et 0041 rend ça irréversible
     await c.from("consentement").update({ revoked_at: new Date().toISOString() }).eq("utilisatrice_id", u.id).is("revoked_at", null);
     expect((await c.rpc("a_consenti_art9")).data).toBe(false);
 
@@ -229,7 +230,7 @@ describe("fait_extrait — write-gate art. 9 & droits RGPD survivants (AC5, poin
     await admin.from("fait_extrait").insert({ utilisatrice_id: u.id, origine: "utilisatrice", statut: "supprime", cle_dedoublonnage: cle, contenu: "" });
     const c = clientScope();
     await c.auth.signInWithPassword({ email: u.email, password: MDP });
-    await donnerConsentement(c, u.id); // même consentante, la ré-activation par le chemin utilisatrice est interdite
+    await reposerConsentement(admin, u.id); // même consentante, la ré-activation par le chemin utilisatrice est interdite
     const { error } = await c.rpc("fusionner_fait_extrait", { p_origine: "utilisatrice", p_statut: "actif", p_cle: cle, p_contenu: "re-actif", p_extrait_source: null });
     expect(error).not.toBeNull();
     await c.auth.signOut();

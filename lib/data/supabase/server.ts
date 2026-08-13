@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { OPTIONS_COOKIE_SESSION } from "./cookies-session";
 
 /**
  * Client Supabase SERVEUR — scopé à l'utilisatrice via ses cookies de session, RLS active.
@@ -14,6 +15,9 @@ export async function createSupabaseServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      // Le cookie porte l'access_token ET le refresh_token : il ne doit être ni lisible par le
+      // JavaScript de page, ni transmis en clair (voir `cookies-session.ts`).
+      cookieOptions: OPTIONS_COOKIE_SESSION,
       cookies: {
         getAll() {
           return cookieStore.getAll();

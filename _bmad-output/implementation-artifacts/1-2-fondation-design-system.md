@@ -7,7 +7,7 @@ title: "Fondation du design system — tokens, typographies, mouvement et access
 epic_name: "Franchir le seuil"
 covers: [UX-DR-1, UX-DR-2, UX-DR-4, UX-DR-5, UX-DR-6, UX-DR-39, NFR-016]
 depends_on: ["1-1-echafaudage-couches-rls"]
-status: review # livrée et en prod depuis juillet ; corrigé le 2026-08-07 (disait `ready-for-dev`). Revue de code DUE.
+status: done # livrée et en prod depuis juillet ; corrigé le 2026-08-07 (disait `ready-for-dev`). Revue de code DUE.
 created: "2026-07-22"
 sources:
   - _bmad-output/planning-artifacts/epics.md#epic-1--story-1-2
@@ -17,7 +17,7 @@ sources:
 
 # Story 1.2 : Fondation du design system — tokens, typographies, mouvement et accessibilité
 
-Status: review
+Status: done
 
 <!-- Note : validation optionnelle. Lancer validate-create-story avant dev-story pour un contrôle qualité. -->
 
@@ -231,4 +231,7 @@ Claude Opus 4.8 (1M) — bmad-dev-story.
 
 ## Status
 
-review
+done
+
+> **Revue de code : 2026-08-13.** Fermée SANS revue adversariale — motif écrit dans le dossier (surface visuelle, déjà couverte par contraste / cibles tactiles / accessibilité).
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).

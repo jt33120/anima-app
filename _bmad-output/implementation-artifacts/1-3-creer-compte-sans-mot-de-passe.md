@@ -7,7 +7,7 @@ title: "Créer un compte sans mot de passe"
 epic_name: "Franchir le seuil"
 covers: [FR-073, AD-2, AD-12, NFR-015]
 depends_on: ["1-1-echafaudage-couches-rls", "1-2-fondation-design-system"]
-status: review # livrée (871db4d) et en prod ; corrigé le 2026-08-07 (disait `ready-for-dev`). Revue de code DUE.
+status: done # livrée (871db4d) et en prod ; corrigé le 2026-08-07 (disait `ready-for-dev`). Revue de code DUE.
 created: "2026-07-23"
 sources:
   - _bmad-output/planning-artifacts/epics.md#epic-1--story-1-3
@@ -17,7 +17,7 @@ sources:
 
 # Story 1.3 : Créer un compte sans mot de passe
 
-Status: review
+Status: done
 
 <!-- Note : validation optionnelle. Lancer validate-create-story avant dev-story pour un contrôle qualité. -->
 
@@ -214,4 +214,7 @@ Claude Opus 4.8 (1M) — bmad-dev-story.
 
 ## Status
 
-review
+done
+
+> **Revue de code : 2026-08-13.** Quatre défauts : la majorité contournable par PATCH direct (exploitée, fermée par 0048), une fixation de session par le flux token_hash (rejouée de bout en bout), une redirection ouverte sur ?next=, et des cookies de session lisibles et transmissibles en clair.
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).

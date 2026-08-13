@@ -1,7 +1,19 @@
+import { decoderEntites, normaliserTexte, UN_MOT_INTERCALE } from "./normalisation-texte";
+
 /**
  * Le LEXIQUE INTERDIT (Story 2.8, T1) — source unique PURE (AD-1, zéro I/O). Miroir de la charte
  * `anam-voice.md` §11 + `EXPERIENCE.md` §Lexique. C'est la matière première du contrôle bloquant
- * transversal (T5, `tests/lexique-voix.test.ts`) et la référence de la consigne de voix (T3).
+ * transversal (T5, `tests/lexique-voix.test.ts`).
+ *
+ * ⚠️ IL NE BORNE PAS CE QU'ANAM DIT EN DIRECT — et cet en-tête laissait croire le contraire (revue
+ * du 2026-08-12). Il se disait « la référence de la consigne de voix (T3) ». Vérifié :
+ * `chercherInterdits` n'a AUCUN appelant en production — cinq consommateurs, tous des tests — et
+ * `consigne-voix.ts` n'importe pas ce module : ses interdits y sont RECOPIÉS en prose.
+ *
+ * À savoir avant d'ajouter un terme ici : cela ne changera RIEN à ce que le modèle produit. Ce
+ * lexique garde le contenu STATIQUE (libellés, corpus d'Anima) ; la voix vivante est bornée par la
+ * consigne, et le seul lien entre les deux est la vigilance humaine. `tests/lexique-voix.test.ts`
+ * atteste au moins qu'aucune FAMILLE ne disparaît de la consigne — c'est grossier, et c'est dit.
  *
  * ⚠️ PROVISOIRE — porte pré-lancement produit/clinique. On code la MÉCANIQUE de détection ; la liste
  * éditoriale exacte reste à valider (produit ; juriste/pro pour ce qui borde la détresse).
@@ -31,17 +43,16 @@ export interface Interdit {
 }
 
 /**
- * Normalise pour la comparaison LEXICALE : retire les diacritiques, unifie les apostrophes, passe en
- * minuscules, écrase les espaces. Les emoji survivent (traités à part, sur le texte d'origine).
+ * ⚠️ LA NORMALISATION EST PARTAGÉE AVEC `marqueurs-prediction.ts` (revue du 2026-08-12).
+ *
+ * Les deux modules en portaient une copie identique, et le second se déclare « miroir structurel »
+ * du premier. Le miroir a cessé d'en être un le jour où l'un des deux a été élargi sans l'autre —
+ * voir l'en-tête de `normalisation-texte.ts`. Une seule implémentation, désormais.
+ *
+ * Elle décode aussi les ENTITÉS HTML : la garde lit le source, l'utilisatrice lit le rendu, et
+ * `N&apos;oublie pas que tu es forte` passait entre les deux.
  */
-function normaliser(texte: string): string {
-  return texte
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // diacritiques
-    .replace(/[‘’ʼ`]/g, "'") // apostrophes typographiques → droite
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-}
+const normaliser = normaliserTexte;
 
 /**
  * Les motifs LEXICAUX, appliqués au texte NORMALISÉ (donc écrits sans accent, en minuscules). Chaque
@@ -73,15 +84,20 @@ const MOTIFS_LEXICAUX: Array<{ famille: FamilleInterdit; motif: RegExp }> = [
   { famille: "medical", motif: /\b(?:ton|ta|tes|son|sa|ses|ce|cet|cette|ces|mon|ma|mes|leur|leurs) trouble(s)?\b/g },
   { famille: "medical", motif: /\bprendre en charge\b/g },
   // Promesses d'état (charte §11.3) — phrases, pas un mot.
-  { famille: "medical", motif: /\btu iras mieux\b/g },
-  { famille: "medical", motif: /\bca va passer\b/g },
-  { famille: "medical", motif: /\btu seras plus heureuse\b/g },
+  { famille: "medical", motif: new RegExp(`\\btu ${UN_MOT_INTERCALE}iras ${UN_MOT_INTERCALE}mieux\\b`, "g") },
+  { famille: "medical", motif: new RegExp(`\\b(?:ca|cela|tout ca|tout cela) ${UN_MOT_INTERCALE}va ${UN_MOT_INTERCALE}passer\\b`, "g") },
+  { famille: "medical", motif: new RegExp(`\\btu ${UN_MOT_INTERCALE}seras ${UN_MOT_INTERCALE}plus heureuse\\b`, "g") },
 
   // ── « soin/soigner » (FR-023) — le VERBE et la locution, jamais le substantif « soin » ─────────
   // Formes VERBALES bornées (revue 2.8) : jamais l'adverbe « soigneusement », l'adjectif « soigneux »
-  // ni le nom « soignant » (orientation vers un pro, légitime). Résidu assumé : « soigné » (participe)
-  // se normalise en « soigne » et coïncide avec le verbe → allowlister si un libellé légitime l'emploie.
-  { famille: "soigner", motif: /\bsoign(er|e|es|ent|ait|aient|ais|era|eras|erai|erons|erez|eront|erais|erait)\b/g },
+  // ni le nom « soignant » (orientation vers un pro, légitime).
+  //
+  // ⚠️ LE PARTICIPE FÉMININ ÉTAIT ABSENT (revue du 2026-08-12). Le commentaire d'origine affirmait
+  // que « soigné » se normalise en « soigne » et « coïncide avec le verbe » — vrai au MASCULIN,
+  // faux au féminin : « soignée » se normalise en « soignee », qui ne figurait dans aucune
+  // alternance. Or cette application tutoie une femme : « Anam t'a soignée » est exactement la
+  // forme que le produit écrirait, et c'était la seule qui manquait.
+  { famille: "soigner", motif: /\bsoign(er|e|ee|es|ees|ent|ait|aient|ais|era|eras|erai|erons|erez|eront|erais|erait)\b/g },
   { famille: "soigner", motif: /\bprends? soin de\b/g },
 
   // ── Formulations bannies (FR-085 — charte §3/§4/§6) — des PHRASES ──────────────────────────────
@@ -103,15 +119,43 @@ const MOTIFS_LEXICAUX: Array<{ famille: FamilleInterdit; motif: RegExp }> = [
   { famille: "affect", motif: /\bje suis fiere\b/g },
   { famille: "affect", motif: /\bje m'inquiete\b/g },
   { famille: "affect", motif: /\bj'ai ete triste\b/g },
-  { famille: "affect", motif: /\bje comprends (totalement |vraiment )?ce que tu (vis|traverses)\b/g },
+  // ⚠️ JUSQU'À TROIS MOTS INTERCALÉS ICI, et pas un — délibéré (revue du 2026-08-12).
+  //
+  // Le fragment partagé `UN_MOT_INTERCALE` en autorise UN, parce qu'il sépare un pronom d'un verbe :
+  // au-delà, les faux positifs explosent. Ce motif-ci est ancré des DEUX côtés par des chaînes très
+  // spécifiques — « je comprends » … « ce que tu vis/traverses » — donc élargir la fenêtre ne coûte
+  // presque rien et couvre les adverbiaux réels : « parfaitement », « bien », « tout à fait »
+  // (trois mots), « très bien ». L'énumération d'origine (`totalement |vraiment `) n'en couvrait
+  // que deux, choisis à la main.
+  { famille: "affect", motif: /\bje comprends (?:[a-z']+ ){0,3}ce que tu (?:vis|traverses)\b/g },
 ];
 
-// Emoji, sur le texte D'ORIGINE. On exige une PRÉSENTATION emoji — pictogramme par défaut
-// (`Emoji_Presentation` : 😊✅❌⛔ et les indicateurs régionaux des drapeaux) OU pictogramme + sélecteur
-// VS16 (`…️` : ❤️⚠️) — pour ÉPARGNER les glyphes typographiques/juridiques nus © ® ™ ♀ ♥ ▶ (qui
-// sont Extended_Pictographic mais à présentation TEXTE) et ne pas casser un pied de page « © Anima »
-// (revue 2.8). Résidu connu : les keycaps « 1️⃣ » restent hors périmètre (déféré, deferred-work).
-const MOTIF_EMOJI = new RegExp("\\p{Emoji_Presentation}|\\p{Extended_Pictographic}\\uFE0F", "gu");
+// ── L'ÉMOJI : ON DÉCLARE CE QU'ON ACCEPTE, PAS CE QU'ON REFUSE (revue du 2026-08-12) ──────────
+//
+// La règle exigeait une PRÉSENTATION emoji — `Emoji_Presentation` (😊✅❌⛔) ou pictogramme + VS16
+// (❤️⚠️) — pour épargner les glyphes typographiques et juridiques nus © ® ™ ♀ ♥ ▶.
+//
+// L'intention était juste, la mécanique la dépassait de loin. Mesuré : ☺ ☹ ☠ ✌ ☝ ✍ ❄ ✈ ✂ ✔ ‼ ⁉
+// passaient tous — ce sont des pictogrammes à présentation TEXTE par défaut dans Unicode, mais
+// iOS et Android les rendent EN COULEUR. Sur une PWA, `☺` dans un libellé est un émoji à l'écran,
+// et il franchissait le seul contrôle bloquant du produit sur la voix.
+//
+// La règle est donc inversée : tout `Extended_Pictographic` est banni, SAUF une liste blanche
+// courte et écrite. Une liste blanche se lit et se discute ; une exclusion par propriété Unicode
+// se raisonne — et ce raisonnement-là s'était trompé de douze caractères.
+const TYPOGRAPHIQUES_PERMIS = new Set([
+  "©", "®", "™", // mentions juridiques — un pied de page « © Anima » ne doit pas rougir
+  "♀", "♂", // symboles de genre, employés en prose
+  "♥", "♦", "♣", "♠", // cartes : le tirage de la 4.x en parle
+  "▶", "◀", "▲", "▼", // triangles de direction, purement typographiques
+  "✓", "✗", // coches ASCII-adjacentes, sans présentation couleur sur les plateformes visées
+  "‹", "›", "«", "»",
+]);
+// ⚠️ `Regional_Indicator` EN PLUS, et ce n'est pas un détail : un drapeau (🇫🇷) est composé de deux
+// indicateurs régionaux, qui ne sont PAS `Extended_Pictographic`. L'ancienne règle les attrapait via
+// `Emoji_Presentation` ; inverser la règle sans cette alternance les aurait perdus en silence — une
+// régression introduite en corrigeant, ce qui est la façon la plus courante d'en introduire une.
+const MOTIF_PICTOGRAMME = /\p{Extended_Pictographic}|\p{Regional_Indicator}/gu;
 
 /**
  * Cherche tous les interdits d'un texte. Retourne la liste des `{ famille, terme }` matchés (vide si
@@ -125,7 +169,10 @@ export function chercherInterdits(texte: string): Interdit[] {
       trouvailles.push({ famille, terme: m[0] });
     }
   }
-  for (const m of texte.matchAll(MOTIF_EMOJI)) {
+  // Sur le texte D'ORIGINE (la casse et les accents n'ont aucun sens pour un pictogramme), mais
+  // entités décodées : `&#128522;` est un émoji écrit autrement.
+  for (const m of decoderEntites(texte).matchAll(MOTIF_PICTOGRAMME)) {
+    if (TYPOGRAPHIQUES_PERMIS.has(m[0])) continue;
     trouvailles.push({ famille: "emoji", terme: m[0] });
   }
   return trouvailles;

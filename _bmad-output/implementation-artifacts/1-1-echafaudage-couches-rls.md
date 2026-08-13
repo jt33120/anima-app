@@ -6,7 +6,7 @@ story: 1
 title: "Poser l'échafaudage en couches et prouver la RLS deny-by-default"
 epic_name: "Franchir le seuil"
 covers: [AD-1, AD-10, AD-12]
-status: review
+status: done
 created: "2026-07-22"
 sources:
   - _bmad-output/planning-artifacts/epics.md#epic-1--story-1-1
@@ -15,7 +15,7 @@ sources:
 
 # Story 1.1 : Poser l'échafaudage en couches et prouver la RLS deny-by-default
 
-Status: review
+Status: done
 
 <!-- Note : validation optionnelle. Lancer validate-create-story avant dev-story pour un contrôle qualité. -->
 
@@ -228,4 +228,7 @@ Claude Opus 4.8 (1M) — bmad-dev-story.
 
 ## Status
 
-review
+done
+
+> **Revue de code : 2026-08-13.** AC3 et AC4 étaient partiellement faux : la garde de couches ne mordait ni sur les chemins relatifs remontants ni sur l'import dynamique, et le garde structurel RLS promis n'avait jamais été écrit. Les deux sont fermés.
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).

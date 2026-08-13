@@ -43,6 +43,10 @@ export default defineConfig({
           name: "node",
           environment: "node",
           include: ["tests/**/*.test.ts"],
+          // La suite interroge la base LOCALE, jamais celle de lancement : voir l'en-tête de
+          // `tests/_environnement.ts` pour la mesure qui l'impose (32 connexions / 5 min en cloud,
+          // 95 par passe ici). Chargé avant tout client, et sans écraser un environnement explicite.
+          setupFiles: ["./tests/_environnement.ts"],
         },
       },
       {
@@ -51,7 +55,7 @@ export default defineConfig({
           name: "rendu",
           environment: "jsdom",
           include: ["tests/rendu/**/*.test.tsx"],
-          setupFiles: ["./tests/rendu/_installation.ts"],
+          setupFiles: ["./tests/_environnement.ts", "./tests/rendu/_installation.ts"],
         },
       },
     ],

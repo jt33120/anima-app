@@ -71,8 +71,23 @@ function cibles(): string[] {
 }
 
 describe("Story 2.8 — contrôle bloquant : garde non-vacue + contrôle positif (jamais tautologique)", () => {
-  it("scanne un nombre significatif de surfaces (découverte récursive, non vide)", () => {
-    expect(cibles().length, "trop peu de fichiers scannés — la découverte est cassée").toBeGreaterThan(15);
+  it("scanne un nombre significatif de surfaces, RACINE PAR RACINE", () => {
+    // ⚠️ LE SEUIL GLOBAL NE TUAIT PAS SON MUTANT (revue du 2026-08-12).
+    //
+    // Il exigeait `> 15` sur un balayage qui découvre 205 fichiers — treize fois trop bas. Mesuré :
+    // retirer `fichiersTs("app")` ET `fichiersTs("render")` de `cibles()`, soit 86 fichiers, soit
+    // TOUTE L'INTERFACE, laissait encore 124 cibles et la garde restait VERTE. C'est précisément le
+    // geste que cette assertion prétend interdire, et l'en-tête vante la découverte récursive comme
+    // protection contre le vert tautologique.
+    //
+    // Un seuil PAR RACINE rougit dès qu'une d'elles disparaît. Les bornes sont volontairement
+    // basses (on ne veut pas rougir parce qu'un fichier a été fusionné), mais chacune atteste
+    // l'existence de sa racine.
+    const parRacine = (prefixe: string) => cibles().filter((f) => f.startsWith(`${prefixe}/`)).length;
+    expect(parRacine("app"), "la racine `app` a disparu du balayage").toBeGreaterThan(20);
+    expect(parRacine("render"), "la racine `render` a disparu du balayage").toBeGreaterThan(20);
+    expect(parRacine("lib"), "la racine `lib` a disparu du balayage").toBeGreaterThan(60);
+    expect(cibles().length).toBeGreaterThan(150);
   });
 
   it("CONTRÔLE POSITIF : une chaîne connue-mauvaise est bien attrapée après le pipeline complet", () => {
@@ -125,4 +140,51 @@ describe("Story 2.8 — contrôle bloquant : ZÉRO lexique interdit dans le cont
       ).toEqual([]);
     });
   }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// LE LIEN LEXIQUE ↔ CONSIGNE — recopié à la main, donc surveillé (revue du 2026-08-12)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("aucune famille du lexique ne disparaît de la consigne de voix", () => {
+  /**
+   * ══ CE QUE CETTE GARDE NE PEUT PAS FAIRE, ET QUI DOIT ÊTRE DIT D'ABORD ═══════════════════════
+   *
+   * `chercherInterdits` n'est appelée par AUCUN code de production — vérifié : cinq consommateurs,
+   * tous des tests. Le lexique garde le contenu STATIQUE. Ce qu'Anam dit EN DIRECT n'est borné que
+   * par `consigne-voix.ts`, qui ne l'importe pas : ses interdits y sont recopiés en prose.
+   *
+   * Ajouter un terme au lexique ne change donc rien à ce que le modèle produit. L'en-tête du
+   * lexique affirmait pourtant en être « la référence » — c'était faux, et c'est corrigé là-bas.
+   *
+   * ══ CE QU'ELLE FAIT ══════════════════════════════════════════════════════════════════════════
+   *
+   * Le minimum honnête : si une FAMILLE entière cessait d'être nommée dans la consigne, la copie
+   * manuelle aurait dérivé sur un axe complet — et rien ne le dirait. C'est une garde grossière,
+   * elle ne prétend pas mieux. La vraie garde reste la relecture.
+   */
+  const FAMILLES: Array<[string, RegExp]> = [
+    ["medical", /th[ée]rapie|diagnostic|soignante|professionnelle de sant[ée]|prise en charge/i],
+    ["soigner", /soigner|gu[ée]rir|\bsoin/i],
+    ["formulation", /bravo|excellente|f[ée]licit|complais|flatt/i],
+    ["affect", /je ressens|[ée]motion|affect|ressentir/i],
+    ["emoji", /emoji|[ée]moji/i],
+  ];
+
+  it("[CONTRÔLE DU CONTRÔLE] la consigne est bien lue et n'est pas vide", async () => {
+    const { consigneVoixAnam } = await import("@/lib/domain/consigne-voix");
+    const texte = JSON.stringify(consigneVoixAnam());
+    expect(texte.length, "consigne vide — la garde ci-dessous serait creuse").toBeGreaterThan(400);
+  });
+
+  it("chaque famille reste NOMMÉE dans la consigne", async () => {
+    const { consigneVoixAnam } = await import("@/lib/domain/consigne-voix");
+    const texte = JSON.stringify(consigneVoixAnam());
+    for (const [famille, motif] of FAMILLES) {
+      expect(
+        motif.test(texte),
+        `la famille « ${famille} » n'apparaît plus dans la consigne : la copie manuelle a dérivé`,
+      ).toBe(true);
+    }
+  });
 });

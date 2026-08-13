@@ -5,8 +5,42 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
 import { appliquerBarriereMinorite } from "@/lib/safety/appliquer-barriere";
+import { origineDuSite } from "@/lib/courriel/origine";
 
 export type EtatEntree = { ok: boolean; message?: string };
+
+/** Les seuls hôtes pour lesquels `http:` reste acceptable — miroir de `lib/courriel/origine.ts`. */
+const HOTES_LOCAUX = new Set(["localhost", "127.0.0.1"]);
+
+/**
+ * L'origine sur laquelle le lien de connexion ramènera — CONFIGURÉE d'abord, déduite ensuite.
+ *
+ * ── CE QUI A ÉTÉ TROUVÉ (revue du 2026-08-13) ──────────────────────────────────────────────────
+ *
+ * Le lien était construit ainsi :
+ *
+ *     const proto = h.get("x-forwarded-proto") ?? "http";
+ *
+ * Le repli sur `"http"` est un repli OUVERT : quand l'en-tête manque — proxy mal réglé, edge
+ * intermédiaire, exécution hors Vercel — le lien de connexion part EN CLAIR par courriel. Il est
+ * alors interceptable, et il rétrograde la session vers une origine non chiffrée.
+ *
+ * Le contraste interne est ce qui rend le défaut net : `lib/courriel/origine.ts` refuse déjà
+ * exactement ça (« un lien en clair dans un courriel est interceptable et rétrogradable ») — mais
+ * il ne gardait QUE le courriel de synthèse. Le courriel de CONNEXION, celui qui ouvre le compte,
+ * n'en bénéficiait pas. On lui donne le même validateur, et le repli déduit passe en `https` sauf
+ * pour un hôte local nommé.
+ */
+async function origineDuLien(): Promise<string> {
+  const configuree = origineDuSite();
+  if (configuree) return configuree;
+
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const local = HOTES_LOCAUX.has(host.split(":")[0]);
+  const proto = h.get("x-forwarded-proto") ?? (local ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 /**
  * Envoie le magic link (Story 1.3, AC1). SANS mot de passe (FR-073).
@@ -22,14 +56,10 @@ export async function envoyerLien(
     return { ok: false, message: "Entre une adresse e-mail valide." };
   }
 
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: `${proto}://${host}/auth/confirm` },
+    options: { emailRedirectTo: `${await origineDuLien()}/auth/confirm` },
   });
 
   if (error) {
@@ -106,7 +136,10 @@ async function assurerSessionDemoConsentie(
  * dans la scène, sans repasser par le tunnel.
  */
 export async function entreeDemo(): Promise<void> {
-  if (process.env.NODE_ENV === "production") redirect("/entrer");
+  // Refus écrit à l'ENVERS, exprès : la forme naturelle (`=== "production"`) échoue OUVERT
+  // quand `NODE_ENV` manque, et cette porte ouvre un client `service_role` depuis une page
+  // publique. Écrite ainsi, une variable absente REFUSE.
+  if (process.env.NODE_ENV !== "development") redirect("/entrer");
   await assurerSessionDemoConsentie();
   redirect("/"); // → la scène
 }
@@ -118,7 +151,10 @@ export async function entreeDemo(): Promise<void> {
  * exposée avec un uid arbitraire côté client (elle est `server-only`).
  */
 export async function entreeDemoSuspendue(): Promise<void> {
-  if (process.env.NODE_ENV === "production") redirect("/entrer");
+  // Refus écrit à l'ENVERS, exprès : la forme naturelle (`=== "production"`) échoue OUVERT
+  // quand `NODE_ENV` manque, et cette porte ouvre un client `service_role` depuis une page
+  // publique. Écrite ainsi, une variable absente REFUSE.
+  if (process.env.NODE_ENV !== "development") redirect("/entrer");
   // Compte démo DÉDIÉ (jamais le compte démo normal) : la barrière n'étant jamais levée en Epic 1
   // (le moteur de rétention = Story 6.8), suspendre le compte partagé le laisserait « barre » à
   // vie et le bouton « démo » normal atterrirait ensuite toujours sur /barriere (revue 1.9).

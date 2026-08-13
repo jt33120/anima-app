@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
+import { reposerConsentement } from "./_rig-consentement";
 import { envoyerSousEgressArt9 } from "@/lib/ai/egress-guard";
 import type { AiPort, EvenementIa, RequeteIa } from "@/lib/ai/port";
 
@@ -110,10 +111,10 @@ describe("Egress-guard art. 9 (AD-13, AC4)", () => {
     await c.auth.signInWithPassword({ email: u.email, password: u.password });
     // Consentement de nouveau valide (le test précédent l'avait révoqué) → on prouve que c'est
     // bien la BARRIÈRE, pas le consentement, qui bloque (non tautologique).
-    await c.from("consentement").upsert(
-      { utilisatrice_id: u.id, art9_accorde: true, ia_reconnue: true, cgu_acceptees: true, revoked_at: null },
-      { onConflict: "utilisatrice_id" },
-    );
+    // ⚠️ Par le RIG, pas par la session : depuis 0041 une révocation ne se défait pas (S2). Ce
+    // `upsert` sous JWT réussissait avant, en silence — et s'il avait échoué, le test serait resté
+    // vert POUR LA MAUVAISE RAISON (bloqué par le consentement, pas par la barrière).
+    await reposerConsentement(admin, u.id);
     // Suspension minorité posée côté système (comme appliquer_barriere_minorite).
     await admin
       .from("utilisatrice")

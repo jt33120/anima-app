@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
+import { reposerConsentement } from "./_rig-consentement";
 import { diffuserSousEgressArt9 } from "@/lib/ai/egress-guard";
 import type { AiPort, EvenementIa, RequeteIa } from "@/lib/ai/port";
 
@@ -118,10 +119,9 @@ describe("Egress-guard sur le flux art. 9 (diffuserSousEgressArt9, AD-13, AC4)",
   it("barrière de minorité (consentement VALIDE, compte suspendu) → BLOQUÉ (minorite)", async () => {
     const c = clientScope();
     await c.auth.signInWithPassword({ email: u.email, password: u.password });
-    await c.from("consentement").upsert(
-      { utilisatrice_id: u.id, art9_accorde: true, ia_reconnue: true, cgu_acceptees: true, revoked_at: null },
-      { onConflict: "utilisatrice_id" },
-    );
+    // Par le RIG : depuis 0041 la révocation du test précédent est irréversible (trouvaille S2).
+    // Sans ça, le test resterait vert en bloquant sur le CONSENTEMENT au lieu de la BARRIÈRE.
+    await reposerConsentement(admin, u.id);
     await admin
       .from("utilisatrice")
       .update({ barriere_minorite_le: new Date().toISOString(), echeance_suppression: "2099-01-01" })

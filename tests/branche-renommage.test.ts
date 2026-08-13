@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { reposerConsentement } from "./_rig-consentement";
 
 /**
  * Story 4.6 — le RENOMMAGE d'une branche (première écriture mutante de `branche`, migration 0022).
@@ -87,10 +88,10 @@ describe("branche renommage — write-gate art. 9 dans la policy (leçon R1), UP
   // VACUEUSEMENT (ils vérifient un refus… déjà garanti par l'état sale). On remet l'état propre AVANT chacun.
   beforeEach(async () => {
     await admin.from("utilisatrice").update({ barriere_minorite_le: null }).eq("id", u.id);
-    await admin.from("consentement").upsert(
-      { utilisatrice_id: u.id, art9_accorde: true, ia_reconnue: true, cgu_acceptees: true, revoked_at: null },
-      { onConflict: "utilisatrice_id" },
-    );
+    // Depuis 0041 la révocation est TERMINALE (revue du 2026-08-11, S2) : un `upsert` remettant
+    // `revoked_at: null` lève désormais, y compris sous `service_role`. Le rig détruit la preuve
+    // et repose une ligne neuve — geste de banc d'essai, qu'aucun chemin applicatif ne fait.
+    await reposerConsentement(admin, u.id);
   });
   afterAll(async () => purger(u.id));
 
@@ -123,7 +124,8 @@ describe("branche renommage — write-gate art. 9 dans la policy (leçon R1), UP
     // la lecture survit à la révocation : le nom n'a pas bougé
     const { data } = await c.from("branche").select("nom").eq("id", u.branche).single();
     expect(data!.nom).not.toBe("après révocation");
-    await donnerConsentement(c, u.id); // restaure pour les tests suivants
+    // (Pas de restauration ici : la révocation est irréversible depuis 0041, et le `beforeEach`
+    // repose une ligne neuve avant chaque test.)
     await c.auth.signOut();
   });
 

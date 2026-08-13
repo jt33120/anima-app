@@ -43,17 +43,23 @@ async function session(email: string): Promise<SupabaseClient> {
   return c;
 }
 
+/**
+ * Pose l'état de consentement voulu. DÉTRUIT puis RÉ-INSÈRE, jamais un `upsert`.
+ *
+ * Depuis 0041 (revue du 2026-08-11, trouvaille S2), la révocation art. 9 est TERMINALE en base —
+ * `service_role` compris. Ce helper faisait auparavant l'aller-retour révoqué → valide, ce qui ne
+ * marchait que parce que N'IMPORTE QUELLE utilisatrice pouvait le faire par un `PATCH` direct.
+ */
 async function consentir(id: string, options: { revoque?: boolean } = {}) {
-  const { error } = await admin.from("consentement").upsert(
-    {
-      utilisatrice_id: id,
-      art9_accorde: true,
-      ia_reconnue: true,
-      cgu_acceptees: true,
-      revoked_at: options.revoque ? new Date().toISOString() : null,
-    },
-    { onConflict: "utilisatrice_id" },
-  );
+  const { error: eSuppression } = await admin.from("consentement").delete().eq("utilisatrice_id", id);
+  if (eSuppression) throw new Error(`consentir (suppression) : ${eSuppression.message}`);
+  const { error } = await admin.from("consentement").insert({
+    utilisatrice_id: id,
+    art9_accorde: true,
+    ia_reconnue: true,
+    cgu_acceptees: true,
+    revoked_at: options.revoque ? new Date().toISOString() : null,
+  });
   if (error) throw new Error(`consentir: ${error.message}`);
 }
 

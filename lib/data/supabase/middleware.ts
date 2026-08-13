@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { OPTIONS_COOKIE_SESSION } from "./cookies-session";
 
 /**
  * Rafraîchit silencieusement la session à chaque requête (Story 1.3, AC4).
@@ -36,6 +37,9 @@ export async function updateSession(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      // Mêmes attributs que `server.ts` — un seul objet partagé, sinon le durcissement d'un chemin
+      // laisse l'autre poser l'ancien cookie (voir `cookies-session.ts`).
+      cookieOptions: OPTIONS_COOKIE_SESSION,
       cookies: {
         getAll() {
           return request.cookies.getAll();

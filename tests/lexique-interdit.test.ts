@@ -100,3 +100,155 @@ describe("Story 2.8 — lexique interdit : robustesse casse + accents", () => {
     expect(chercherInterdits("Anxiete").length).toBeGreaterThan(0);
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// REVUE DU 2026-08-12 — QUATRE FAÇONS D'ÉCRIRE L'INTERDIT SANS ÊTRE VU
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[revue 2.8] les ENTITÉS HTML ne neutralisent plus le contrôle", () => {
+  /**
+   * ══ LE DÉFAUT ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * La garde lit le SOURCE, l'utilisatrice lit le RENDU. Entre les deux, `&apos;` et `&nbsp;`.
+   * Mesuré : neuf phrases interdites sur douze passaient sous cette forme.
+   *
+   * Ce n'était pas une hypothèse d'école. DIX fichiers du produit écrivent déjà ainsi, et ce sont
+   * exactement les pages où vit la prose sensible : les CGU, le consentement, la page d'aide,
+   * l'écran de barrière. Une réécriture éditoriale qui y glisse « n'oublie pas que tu es forte »
+   * n'aurait jamais rougi.
+   *
+   * Un balayage complet du dépôt entités décodées n'a révélé AUCUNE violation masquée : le trou
+   * était ouvert, personne n'était encore tombé dedans.
+   */
+  const PAIRES: Array<[string, string]> = [
+    ["N&apos;oublie pas que tu es forte.", "N'oublie pas que tu es forte."],
+    ["C&apos;est normal de ressentir ça.", "C'est normal de ressentir ça."],
+    ["Je m&apos;inquiète pour toi.", "Je m'inquiète pour toi."],
+    ["Je&nbsp;ressens ta peine.", "Je ressens ta peine."],
+    ["Anam peut te prendre&nbsp;en&nbsp;charge.", "Anam peut te prendre en charge."],
+    ["Tu&nbsp;iras&nbsp;mieux.", "Tu iras mieux."],
+    ["Bonjour &#128522;", "Bonjour 😊"],
+  ];
+
+  it("[CONTRÔLE POSITIF] la forme NUE est bien attrapée — sinon la paire ne prouve rien", () => {
+    for (const [, nue] of PAIRES) {
+      expect(chercherInterdits(nue).length, `la forme nue passe : « ${nue} »`).toBeGreaterThan(0);
+    }
+  });
+
+  it("[LE TEST QUI COMPTE] la forme ÉCHAPPÉE est attrapée exactement pareil", () => {
+    for (const [echappee, nue] of PAIRES) {
+      expect(chercherInterdits(echappee).length, `« ${echappee} » passe encore`).toBeGreaterThan(0);
+      expect(
+        chercherInterdits(echappee).length,
+        `« ${echappee} » et « ${nue} » ne donnent pas le même verdict`,
+      ).toBe(chercherInterdits(nue).length);
+    }
+  });
+
+  it("une entité qui n'est PAS un interdit reste inoffensive", () => {
+    // Le décodage ne doit pas fabriquer des interdits : « article&nbsp;9 » est du texte légitime,
+    // écrit ainsi dans le formulaire de consentement pour ne pas couper la référence légale.
+    expect(chercherInterdits("l&apos;article&nbsp;9 du RGPD")).toEqual([]);
+    expect(chercherInterdits("18&nbsp;ans minimum")).toEqual([]);
+  });
+});
+
+describe("[revue 2.8] UN MOT INTERCALÉ — le miroir avait cessé d'en être un", () => {
+  /**
+   * `marqueurs-prediction.ts` se déclare « miroir structurel » de ce lexique. Il a été élargi le
+   * 2026-08-12 pour accepter un mot entre le pronom et le verbe (« tu **ne** verras »), après avoir
+   * mesuré qu'il n'attrapait que deux phrases prédictives sur onze. Le correctif n'a pas traversé
+   * le miroir : le même jour, ici, « je comprends PARFAITEMENT ce que tu vis » passait encore.
+   *
+   * Le fragment est désormais PARTAGÉ (`normalisation-texte.ts`) — deux implémentations d'un même
+   * invariant divergent, et celles-ci avaient divergé le jour même de la correction.
+   */
+  it("[LE TEST QUI COMPTE] l'adverbe intercalé ne fait plus passer la phrase", () => {
+    for (const phrase of [
+      "Je comprends parfaitement ce que tu vis.",
+      "Je comprends bien ce que tu traverses.",
+      "Je comprends tout à fait ce que tu vis.",
+      "Tu iras beaucoup mieux.",
+      "Tu iras bientôt mieux.",
+      "Tout cela va passer.",
+      "Cela va passer.",
+    ]) {
+      expect(chercherInterdits(phrase).length, `« ${phrase} » passe encore`).toBeGreaterThan(0);
+    }
+  });
+
+  it("[CONTRÔLE] les formes ADJACENTES restent attrapées (on n'a rien cassé)", () => {
+    for (const phrase of ["Je comprends ce que tu vis.", "Tu iras mieux.", "Ça va passer."]) {
+      expect(chercherInterdits(phrase).length, `« ${phrase} »`).toBeGreaterThan(0);
+    }
+  });
+
+  it("[CONTRÔLE NÉGATIF] l'élargissement n'avale pas du légitime", () => {
+    for (const phrase of [
+      "Je comprends que tu veuilles arrêter.",
+      "Tu iras voir un professionnel si tu le souhaites.",
+      "Le temps va passer, et c'est tout ce qu'on sait.",
+    ]) {
+      expect(chercherInterdits(phrase), `faux positif : « ${phrase} »`).toEqual([]);
+    }
+  });
+});
+
+describe("[revue 2.8] « soignée » — le participe FÉMININ manquait, dans une app qui tutoie une femme", () => {
+  /**
+   * Le commentaire du lexique affirmait que « soigné » se normalise en « soigne » et « coïncide
+   * avec le verbe ». Vrai au masculin. Faux au féminin : « soignée » → « soignee », absent de
+   * l'alternance. La seule forme que ce produit écrirait réellement était la seule qui manquait.
+   */
+  it("[LE TEST QUI COMPTE] les formes féminines sont attrapées", () => {
+    for (const phrase of ["Anam t'a soignée.", "Tu seras soignée.", "des blessures soignées"]) {
+      expect(chercherInterdits(phrase).length, `« ${phrase} » passe encore`).toBeGreaterThan(0);
+    }
+  });
+
+  it("[CONTRÔLE] le masculin l'était déjà, et l'est toujours", () => {
+    expect(chercherInterdits("un patient soigné").length).toBeGreaterThan(0);
+  });
+
+  it("[CONTRÔLE NÉGATIF] l'adverbe, l'adjectif et le nom restent épargnés", () => {
+    for (const phrase of [
+      "soigneusement rangé",
+      "un soignant t'accompagnera",
+      "le soin des choses",
+      "des soins de support",
+    ]) {
+      expect(chercherInterdits(phrase), `faux positif : « ${phrase} »`).toEqual([]);
+    }
+  });
+});
+
+describe("[revue 2.8] l'émoji : on déclare ce qu'on accepte, pas ce qu'on refuse", () => {
+  /**
+   * La règle exigeait une PRÉSENTATION emoji, pour épargner les glyphes juridiques nus © ® ™. Elle
+   * épargnait du même coup ☺ ☹ ☠ ✌ ☝ ✍ ❄ ✈ ✂ ‼ ⁉ — pictogrammes à présentation TEXTE dans Unicode,
+   * mais rendus EN COULEUR par iOS et Android. Sur une PWA, `☺` dans un libellé EST un émoji à
+   * l'écran, et il franchissait le seul contrôle bloquant du produit sur la voix.
+   */
+  it("[LE TEST QUI COMPTE] les pictogrammes à présentation TEXTE sont bannis aussi", () => {
+    for (const g of ["☺", "☹", "☠", "✌", "☝", "✍", "❄", "✈", "✂", "‼", "⁉"]) {
+      expect(chercherInterdits(`Un libellé ${g} ici`).length, `« ${g} » passe`).toBeGreaterThan(0);
+    }
+  });
+
+  it("[CONTRÔLE] les émoji évidents le restent, drapeaux compris", () => {
+    // ⚠️ Le drapeau est composé d'INDICATEURS RÉGIONAUX, qui ne sont pas `Extended_Pictographic` :
+    // inverser la règle sans les rajouter explicitement les aurait perdus en silence — une
+    // régression introduite EN CORRIGEANT, la façon la plus courante d'en introduire une.
+    for (const g of ["😊", "❤️", "☕", "❗", "🇫🇷"]) {
+      expect(chercherInterdits(`Un libellé ${g} ici`).length, `« ${g} » passe`).toBeGreaterThan(0);
+    }
+  });
+
+  it("[CONTRÔLE NÉGATIF] la liste blanche typographique et juridique est épargnée", () => {
+    // Un pied de page « © Anima » ne doit pas faire échouer la construction du produit.
+    for (const g of ["©", "®", "™", "♀", "♂", "♥", "♦", "♣", "♠", "▶", "◀", "✓", "✗", "«", "»"]) {
+      expect(chercherInterdits(`© Anima 2026 ${g}`), `faux positif : « ${g} »`).toEqual([]);
+    }
+  });
+});

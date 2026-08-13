@@ -2,6 +2,10 @@
 
 Éléments réels, non actionnables maintenant (pré-existants ou hors périmètre de la story en cours), à reprendre au bon moment.
 
+> **Les portes pré-lancement sont désormais rassemblées dans [PORTES-AVANT-PUBLICATION.md](PORTES-AVANT-PUBLICATION.md).**
+> Elles restent écrites ici, dans la section de la story qui les a rencontrées — ce fichier garde le
+> contexte, l'autre donne la vue d'ensemble. Une porte nouvelle s'écrit aux deux endroits.
+
 ## Deferred from: code review of 1-5-consentement-art9-declaration-ia (2026-07-23)
 
 - **✅ Garde de route sur la scène `/` — FAIT (Story 1.6).** `/` est désormais gardée par `etapeOnboardingPour` (compte + majorité + consentement, + routage de l'état `revoque`) et rend la scène 2D à la place du prototype WebGL. [app/page.tsx]

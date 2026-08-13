@@ -53,9 +53,17 @@ export async function POST(request: Request) {
   // le patron `REFUS_RAYONNEMENT` de la 4.7.
   if (reservation === "non_eligible") return vers("non_eligible");
 
-  // Déjà demandé : succès, sans rappeler Stripe. C'est le comportement idempotent attendu d'un
-  // double-clic, et il ne doit surtout pas ressembler à une erreur pour quelqu'un qui attend son argent.
-  if (reservation.dejaDemande) return vers("rembourse");
+  // ⚠️ NE COURT-CIRCUITE QUE SI STRIPE A CONFIRMÉ (revue du 2026-08-11, M3).
+  //
+  // La version d'origine rendait « remboursée » dès que la réservation existait. Un premier appel
+  // Stripe échoué — timeout, 5xx, lambda tuée — devenait donc DÉFINITIF : chaque nouvelle tentative
+  // répondait « le remboursement arrive » sans jamais rappeler Stripe, et `confirme_le` n'était lue
+  // nulle part, donc personne ne pouvait s'en apercevoir.
+  //
+  // C'est pourtant ce que la RPC de 0038 disait déjà en toutes lettres : « on rend la MÊME clé,
+  // c'est ce qui fait qu'un retry de la route REPARLE À STRIPE de la même opération ». Reparler,
+  // pas répondre. L'`idempotencyKey` existe exactement pour que ce rejeu ne rembourse pas deux fois.
+  if (reservation.dejaDemande && reservation.confirmeLe) return vers("rembourse");
 
   if (!reservation.subscriptionId) {
     console.error("[abonnement/remboursement] réservation sans subscriptionId");
@@ -63,7 +71,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    await rembourserIntegralement(reservation.subscriptionId, user.id, reservation.cle);
+    const issue = await rembourserIntegralement(reservation.subscriptionId, user.id, reservation.cle);
+    // AUCUN PAIEMENT RETROUVÉ. Le cas est LÉGITIME sur le chemin minorité (FR-071 s'applique même à
+    // un compte qui n'a jamais payé) et ANORMAL sur le chemin garantie, qui exige un abonnement
+    // actif. On le dit à l'écran au lieu d'annoncer un virement, et on le journalise — sans PII.
+    if (issue === "rien_a_rembourser") {
+      console.error("[abonnement/remboursement] aucun paiement retrouvé — résilié sans remboursement");
+      return vers("sans_paiement");
+    }
     // La CONFIRMATION viendra du webhook `refund.created` (l'événement fait autorité, convention
     // « Événements externes ») — pas de cette réponse, qui dit seulement que la demande est partie.
     return vers("rembourse");

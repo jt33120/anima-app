@@ -3,8 +3,18 @@ import { verifierEvenementStripe } from "@/lib/stripe/webhook";
 import { interpreterEvenementAbonnement, estTypeEtatAbonnement } from "@/lib/stripe/evenement-abonnement";
 import { interpreterRemboursement, interpreterReconduction } from "@/lib/stripe/evenement-sortie";
 import { creerDepotAbonnement } from "@/lib/data/depot-abonnement";
-import { confirmerRemboursement, reserverInformationReconduction } from "@/lib/data/depot-resiliation";
+import {
+  confirmerRemboursement,
+  reserverInformationReconduction,
+  libererInformationReconduction,
+} from "@/lib/data/depot-resiliation";
 import { annoncerReconduction } from "@/lib/courriel/reconduction";
+import {
+  fenetreInformationReconduction,
+  joursAvantEcheance,
+  L215_JOURS_MIN,
+  L215_JOURS_MAX,
+} from "@/lib/domain/abonnement";
 
 /**
  * Route Webhook Stripe (Story 3.1, AC2/AC3). Ordre STRICT :
@@ -54,6 +64,28 @@ export async function POST(request: NextRequest) {
 
   const reconduction = interpreterReconduction(evenement);
   if (reconduction) {
+    // ⚠️ LA FENÊTRE LÉGALE N'EST PAS UN RÉGLAGE DE CODE — MAIS SON ABSENCE DOIT SE VOIR (M10).
+    //
+    // L'art. L215-1 exige d'informer AU PLUS TÔT trois mois et AU PLUS TARD un mois avant le terme.
+    // La date d'émission d'`invoice.upcoming` est un réglage du tableau de bord Stripe (« Événements
+    // de renouvellement à venir »), dont le défaut documenté est de l'ordre de quinze jours — donc
+    // HORS FENÊTRE. Le code ne peut pas le corriger ; ce qu'il peut, c'est cesser d'être aveugle.
+    //
+    // Sans ce contrôle, un délai mal réglé produit un courriel parti, une ligne
+    // `information_reconduction` écrite, un webhook en 200 — et une obligation manquée, sans un seul
+    // signal. On ENVOIE quand même (informer hors délai vaut mieux que ne pas informer), et on crie.
+    //
+    // Le verdict vit dans `lib/domain/abonnement` (revue du 2026-08-12) : les deux comparaisons
+    // écrites ici en ligne étaient inatteignables par un test, et se taisaient sur une échéance
+    // illisible — `NaN < 30` et `NaN > 92` sont tous deux faux.
+    const verdict = fenetreInformationReconduction(reconduction.echeance, new Date());
+    if (verdict !== "dans_la_fenetre") {
+      console.error("[stripe/webhook] information de reconduction HORS FENÊTRE art. L215-1", {
+        verdict,
+        joursAvant: Math.round(joursAvantEcheance(reconduction.echeance, new Date()) ?? Number.NaN),
+        attendu: `entre ${L215_JOURS_MIN} et ${L215_JOURS_MAX} jours — régler « Upcoming renewal events » dans Stripe`,
+      });
+    }
     try {
       // Réserver AVANT d'envoyer : envoyer puis réserver enverrait deux fois au moindre rejeu, et une
       // information légale envoyée en double est un incident, pas un détail. Patron `reserver_notification`
@@ -63,7 +95,27 @@ export async function POST(request: NextRequest) {
         reconduction.providerEventId,
         reconduction.echeance,
       )) {
-        await annoncerReconduction(reconduction.utilisatriceId);
+        try {
+          await annoncerReconduction(reconduction.utilisatriceId);
+        } catch (envoi) {
+          // ⚠️ L'ENVOI A ÉCHOUÉ — ON REND SON DROIT AU REJEU (revue du 2026-08-11, M11).
+          //
+          // La réservation est committée dans sa propre transaction, AVANT l'envoi. Sans cette
+          // libération, les deux barrières d'idempotence refusent tout rattrapage : ni le même
+          // `event.id`, ni un autre événement portant la même échéance. Le courriel de l'art.
+          // L215-1 ne partirait JAMAIS, et `information_reconduction.envoye_le` attesterait qu'il
+          // est parti.
+          //
+          // Le commentaire de `lib/courriel/reconduction.ts` justifiait l'inverse en affirmant que
+          // « `invoice.upcoming` est réémis par Stripe tant que la facture n'est pas réglée ».
+          // C'est faux : il est émis UNE FOIS par cycle, avant que la facture n'existe.
+          await libererInformationReconduction(
+            reconduction.utilisatriceId,
+            reconduction.providerEventId,
+            reconduction.echeance,
+          );
+          throw envoi; // → 500, donc rejeu Stripe, qui trouvera cette fois la place libre
+        }
       }
       return new NextResponse(null, { status: 200 });
     } catch (e) {

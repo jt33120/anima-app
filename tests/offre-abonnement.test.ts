@@ -12,7 +12,7 @@ import {
   ACTION_ABONNER,
   ACTION_PAS_MAINTENANT,
 } from "@/render/conversation/offre-abonnement";
-import { PRIX_ABONNEMENT_ANNUEL_CENTIMES } from "@/lib/stripe/config";
+import { PRIX_ABONNEMENT_ANNUEL_CENTIMES, DEVISE_ABONNEMENT } from "@/lib/stripe/config";
 
 /**
  * Story 3.2 (T1) — la COPIE de la carte (`render/conversation/offre-abonnement`). Deux garanties dures : le
@@ -55,6 +55,15 @@ const INTERDITS: RegExp[] = [
 describe("offre-abonnement — le prix AFFICHÉ est couplé au prix FACTURÉ (AC2)", () => {
   it("euros × 100 = centimes EUR facturés par Stripe (3.1) — jamais de divergence silencieuse", () => {
     expect(PRIX_ABONNEMENT_ANNUEL_EUROS * 100).toBe(PRIX_ABONNEMENT_ANNUEL_CENTIMES);
+  });
+  it("[DUR] et ces centimes sont des EUROS — le « € » affiché n'est pas décoratif", () => {
+    // Revue du 2026-08-11 (M6) : muter `DEVISE_ABONNEMENT` de « eur » à « usd » laissait la suite
+    // ENTIÈREMENT verte. Le nombre était couplé, l'unité ne l'était pas — et la carte affiche « 69 € »
+    // pendant que Stripe débiterait 69 dollars. C'est l'assertion qui manquait à côté de celle
+    // au-dessus, et elle doit lire le VRAI module de config : `stripe-checkout-garde.test.ts` le
+    // double, donc aucune mutation de `lib/stripe/config` n'y serait visible.
+    expect(DEVISE_ABONNEMENT).toBe("eur");
+    expect(formaterPrixAnnuel(), "le symbole affiché doit suivre la devise facturée").toContain("€");
   });
   it("formaterPrixAnnuel() = « 69 € » (prix unique, sans barré)", () => {
     expect(formaterPrixAnnuel()).toBe("69 €");

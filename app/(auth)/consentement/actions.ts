@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
+import { resilierEnFinDePeriode } from "@/lib/stripe/resiliation";
 import { lireAccords } from "./accords";
 
 export type EtatConsentement = { statut: "saisie" | "erreur"; message?: string };
@@ -76,6 +77,35 @@ async function effacerCompteCourant(cheminEchec: string): Promise<void> {
   if (!user) redirect("/entrer");
 
   const admin = createSupabaseAdminClient();
+
+  // ⚠️ ARRÊTER LA FACTURATION AVANT D'EFFACER (revue du 2026-08-11, M7).
+  //
+  // La cascade efface `abonnement` en base et NE TOUCHE PAS À STRIPE. Sans ce geste, la souscription
+  // reste `active` avec `cancel_at_period_end = false` : à l'échéance, la carte d'une personne qui
+  // n'a plus de compte est débitée de 69 €, sans page `/abonnement`, sans porte de sortie, sans
+  // recours autre qu'une opposition bancaire. C'est le seul défaut de la revue qui prélève de
+  // l'argent à quelqu'un qui a explicitement quitté le produit.
+  //
+  // EN CAS D'ÉCHEC STRIPE, ON N'EFFACE PAS. Le droit à l'effacement supporte un délai raisonnable
+  // (art. 17) ; une facturation sur un compte inexistant, elle, est irréversible et impossible à
+  // rattraper depuis le produit. C'est aussi la doctrine déjà écrite ici : « jamais d'effacement
+  // silencieux sur un chemin RGPD » (acquis revue 1.5). La session est conservée, elle peut réessayer.
+  try {
+    const { data: abo } = await admin
+      .from("abonnement")
+      .select("stripe_subscription_id")
+      .eq("utilisatrice_id", user.id)
+      .maybeSingle<{ stripe_subscription_id: string | null }>();
+    if (abo?.stripe_subscription_id) {
+      await resilierEnFinDePeriode(abo.stripe_subscription_id);
+    }
+  } catch (e) {
+    console.error("[consentement] annulation Stripe impossible — effacement suspendu", {
+      nom: e instanceof Error ? e.name : "inconnu",
+    });
+    redirect(cheminEchec);
+  }
+
   const { error } = await admin.auth.admin.deleteUser(user.id);
   if (error) redirect(cheminEchec); // session conservée, message explicite là où on revient
 

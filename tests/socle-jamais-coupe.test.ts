@@ -81,7 +81,36 @@ describe("[T6-2] LE FILET POUR L'EPIC 5 — l'inventaire vieillit en rougissant,
       "test d'ennéagramme": "app/(scene)/enneagramme/page.tsx",
     };
     for (const it of FR055.filter((i) => !i.existe)) {
+      // ⚠️ Un item À VENIR sans chemin fabriqué donnait `fabriques[…] === undefined`, que
+      // `RegExp.test` convertit en la CHAÎNE « undefined » — un détecteur pouvait donc être
+      // certifié par un mot qui n'est pas un chemin. On exige le témoin explicitement.
+      expect(fabriques[it.item], `aucun chemin fabriqué pour l'item à venir « ${it.item} »`).toBeTypeOf(
+        "string",
+      );
       expect(it.detecteur.test(fabriques[it.item]), `détecteur inopérant pour « ${it.item} »`).toBe(true);
+    }
+  });
+
+  /**
+   * E2 (revue du 2026-08-12) — L'AUTRE MOITIÉ DE L'INVENTAIRE N'ÉTAIT PAS ÉPROUVÉE.
+   *
+   * Le test ci-dessus ne certifiait que les items `existe: false`. Les cinq marqués `existe: true`
+   * ne voyaient jamais leur détecteur exercé : rien ne vérifiait que « ça existe » soit VRAI.
+   *
+   * Ce n'est pas une coquetterie. Le filet fonctionne par bascule : un item apparaît, `LE CŒUR`
+   * rougit, on le passe à `existe: true` et on écrit sa preuve de non-gate. Si le détecteur d'un
+   * item déjà basculé était cassé, le filet resterait vert pour la seule raison qu'il ne trouve
+   * plus rien — et le jour où quelqu'un déplacerait ce socle derrière un mur payant, personne ne
+   * le saurait. Un inventaire dont la moitié des lignes ne sont pas vérifiables est un inventaire.
+   */
+  it("[E2] chaque item déclaré EXISTANT a bien des fichiers dans le dépôt", () => {
+    for (const it of FR055.filter((i) => i.existe)) {
+      const trouves = corpus.filter((f) => it.detecteur.test(f));
+      expect(
+        trouves.length,
+        `FR-055 « ${it.item} » est marqué existant, et son détecteur ne trouve RIEN. ` +
+          `Soit le socle a disparu, soit le détecteur est cassé — dans les deux cas ce filet ment.`,
+      ).toBeGreaterThan(0);
     }
   });
 
@@ -169,9 +198,9 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
     const compteGratuit = {
       rpc: async (nom: string) => {
         appels.push(nom);
-        // `reserver_annonce_socle_complet` dit oui ; TOUT le reste dit non — en particulier
+        // `annonce_socle_due` dit oui ; TOUT le reste dit non — en particulier
         // l'entitlement premium (`premium_actif`), qui doit rester sans effet sur cette mention.
-        if (nom === "reserver_annonce_socle_complet") return { data: true, error: null };
+        if (nom === "annonce_socle_due") return { data: true, error: null };
         return { data: false, error: null };
       },
     } as unknown as SupabaseClient;
@@ -183,7 +212,7 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
     ).toEqual({ type: "socle-complete", phrase: expect.any(String) });
     // Témoin : la réservation a bien été TENTÉE avant tout le reste (sinon l'assertion ci-dessus
     // pourrait être satisfaite par un chemin qui ne passe pas par là).
-    expect(appels[0]).toBe("reserver_annonce_socle_complet");
+    expect(appels[0]).toBe("annonce_socle_due");
   });
 
   it("[FR-055 / Story 5.1] le THÈME NATAL n'est gardé par AUCUN chemin premium", () => {

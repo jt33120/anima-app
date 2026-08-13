@@ -132,3 +132,48 @@ describe("[AC5/AC7/P10] rembourser", () => {
     await expect(rembourserIntegralement("sub_1", "u1", "cle")).resolves.toBe("rien_a_rembourser");
   });
 });
+
+describe("[M1] ce que le double du SDK ne pouvait pas voir — l'argument `expand`", () => {
+  /**
+   * LA TROUVAILLE QUI A COÛTÉ TOUTE LA GARANTIE (revue du 2026-08-11).
+   *
+   * Le code demandait `expand: ["latest_invoice"]`. Ça ramène la facture, mais PAS ses paiements :
+   * `invoice.payments` est un champ EXPANDABLE, absent tant qu'on ne le nomme pas. Mesuré le
+   * 2026-08-12 contre l'API Stripe réelle, sur une facture réellement réglée de 6900 centimes :
+   *
+   *     expand: ["latest_invoice"]           →  `payments` ABSENT,  0 paiement
+   *     expand: ["latest_invoice.payments"]  →  `payments` présent, 1 paiement, pi_3U3X5A…
+   *
+   * Résultat en production : `paymentIntentDe` rendait toujours `null`, `refunds.create` n'était
+   * jamais appelé, la cliente était résiliée sans un euro — et l'écran lui annonçait un virement.
+   *
+   * ⚠️ POURQUOI AUCUN TEST NE POUVAIT L'ATTRAPER, et c'est la vraie leçon : le double du SDK
+   * FABRIQUE `latest_invoice.payments` (voir `avecPaiement` en tête de fichier). Il fournit donc
+   * exactement le champ que le vrai appel n'avait pas demandé. Un double qui répond ce qu'on espère
+   * au lieu de ce que le service rendrait ne prouve rien — il grave la croyance du code.
+   *
+   * D'où ces deux tests : le premier épingle l'ARGUMENT (le seul endroit où le défaut vivait), le
+   * second rejoue la forme RÉELLE de la réponse mal expansée.
+   */
+  it("[DUR] demande `latest_invoice.payments`, pas `latest_invoice`", async () => {
+    retrieve.mockResolvedValueOnce(avecPaiement());
+    await rembourserIntegralement("sub_1", "u1", "cle");
+    const [, options] = retrieve.mock.calls[0] as [string, { expand?: string[] }];
+    expect(
+      options?.expand,
+      "sans `.payments`, Stripe ne renvoie aucun paiement et plus rien ne se rembourse",
+    ).toEqual(["latest_invoice.payments"]);
+  });
+
+  it("[CONTRÔLE] la forme réelle d'une facture MAL expansée : payée, mais sans `payments`", async () => {
+    // C'est littéralement ce que l'API a renvoyé pendant toute la vie de la 3.5 : une facture au
+    // statut `paid`, `amount_paid: 6900`, et pas de champ `payments`. Le code n'avait alors aucun
+    // moyen de trouver le paiement — et aucun moyen de s'en apercevoir.
+    retrieve.mockResolvedValueOnce({
+      latest_invoice: { id: "in_reel", status: "paid", amount_paid: 6900 },
+    });
+    const issue = await rembourserIntegralement("sub_1", "u1", "cle");
+    expect(issue).toBe("rien_a_rembourser");
+    expect(refundsCreate, "et c'est ainsi que 69 € ne partaient jamais").not.toHaveBeenCalled();
+  });
+});

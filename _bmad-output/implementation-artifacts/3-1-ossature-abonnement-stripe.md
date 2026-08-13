@@ -4,7 +4,10 @@ baseline_commit: 3d13bddd3bffd6b1ef0b8322143fd4f58360c5d2
 
 # Story 3.1: L'ossature d'abonnement — Stripe Checkout, webhooks idempotents, projection d'état
 
-Status: review
+Status: done
+
+> **Revue de code : 2026-08-13.** M1→M12, plus la vente à un compte suspendu pour minorité soupçonnée (69 € encaissables à trente jours de la suppression du compte).
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

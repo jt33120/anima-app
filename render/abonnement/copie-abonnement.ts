@@ -49,6 +49,16 @@ export const GARANTIE_DISPONIBLE =
   "Aucune branche n'a été posée depuis trois mois. Tu peux demander le remboursement, sans avoir à te justifier.";
 export const SUCCES_REMBOURSEMENT = "C'est demandé. Le remboursement arrive sur ton moyen de paiement.";
 /**
+ * Le cas où la résiliation a eu lieu mais qu'aucun paiement n'a été retrouvé à rembourser.
+ *
+ * Revue du 2026-08-11 (M2) : la route affichait `SUCCES_REMBOURSEMENT` dans CE cas aussi. Quelqu'un
+ * lisait « le remboursement arrive » et attendait un virement qui ne viendrait jamais, sans qu'aucun
+ * écran, aucun journal ni aucune alerte ne le contredise. C'est la même discipline que FR-050 pour le
+ * socle : une absence dite vaut mieux qu'une valeur qui a l'air juste.
+ */
+export const REMBOURSEMENT_SANS_PAIEMENT =
+  "Ton abonnement est résilié. Mais je n'ai trouvé aucun paiement à te rembourser — je préfère te le dire plutôt que de te laisser attendre.";
+/**
  * REFUS : réessayer n'a PAS de sens ici, et le patron `REFUS_RAYONNEMENT` (4.7) s'applique — on ne
  * promet pas « tu peux réessayer » à quelqu'un qui se heurterait au même mur. On ne dit pas non plus
  * POURQUOI dans le détail : « tu as posé une branche » ou « il te manque trois semaines » seraient l'un

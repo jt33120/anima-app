@@ -36,6 +36,25 @@ const MDP = "test-resil-123!";
 
 const ILY_A = (mois: number) => new Date(Date.now() - mois * 30 * 24 * 3600 * 1000).toISOString();
 
+/**
+ * `mois` mois en arrière, plus `decalageJours` — avec la MÊME arithmétique de calendrier que Postgres.
+ *
+ * `ILY_A` compte en mois de trente jours : parfait pour dire « quatre mois » ou « un mois », inutilisable
+ * pour éprouver la BORNE, qui tombe sur `interval '3 months'` — trois mois de CALENDRIER. Postgres
+ * ramène le jour au dernier du mois cible quand il déborde (31 mai − 3 mois = 28 février) ; `setMonth`
+ * de JavaScript, lui, déborde sur le mois suivant. Sans ce recalage, les deux tests de borne
+ * passeraient onze mois sur douze et tomberaient les 29, 30 et 31 — le pire genre de test.
+ */
+function ilYAMoisCalendaires(mois: number, decalageJours = 0): string {
+  const d = new Date();
+  const jour = d.getDate();
+  d.setDate(1); // on écarte le débordement AVANT de reculer
+  d.setMonth(d.getMonth() - mois);
+  const dernierDuMois = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(jour, dernierDuMois)); // même écrêtage que Postgres
+  return new Date(d.getTime() + decalageJours * 86_400_000).toISOString();
+}
+
 async function creerUtilisatrice(email: string): Promise<string> {
   const { data, error } = await admin.auth.admin.createUser({ email, password: MDP, email_confirm: true });
   if (error) throw new Error(`createUser: ${error.message}`);
@@ -107,6 +126,9 @@ describe("[AC5/AC6] eligible_au_remboursement — l'artefact du produit, jamais 
     jeuneAvecBranche: { email: `el-d-${t}@exemple.fr`, id: "" },
     sansDate: { email: `el-e-${t}@exemple.fr`, id: "" },
     expiree: { email: `el-f-${t}@exemple.fr`, id: "" },
+    // Les deux BORNES, à un jour de part et d'autre des trois mois de calendrier.
+    justeAvant: { email: `el-g-${t}@exemple.fr`, id: "" },
+    justeApres: { email: `el-h-${t}@exemple.fr`, id: "" },
   };
 
   beforeAll(async () => {
@@ -121,6 +143,8 @@ describe("[AC5/AC6] eligible_au_remboursement — l'artefact du produit, jamais 
     await poserBranche(cas.jeuneAvecBranche.id, "une autre prise de conscience");
     await abonner(cas.sansDate.id, "actif", null);
     await abonner(cas.expiree.id, "expire", ILY_A(4));
+    await abonner(cas.justeAvant.id, "actif", ilYAMoisCalendaires(3, -1)); // trois mois ET UN JOUR
+    await abonner(cas.justeApres.id, "actif", ilYAMoisCalendaires(3, +1)); // trois mois MOINS UN JOUR
   }, 60_000);
 
   afterAll(async () => {
@@ -141,6 +165,26 @@ describe("[AC5/AC6] eligible_au_remboursement — l'artefact du produit, jamais 
 
   it("jeune ET avec branche : les deux conditions manquent", async () => {
     expect(await eligible(cas.jeuneAvecBranche.id)).toBe(false);
+  });
+
+  // ── LA BORNE DES TROIS MOIS (revue du 2026-08-12) ──────────────────────────────────────────────
+  //
+  // « Quatre mois » et « un mois » disent de quel CÔTÉ penche la fonction ; ils ne disent rien de
+  // l'endroit où elle bascule. Remplacer `interval '3 months'` par `'2 months'` ou `'4 months'` les
+  // laissait tous les deux verts — la garantie FR-089 pouvait s'ouvrir un mois trop tôt ou se refuser
+  // un mois de trop, sans qu'une seule ligne rougisse. Les deux tests ci-dessous encadrent la bascule
+  // à un jour près et tuent les deux mutations.
+  //
+  // Ce qu'ils ne prouvent PAS, et il faut le dire : que la comparaison soit `<=` plutôt que `<`. À
+  // l'instant exact de la borne, `now()` a déjà avancé de quelques millisecondes entre l'insertion et
+  // la lecture — la distinction est inobservable depuis un test, et sans conséquence pratique.
+
+  it("[BORNE] trois mois ET UN JOUR, aucune branche : la garantie est OUVERTE", async () => {
+    expect(await eligible(cas.justeAvant.id)).toBe(true);
+  });
+
+  it("[BORNE] trois mois MOINS UN JOUR : la garantie n'est pas encore ouverte", async () => {
+    expect(await eligible(cas.justeApres.id)).toBe(false);
   });
 
   it("`debut_le` NULL rend un `false` STRICT — jamais null, jamais undefined", async () => {

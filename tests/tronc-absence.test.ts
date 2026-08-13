@@ -3,6 +3,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { REGIONS, CATALOGUE_REGIONS } from "@/lib/scene/regions";
 import * as copieArbre from "@/render/arbre/copie-arbre";
+import { texteVisible, estValeurCss, sansCommentaires } from "./_absence";
 
 /**
  * Story 3.3 (T5) — LA GARDE D'ABSENCE : aucun verrou, aucun appât, aucun compteur sur l'arbre.
@@ -62,57 +63,8 @@ const SURFACES: readonly string[] = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// L'EXTRACTEUR — « ce qui peut atteindre l'écran »
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-/** Commentaires retirés : un avertissement qui NOMME un interdit ne doit pas déclencher la garde. */
-function sansCommentaires(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/.*$/gm, "$1");
-}
-
-/**
- * Les chaînes qui peuvent finir sous les yeux de quelqu'un : littéraux de chaîne + textes JSX.
- *
- * Les SPÉCIFICATEURS D'IMPORT sont retirés en premier. Sans ça, `import … from "./copie-arbre"`
- * peuplerait l'extrait de chemins de fichiers : la garde de présence deviendrait satisfaite par des
- * chaînes que personne ne voit jamais — une tautologie déguisée en preuve.
- */
-export function texteVisible(src: string): string[] {
-  const sans = sansCommentaires(src).replace(/\bfrom\s*(["'])(?:(?!\1).)*\1/g, " ");
-  const trouves: string[] = [];
-  for (const m of sans.matchAll(/(["'`])((?:\\.|(?!\1).)*)\1/g)) trouves.push(m[2]);
-  // Textes JSX : ce qui vit entre `>` et `<` sans accolade ni balise.
-  for (const m of sans.matchAll(/>([^<>{}]+)</g)) trouves.push(m[1]);
-  return (
-    trouves
-      // Les INTERPOLATIONS `${…}` d'un gabarit sont des EXPRESSIONS, jamais du texte — exactement
-      // comme les accolades JSX, déjà écartées ci-dessus. Sans ça, un nom de variable devenait du
-      // « texte visible » : `${troncIncomplet ? … }` faisait rougir la garde du mot « incomplet »
-      // pour un identifiant que personne ne lit jamais. La garde aurait fini par être assouplie.
-      .map((s) => s.replace(/\$\{[^{}]*\}/g, " "))
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // LE VOCABULAIRE INTERDIT (AC2 [DUR], AC1, FR-031)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-/**
- * Une chaîne de STYLE est du placement, pas du texte.
- *
- * ⚠️ Introduit parce que la garde du POURCENTAGE (Story 5.3) rougissait sur
- * `translate(-50%, -50%)` — la contre-échelle qui garde les cibles à 44 px quel que soit le zoom.
- * L'alternative aurait été de retirer le motif : on aurait perdu la garde entière pour un faux
- * positif. L'exception est donc NOMMÉE, ÉTROITE, et éprouvée pour elle-même juste en dessous —
- * jamais un assouplissement discret de l'extracteur, qui affaiblirait TOUS les motifs à la fois.
- */
-export function estValeurCss(chaine: string): boolean {
-  return (
-    /(?:translate|translateX|translateY|scale|rotate|calc|var|rgba?|hsla?)\s*\(/.test(chaine) ||
-    /^-?\d+(?:[.,]\d+)?%$/.test(chaine.trim())
-  );
-}
 
 const INTERDITS: readonly { motif: RegExp; pourquoi: string; sauf?: (s: string) => boolean }[] = [
   { motif: /cadenas|verrou|\block\b|locked/i, pourquoi: "AC2 — jamais un verrou ostentatoire" },

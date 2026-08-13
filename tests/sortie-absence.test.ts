@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { texteVisible } from "./tronc-absence.test";
+import { texteVisible } from "./_absence";
 import * as copie from "@/render/abonnement/copie-abonnement";
 import { gabaritLegalPour } from "@/lib/courriel/gabarits";
 import { validerOrigine } from "@/lib/courriel/origine";
@@ -13,7 +13,8 @@ import { validerOrigine } from "@/lib/courriel/origine";
  * exigence formulée en NÉGATIF, et une garde d'absence ne vaut que si elle prouve d'abord qu'elle
  * REGARDE AU BON ENDROIT. Les trois disciplines codifiées en 3.3 s'appliquent ici :
  *
- *   (a) l'extracteur est éprouvé pour lui-même — il l'est dans `tronc-absence.test.ts`, d'où il vient ;
+ *   (a) l'extracteur est éprouvé pour lui-même — il vit dans `tests/_absence.ts` et ses propres tests
+ *       sont dans `tronc-absence.test.ts`, d'où il vient ;
  *   (b) LA PRÉSENCE AVANT L'ABSENCE — on retrouve d'abord des témoins connus dans le balayage, sans quoi
  *       un fichier renommé rendrait la garde verte et vide ;
  *   (c) le balayage n'est JAMAIS vide, et le nombre de chaînes examinées est journalisé.

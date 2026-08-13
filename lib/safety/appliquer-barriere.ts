@@ -58,9 +58,19 @@ export async function declencherRemboursement(cible: string): Promise<void> {
     const reservation = await reserverRemboursement(cible, "minorite");
     // `"non_eligible"` ne peut pas arriver sur ce motif (le SQL ne teste l'éligibilité que pour
     // `garantie`) — mais le type l'admet, et l'ignorer en silence serait supposer plutôt que vérifier.
-    if (reservation === "non_eligible" || reservation.dejaDemande) return;
+    if (reservation === "non_eligible") return;
+    // Revue du 2026-08-11 (M3), même défaut que la route de la garantie : `dejaDemande` seul ne
+    // prouve RIEN — il dit qu'une réservation existe, pas qu'un euro est parti. Un premier appel
+    // Stripe échoué rendait le remboursement d'une MINEURE définitivement impossible, en silence.
+    // Tant que `confirmeLe` est nul, on rejoue avec la même clé ; l'idempotence Stripe interdit le
+    // double remboursement.
+    if (reservation.dejaDemande && reservation.confirmeLe) return;
     if (!reservation.subscriptionId) return; // compte jamais abonné : rien à rembourser, rien à dire
-    await rembourserIntegralement(reservation.subscriptionId, cible, reservation.cle);
+    const issue = await rembourserIntegralement(reservation.subscriptionId, cible, reservation.cle);
+    if (issue === "rien_a_rembourser") {
+      // Sans PII : la barrière de minorité a bien été posée, c'est l'argent qui n'a pas suivi.
+      console.error("[barriere-minorite] aucun paiement retrouvé — résilié sans remboursement");
+    }
   } catch (e) {
     console.error("[barriere-minorite] remboursement impossible", {
       nom: e instanceof Error ? e.name : "inconnu",

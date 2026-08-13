@@ -20,6 +20,15 @@ export type ReservationRemboursement = {
   readonly cle: string;
   readonly subscriptionId: string | null;
   readonly dejaDemande: boolean;
+  /**
+   * Horodatage posé par le webhook `refund.created` (via `confirmer_remboursement`). `null` signifie
+   * « réservé, mais Stripe n'a jamais confirmé » — l'appelant DOIT rejouer avec la même clé.
+   *
+   * Ajouté par 0043 (revue du 2026-08-11, M3). Sans lui, la route répondait « remboursée » dès que la
+   * réservation existait : un premier appel Stripe échoué devenait définitif, et personne ne le savait
+   * puisque cette colonne n'était lue nulle part dans le dépôt.
+   */
+  readonly confirmeLe: string | null;
 };
 
 /** L'abonnement tel qu'elle a le droit de le lire — aucune donnée de paiement, aucun montant. */
@@ -85,9 +94,21 @@ export async function reserverRemboursement(
     if ((error.message ?? "").includes("remboursement_non_eligible")) return "non_eligible";
     throw new Error(`demander_remboursement a échoué (${error.code ?? "inconnu"}).`);
   }
-  const ligne = (data as Array<{ cle: string; subscription_id: string | null; deja_demande: boolean }>)[0];
+  const ligne = (
+    data as Array<{
+      cle: string;
+      subscription_id: string | null;
+      deja_demande: boolean;
+      confirme_le: string | null;
+    }>
+  )[0];
   if (!ligne) throw new Error("demander_remboursement n'a rien rendu.");
-  return { cle: ligne.cle, subscriptionId: ligne.subscription_id, dejaDemande: ligne.deja_demande };
+  return {
+    cle: ligne.cle,
+    subscriptionId: ligne.subscription_id,
+    dejaDemande: ligne.deja_demande,
+    confirmeLe: ligne.confirme_le,
+  };
 }
 
 /** Confirme le remboursement depuis le webhook. Rend `false` si l'événement a déjà été traité. */
@@ -129,4 +150,35 @@ export async function reserverInformationReconduction(
   });
   if (error) throw new Error(`reserver_information_reconduction a échoué (${error.code ?? "inconnu"}).`);
   return data === true;
+}
+
+/**
+ * LIBÈRE la réservation quand l'ENVOI a échoué (revue du 2026-08-11, M11).
+ *
+ * `envoye_le` était posé à la RÉSERVATION, dans sa propre transaction, avant tout envoi. Un courriel
+ * en échec — Resend en 429, adresse introuvable, timeout — laissait donc les deux barrières
+ * d'idempotence en place ET une ligne qui atteste d'un envoi qui n'a jamais eu lieu. Aucun rejeu ne
+ * pouvait plus rien : la première barrière connaît l'`event.id`, la seconde le couple
+ * `(utilisatrice, échéance)`. L'information de l'art. L215-1 était perdue, et la table disait le
+ * contraire — la pire position possible en contentieux.
+ *
+ * ⚠️ N'APPELER QUE DEPUIS LE CHEMIN D'ÉCHEC D'ENVOI. Après un succès, elle rouvrirait la porte à un
+ * second courriel, et une information légale envoyée en double est un incident, pas un détail.
+ */
+export async function libererInformationReconduction(
+  utilisatriceId: string,
+  providerEventId: string,
+  echeance: string,
+): Promise<void> {
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin.rpc("liberer_information_reconduction", {
+    p_utilisatrice: utilisatriceId,
+    p_provider_event_id: providerEventId,
+    p_echeance: echeance,
+  });
+  if (error) {
+    // On ne relance pas : l'appelant est DÉJÀ dans un chemin d'échec et va rendre 500 pour que
+    // Stripe rejoue. Masquer sa cause première derrière une erreur de libération n'aiderait personne.
+    console.error("[reconduction] libération de la réservation impossible", { code: error.code ?? "inconnu" });
+  }
 }

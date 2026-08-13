@@ -62,12 +62,34 @@ export default async function PageAbonnement({
     );
   }
 
+  // `timeZone` explicite (revue du 2026-08-11) : sans lui, la date est rendue dans le fuseau du
+  // SERVEUR — UTC sur Vercel. Une échéance au 5 mars à 23 h 30 UTC est le 6 mars à Paris, et l'écran
+  // annonçait alors la reconduction (art. L215-1) ou la fin d'accès un jour trop tôt. Même fuseau que
+  // le reste du produit (`FUSEAU`, ordonnanceur).
   const dateFr = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
+    iso
+      ? new Date(iso).toLocaleDateString("fr-FR", {
+          timeZone: "Europe/Paris",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+      : null;
 
   const resiliationDemandee = abonnement?.resiliationDemandeeLe != null;
   const finAcces = dateFr(abonnement?.resiliationDemandeeLe ?? abonnement?.periodeFin ?? null);
   const actif = abonnement?.etat === "actif";
+  // LA SORTIE NE DÉPEND PAS DE L'ÉTAT D'ACCÈS (revue du 2026-08-11, M12).
+  //
+  // Le geste était gardé par `actif`. Or un paiement en échec passe l'abonnement en `past_due` chez
+  // Stripe, donc `etat = 'expire'` ici : l'écran affichait « Ton abonnement n'est plus actif » et
+  // AUCUN bouton — pendant que Stripe poursuivait ses relances et finirait par encaisser. La
+  // personne la plus coincée du produit était la seule sans porte.
+  //
+  // La 3.5 avait pourtant construit `abonnementGerable` exprès pour que le LIEN survive à cet
+  // état (« quelqu'un coincé entre un accès fermé et un contrat ouvert »). Le lien était posé, la
+  // destination oubliée. La route de résiliation, elle, n'a jamais demandé que le `subscriptionId`.
+  const contratOuvert = abonnement?.subscriptionId != null;
 
   return (
     <main className={s.page}>
@@ -77,6 +99,7 @@ export default async function PageAbonnement({
       {retour === "resilie" && <p className={`t-corps ${s.retour}`} role="status">{c.SUCCES_RESILIATION}</p>}
       {retour === "reprise" && <p className={`t-corps ${s.retour}`} role="status">{c.SUCCES_REPRISE}</p>}
       {retour === "rembourse" && <p className={`t-corps ${s.retour}`} role="status">{c.SUCCES_REMBOURSEMENT}</p>}
+      {retour === "sans_paiement" && <p className={`t-corps ${s.retour}`} role="status">{c.REMBOURSEMENT_SANS_PAIEMENT}</p>}
       {retour === "non_eligible" && <p className={`t-corps ${s.retour}`} role="status">{c.REFUS_REMBOURSEMENT}</p>}
       {retour === "echec" && <p className={`t-corps ${s.retour}`} role="status">{c.ECHEC}</p>}
 
@@ -102,7 +125,7 @@ export default async function PageAbonnement({
             {c.ACTION_REPRENDRE}
           </button>
         </form>
-      ) : actif ? (
+      ) : contratOuvert ? (
         confirmer === "1" ? (
           // LA CONFIRMATION, SUR LA MÊME VUE, UN SEUL BOUTON (FR-060). Pas de « es-tu sûre ? », pas de
           // second écran, pas de champ « dis-nous pourquoi ». Le lien de retour n'est pas un bouton

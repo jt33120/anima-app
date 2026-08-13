@@ -4,7 +4,10 @@ baseline_commit: 67eff0244e7e440512b314ad714631247a9b77bf
 
 # Story 3.3 : Tronc gratuit, branches premium, socle jamais coupé
 
-Status: review
+Status: done
+
+> **Revue de code : 2026-08-13.** Voir le dossier.
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).
 
 Epic 3 · Dépend de : **3.1** (entitlement `abonnement.actif`, source de vérité unique), **3.2** (carte d'abonnement, FR-057 une seule sollicitation), **3.4** (allocation résiduelle, `doitCouperConversation`), **4.5** (naissance d'une branche), **4.6** (l'arbre, la fiche, la vue liste), **4.7** (cycle de vie), **4.10** (`est_premium_courante()`, le patron `planOuvert`), **2.5** (`limites_levees`, AD-9).
 

@@ -54,6 +54,23 @@ export async function annulerResiliation(subscriptionId: string): Promise<void> 
  * que la 3.1 documente. Et c'est un piège SILENCIEUX : lire `invoice.payment_intent` en TypeScript sur un
  * type qui ne le déclare plus casse à la compilation — mais un `as any` ou un `?? null` rendrait
  * `undefined`, et le remboursement échouerait avec un message générique au pire moment.
+ *
+ * ⚠️ TROISIÈME ÉTAGE DU MÊME PIÈGE — REVUE DU 2026-08-11 (M1). Savoir que la liste s'appelle
+ * `invoice.payments` ne suffisait pas : ce champ est EXPANDABLE, donc absent tant qu'on ne le demande
+ * PAS NOMMÉMENT. `expand: ["latest_invoice"]` ramène la facture SANS ses paiements. Mesuré le
+ * 2026-08-12 contre l'API réelle, sur une facture réellement réglée de 6900 centimes :
+ *
+ *     expand: ["latest_invoice"]           →  `payments` absent,  0 paiement   ← ce que faisait le code
+ *     expand: ["latest_invoice.payments"]  →  `payments` présent, 1 paiement   ← pi_3U3X5A…
+ *
+ * Conséquence pendant toute la vie de la 3.5 : `paiements` valait `[]`, cette fonction rendait `null`,
+ * `refunds.create` n'était jamais appelé, et la cliente était résiliée sans être remboursée — pendant
+ * que l'écran lui disait « le remboursement arrive sur ton moyen de paiement ».
+ *
+ * Aucun test ne pouvait l'attraper : le double du SDK FABRIQUE `latest_invoice.payments` et fournit
+ * donc précisément le champ que le vrai appel n'avait pas demandé. Un double qui répond ce qu'on
+ * espère au lieu de ce que le service rendrait ne prouve rien. `tests/resiliation-stripe.test.ts`
+ * épingle désormais l'argument `expand` lui-même.
  */
 function paymentIntentDe(facture: Stripe.Invoice): string | null {
   const paiements = facture.payments?.data ?? [];
@@ -98,7 +115,10 @@ export async function rembourserIntegralement(
   cleIdempotence: string,
 ): Promise<IssueRemboursement> {
   const stripe = clientStripe();
-  const sub = await stripe.subscriptions.retrieve(subscriptionId, { expand: ["latest_invoice"] });
+  // `latest_invoice.payments`, pas `latest_invoice` : le second n'apporte pas les paiements (M1).
+  const sub = await stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ["latest_invoice.payments"],
+  });
   const facture = sub.latest_invoice;
 
   const paymentIntent = facture && typeof facture !== "string" ? paymentIntentDe(facture) : null;

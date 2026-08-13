@@ -12,7 +12,7 @@ depends_on:
   - "3-3-tronc-gratuit-branches-premium-socle-jamais-coupe"
   - "1-9-appliquer-barriere-minorite-detectee"
   - "4-9-synthese-periodique-modele-fort"
-status: review
+status: done
 created: "2026-08-07"
 sources:
   - _bmad-output/planning-artifacts/epics.md#story-3-5
@@ -23,7 +23,10 @@ sources:
 
 # Story 3.5 : Résiliation en trois clics et garantie de remboursement
 
-Status: review
+Status: done
+
+> **Revue de code : 2026-08-13.** Migrations 0043/0044 (reprise du remboursement, robustesse du webhook), déployées.
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).
 
 **Dernière story de l'Epic 3.** Elle ferme la boucle commerciale : 3.1 a posé l'ossature (Checkout,
 webhooks idempotents, projection écrivain-unique), 3.2 la carte, 3.3 le périmètre premium, 3.4

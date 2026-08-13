@@ -391,7 +391,7 @@ uniquement à rendre AC4 observable ; préfère t'en passer — le dépôt suffi
 ### Commande de test
 
 ```bash
-set -a && . ./.env.local && set +a && npx vitest run
+npx vitest run
 ```
 
 Le stack Supabase local doit tourner. **CLI globale `supabase` (`/opt/homebrew/bin/supabase`, v2.67.1)

@@ -81,9 +81,16 @@ function corpsComplet(source: string, nom: string, variantes: readonly string[])
  *
  * ⚠️ TOUTE NOUVELLE VARIANTE S'INSCRIT ICI. Sans cela, l'extraction s'arrêterait avant elle et la
  * garde deviendrait vraie pour un corps tronqué : un champ numérique ajouté à la dernière variante
- * ne serait jamais vu. `socle-complete` (Story 5.3) est la troisième.
+ * ne serait jamais vu. `socle-complete` (Story 5.3) est la troisième, `hypothese-enneagramme`
+ * (Story 5.5) la quatrième — et cette dernière est celle qui rendait le piège le plus tentant : un
+ * type d'ennéagramme EST un nombre, et `readonly type: number` s'écrit tout seul.
  */
-const VARIANTES = ['"proposition"', '"invitation"', '"socle-complete"'] as const;
+const VARIANTES = [
+  '"proposition"',
+  '"invitation"',
+  '"socle-complete"',
+  '"hypothese-enneagramme"',
+] as const;
 
 const DOMAINE = "lib/domain/arbitrage-ouverture.ts";
 const RENDU = "render/conversation/types.ts";

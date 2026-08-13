@@ -58,7 +58,7 @@ afin qu'**elle puisse me faire remarquer une répétition parce qu'elle a vraime
   - [x] `tests/rappel-architecture.test.ts` (ou section dédiée) : le littéral `resume_glissant` n'apparaît **QUE** dans `lib/data/depot-rappel.ts` (patron `frontiere-serveur.test.ts` / garde de table 4.2). Mutation-vérifiable (accès ailleurs → rouge). Contrôles positifs inline.
 
 - [x] **T6 — Suite verte + gardes transverses (tout)**
-  - [x] Toute la suite verte : `set -a && . ./.env.local && set +a && npx vitest run` (Supabase local **démarré** via CLI globale v2.67.1).
+  - [x] Toute la suite verte : `npx vitest run` (Supabase local **démarré** via CLI globale v2.67.1).
   - [x] Sondes art. 9 existantes **inchangées** ; `consentement.test.ts` (frontière art. 9 : réaligner si elle énumère les tables de contenu art. 9 — `resume_glissant` existe désormais). Garde 4.2 `faits-architecture.test.ts` **toujours verte** (ban `fait_extrait` intact).
   - [x] `npx tsc --noEmit`, `npx eslint`, `next build` propres.
 
@@ -142,7 +142,7 @@ Décision de posture, à motiver explicitement :
 
 ### Testing standards
 
-- Vitest (env node) ; **Supabase local requis** ; commande : `set -a && . ./.env.local && set +a && npx vitest run`. CLI Supabase **globale** v2.67.1, **jamais** `npx supabase`.
+- Vitest (env node) ; **Supabase local requis** ; commande : `npx vitest run`. CLI Supabase **globale** v2.67.1, **jamais** `npx supabase`.
 - Tests base : `admin` (`SUPABASE_SECRET_KEY`) pour semer/nettoyer + prouver le `delete` service_role ; session `publishable` pour RLS/write-gate (patrons `fait-extrait.test.ts`, `entree-journal.test.ts`). Helpers réutilisés : `creerUtilisatrice`, `donnerConsentement`, `graverSource` (copier depuis `fait-extrait.test.ts`).
 - **Mutation-vérification obligatoire** sur les gardes DURES : retirer `where statut='actif'` de `charger_faits_actifs()` → test AC3 base rouge ; retirer le `.filter(actif)` de `assemblerRappel` → test AC3 pur rouge ; retirer la garde `aDeLaMatiere` (forcer `true`) → test AC5 rouge ; ajouter un accès `resume_glissant`/`charger_faits_actifs` hors `depot-rappel.ts` → garde T5 rouge.
 - Garde de source (T5) : patron `faits-architecture.test.ts` — lire le code, retirer les commentaires, ancrer sur le **littéral de table**/le nom de RPC ; contrôles positifs inline (le regex DOIT matcher un vrai littéral).

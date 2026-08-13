@@ -57,7 +57,7 @@ afin de **garder la main sur l'image qu'elle se fait de moi**.
   - [x] `tests/faits-architecture.test.ts` (patron `frontiere-serveur.test.ts`, `pipeline-securite-architecture.test.ts`) : scanner le code, prouver qu'**aucune** écriture (`insert`/`update`/`upsert`/`delete`) sur `"fait_extrait"` n'existe **hors** `lib/data/depot-faits.ts`. Mutation-vérifiable (ajouter une écriture ailleurs → rouge).
 
 - [x] **T6 — Suite verte + gardes transverses (tout)**
-  - [x] Toute la suite verte : `set -a && . ./.env.local && set +a && npx vitest run` (Supabase local **démarré** via CLI globale v2.67.1).
+  - [x] Toute la suite verte : `npx vitest run` (Supabase local **démarré** via CLI globale v2.67.1).
   - [x] Sondes art. 9 existantes **inchangées** : `write-gate-art9.test.ts`, `entree-journal.test.ts`, `rls.test.ts`, `frontiere-serveur.test.ts`, `consentement.test.ts` (frontière art. 9 : réaligner si elle énumère les tables de contenu art. 9 — `fait_extrait` existe désormais).
   - [x] `npx tsc --noEmit`, `npx eslint`, `next build` propres.
 
@@ -241,7 +241,7 @@ grant  execute on function public.fusionner_fait_extrait(text, text, text, text,
 
 ### Testing standards
 
-- Vitest (env node) ; **Supabase local requis** pour les tests base ; commande : `set -a && . ./.env.local && set +a && npx vitest run` (Vitest ne charge pas `.env.local`). CLI Supabase **globale** v2.67.1, **jamais** `npx supabase` (casse le mapping `sb_secret_`→`service_role`).
+- Vitest (env node) ; **Supabase local requis** pour les tests base ; commande : `npx vitest run` (Vitest ne charge pas `.env.local`). CLI Supabase **globale** v2.67.1, **jamais** `npx supabase` (casse le mapping `sb_secret_`→`service_role`).
 - Tests base : `admin` (`SUPABASE_SECRET_KEY`) pour semer/nettoyer + prouver le trigger contre `service_role` ; session `publishable` pour prouver RLS/write-gate (patrons `entree-journal.test.ts`, `write-gate-art9.test.ts`, `depot-journal.test.ts`). Nettoyage en `afterAll` (`delete .eq("utilisatrice_id", u.id)` puis `deleteUser`).
 - **Mutation-vérification obligatoire** sur les gardes DURES (discipline 2.4b/4.1) : retirer le trigger anti-résurrection → le test AC3 base devient rouge ; élargir la clause `WHERE` (retirer `and statut='actif'`) → le test AC3 bout-en-bout devient rouge ; ajouter une écriture `fait_extrait` hors dépôt → la garde T5 devient rouge.
 - Garde de source (T5) : patron `frontiere-serveur.test.ts` / `pipeline-securite-architecture.test.ts` — lire le code, retirer les commentaires, ancrer sur l'**usage** (`.from("fait_extrait")` en écriture).

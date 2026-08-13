@@ -17,12 +17,20 @@ vi.mock("@/lib/data/depot-reconceptualisation", () => ({
 
 const faits = vi.fn();
 const reserverParole = vi.fn();
+const annonceSocleDue = vi.fn();
 vi.mock("@/lib/data/depot-arbitrage", () => ({
-  creerDepotArbitrage: vi.fn(() => ({ faits, reserverParole })),
+  creerDepotArbitrage: vi.fn(() => ({ faits, reserverParole, annonceSocleDue })),
+}));
+
+/** Story 5.5 — la lecture du germe d'hypothèse, mockée comme les deux dépôts ci-dessus. */
+const lireHypothese = vi.fn();
+vi.mock("@/lib/data/lire-enneagramme", () => ({
+  lireHypotheseEnneagramme: (...a: unknown[]) => lireHypothese(...a),
 }));
 
 import { chargerOuverture } from "@/lib/safety/ouverture-branche";
 import { SEUIL_BRANCHES_OUVERTES, PHRASE_INVITATION } from "@/lib/domain/arbitrage-ouverture";
+import { PHRASE_OUVERTURE_HYPOTHESE } from "@/lib/domain/enneagramme-hypothese";
 
 /**
  * Story 3.3 — le client factice répond désormais à `est_premium_courante` : depuis D2-A, l'ouverture
@@ -33,6 +41,7 @@ const client = (premium: boolean) =>
   ({ rpc: async () => ({ data: premium, error: null }) }) as unknown as SupabaseClient;
 const supa = client(true);
 const MAINTENANT = new Date("2026-03-15T10:00:00+01:00");
+const UID = "11111111-1111-1111-1111-111111111111";
 const SIGNAL_HIER = { signalId: "sig-7", signalCreeLe: new Date("2026-03-14T22:00:00+01:00") };
 
 /** En dessous du seuil : Anam propose comme en 4.5. */
@@ -45,12 +54,18 @@ beforeEach(() => {
   ecarter.mockReset();
   faits.mockReset();
   reserverParole.mockReset();
+  annonceSocleDue.mockReset();
+  annonceSocleDue.mockResolvedValue(false);
+  lireHypothese.mockReset();
+  // Par défaut : aucune hypothèse — tout ce fichier continue d'éprouver l'arbitrage 4.10 et rien
+  // d'autre. Le comportement de l'hypothèse a son propre bloc en bas.
+  lireHypothese.mockResolvedValue({ statut: "indisponible", raison: "aucune" });
 });
 
 describe("aucun moment mûr → rien du tout", () => {
   it("null, et l'arbitrage n'est même pas interrogé", async () => {
     chargerProposition.mockResolvedValue(null);
-    expect(await chargerOuverture(supa, MAINTENANT)).toBeNull();
+    expect(await chargerOuverture(supa, UID, MAINTENANT)).toBeNull();
     expect(faits, "pas de moment, pas d'arbitrage : rien à arbitrer").not.toHaveBeenCalled();
   });
 });
@@ -59,7 +74,7 @@ describe("peu de branches ouvertes → Anam PROPOSE (comportement 4.5 inchangé)
   it("rend une `proposition` avec la voix déterministe (« hier »)", async () => {
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockResolvedValue(PEU_DE_BRANCHES);
-    const r = await chargerOuverture(supa, MAINTENANT);
+    const r = await chargerOuverture(supa, UID, MAINTENANT);
     expect(r).toEqual({
       type: "proposition",
       signalId: "sig-7",
@@ -75,7 +90,7 @@ describe("peu de branches ouvertes → Anam PROPOSE (comportement 4.5 inchangé)
     // tairait pour une raison invisible.
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockResolvedValue(PEU_DE_BRANCHES);
-    await chargerOuverture(supa, MAINTENANT);
+    await chargerOuverture(supa, UID, MAINTENANT);
     expect(reserverParole).not.toHaveBeenCalled();
   });
 });
@@ -87,7 +102,7 @@ describe("[AC4/AC5 DUR] trop de branches ouvertes → Anam INVITE", () => {
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockResolvedValue(TROP_DE_BRANCHES);
     reserverParole.mockResolvedValue(true);
-    expect(await chargerOuverture(supa, MAINTENANT)).toEqual({
+    expect(await chargerOuverture(supa, UID, MAINTENANT)).toEqual({
       type: "invitation",
       phrase: PHRASE_INVITATION,
       brancheCibleId: "b-vieille",
@@ -101,7 +116,7 @@ describe("[AC4/AC5 DUR] trop de branches ouvertes → Anam INVITE", () => {
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockResolvedValue({ branchesEnNaissance: 7, brancheCibleId: "b-vieille" });
     reserverParole.mockResolvedValue(true);
-    const r = await chargerOuverture(supa, MAINTENANT);
+    const r = await chargerOuverture(supa, UID, MAINTENANT);
     for (const v of Object.values(r as Record<string, unknown>)) {
       expect(typeof v, `un champ numérique a fui : ${JSON.stringify(r)}`).not.toBe("number");
     }
@@ -115,7 +130,7 @@ describe("[AC4/AC5 DUR] trop de branches ouvertes → Anam INVITE", () => {
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockResolvedValue(TROP_DE_BRANCHES);
     reserverParole.mockResolvedValue(true);
-    await chargerOuverture(supa, MAINTENANT);
+    await chargerOuverture(supa, UID, MAINTENANT);
     expect(ecarter).not.toHaveBeenCalled();
   });
 
@@ -127,7 +142,7 @@ describe("[AC4/AC5 DUR] trop de branches ouvertes → Anam INVITE", () => {
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockResolvedValue(TROP_DE_BRANCHES);
     reserverParole.mockResolvedValue(false);
-    expect(await chargerOuverture(supa, MAINTENANT)).toBeNull();
+    expect(await chargerOuverture(supa, UID, MAINTENANT)).toBeNull();
   });
 
   it("seuil franchi mais AUCUNE branche cible → Anam propose (on n'invite pas vers le vide)", async () => {
@@ -136,7 +151,7 @@ describe("[AC4/AC5 DUR] trop de branches ouvertes → Anam INVITE", () => {
     // part. Mutation-cible : retirer `&& faits.brancheCibleId`.
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockResolvedValue({ branchesEnNaissance: 9, brancheCibleId: null });
-    const r = await chargerOuverture(supa, MAINTENANT);
+    const r = await chargerOuverture(supa, UID, MAINTENANT);
     expect(r?.type).toBe("proposition");
     expect(reserverParole).not.toHaveBeenCalled();
   });
@@ -147,7 +162,7 @@ describe("repli sûr (AD-15) : l'ouverture ne bloque JAMAIS l'entrée dans la sc
     chargerProposition.mockResolvedValue({ signalId: "x", signalCreeLe: new Date("invalide") });
     faits.mockResolvedValue(PEU_DE_BRANCHES);
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(await chargerOuverture(supa, MAINTENANT)).toBeNull();
+    expect(await chargerOuverture(supa, UID, MAINTENANT)).toBeNull();
     expect(spy, "l'incident est journalisé (repli AD-15)").toHaveBeenCalled();
     spy.mockRestore();
   });
@@ -162,7 +177,7 @@ describe("repli sûr (AD-15) : l'ouverture ne bloque JAMAIS l'entrée dans la sc
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockRejectedValue(new Error("42501"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const r = await chargerOuverture(supa, MAINTENANT);
+    const r = await chargerOuverture(supa, UID, MAINTENANT);
     expect(r?.type, "la 4.5 survit à une panne de la 4.10").toBe("proposition");
     expect(spy, "et l'incident est quand même journalisé").toHaveBeenCalled();
     spy.mockRestore();
@@ -173,7 +188,7 @@ describe("repli sûr (AD-15) : l'ouverture ne bloque JAMAIS l'entrée dans la sc
     faits.mockResolvedValue(TROP_DE_BRANCHES);
     reserverParole.mockRejectedValue(new Error("40001"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect((await chargerOuverture(supa, MAINTENANT))?.type).toBe("proposition");
+    expect((await chargerOuverture(supa, UID, MAINTENANT))?.type).toBe("proposition");
     spy.mockRestore();
   });
 
@@ -187,7 +202,7 @@ describe("repli sûr (AD-15) : l'ouverture ne bloque JAMAIS l'entrée dans la sc
     faits.mockResolvedValue(PEU_DE_BRANCHES);
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const enPanne = { rpc: async () => ({ data: null, error: { code: "42501" } }) } as unknown as SupabaseClient;
-    expect(await chargerOuverture(enPanne, MAINTENANT)).toBeNull();
+    expect(await chargerOuverture(enPanne, UID, MAINTENANT)).toBeNull();
     expect(spy, "et l'incident est journalisé (AD-15)").toHaveBeenCalled();
     spy.mockRestore();
   });
@@ -199,7 +214,7 @@ describe("repli sûr (AD-15) : l'ouverture ne bloque JAMAIS l'entrée dans la sc
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockResolvedValue(TROP_DE_BRANCHES);
     reserverParole.mockResolvedValue(false);
-    expect(await chargerOuverture(supa, MAINTENANT)).toBeNull();
+    expect(await chargerOuverture(supa, UID, MAINTENANT)).toBeNull();
   });
 });
 
@@ -219,7 +234,7 @@ describe("[3.3 / D2-A] le gate premium de l'ouverture", () => {
     // signal. Un compte gratuit ne déclenche donc AUCUNE lecture d'un pointeur vers de l'art. 9.
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockResolvedValue(PEU_DE_BRANCHES);
-    expect(await chargerOuverture(client(false), MAINTENANT)).toBeNull();
+    expect(await chargerOuverture(client(false), UID, MAINTENANT)).toBeNull();
     expect(chargerProposition, "gratuit : on ne lit même pas le germe (minimisation)").not.toHaveBeenCalled();
     expect(faits, "…ni les faits d'arbitrage").not.toHaveBeenCalled();
   });
@@ -228,7 +243,7 @@ describe("[3.3 / D2-A] le gate premium de l'ouverture", () => {
     // Sans ce contrôle, un gate qui refuserait TOUT LE MONDE satisferait le test ci-dessus.
     chargerProposition.mockResolvedValue(SIGNAL_HIER);
     faits.mockResolvedValue(PEU_DE_BRANCHES);
-    expect((await chargerOuverture(client(true), MAINTENANT))?.type).toBe("proposition");
+    expect((await chargerOuverture(client(true), UID, MAINTENANT))?.type).toBe("proposition");
   });
 });
 
@@ -253,5 +268,67 @@ describe("[3.3 / FR-059] on ferme la PROPOSITION, jamais le SIGNAL", () => {
     for (const interdit of [/est_premium_courante/, /premiumSousJwt/, /\babonnement\b/, /\bpremium\b/i]) {
       expect(src, `l'entitlement s'est invité dans le pipeline de détection : ${interdit}`).not.toMatch(interdit);
     }
+  });
+});
+
+/**
+ * Story 5.5 (AC2) — L'HYPOTHÈSE D'ENNÉAGRAMME DANS L'OUVERTURE.
+ *
+ * Trois propriétés de POSITION, et elles ne se déduisent d'aucune autre : sous le gate premium elle
+ * couperait un item du socle gratuit à vie (FR-055) ; devant la mention de complétion elle
+ * empêcherait une phrase qui n'a qu'une seule chance d'être dite ; sans son propre `try` elle
+ * ferait taire la proposition de la 4.5 — la faute exacte trouvée en revue 4.10.
+ */
+describe("[5.5/AC2] l'hypothèse d'Anam dans l'ouverture", () => {
+  const GERME = { statut: "calcule", hypothese: { id: "h-42", type: 4, aDire: true } };
+
+  it("un germe À DIRE rend la 4ᵉ variante — une phrase constante et un identifiant", async () => {
+    lireHypothese.mockResolvedValue(GERME);
+    const o = await chargerOuverture(supa, UID, MAINTENANT);
+    expect(o).toEqual({
+      type: "hypothese-enneagramme",
+      phrase: PHRASE_OUVERTURE_HYPOTHESE,
+      hypotheseId: "h-42",
+    });
+    // ⚠️ Le NUMÉRO ne franchit pas la frontière : la phrase du fil ne le nomme pas, et la halte le
+    // lit en base. Le poser ici ferait une seconde source du même fait (R1-bis).
+    expect(JSON.stringify(o)).not.toContain('"type":4');
+  });
+
+  it("[LE CŒUR] un compte GRATUIT l'entend — l'ennéagramme est du socle libre (FR-055)", async () => {
+    // Mutation-cible : déplacer le bloc sous `premiumSousJwt`. Rien d'autre ne rougirait.
+    lireHypothese.mockResolvedValue(GERME);
+    expect((await chargerOuverture(client(false), UID, MAINTENANT))?.type).toBe("hypothese-enneagramme");
+  });
+
+  it("elle est demandée en « seulement à dire » — une hypothèse dite ne se redit pas", async () => {
+    lireHypothese.mockResolvedValue(GERME);
+    await chargerOuverture(supa, UID, MAINTENANT);
+    expect(lireHypothese).toHaveBeenCalledWith(supa, UID, { seulementADire: true });
+  });
+
+  it("[ORDRE] la mention de complétion passe DEVANT — elle n'a qu'une seule chance", async () => {
+    // Les deux sont dues en même temps. Si l'hypothèse passait devant, la mention serait perdue :
+    // elle s'auto-éteint, alors que le germe reste `en_attente` et repart au chargement suivant.
+    annonceSocleDue.mockResolvedValue(true);
+    lireHypothese.mockResolvedValue(GERME);
+    expect((await chargerOuverture(supa, UID, MAINTENANT))?.type).toBe("socle-complete");
+  });
+
+  it("[REPLI 4.10] une panne de CETTE lecture ne fait pas taire la proposition de la 4.5", async () => {
+    // Mutation-cible : retirer le `try` local. Sous le `catch` global, une panne ajoutée par la 5.5
+    // ferait rendre `null` — et une fonctionnalité qui marchait depuis cinq stories tomberait à
+    // cause d'une lecture ajoutée pour une autre.
+    lireHypothese.mockRejectedValue(new Error("panne"));
+    chargerProposition.mockResolvedValue(SIGNAL_HIER);
+    faits.mockResolvedValue(PEU_DE_BRANCHES);
+    expect((await chargerOuverture(supa, UID, MAINTENANT))?.type).toBe("proposition");
+  });
+
+  it("aucune hypothèse → l'ouverture continue son chemin normal", async () => {
+    lireHypothese.mockResolvedValue({ statut: "indisponible", raison: "aucune" });
+    chargerProposition.mockResolvedValue(SIGNAL_HIER);
+    faits.mockResolvedValue(PEU_DE_BRANCHES);
+    expect((await chargerOuverture(supa, UID, MAINTENANT))?.type).toBe("proposition");
   });
 });

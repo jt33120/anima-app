@@ -82,7 +82,7 @@ Repris de l'épic (Story 2.7), découpés en critères testables. `Couvre : FR-0
 - [x] **T8 — Gardes d'architecture, docs, validations complètes** (AC: 1-5)
   - [x] RED/GREEN : étendre `tests/pipeline-securite-architecture.test.ts` (+ nouvelle `tests/arc-architecture.test.ts` si besoin) — (a) `lib/domain/*.ts` **PUR** (aucun import runtime hors `import type`, pas de `server-only`, pas de `@supabase|next/|@/lib/data|@/lib/ai` runtime) ; (b) la machine d'arc est le **propriétaire unique** des transitions de phase (aucune règle de phase dans `render/`/`app/` hors le câblage route) ; (c) `render/` **muet** — aucun composant conversation ne décide de phase/beat (il **réagit** à la trame `{t:"beat"}`, AD-7) ; (d) ordre **sécurité → arc** dans la route (`indexOf("evaluerSecuriteDuTour(")` < `indexOf("avancerArc(")` < `indexOf("diffuser")`) ; (e) no-leak : aucune clé `phase`/`trace`/`signaux`/`peutNommer` dans une trame NDJSON (whitelist du variant `beat`).
   - [x] GREEN : `lib/domain/README.md` (première logique de domaine : l'arc de séance, machine pure + trace + signaux) + `deferred-work.md` (coutures 2.7 : appel d'extraction *live* → voix 2.8 ; piggyback coût ; distribution des restitutions → voix 2.8 ; prénom → onboarding ; disponibilité calculée sans l'heure → socle Epic 4 ; jeton de tour stable hérité ; durcissement historique `assistant` → Epic 4 ; naissance de branche J+1 hors périmètre).
-  - [x] `set -a && . ./.env.local && set +a && npx vitest run` (Supabase local démarré + migrations appliquées) → **tous verts**. `npx tsc --noEmit` propre · `npx eslint .` propre · `npm run build` propre. Vérifier les 5 ACs un par un ; noté dans *Completion Notes* (total tests avant/après).
+  - [x] `npx vitest run` (Supabase local démarré + migrations appliquées) → **tous verts**. `npx tsc --noEmit` propre · `npx eslint .` propre · `npm run build` propre. Vérifier les 5 ACs un par un ; noté dans *Completion Notes* (total tests avant/après).
 
 ## Dev Notes
 
@@ -171,7 +171,7 @@ Le SPINE **ne modélise aucune** trace de séance : 2.7 l'introduit. L'arc étan
 
 ### Tests — rappels opérationnels
 
-- Vitest **env node**, `server-only` stubé (`tests/_stubs/`). Commande (`.env.local` non chargé automatiquement) : `set -a && . ./.env.local && set +a && npx vitest run`.
+- Vitest **env node**, `server-only` stubé (`tests/_stubs/`). Commande (`.env.local` non chargé automatiquement) : `npx vitest run`.
 - Supabase : CLI **globale `supabase` v2.67.1**, **JAMAIS `npx supabase`**.
 - Chemin CI = **factice** (aucune vraie clé Mistral, zéro réseau ; `estZdrProuve() === true`). Style : injection de factices (`adaptateur(texte)`, `depotSeancePlaceholder`), `toEqual` sur structures complètes ; **contrôle positif + négatif** (un refus jamais prouvé par le seul chemin positif) ; **muter** chaque garde.
 

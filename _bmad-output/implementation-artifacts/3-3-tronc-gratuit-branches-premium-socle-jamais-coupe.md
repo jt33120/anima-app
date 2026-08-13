@@ -228,7 +228,7 @@ La garde de naissance de branche suit le **troisième** modèle côté propositi
 ### Environnement et outillage
 
 - **Supabase local** : CLI **globale** `supabase` (v2.67.1), **jamais** `npx supabase`. La stack locale est le banc d'essai — ne pas la détruire.
-- **Tests** : `set -a && . ./.env.local && set +a && npx vitest run`. Deux projets Vitest : `node` (`tests/**/*.test.ts`) et `rendu` (jsdom, `tests/rendu/**/*.test.tsx`).
+- **Tests** : `npx vitest run`. Deux projets Vitest : `node` (`tests/**/*.test.ts`) et `rendu` (jsdom, `tests/rendu/**/*.test.tsx`).
 - **Mutation-vérification** : appliquer le mutant → compter les rouges → restaurer depuis un instantané `cp`, **jamais `git checkout`** (le dépôt porte du travail non commité ; l'incident est documenté dans la 3.4). `-1` ou 0 test exécuté est une **erreur**, pas un survivant.
 - **Migration** : `0037`. Déploiement cloud (`zlhlzoalmszohrxrnsmo`) via la Management API, avec un `User-Agent` non par défaut, **après** feu vert.
 

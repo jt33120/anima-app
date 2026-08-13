@@ -62,7 +62,9 @@ const FR055: readonly ItemSocle[] = [
   // comme les précédents — avec la preuve positive ci-dessous.
   { item: "horoscope quotidien", existe: true, detecteur: /horoscope/i },
   { item: "mantra du jour", existe: true, detecteur: /mantra/i },
-  { item: "test d'ennéagramme", existe: false, detecteur: /enneagramme|ennéagramme/i },
+  // ⚠️ ARRIVÉ LE 2026-08-13 (Story 5.5). Cinquième rougissement de ce filet, honoré comme les
+  // quatre précédents — avec la preuve positive plus bas, commentaires compris.
+  { item: "test d'ennéagramme", existe: true, detecteur: /enneagramme|ennéagramme/i },
 ];
 
 describe("[T6-2] LE FILET POUR L'EPIC 5 — l'inventaire vieillit en rougissant, pas en silence", () => {
@@ -78,7 +80,8 @@ describe("[T6-2] LE FILET POUR L'EPIC 5 — l'inventaire vieillit en rougissant,
     const fabriques: Record<string, string> = {
       "horoscope quotidien": "app/api/horoscope/route.ts",
       "mantra du jour": "render/socle/MantraDuJour.tsx",
-      "test d'ennéagramme": "app/(scene)/enneagramme/page.tsx",
+      // « test d'ennéagramme » n'a plus de chemin fabriqué : l'item EXISTE depuis la 5.5, et son
+      // détecteur est exercé sur les vrais fichiers par le bloc `existe: true` ci-dessous.
     };
     for (const it of FR055.filter((i) => !i.existe)) {
       // ⚠️ Un item À VENIR sans chemin fabriqué donnait `fabriques[…] === undefined`, que
@@ -144,6 +147,35 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
     expect(doitCouperConversation({ ...enSeance, seanceClose: true })).toBe(true);
   });
 
+  it("[FR-055 / Story 5.5 / DUR] le TEST D'ENNÉAGRAMME n'est gardé par aucun chemin premium", () => {
+    /*
+     * La seconde moitié du contrat de ce filet, celle qu'on oublie : basculer `existe: true` ne
+     * prouve RIEN tout seul. La 5.2 puis la 5.4 se sont fait prendre chacune une fois — et pas sur
+     * du code, sur des COMMENTAIRES qui citaient le registre de la facturation. Le balayage ne
+     * retire donc pas les commentaires : ce qu'on explique compte autant que ce qu'on exécute,
+     * parce qu'une explication qui parle d'abonnement est le premier pas vers un `if`.
+     *
+     * L'ennéagramme est un cas plus net encore que les précédents : il ne dérive d'AUCUNE donnée de
+     * naissance. Un socle illisible, un thème absent, une heure manquante ne doivent en aucun cas
+     * le rendre indisponible — c'est la faute B4 que la revue du 2026-08-12 a trouvée sur le mantra
+     * (« le gratuit à vie tombait avec le thème »).
+     */
+    const chemins = [...fichiersSource("app"), ...fichiersSource("render"), ...fichiersSource("lib")].filter((c) =>
+      /enneagramme|ennéagramme/i.test(c),
+    );
+    // PRÉSENCE D'ABORD — sans témoin, ce test réussirait sur une liste vide, ce qui est exactement
+    // le mode d'échec qu'une garde d'absence produit quand son extracteur casse.
+    expect(chemins.length, "aucun fichier d'ennéagramme balayé — la garde ne regarde rien").toBeGreaterThan(0);
+    for (const chemin of chemins) {
+      const source = readFileSync(resolve(racine, chemin), "utf-8");
+      for (const interdit of [/premium/i, /abonnement/i, /entitlement/i, /planOuvert/, /GardeCommerciale/, /stripe/i]) {
+        expect(source, `${chemin} : le socle gratuit s'est mis à parler de commerce (${interdit})`).not.toMatch(
+          interdit,
+        );
+      }
+    }
+  });
+
   it("les RESSOURCES D'AIDE (FR-077) ne lisent ni session, ni abonnement, ni garde commerciale", () => {
     // La page est publique et statique par contrat (AD-9/AD-15/NFR-002 : le filet ne dépend de rien).
     // PRÉSENCE D'ABORD : on prouve qu'on lit bien la page d'aide et qu'elle rend les ressources.
@@ -205,7 +237,7 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
       },
     } as unknown as SupabaseClient;
 
-    const o = await chargerOuverture(compteGratuit);
+    const o = await chargerOuverture(compteGratuit, "11111111-1111-1111-1111-111111111111");
     expect(
       o,
       "un compte GRATUIT n'a pas entendu la mention — le gate premium est repassé devant",
@@ -213,6 +245,41 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
     // Témoin : la réservation a bien été TENTÉE avant tout le reste (sinon l'assertion ci-dessus
     // pourrait être satisfaite par un chemin qui ne passe pas par là).
     expect(appels[0]).toBe("annonce_socle_due");
+  });
+
+  it("[FR-055 / Story 5.5 / DUR] L'HYPOTHÈSE D'ANAM n'est pas derrière le gate premium", async () => {
+    /*
+     * ⚠️ LA MÊME GARDE FRAGILE QUE CI-DESSUS, POUR LA MÊME RAISON — et l'en-tête d'
+     * `ouverture-branche.ts` PROMET qu'elle existe ici. Une garde qui ne vit que dans un
+     * commentaire n'existe pas : c'est la doctrine que cette story a payée en T1.
+     *
+     * L'ennéagramme est du socle GRATUIT À VIE (FR-055). Déplacer le bloc sous `premiumSousJwt`
+     * prend une seconde, ne casse rien d'apparent, et rend Anam muette sur un compte gratuit —
+     * alors même que le germe est écrit en base et que la halte, elle, resterait accessible.
+     *
+     * Éprouvée par le COMPORTEMENT : un compte explicitement NON premium doit recevoir l'ouverture.
+     */
+    vi.resetModules();
+    vi.doMock("@/lib/data/lire-enneagramme", () => ({
+      lireHypotheseEnneagramme: async () => ({
+        statut: "calcule",
+        hypothese: { id: "h-1", type: 4, aDire: true },
+      }),
+    }));
+    try {
+      const { chargerOuverture } = await import("@/lib/safety/ouverture-branche");
+      const compteGratuit = {
+        rpc: async () => ({ data: false, error: null }), // ni premium, ni mention de socle due
+      } as unknown as SupabaseClient;
+      const o = await chargerOuverture(compteGratuit, "11111111-1111-1111-1111-111111111111");
+      expect(
+        o?.type,
+        "un compte GRATUIT n'a pas entendu l'hypothèse — le gate premium est repassé devant",
+      ).toBe("hypothese-enneagramme");
+    } finally {
+      vi.doUnmock("@/lib/data/lire-enneagramme");
+      vi.resetModules();
+    }
   });
 
   it("[FR-055 / Story 5.1] le THÈME NATAL n'est gardé par AUCUN chemin premium", () => {

@@ -132,7 +132,7 @@ afin que **la transparence (je sais toujours que je parle à une machine) et le 
 
 - [x] **Tâche 5 — Validation complète + journal** (AC : 1-6)
   - [x] `npx tsc --noEmit` (0 erreur, strict), `npm run lint` (0 erreur), build Turbopack OK.
-  - [x] Tests : `set -a && . ./.env.local && set +a && npx vitest run` — **tous** verts (188 : 160 de base + 28 nouveaux). *(Rappel : Vitest ne charge pas `.env.local` seul.)*
+  - [x] Tests : `npx vitest run` — **tous** verts (188 : 160 de base + 28 nouveaux). *(Rappel : Vitest ne charge pas `.env.local` seul.)*
   - [x] **Vérif manuelle** — le build marque `/aide` en `○ (Static)` (prérendue, donc sans session/auth → publique, AC3) ; la surimpression est rendue **premier enfant** de `.monde` hors `inert` (porte de secours = 1ᵉʳ arrêt de tabulation) ; les slots signe/mention n'ont **aucune** transition (jamais dissous, reduced-motion sûr). *Reste un coup d'œil visuel en navigateur recommandé pour Julian (voir Completion Notes).*
   - [x] Mettre à jour **File List**, **Change Log**, **Completion Notes**, puis passer **Status → review** (le code-review clôturera en `done`).
 
@@ -220,7 +220,7 @@ Opus 4.8 (1M context) — `claude-opus-4-8[1m]`
 ### Debug Log References
 
 - Red→green modèle : `tests/scene-surimpression.test.ts` a d'abord échoué (7/7, `surimpressionPour is not a function`) avant l'ajout de `lib/scene/surimpression.ts` → 7/7 verts.
-- Suite complète : **188/188** (`set -a && . ./.env.local && set +a && npx vitest run`). `tsc --noEmit` : 0 erreur. `eslint .` : 0 erreur. Build Turbopack : OK, `/aide` en `○ (Static)`.
+- Suite complète : **188/188** (`npx vitest run`). `tsc --noEmit` : 0 erreur. `eslint .` : 0 erreur. Build Turbopack : OK, `/aide` en `○ (Static)`.
 
 ### Completion Notes List
 

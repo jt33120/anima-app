@@ -415,6 +415,27 @@ describe("[AD-1/DUR] lib/astro est PUR — testable sans base, sans réseau, san
     }
   });
 
+  it("[Story 5.5] `lib/astro` ne connaît PAS l'ennéagramme — ce n'est pas du ciel", () => {
+    /*
+     * ⚠️ L'INVENTAIRE DE CE FICHIER NE ROUGIT PAS TOUT SEUL (`toBeGreaterThanOrEqual`), donc chaque
+     * story de socle doit venir y écrire ce qu'elle ajoute. La 5.5 n'ajoute RIEN à `lib/astro`, et
+     * c'est la chose à consigner : un type d'ennéagramme ne se dérive d'aucune position
+     * astronomique, il se dérive de SES RÉPONSES ou d'une inférence sur SES PAROLES.
+     *
+     * Le mettre ici serait tentant — c'est du calcul déterministe sur des nombres, exactement comme
+     * la numérologie — et ce serait une faute de couche : `lib/astro` est la couche des ENTRÉES DE
+     * NAISSANCE, et son unique test d'exhaustivité (« aucune prose ») ne dit rien d'utile sur un
+     * questionnaire. Le domaine de l'ennéagramme vit dans `lib/domain`, sous la garde de pureté de
+     * `tests/arc-architecture.test.ts`.
+     */
+    for (const f of FICHIERS_ASTRO) {
+      const src = readFileSync(resolve(RACINE, f), "utf-8");
+      expect(src, `${f} : l'ennéagramme n'a rien à faire dans la couche du ciel`).not.toMatch(
+        /enn[ée]agramme/i,
+      );
+    }
+  });
+
   it("le domaine n'importe pas son propre adaptateur (sinon le port ne servirait à rien)", () => {
     const domaine = FICHIERS_ASTRO.filter((f) => !f.startsWith("lib/astro/adapters/"));
     expect(domaine.length).toBeGreaterThanOrEqual(2);

@@ -59,7 +59,7 @@ import { normaliserTexte, UN_MOT_INTERCALE } from "./normalisation-texte";
  * a mal compris à quoi sert ce fichier — et publiera une prédiction sous le nom d'Anima.
  */
 
-export type FamillePrediction = "futur_adresse" | "avenir" | "vocabulaire";
+export type FamillePrediction = "futur_adresse" | "futur_type" | "avenir" | "vocabulaire";
 
 export interface Prediction {
   famille: FamillePrediction;
@@ -97,7 +97,113 @@ const normaliser = normaliserTexte;
  * que tu vis » passait).
  */
 
+/**
+ * LE FUTUR À LA TROISIÈME PERSONNE (Story 5.5, revue du 2026-08-13).
+ *
+ * ⚠️ CE QUI MANQUAIT, ET POURQUOI ÇA NE SE VOYAIT PAS. Tous les motifs `futur_adresse` sont ancrés
+ * sur `tu` — l'en-tête l'assume : « la sélectivité vient du destinataire, pas de la terminaison ».
+ * Ce raisonnement est JUSTE tant que le corpus parle de nombres et de planètes : « le cycle se
+ * refermera » n'annonce rien sur la vie de personne, et le bannir rendrait le corpus inécrivable.
+ *
+ * Il tombe le jour où le corpus parle de TYPES. Un portrait d'ennéagramme s'écrit sur « le 4 », pas
+ * sur « toi » — et une fois le type retenu, **« le 4 » EST elle**. Le futur redevient adressé sans
+ * qu'un seul « tu » n'apparaisse. Mesuré, avant correctif :
+ *
+ *     « Le 4 finira par se sentir seul. »            → VERT
+ *     « Le 2 développera un ressentiment silencieux. » → VERT
+ *     « Le 9 évitera le conflit jusqu'à l'effacement. » → VERT
+ *
+ * Le jour où Anima livre les neuf textes, un corpus intégralement prédictif passait la CI au vert.
+ *
+ * ── CE QUE CETTE FAMILLE NE FAIT PAS ───────────────────────────────────────────────────────────
+ *
+ * Elle **ne renverse pas** la décision d'épargner le futur impersonnel : elle identifie le cas où
+ * la prémisse de cette décision est fausse. Hors désignation de type, « le cycle se refermera »
+ * reste écrivable, et un test le prouve dans les deux sens.
+ *
+ * ── LES DEUX BORNES, ET CE QU'ELLES COÛTENT ────────────────────────────────────────────────────
+ *
+ * (1) LA MÊME PHRASE (`[^.!?]*?`). Sans elle, un créneau qui nomme un type dans sa première phrase
+ *     rendrait prédictive toute phrase au futur jusqu'à la fin du texte, y compris une phrase
+ *     impersonnelle légitime.
+ *
+ * (2) LES MOTS QUI FINISSENT EN -RA / -RONT SANS ÊTRE DES VERBES. La liste est courte parce que le
+ *     français en compte peu — et elle contient `mantra` et `chakra`, qui sont du vocabulaire
+ *     COURANT de ce produit-ci. Un détecteur qui rougit sur « mantra » serait désactivé dans la
+ *     semaine.
+ *
+ * `aura` est traité à part : c'est à la fois le futur d'avoir (« le 8 aura besoin de garder la
+ * main » — une vraie prédiction) et un nom du registre ésotérique que ce corpus emploiera. On
+ * l'épargne donc uniquement derrière un déterminant **qui ne peut pas précéder un verbe conjugué**
+ * (« son aura », « l'aura », « cette aura »). Le prix, nommé dans les tests : le pronom élidé de
+ * « le 4 l'aura oublié » passe. C'est la tournure qu'on n'écrit jamais dans un portrait ; resserrer
+ * ici rouvrirait un faux positif sur tout le vocabulaire du produit.
+ */
+const NON_VERBES_EN_RA =
+  "camera|cameras|opera|operas|mantra|mantras|chakra|chakras|sutra|sutras|cobra|cobras|" +
+  "tiara|tiaras|extra|extras|ultra|ultras|contra|infra|intra|sierra|zebra|hydra|orchestra|" +
+  "front|fronts|affront|affronts";
+
+/**
+ * ⚠️ LA DÉSIGNATION EXIGE UN PRÉFIXE. Un chiffre nu suffirait à déclencher la famille sur « les 3
+ * chemins mèneront », qui ne parle d'aucun type. Il faut donc un article, ou le mot « type » /
+ * « profil » / « ennéatype ». Le résidu assumé reste « les 3 chemins » — mais dans un corpus de
+ * socle, un futur y est de toute façon une annonce.
+ */
+/**
+ * ⚠️ LA TROISIÈME ALTERNATIVE A ÉTÉ AJOUTÉE APRÈS COUP (Story 5.5, T11), ET C'EST UN TROU RÉEL QUI
+ * A ÉTÉ TROUVÉ PAR LA FICHE D'ÉCRITURE, PAS PAR UNE RELECTURE.
+ *
+ * Les deux premières exigent un CHIFFRE. Or un portrait d'ennéagramme reprend naturellement son
+ * sujet sans le renuméroter : « Ce type va chercher la reconnaissance. » — mesuré VERT, alors que
+ * c'est exactement le futur proche à la 3ᵉ personne que cette famille existe pour attraper. Une
+ * fiche qui donnait cette phrase en exemple de refus mentait à Anima.
+ *
+ * Le `(?!\s+d(?:e|'))` écarte la construction « le type DE… », qui ne désigne aucun type
+ * d'ennéagramme (« le type de réponse qu'elle donnera »). Sans lui, la famille mordrait sur du
+ * français ordinaire et deviendrait un bruit qu'on finirait par contourner.
+ */
+const DESIGNE_UN_TYPE =
+  "(?:\\b(?:le|la|les|un|une|ce|cet|cette|ces|leur|leurs) (?:(?:type|profil|enneatype)s? )?[1-9]\\b" +
+  "|\\b(?:type|profil|enneatype)s? [1-9]\\b" +
+  "|\\b(?:ce|cet|cette|ces|le|la|les) (?:type|profil|enneatype)s?\\b(?!\\s+d(?:e|'))" +
+  ")";
+
+/** Un verbe au futur simple de 3ᵉ personne (-ra / -ront), les mots-pièges retirés. */
+// ⚠️ DEUX LOOKBEHINDS, PAS UN — l'élision ne porte pas d'espace. Le premier jet écrivait
+// `(?<!\b(?:l'|d'|son|…) )` : le fragment « l' » y était suivi d'une espace, donc « l'aura » (sans
+// espace) n'était jamais épargné et le test du prix nommé rougissait. Les formes élidées et les
+// déterminants pleins ne se testent pas de la même façon.
+//
+// ⚠️ « n' » N'EST PAS DANS LA LISTE, ET C'EST DÉLIBÉRÉ : « le 4 n'aura pas besoin » est une vraie
+// prédiction. Seuls sont épargnés les déterminants qui ne peuvent PAS précéder un verbe conjugué —
+// et « leur » en est exclu pour la même raison (« le 4 leur dira » doit rougir).
+// ⚠️ L'APOSTROPHE EST HORS DE LA CLASSE DE CARACTÈRES, ET C'EST TOUT L'ENJEU. Écrite `[a-z']{3,}`,
+// elle absorbait l'article élidé : « l'aura » se laissait matcher COMME UN SEUL MOT commençant à
+// « l », donc en amont du lookbehind, qui ne voyait plus qu'une espace et laissait passer. Aucun
+// verbe français ne porte d'apostrophe interne — l'élision est toujours un préfixe.
+const VERBE_FUTUR_3E =
+  `(?<!\\b[ld]')(?<!\\b(?:son|sa|une|cette|ton|ta|mon|ma|notre|votre) )` +
+  // ⚠️ AUCUNE BORNE BASSE SUR LE RADICAL, et il a fallu deux essais pour l'admettre. La borne se
+  // compte AVANT la terminaison : à `{3,}` le mot minimal faisait cinq lettres et « aura » (quatre)
+  // échappait ; à `{2,}` il en faisait quatre et « ira » (« le type 1 ira vers la colère »)
+  // échappait encore. Or ce sont les deux verbes les plus courants du français.
+  //
+  // Rien ne se perd à descendre à `+` : la sélectivité de cette famille ne vient PAS de la longueur
+  // du radical — elle vient de la désignation de type qui précède et de la liste des mots-pièges.
+  // Le défaut initial était masqué par un second : l'apostrophe dans la classe de caractères faisait
+  // atteindre six lettres à « l'aura », qui passait donc pour un verbe. Deux erreurs se couvraient
+  // l'une l'autre, et la première passe de tests était verte sur la mauvaise raison.
+  `\\b(?!(?:${NON_VERBES_EN_RA})\\b)[a-z]+(?:ra|ront)\\b`;
+
+/** Le futur proche de 3ᵉ personne : « le 3 va finir par… », « les 7 vont chercher… ». */
+const FUTUR_PROCHE_3E = `\\b(?:va|vont) ${UN_MOT_INTERCALE}[a-z']*(?:er|ir|re|oir)\\b`;
+
 const MOTIFS: Array<{ famille: FamillePrediction; motif: RegExp }> = [
+  // ── Le futur à la 3ᵉ personne, DANS UNE PHRASE QUI DÉSIGNE UN TYPE (Story 5.5) ────────────────
+  { famille: "futur_type", motif: new RegExp(`${DESIGNE_UN_TYPE}[^.!?]*?${VERBE_FUTUR_3E}`, "g") },
+  { famille: "futur_type", motif: new RegExp(`${DESIGNE_UN_TYPE}[^.!?]*?${FUTUR_PROCHE_3E}`, "g") },
+
   // ── Le futur ADRESSÉ (le cœur du détecteur) ──────────────────────────────────────────────────
   // Futur simple à la 2ᵉ personne : « tu verras », « tu ne seras », « tu te sentiras », « tu y trouveras ».
   // Le préfixe « tu » obligatoire est ce qui épargne « embarras », « fracas », « repas » isolés.

@@ -652,7 +652,7 @@ s'incrémente et devient lisible par les futurs dépendants. Le reste appartient
 ### Commandes
 
 ```bash
-set -a && . ./.env.local && set +a && npx vitest run
+npx vitest run
 npx tsc --noEmit && npx eslint . && npx next build
 supabase db reset          # CLI GLOBALE (/opt/homebrew/bin/supabase) — jamais npx supabase
 ```

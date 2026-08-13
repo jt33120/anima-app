@@ -101,7 +101,7 @@ afin que **le paywall et les limites ne réapparaissent pas au milieu d'un momen
         déjà — 3.4 — **aucun changement client**).
 
 - [x] **T5 — Suite verte + non-régression (AC4)**
-  - [x] `set -a && . ./.env.local && set +a && npx vitest run` — toute la suite verte (Supabase local
+  - [x] `npx vitest run` — toute la suite verte (Supabase local
         démarré, CLI globale). Les tests 2.4 existants (rehausse/compte/éteint/F3) **inchangés et verts**.
   - [x] `npx tsc --noEmit`, `npx eslint`, `next build` propres.
 
@@ -257,7 +257,7 @@ grant execute on function public.enregistrer_tour_detresse(uuid, int, int, int, 
 
 ### Testing standards
 
-- Vitest (env node) ; **Supabase local requis** ; `set -a && . ./.env.local && set +a && npx vitest run`.
+- Vitest (env node) ; **Supabase local requis** ; `npx vitest run`.
   CLI Supabase **globale** v2.67.1, **jamais** `npx supabase`. Appliquer `0017` via `supabase db reset`
   (rejoue depuis les fichiers). Gotcha connu : si le seed Realtime échoue → `supabase stop --no-backup
   && supabase start`.

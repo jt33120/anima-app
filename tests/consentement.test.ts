@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { accordsComplets } from "@/app/(auth)/consentement/accords";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
@@ -307,5 +309,55 @@ describe("La garde exige art9_accorde=true, pas la simple existence d'une ligne 
     expect(error).toBeNull();
     expect(await etapeOnboardingPour(c, u.id)).toBe("suite");
     await c.auth.signOut();
+  });
+});
+
+/**
+ * Story 5.5 (décision D12) — LE LIBELLÉ DOIT NOMMER CE QU'ANAM DÉDUIT.
+ *
+ * ⚠️ POURQUOI CETTE GARDE EXISTE ALORS QUE LA GARDE TECHNIQUE EST DÉJÀ VERTE. `a_consenti_art9()`
+ * ne vérifie qu'un booléen : elle rendra `true` et laissera écrire un type d'ennéagramme même si le
+ * libellé ne mentionne que ce qu'elle PARTAGE. La conformité aurait alors l'air acquise — et c'est
+ * exactement le mode d'échec que FR-072 vise, une case cochée sur une phrase qui ne couvre pas.
+ *
+ * Un type d'ennéagramme n'est pas partagé : il est PRODUIT par un score ou INFÉRÉ par un modèle.
+ * L'amont l'a qualifié (« profil psychologique … catégories de données sensibles »,
+ * `addendum.md:133`). Seul le LIBELLÉ peut rattraper ce que la 5.5 ajoute.
+ *
+ * Garde de SOURCE, assumée comme telle : elle prouve que la phrase est là, jamais qu'elle est
+ * comprise. Ce qu'elle empêche, c'est la régression silencieuse — quelqu'un qui « resserre » la
+ * copie et retire l'ajout sans savoir ce qu'il portait.
+ */
+describe("[5.5/D12] la copie de consentement couvre la DÉDUCTION, pas seulement le partage", () => {
+  const lireSource = (chemin: string) =>
+    readFileSync(resolve(__dirname, "..", chemin), "utf8");
+  const CASE_ART9 = "app/(auth)/consentement/formulaire-consentement.tsx";
+  const ECRAN = "app/(auth)/consentement/page.tsx";
+
+  it("[LE CŒUR] la case art. 9 nomme ce qu'Anam DÉDUIT", () => {
+    // Mutation-cible : revenir à « ce que je partage sur mon intériorité, mes croyances, mon vécu ».
+    // Rien d'autre dans la suite ne rougirait, et la 5.5 écrirait une catégorie art. 9 que le
+    // consentement ne nomme pas.
+    const source = lireSource(CASE_ART9);
+    const label = source.match(/Je consens à ce qu[\s\S]*?<\/span>/)?.[0] ?? "";
+    expect(label, "extraction TRONQUÉE — la garde ne prouverait rien").toContain("article");
+    expect(label).toMatch(/déduit/);
+  });
+
+  it("[CONTRÔLE] …sans avoir REMPLACÉ ce qu'elle partage", () => {
+    // Sans ce contrôle, une copie qui ne parlerait QUE de déduction satisferait le test ci-dessus —
+    // et le consentement ne couvrirait plus le verbatim du journal, qui est le gros du traitement.
+    const label = lireSource(CASE_ART9).match(/Je consens à ce qu[\s\S]*?<\/span>/)?.[0] ?? "";
+    expect(label).toMatch(/partage/);
+    expect(label).toMatch(/intériorité/);
+  });
+
+  it("le détail dit que ces déductions se CORRIGENT et s'EFFACENT", () => {
+    // Une déduction qu'on ne peut pas défaire n'est plus une hypothèse, c'est un verdict — et le
+    // produit entier tient sur l'inverse (FR-006).
+    const detail = lireSource(ECRAN);
+    expect(detail).toMatch(/déduit/);
+    expect(detail).toMatch(/corriger/);
+    expect(detail).toMatch(/effacer/);
   });
 });

@@ -61,7 +61,7 @@ afin que **l'abonnement se propose au bon moment, et que le reste de l'app me re
   - [x] Tests : parser trame `quota` ; `Composeur` avec `motifDesactive` rend le motif + désactive (garde de source, env node — pas de DOM) ; garde de copie (interdits + présence du « reste ouvert »).
 
 - [x] **T7 — Régression, différés, doc.**
-  - [x] Suite complète verte (`set -a && . ./.env.local && set +a && npx vitest run`), tsc + eslint + `next build` propres. Supabase local via CLI GLOBALE (`supabase`), jamais `npx supabase`.
+  - [x] Suite complète verte (`npx vitest run`), tsc + eslint + `next build` propres. Supabase local via CLI GLOBALE (`supabase`), jamais `npx supabase`.
   - [x] `deferred-work.md` : marquer « jeton de tour stable » **RÉSOLU** (2.2/2.4/2.7/2.9) ; ajouter la section « Coutures 3.4 » (unité d'allocation confirmée, fenêtre mensuelle TZ, arc post-séance, `ALLOCATION_RESIDUELLE_TOURS` porte ops).
   - [x] Change Log.
 

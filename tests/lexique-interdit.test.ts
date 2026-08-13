@@ -35,6 +35,30 @@ describe("Story 2.8 — lexique interdit : CONTRÔLE POSITIF (attrape le connu-m
     ["Je peux te prendre en charge.", "medical"],
     ["Tu iras mieux, promis.", "medical"],
     ["Ça va passer.", "medical"],
+
+    // ── Story 5.5 — L'ADJECTIF CLINIQUE ATTRIBUT ───────────────────────────────────────────────
+    //
+    // Le lexique bannissait le SUBSTANTIF (« l'anxiété », `\banxiete(s)?\b`) et la locution
+    // (« trouble anxieux »), jamais l'adjectif nu. Mesuré le 2026-08-13 : « Le 6 vit dans
+    // l'anxiété. » → rouge, mais « Le 6 est anxieux. » → VERT. Or l'adjectif attribut est la
+    // formulation canonique de toute la littérature ennéagramme, et NFR-008 dit « lexique zéro
+    // médical » — pas « zéro substantif médical ».
+    ["Le 6 est anxieux.", "medical"],
+    ["Le 6 est anxieuse.", "medical"],
+    ["Un fonctionnement obsessionnel.", "medical"],
+    ["C'est un mécanisme phobique.", "medical"],
+    ["Le 4 peut sembler narcissique.", "medical"],
+    ["Une répétition compulsive.", "medical"],
+    ["C'est une défense névrotique.", "medical"],
+    ["Un fonctionnement bipolaire.", "medical"],
+    ["Un profil borderline.", "medical"],
+    ["Une tendance hypocondriaque.", "medical"],
+    ["Un mouvement dissociatif.", "medical"],
+    ["Un fond paranoïaque.", "medical"],
+    // « évitant » est GATÉ (voir le contrôle négatif) : c'est l'attribut qui bascule, pas le
+    // participe présent.
+    ["Le 9 est évitant.", "medical"],
+    ["Le 9 devient évitante avec le temps.", "medical"],
     ["Cette app soigne l'estime de soi.", "soigner"],
     ["Prends soin de toi.", "soigner"],
     ["C'est une excellente prise de conscience.", "formulation"],
@@ -85,6 +109,11 @@ describe("Story 2.8 — lexique interdit : CONTRÔLE NÉGATIF (épargne le légi
     "Recevoir mon lien", // libellé UI neutre
     "Ta date de naissance", // libellé UI neutre
     "Prévention du suicide", // libellé d'aide (organisme) — non médical d'Anam
+    // ── Story 5.5 — ce que l'extension aux adjectifs cliniques ne doit PAS avaler ──────────────
+    "Le 9 tient la paix en évitant le conflit.", // participe présent courant ≠ attribut clinique
+    "Elle avance en évitant les détours.", // idem
+    "Un travail d'évitement, dirait un manuel.", // le nom n'est pas visé : c'est l'attribut qui l'est
+    "Ce nombre décrit une vigilance, pas un défaut.", // le registre de remplacement doit rester libre
   ];
   for (const texte of bons) {
     it(`épargne « ${texte} »`, () => {

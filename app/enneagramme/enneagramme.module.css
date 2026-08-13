@@ -1,0 +1,128 @@
+/*
+ * enneagramme.module.css — La halte de l'ennéagramme (Story 5.5, T8).
+ *
+ * Bâtie sur les MÊMES tokens que `/heure-naissance` : c'est la même nature d'écran — une halte qui
+ * se pose par-dessus la scène et y renvoie — et deux dessins pour un même rôle donneraient
+ * l'impression de deux produits.
+ *
+ * ⚠️ AUCUN COMPTEUR, AUCUNE BARRE, AUCUN ANNEAU, AUCUN POURCENTAGE (FR-031, DESIGN.md:695). Il n'y a
+ * volontairement AUCUNE classe de progression dans ce fichier : ce qui n'existe pas ne se rajoute
+ * pas « juste pour aider ». Une jauge transformerait dix-huit questions sur la façon dont on cède en
+ * une performance à terminer.
+ */
+
+.halte {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--esp-5);
+  padding: var(--esp-7) var(--marge-mobile);
+  max-width: var(--mesure);
+  margin: 0 auto;
+}
+
+.bloc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  width: 100%;
+  max-width: 28rem;
+}
+
+/* L'énoncé en cours. `min-height` pour que la page ne SAUTE PAS entre un énoncé court et un long :
+   un déplacement de la liste de réponses au moment où le doigt descend est une faute de clic. */
+.enonce {
+  min-height: 5.5rem;
+  display: flex;
+  align-items: center;
+  text-align: left;
+}
+
+/* Les quatre réponses. Empilées, pleine largeur, TOUTES DE MÊME POIDS : une échelle dont un degré
+   se remarque plus que les autres n'est plus une échelle. */
+.reponses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.reponse {
+  width: 100%;
+  min-height: var(--cible-tactile);
+  padding: var(--esp-3) var(--esp-4);
+  text-align: left;
+  font-family: var(--pile-ui);
+  font-size: 1rem;
+  color: var(--texte);
+  background: var(--surface-elevee);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  cursor: pointer;
+  transition: opacity var(--duree-standard) var(--courbe);
+}
+.reponse:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.reponse:focus-visible,
+.bouton:focus-visible,
+.discret:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}
+
+/* Le résultat : un TYPE, jamais un nombre de points ni un classement (FR-031). */
+.type {
+  text-align: center;
+}
+
+.bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-5);
+  background: var(--accent);
+  color: var(--sur-accent);
+  border: 0;
+  border-radius: var(--rayon);
+  cursor: pointer;
+  text-decoration: none;
+}
+.bouton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Les gestes secondaires (« Refaire », « Effacer », « Revenir »). Discrets, jamais cachés : une
+   sortie qu'on ne trouve pas est une porte fermée. */
+.discret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-4);
+  background: transparent;
+  color: var(--texte);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.gestes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-3);
+  justify-content: center;
+}
+
+.erreur {
+  font-family: var(--pile-ui);
+  color: var(--texte);
+  margin: 0;
+}

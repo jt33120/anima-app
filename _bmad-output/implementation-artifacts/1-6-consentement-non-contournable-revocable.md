@@ -109,7 +109,7 @@ afin que **la légalité du traitement ne dépende jamais d'un oubli d'interface
   - [x] Ajuster le **tripwire** existant (`consentement.test.ts` « Frontière art. 9 ») : `art9_temoin` existe désormais **volontairement** (c'est le gabarit gardé) ; le tripwire doit continuer à vérifier qu'aucune **vraie table de contenu** art. 9 (`journal`/`seance`/`tirage`/`socle`) n'existe encore.
   - [x] Vérifier que `tests/rls.test.ts` (RLS deny-by-default, AD-12) reste vert et **couvre** `art9_temoin` comme table gardée (policy présente ≠ défaut de build).
   - [x] Mettre à jour les tests de `etapeOnboarding` (nouvel état `revoque`).
-  - [x] Vérifs finales : `set -a && . ./.env.local && set +a && npx vitest run` (tout : 1.1→1.6), `npm run lint`, `npx tsc --noEmit`, `next build`.
+  - [x] Vérifs finales : `npx vitest run` (tout : 1.1→1.6), `npm run lint`, `npx tsc --noEmit`, `next build`.
 
 ### Review Findings
 
@@ -151,7 +151,7 @@ Le **write-gate art. 9 au niveau base** + la **révocation** — **uniquement**.
 - **`app/(auth)/onboarding.ts`** : `etapeOnboarding` pur (+ ses tests) — à **étendre** (`revoque`).
 - **`lib/data/supabase/admin.ts`** (`import "server-only"`) : suppression de compte système déjà isolée — **réutiliser** pour la suppression finale.
 - **Pattern migration** forward-only `0004 → 0005` ; **précédent `probe`** (0001) = table-sonde permanente qui prouve un invariant RLS → `art9_temoin` est son équivalent art. 9.
-- **Env des tests** : Vitest ne charge PAS `.env.local` → `set -a && . ./.env.local && set +a && npx vitest run`.
+- **Env des tests** : Vitest ne charge PAS `.env.local` → `npx vitest run`.
 
 ### Décision technique : RLS `WITH CHECK` + fonction, PAS un trigger
 
@@ -217,7 +217,7 @@ Opus 4.8 (`claude-opus-4-8`, 1M context) — via `bmad-dev-story`.
 
 ### Debug Log References
 
-- **Env des tests d'intégration** : Vitest ne charge pas `.env.local` → lancés avec `set -a && . ./.env.local && set +a && npx vitest run`. Migration appliquée via `supabase db reset` (Docker local).
+- **Env des tests d'intégration** : Vitest ne charge pas `.env.local` → lancés avec `npx vitest run`. Migration appliquée via `supabase db reset` (Docker local).
 - **`security definer` + `search_path = ''`** : `a_consenti_art9` qualifie `public.consentement` ; `revoke all from public` + `grant execute to authenticated` → seule une session authentifiée l'appelle (3 tests write-gate le confirment). Un non-authentifié est de toute façon bloqué en amont par `auth.uid() = utilisatrice_id`.
 - **Write-gate en WITH CHECK, pas USING** : vérifié en test — après révocation, l'écriture est refusée MAIS la lecture des lignes déjà posées reste permise (export RGPD). Intention délibérée.
 - **Refactor `refuser` sans casser 1.5** : suppression de compte extraite en helper privé `effacerCompteCourant(cheminEchec)` ; `refuser()` (signature inchangée) et `supprimerCompteRevoque()` délèguent. Zéro duplication, échec jamais silencieux.

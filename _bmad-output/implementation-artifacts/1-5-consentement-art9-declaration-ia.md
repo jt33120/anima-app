@@ -180,7 +180,7 @@ Opus 4.8 (`claude-opus-4-8`, 1M context) — via `bmad-dev-story`.
 
 ### Debug Log References
 
-- **Env des tests d'intégration** : Vitest ne charge PAS `.env.local` dans `process.env`. Les tests DB attendent les clés **exportées dans le shell** (déjà le cas en 1.4, explicite dans `rls.test.ts`). Lancement : `set -a && . ./.env.local && set +a && npx vitest run`. Aucun code applicatif touché (Next charge `.env.local` seul).
+- **Env des tests d'intégration** : Vitest ne charge PAS `.env.local` dans `process.env`. Les tests DB attendent les clés **exportées dans le shell** (déjà le cas en 1.4, explicite dans `rls.test.ts`). Lancement : `npx vitest run`. Aucun code applicatif touché (Next charge `.env.local` seul).
 - **Helper `etat-onboarding.ts` (ajout non listé mais dans le périmètre de la Tâche 5 « brancher »)** : décision d'ISOLER la lecture d'état en un seul endroit pour que `/auth/confirm`, `/naissance` et `/consentement` ne divergent jamais — réponse directe à la faille de la revue 1.4 (barrière oubliée dans un seul chemin).
 - **`etapeOnboarding(null)` : "suite" → "naissance"** (durcissement délibéré). Avec le consentement comme barrière dure, un cas défensif « ligne illisible » ne doit jamais ouvrir la scène. Le trigger `handle_new_user` garantit la ligne, donc pas de boucle en pratique. Test mis à jour en conséquence.
 - **`server-only` non installé** → volontairement PAS importé dans `admin.ts` (ajouter une dépendance = HALT). Isolation assurée par convention + commentaire fort ; le module n'est importé que par la Server Action de refus.

@@ -166,7 +166,7 @@ Fichiers **MODIFIÉS** : `package.json` + lockfile (stripe) · `tests/garde-comm
 ### Testing standards (repo)
 
 - **Vitest 4.1.10, env `node` (pas de DOM)**, `tests/**/*.test.ts`, alias `@`→racine, `server-only` stubé (`tests/_stubs/server-only.ts` → modules `server-only` testables).
-- Commande : **`set -a && . ./.env.local && set +a && npx vitest run`** (Vitest ne charge pas `.env.local`). Vars DB : `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY`. Supabase local via **CLI globale `supabase` v2.67.1**, **jamais `npx supabase`**.
+- Commande : **`npx vitest run`** (Vitest ne charge pas `.env.local`). Vars DB : `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY`. Supabase local via **CLI globale `supabase` v2.67.1**, **jamais `npx supabase`**.
 - **Cœurs purs** (`lib/domain/`) testés en isolation (positif **ET** négatif) ; zéro import runtime infra.
 - **Routes non invocables** → gardes de **lecture de source** : `sansCommentaires` (⚠️ aveugle aux chaînes), `readdirSync(recursive)` (jamais liste en dur), **contrôle positif + garde non-vacue** (`> seuil` fichiers), gardes d'ordre par `indexOf`, condition→destination liées dans **UNE** regex, grep du **nom brut** du package/variable.
 - **Muter chaque garde** (casser ce qu'elle protège → confirmer ROUGE → Debug Log → reverter) : « une garde verte quand on casse ce qu'elle protège ne vaut rien ».

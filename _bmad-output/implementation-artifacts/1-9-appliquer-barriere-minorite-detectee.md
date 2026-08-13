@@ -218,7 +218,7 @@ Cette barrière est **distincte** de `mineur_detecte` (Story 1.4) : celle-là bl
       - `est_barre_minorite()` : pas d'oracle inter-utilisatrices (une session ne révèle pas l'état d'une autre).
     - [x] **Anti-divergence** (garde par lecture de fichiers, comme les tests de scène) : pour **chacun** des 7 sites de garde listés en Tâche 3, asserter que le fichier route `barre` (contient `"barre"` **et** `"/barriere"`). Le test **échoue** si un site oublie la barrière.
     - [x] **Écran** (garde par lecture de `app/barriere/page.tsx` + css) : aucun import de traceur (`analytics|gtag|mixpanel|posthog|plausible`) — NFR-002/AC4 ; aucun `--alerte`/`red` dans le css ; présence du **3018** et d'un lien `tel:` ; l'export est **une action** (un lien vers `/api/export`) ; **jamais signé d'Anam** (pas de `t-anam` portant une 1re personne d'Anam — un simple contrôle de registre : titre + `t-corps`, pas de voix Anam).
-  - [x] Faire tourner **toute** la suite (`set -a && . ./.env.local && set +a && npx vitest run`) : zéro régression sur la suite existante (vérifier en particulier `write-gate-art9.test.ts` — un compte NON suspendu avec consentement valide doit TOUJOURS pouvoir écrire) + les nouveaux tests au vert.
+  - [x] Faire tourner **toute** la suite (`npx vitest run`) : zéro régression sur la suite existante (vérifier en particulier `write-gate-art9.test.ts` — un compte NON suspendu avec consentement valide doit TOUJOURS pouvoir écrire) + les nouveaux tests au vert.
 
 ## Dev Notes
 
@@ -277,7 +277,7 @@ Cette barrière est **distincte** de `mineur_detecte` (Story 1.4) : celle-là bl
 - Vitest `environment: "node"` (pas de DOM). Deux styles :
   - **Pur / lecture de fichiers** : import direct (`lib/safety/…`, `app/(auth)/onboarding.ts`) ou lecture de source en string (gardes de routage/écran).
   - **SQL réel** contre **Supabase local** (`supabase start`) : `createClient(SUPABASE_URL, SUPABASE_SECRET_KEY)` (admin) pour préparer l'état (`admin.auth.admin.createUser`, `admin.rpc("appliquer_barriere_minorite", …)`), et une **session RLS** (`createClient(url, publishable)` + `signInWithPassword`) pour prouver le refus d'écriture / l'ouverture de lecture. `afterAll`: `admin.auth.admin.deleteUser`.
-  - Rappel : Vitest ne charge pas `.env.local` → `set -a && . ./.env.local && set +a && npx vitest run`.
+  - Rappel : Vitest ne charge pas `.env.local` → `npx vitest run`.
 - **Red-green** : écrire le test qui échoue d'abord (Tâche 1 domaine, Tâche 2 SQL), constater le rouge, puis implémenter.
 
 ### Voix / registre (l'écran ne se signe JAMAIS d'Anam — AC2)

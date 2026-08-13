@@ -67,7 +67,20 @@ export type Ouverture =
    * rien à ouvrir, rien à répondre, rien à consommer. C'est un accusé de réception, pas une
    * proposition — et surtout pas une récompense.
    */
-  | { readonly type: "socle-complete"; readonly phrase: string };
+  | { readonly type: "socle-complete"; readonly phrase: string }
+  /**
+   * Story 5.5 (AC2) — Anam a une HYPOTHÈSE de type d'ennéagramme, et elle ouvre une porte.
+   *
+   * ⚠️ LE NUMÉRO N'EST PAS ICI, ET C'EST UNE DÉCISION, PAS UN OUBLI. La phrase du fil ne le nomme
+   * pas (l'asséner au milieu d'une conversation est précisément ce que FR-006 interdit), et la halte
+   * lit la ligne en base pour l'afficher. Le poser ici fabriquerait une SECONDE source pour le même
+   * fait — la divergence R1-bis déjà payée deux fois par ce dépôt — et ouvrirait la porte au champ
+   * `readonly type: number` que `tests/arbitrage-frontiere.test.ts` existe pour interdire.
+   *
+   * `hypotheseId` est un identifiant, pas une donnée : il sert à marquer la parole « dite » quand
+   * elle a réellement atteint l'écran, et à ouvrir la bonne ligne à la halte.
+   */
+  | { readonly type: "hypothese-enneagramme"; readonly phrase: string; readonly hypotheseId: string };
 
 /**
  * La voix de l'invitation — CONSTANTE, déterministe, jamais un modèle (patron `phraseProposition`).

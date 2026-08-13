@@ -85,7 +85,7 @@ Repris de l'épic (Story 2.6), découpés en critères testables. `Couvre : FR-0
 - [x] **T9 — Gardes d'architecture, docs, validations complètes** (AC: 1-5)
   - [x] RED/GREEN : étendre `tests/pipeline-securite-architecture.test.ts` — (a) `consigne-detresse.ts` **PUR** (aucun import runtime, pas de `server-only`, pas d'infra) ; (b) `bloc-ressources-detresse.ts` **PUR** et **consomme** `ressources-aide` (jamais inline) ; (c) la **consigne de réponse** vit dans `lib/safety` (la décision de sécurité ne migre pas dans `render/`/`app/` — AD-16) ; (d) `render/` **muet** : `BlocRessources.tsx` n'importe **aucun** `@/lib/ai`/`@/lib/data`/`@/lib/safety/pipeline` (il lit seulement le modèle pur `ressources-aide`, AD-7).
   - [x] GREEN : `lib/safety/README.md` (la réponse par niveaux : consigne système, famille, bloc placé par niveau, sortie rapide) + `deferred-work.md` (couture AC5 « lendemain » → Epic 4/Ordonnanceur ; contenu détresse + famille + sortie rapide PROVISOIRES → porte clinique/juridique ; mutualisation `BlocRessources`).
-  - [x] `set -a && . ./.env.local && set +a && npx vitest run` (Supabase local démarré + migrations appliquées) → **tous verts**. `npx tsc --noEmit` propre · `npx eslint .` propre · `npm run build` propre (`/aide` toujours static). Vérifier les 5 ACs un par un ; noté dans *Completion Notes*.
+  - [x] `npx vitest run` (Supabase local démarré + migrations appliquées) → **tous verts**. `npx tsc --noEmit` propre · `npx eslint .` propre · `npm run build` propre (`/aide` toujours static). Vérifier les 5 ACs un par un ; noté dans *Completion Notes*.
 
 ## Dev Notes
 

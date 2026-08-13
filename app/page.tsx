@@ -5,6 +5,7 @@ import { chargerOuverture } from "@/lib/safety/ouverture-branche";
 import { chargerProjectionArbre } from "@/lib/safety/projection-arbre";
 import SceneDom from "@/render/scene-dom";
 import { marquerAnnonceSocleDite } from "@/app/_socle/marquer-annonce";
+import { marquerHypotheseDite } from "@/app/_enneagramme/marquer-hypothese";
 
 /*
  * La scène — le cœur du lieu. Accessible SEULEMENT une fois le seuil légal franchi :
@@ -40,8 +41,15 @@ export default async function Page() {
   // Story 4.6 : la PROJECTION RÉELLE de l'arbre (branches possédées + verbatim, AD-8), repli sûr → arbre vide.
   // Les deux lectures sous JWT, en parallèle ; jamais un 500 qui bloquerait l'ouverture de la scène.
   const [ouverture, projection] = await Promise.all([
-    chargerOuverture(supabase),
+    chargerOuverture(supabase, user.id),
     chargerProjectionArbre(supabase, user.id),
   ]);
-  return <SceneDom projection={projection} ouverture={ouverture} onSocleAnnonce={marquerAnnonceSocleDite} />;
+  return (
+    <SceneDom
+      projection={projection}
+      ouverture={ouverture}
+      onSocleAnnonce={marquerAnnonceSocleDite}
+      onHypotheseDite={marquerHypotheseDite}
+    />
+  );
 }

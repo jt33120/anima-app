@@ -35,7 +35,7 @@ Repris de [epics.md → Story 2.3](../planning-artifacts/epics.md). Couvre **FR-
 ## Tasks / Subtasks
 
 > TDD strict (red → green → refactor) ; runner Vitest node, `server-only` stubbé (cf. Dev Notes → Tests).
-> Les tests SQL-réels tournent avec `set -a && . ./.env.local && set +a && npx vitest run` (jamais `npx supabase`).
+> Les tests SQL-réels tournent avec `npx vitest run` (jamais `npx supabase`).
 
 - [x] **T1 — Capacité « détection » forcée au modèle fort (AC2)**
   - [x] Test rouge : `tierPour("detection", n)` renvoie `"fort"` pour **tout** `n` (0..3) ; le tier de détection ne peut JAMAIS valoir `"leger"`.
@@ -161,7 +161,7 @@ Conventions respectées : fichiers `kebab-case`, types `PascalCase`, tables/colo
 
 - Runner **Vitest env node** (pas de DOM) ; `@` → racine ; `server-only` stubbé via `tests/_stubs/server-only.ts` (déjà en place) → les modules serveur s'exécutent en test.
 - **Détection déterministe** via `factice` (aucun vrai modèle en CI).
-- **Tests SQL-réels** (migration 0009, RLS, fonction) : `set -a && . ./.env.local && set +a && npx vitest run` — **global `supabase` v2.67.1**, jamais `npx supabase`.
+- **Tests SQL-réels** (migration 0009, RLS, fonction) : `npx vitest run` — **global `supabase` v2.67.1**, jamais `npx supabase`.
 - Gardes d'architecture sur le patron `sansCommentaires` : mutation-tester chaque garde (une vraie violation doit faire rougir).
 - **Piège du strip-commentaires** : la garde retire les commentaires puis grep — vérifier qu'un vrai import du détecteur (hors pipeline) est bien attrapé, pas seulement un commentaire.
 

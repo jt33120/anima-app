@@ -483,7 +483,7 @@ Sans `nom_complet`, ils sont `non_calcule` / `nom_absent`, même si `prenom` est
 ### Commande de test
 
 ```bash
-set -a && . ./.env.local && set +a && npx vitest run
+npx vitest run
 ```
 
 ### Références

@@ -56,7 +56,7 @@ afin qu'**Anam se souvienne de moi sans jamais déformer ce que j'ai dit**.
   - [x] **Non-régression** : le gate d'allocation (3.4), l'ordre sécurité-d'abord (AD-16), l'étage arc (2.7) et le métrage (`usage_ia`, clés `:arc`/`:bilan`) restent **inchangés**.
 
 - [x] **T6 — Suite verte + gardes transverses**
-  - [x] Toute la suite verte : `set -a && . ./.env.local && set +a && npx vitest run` (Supabase local **démarré** via CLI globale).
+  - [x] Toute la suite verte : `npx vitest run` (Supabase local **démarré** via CLI globale).
   - [x] `usage-ia.test.ts` (schéma exact) **inchangé** ; `frontiere-serveur.test.ts` (fuite SDK) **inchangé** ; la sonde vivante `write-gate-art9.test.ts` (`art9_temoin`) reste verte.
   - [x] `npx tsc --noEmit`, `npx eslint`, `next build` propres.
 
@@ -177,7 +177,7 @@ Il n'existe **aucun** registre/liste blanche de tables art. 9 ni scanner de migr
 
 ### Testing standards
 
-- Vitest (env node) ; **Supabase local requis** pour les tests base ; commande : `set -a && . ./.env.local && set +a && npx vitest run` (Vitest ne charge pas `.env.local`). CLI Supabase **globale** v2.67.1, **jamais** `npx supabase`.
+- Vitest (env node) ; **Supabase local requis** pour les tests base ; commande : `npx vitest run` (Vitest ne charge pas `.env.local`). CLI Supabase **globale** v2.67.1, **jamais** `npx supabase`.
 - Tests base : `admin` (`SUPABASE_SECRET_KEY`) pour semer/nettoyer, session `publishable` pour prouver la RLS/write-gate (patron `usage-ia.test.ts`, `write-gate-art9.test.ts`, `lire-allocation.test.ts`). Nettoyage en `afterAll` (`delete .eq("utilisatrice_id", u.id)` puis `deleteUser`).
 - Gardes de source pour la route (patron `gate-quota.test.ts`) : lire le fichier, retirer les commentaires, prouver l'ordre/awaited/500 par ancrage sur l'**usage** (pas l'import).
 

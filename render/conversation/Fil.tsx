@@ -8,6 +8,7 @@ import BlocDocument from "./BlocDocument";
 import CarteAbonnement from "./CarteAbonnement";
 import PropositionBranche from "./PropositionBranche";
 import InvitationIntegration from "./InvitationIntegration";
+import HypotheseEnneagramme from "./HypotheseEnneagramme";
 import { estAncreEnBas } from "./composeur-clavier";
 import type { Tour } from "./types";
 import s from "./conversation.module.css";
@@ -32,6 +33,7 @@ export default function Fil({
   onRepondreProposition,
   onNommerBranche,
   onAllerVersBranche,
+  onAllerVersHypothese,
   nommage,
   quotaEpuise,
 }: {
@@ -46,6 +48,8 @@ export default function Fil({
   nommage?: { id: string; etat: "envoi" | "echec" } | null;
   /** Story 4.10 (AC4) — l'invitation mène à la fiche de la branche visée, sinon c'est un reproche. */
   onAllerVersBranche?: (brancheId: string) => void;
+  /** Story 5.5 (AC2) — l'hypothèse mène à la halte, là où les trois réponses ont la même lisibilité. */
+  onAllerVersHypothese?: () => void;
   /** Story 3.4 (revue F9) : allocation épuisée → aucun « Réessayer » résiduel (un rejeu serait re-coupé). */
   quotaEpuise?: boolean;
 }) {
@@ -105,6 +109,8 @@ export default function Fil({
             phrase={t.phrase}
             onAller={onAllerVersBranche ? () => onAllerVersBranche(t.brancheCibleId) : undefined}
           />
+        ) : t.role === "hypothese-enneagramme" ? (
+          <HypotheseEnneagramme key={t.id} phrase={t.phrase} onVoir={onAllerVersHypothese} />
         ) : (
           <TourUtilisatrice key={t.id} texte={t.texte} />
         ),

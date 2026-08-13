@@ -30,6 +30,13 @@ export function tierPour(capacite: CapaciteIa, niveauSecurite: NiveauSecurite = 
   // circonstance (AD-5, NFR-012) — et sans dépendre du niveau qu'elle est en train de calculer.
   // Explicite (pas incident) : un futur repoint de la branche par défaut ne doit pas la casser.
   if (capacite === "detection") return "fort";
+  // L'HYPOTHÈSE D'ENNÉAGRAMME (Story 5.5) est tranchée ICI, EXPLICITEMENT, alors que le repli
+  // ci-dessous lui donnerait déjà « fort ». Ce n'est pas de la redondance décorative : le repli tient
+  // à une seule expression (`=== "echange"`), et quiconque la retournerait un jour — pour donner le
+  // léger à une capacité bon marché — ferait basculer CELLE-CI avec, sans le voir. L'objet touche à
+  // l'IDENTITÉ : se tromper ne coûte pas une phrase maladroite, ça pose une étiquette fausse sur
+  // quelqu'un. Le choix est donc écrit, pas hérité.
+  if (capacite === "hypothese_enneagramme") return "fort";
   if (niveauSecurite >= 1) return "fort"; // AD-5 : détresse → le plus capable, jamais le léger
   // Tout le reste (reconceptualisation, synthèse, retour_theme) est du travail de schéma : FORT.
   return capacite === "echange" ? "leger" : "fort";

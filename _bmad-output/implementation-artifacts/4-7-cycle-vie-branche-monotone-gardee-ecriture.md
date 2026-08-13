@@ -44,7 +44,7 @@ afin que ma croissance se lise **dans la matière et jamais dans un chiffre**, e
 
 > **Discipline TDD, dépendances descendantes (AD-1).** Pour chaque garde **[DUR]** : écrire d'abord le test **rouge**, implémenter le minimum pour le **vert**, puis **mutation-vérifier** (retirer la garde → le test redevient rouge → restaurer → re-run vert → `git status` / `pg_get_functiondef` en preuve). Ordre : base → modèle pur → data → sécurité/app → render → gardes.
 > **⚠️ Le piège de la défense en profondeur** (mémoire `gardes-doivent-tuer-leur-mutant`) : quand la policy ET le trigger couvrent le même invariant, un test qui passe par le chemin JWT ne peut isoler ni l'une ni l'autre. **Utiliser `service_role`** (que la RLS ne borne pas) pour isoler le trigger seul.
-> **Commande de test (Supabase local DOIT tourner)** : `set -a && . ./.env.local && set +a && npx vitest run`.
+> **Commande de test (Supabase local DOIT tourner)** : `npx vitest run`.
 > **Supabase local** : CLI **globale** `supabase` (v2.67.1), **jamais** `npx supabase`. `supabase db reset` doit rejouer **0001→0025** proprement (critère de non-régression).
 > **Deux projets Vitest** : `node` (`tests/**/*.test.ts`) et `rendu` (`tests/rendu/**/*.test.tsx`, jsdom + Testing Library). Une garde de **comportement** de rendu va dans `rendu` ; une garde de **source** ne prouve que le câblage.
 > **Plancher de non-régression : 1346 tests verts / 120 fichiers** (état à la livraison de la 4.6, commit `2979d62`, CI 30914928189). `npx tsc --noEmit`, `npx eslint .` et `npm run build` doivent rester propres.
@@ -292,7 +292,7 @@ Claude Opus 5 (1M context) — implémentation et gardes.
 ### Debug Log References
 
 - `supabase db reset` rejoue **0001→0025** proprement (vérifié deux fois, dont après le renommage de l'enum).
-- Commande de suite : `set -a && . ./.env.local && set +a && npx vitest run`.
+- Commande de suite : `npx vitest run`.
 
 ### Completion Notes List
 

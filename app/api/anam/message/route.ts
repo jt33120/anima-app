@@ -19,6 +19,9 @@ import { creerDepotJournal } from "@/lib/data/depot-journal";
 import { evaluerReconceptualisationDuTour, fenetreDetresseActive } from "@/lib/safety/reconceptualisation-pipeline";
 import { evaluerRetourThemeDuTour } from "@/lib/safety/retour-theme-pipeline";
 import { creerDepotBranche } from "@/lib/data/depot-branche";
+import { evaluerHypotheseEnneagramme } from "@/lib/safety/hypothese-enneagramme-pipeline";
+import { creerDepotEnneagramme } from "@/lib/data/depot-enneagramme";
+import { lireFaitsHypothese } from "@/lib/data/lire-enneagramme";
 import { creerDepotSignalReconcept } from "@/lib/data/depot-reconceptualisation";
 import { avancerArc, SIGNAUX_NEUTRES, type EtatArc } from "@/lib/domain/arc-seance";
 import { requeteExtractionArc, extraireSignauxArc } from "@/lib/domain/signaux-arc";
@@ -364,6 +367,49 @@ export async function POST(request: NextRequest) {
   // hors détresse. `arc.beat === "cloture"` = ce tour EST la clôture (idempotent : la machine ne
   // ré-émet pas le beat une fois EN clore → un tour ultérieur dans clore ne reproduit pas de bilan).
   const doitProduireBilan = arc?.beat === "cloture" && clotureAutorisee;
+
+  // ── ÉTAGE HYPOTHÈSE D'ENNÉAGRAMME (Story 5.5, AC2 — AD-3/AD-5/AD-17) ──────────────────────────
+  //
+  // Même posture que les deux étages ci-dessus — `after()` (aucune latence, rien à l'écran ce tour),
+  // après la sécurité (consomme `securite.verdict`), après le gate d'allocation, sur le même client
+  // JWT, métré `:hypothese_enn`. Un échec journalise un incident sans art. 9 ; JAMAIS un 500.
+  //
+  // ⚠️ CE QUI LE DISTINGUE DES DEUX AUTRES : IL NE TOURNE PAS À CHAQUE TOUR. `arc?.beat === "cloture"`
+  // = ce tour EST la clôture de la séance, et la machine ne ré-émet pas le beat une fois EN clore —
+  // donc AU PLUS UN appel fort par séance. Deux raisons, et la première n'est pas le coût :
+  //
+  //   • le MOMENT. Une séance qui vient de se clore a produit de la matière ; interrompre un échange
+  //     en cours pour proposer une grille de personnalité serait le pire moment possible.
+  //   • le COÛT. Sans ce gate, une passe FORTE partirait à chaque tour d'un compte sans type — et le
+  //     prédicat `momentDeProposer` ne l'aurait bornée qu'APRÈS le premier germe écrit.
+  //
+  // Le gate de détresse n'est PAS ici mais dans le pipeline (AD-17, double défense) : `clotureAutorisee`
+  // suffirait à faire taire l'étage en détresse, et s'y fier ferait dépendre une garde de sécurité
+  // d'une décision de produit. Les deux vivent séparément, et les deux sont testées séparément.
+  if (arc?.beat === "cloture") {
+    after(async () => {
+      try {
+        const depotEnn = creerDepotEnneagramme(user.id, supabase);
+        const hypothese = await evaluerHypotheseEnneagramme(
+          {
+            supabase,
+            adaptateur,
+            depot: {
+              faits: () => lireFaitsHypothese(supabase, user.id),
+              semer: (a) => depotEnn.deposerHypothese(a),
+            },
+            fenetreDetresseActive: () => fenetreDetresseActive(supabase, "hypothese_enn"),
+          },
+          { messages, verdict: securite.verdict },
+        );
+        if (hypothese.usage) {
+          await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence: `${cleIdempotence}:hypothese_enn`, ...hypothese.usage });
+        }
+      } catch (e) {
+        console.error("anam/message : étage hypothèse d'ennéagramme en repli", { nom: e instanceof Error ? e.name : "inconnu" });
+      }
+    });
+  }
 
   // Story 3.2 — la carte d'abonnement se propose APRÈS le bilan (AC1), UNIQUEMENT si l'utilisatrice
   // n'est pas déjà premium. Entitlement lu SOUS JWT/RLS (source de vérité unique 3.1) et SEULEMENT

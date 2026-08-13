@@ -142,7 +142,7 @@ afin d'**entrer dans un monde, et non dans une pile d'écrans**.
   - [x] `tests/identite-route.test.ts` (AC7) : `app/layout.tsx` définit `title.default = "Anam"` **et** `title.template = "Anam"` ; `app/icon.svg` existe et ne contient aucun terme interdit (lune/étoile/lotus…) ; `openGraph` neutre ; **aucune** page n'exporte `title.absolute` ; le CSS ne contient pas `prefers-color-scheme: light` (déjà gardé — non-régression).
   - [x] `tests/voile.test.ts` (AC5, `contraste.ts`) : tokens de voile présents dans `tokens.ts` **et** `globals.css` (parité) ; le ratio du texte sur le fond composité **sous voile ≥ 85 %** atteint **≥ 4,5:1** (calcul via `ratioContraste` sur la couleur composite `--fond` @0.85 vs `--texte`).
   - [x] **Non-régression** : les **119 tests actuels restent verts** (gardes onboarding 1.4/1.5/1.6, write-gate art. 9, parité tokens, typographie, contraste, smoke). `tsc` + `lint` + `build` verts.
-  - [x] Rappel opérationnel : **Vitest ne charge PAS `.env.local`** → les tests base tournent via `set -a && . ./.env.local && set +a && npx vitest run`. La logique de scène est **pure** (ne touche pas la base) : la majorité des nouveaux tests tournent sans env.
+  - [x] Rappel opérationnel : **Vitest ne charge PAS `.env.local`** → les tests base tournent via `npx vitest run`. La logique de scène est **pure** (ne touche pas la base) : la majorité des nouveaux tests tournent sans env.
 
 ## Dev Notes
 

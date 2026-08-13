@@ -41,7 +41,7 @@ Repris de l'épic (Story 2.8, `epics.md:674-685`), découpés en critères testa
 
 ## Tasks / Subtasks
 
-> **TDD strict (red → green → refactor).** Vitest est en env **node** (pas de DOM). La voix (troncature, consigne, lexique) est faite de **cœurs purs** `lib/domain/` testés en isolation (`toEqual`, contrôle positif **et** négatif) ; le câblage serveur est prouvé par des **gardes d'architecture par lecture de fichier** (patron `sansCommentaires` de `pipeline-securite-architecture.test.ts`) — la route n'est pas invocable en test (convention 2.7). Le contrôle bloquant (b) est **lui-même un test** qui scanne la source. **Muter chaque garde** (rouge vérifié puis reverté, consigné au Debug Log). Ne cocher `[x]` que lorsque les tests EXISTENT et PASSENT à 100 %. Commande : `set -a && . ./.env.local && set +a && npx vitest run` (Supabase local démarré).
+> **TDD strict (red → green → refactor).** Vitest est en env **node** (pas de DOM). La voix (troncature, consigne, lexique) est faite de **cœurs purs** `lib/domain/` testés en isolation (`toEqual`, contrôle positif **et** négatif) ; le câblage serveur est prouvé par des **gardes d'architecture par lecture de fichier** (patron `sansCommentaires` de `pipeline-securite-architecture.test.ts`) — la route n'est pas invocable en test (convention 2.7). Le contrôle bloquant (b) est **lui-même un test** qui scanne la source. **Muter chaque garde** (rouge vérifié puis reverté, consigné au Debug Log). Ne cocher `[x]` que lorsque les tests EXISTENT et PASSENT à 100 %. Commande : `npx vitest run` (Supabase local démarré).
 >
 > **⚠️ Porte pré-lancement produit + clinique :** la **consigne de voix** et la **liste du lexique/formulations** sont l'**intention produit**, PAS un protocole validé. Marquées **PROVISOIRES — à valider** (produit ; et juriste/pro pour tout ce qui borde la détresse et la mention d'une personne réelle) avant mise en ligne. On code la **MÉCANIQUE** (troncature déterministe, contrôle lexical, injection de consigne) ; pas le jugement éditorial définitif.
 
@@ -75,7 +75,7 @@ Repris de l'épic (Story 2.8, `epics.md:674-685`), découpés en critères testa
 - [x] **T6 — Gardes d'architecture restantes, docs, validations complètes** (AC: 1-5)
   - [x] RED/GREEN : gardes complétées — (a) `lib/domain/{voix-anam,consigne-voix,lexique-interdit}.ts` **PURS** : couverts automatiquement par la garde `arc-architecture.test.ts` (scan de tout `lib/domain/*`) **et** par une garde explicite ajoutée dans `pipeline-securite-architecture.test.ts` (bloc 2.8) ; (b) `render/` **muet** : la garde existante « render ne connaît pas `@/lib/domain` » couvre voix/troncature (aucun ajout render) ; (c) **aucun nouvel egress** : `frontiere-serveur.test.ts` reste vert (la voix est un préfixe système, la troncature est post-egress — aucun SDK ajouté).
   - [x] GREEN : `deferred-work.md` (section 2.8 : corpus Anima différé, LLM-juge différé, correction→journal Epic 4, lexique en entrée→consigne, enforcement déploiement→porte ops, surfaces futures auto-scannées, emoji/`!` sortie live→consigne, contenu PROVISOIRE). `lib/domain/README.md` mis à jour (voix : consigne + troncature + lexique).
-  - [x] `set -a && . ./.env.local && set +a && npx vitest run` → **63 fichiers / 696 tests verts**. `npx tsc --noEmit` propre · `npx eslint .` propre · `npm run build` propre. 5 ACs vérifiés (voir *Completion Notes*).
+  - [x] `npx vitest run` → **63 fichiers / 696 tests verts**. `npx tsc --noEmit` propre · `npx eslint .` propre · `npm run build` propre. 5 ACs vérifiés (voir *Completion Notes*).
 
 ## Dev Notes
 

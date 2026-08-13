@@ -138,7 +138,7 @@ afin que **l'échange soit vivant sans jamais trahir la machine ni me presser**.
 
 - [x] **Task T1 — Env, non-régression, deferred-work**
   - [x] Ajouter `interactive-widget=resizes-content` au meta viewport (`app/layout.tsx` `export const viewport`).
-  - [x] Lancer **toute** la suite (`set -a && . ./.env.local && set +a && npx vitest run`) — **aucune régression** 1.1→2.1 (266 tests actuels) ; noter total avant/après. `npm run lint` propre (`import type`, `verbatimModuleSyntax`).
+  - [x] Lancer **toute** la suite (`npx vitest run`) — **aucune régression** 1.1→2.1 (266 tests actuels) ; noter total avant/après. `npm run lint` propre (`import type`, `verbatimModuleSyntax`).
   - [x] Mettre à jour `_bmad-output/implementation-artifacts/deferred-work.md` : **lever** la porte « CSP nonce des pages art. 9 » (livrée) ; consigner ce qui reste 2.3+ (producteur `niveauSecurite`, arc/voix, historique persisté, hors-ligne NFR-017, quota résiduel FR-079).
 
 ---
@@ -256,7 +256,7 @@ Invariants **mutation-testés** (Task A7) : `(echange,≥1)→fort` pour **tout*
 ### Testing standards (résumé — détail en Tasks A7/B6)
 
 - **Runner** vitest `4.1.10`, env node, `test.include: ["tests/**/*.test.ts"]`, alias `@`→racine, **`server-only` stubé** (`tests/_stubs/server-only.ts`). Timeouts SQL élargis (15000/20000). [Source: vitest.config.ts]
-- **Env SQL réel** : `set -a && . ./.env.local && set +a && npx vitest run` (Vitest ne charge pas `.env.local`). Supabase local via CLI **globale v2.67.1**, **jamais `npx supabase`**. [Source: story 2.1]
+- **Env SQL réel** : `npx vitest run` (Vitest ne charge pas `.env.local`). Supabase local via CLI **globale v2.67.1**, **jamais `npx supabase`**. [Source: story 2.1]
 - **Patrons de garde réutilisables** : `sansCommentaires()`/`fichiersTs()`/`imports()` de `tests/scene-architecture.test.ts` ; énumération de routes `tests/routes-art9-entetes.test.ts` ; a11y `tests/scene-accessibilite.test.ts` ; modèle pur `tests/scene-modele.test.ts` ; positif+négatif non tautologique `tests/privileges-fonctions.test.ts`. **Muter chaque garde.** [Source: tests/*]
 - **Limite runtime DOM** : vitest est en env **node** (pas jsdom). Les composants React à interaction (composeur, streaming) se testent surtout par **logique pure extraite** (décision clavier, buffer word-groups, parsing NDJSON) + **gardes source/CSS**. Si un vrai test DOM est requis, signaler l'ajout d'un env jsdom localisé plutôt que basculer tout le runner.
 

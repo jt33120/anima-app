@@ -66,7 +66,7 @@ Repris de l'épic (Story 2.4), découpés en critères testables.
   - [x] Mettre à jour `lib/safety/README.md` (l'entité, ses deux dérivations, le server-authoritative deny-by-default) et `_bmad-output/implementation-artifacts/deferred-work.md` (couture branche pour Epic 4 ; `limites_levees` consommé en Story 2.5 ; exclusion FR-046 des analyses à câbler quand journal/synthèse existeront).
 
 - [x] **T8 — Validations complètes**
-  - [x] `set -a && . ./.env.local && set +a && npx vitest run` (Supabase local **démarré** + migration 0010 appliquée) → **tout vert** (402 + nouveaux).
+  - [x] `npx vitest run` (Supabase local **démarré** + migration 0010 appliquée) → **tout vert** (402 + nouveaux).
   - [x] `npx tsc --noEmit` propre · `npx eslint .` propre · `npm run build` propre.
   - [x] Vérifier les 4 ACs un par un ; noter dans *Completion Notes*.
 
@@ -175,7 +175,7 @@ Dans les deux cas : **ne jamais planter le tour** (Anam ne quitte jamais, FR-039
 
 ### Testing standards
 
-- **Runner** : Vitest env **node**. Lancer avec l'env chargé (Vitest ne lit pas `.env.local`) : `set -a && . ./.env.local && set +a && npx vitest run`.
+- **Runner** : Vitest env **node**. Lancer avec l'env chargé (Vitest ne lit pas `.env.local`) : `npx vitest run`.
 - **SQL réel** : Supabase **local** démarré (CLI **global** `supabase`, jamais `npx supabase`), **migration 0010 appliquée** (`supabase migration up` ou `supabase db reset`). Env : `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (cf. `supabase status`). Patron `audit-detresse.test.ts` / `usage-ia.test.ts` : créer une utilisatrice via `admin.auth.admin.createUser`, nettoyer en `afterAll`.
 - **Pur** : `episode-detresse-modele.test.ts` couvre exhaustivement la machine d'état + les deux dérivations (tables de vérité).
 - **Garde d'architecture** : `pipeline-securite-architecture.test.ts` par grep-source (retire les commentaires — attention aux angles morts : cibler des appels avec `(`).

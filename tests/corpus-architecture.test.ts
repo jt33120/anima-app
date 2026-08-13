@@ -70,12 +70,17 @@ const FICHIERS_CORPUS = fichiersTs("lib/corpus");
 
 describe("[AD-1/DUR] lib/corpus est une couche PURE", () => {
   it("[CONTRÔLE DU CONTRÔLE] la couche a bien été balayée", () => {
-    expect(FICHIERS_CORPUS.length, "aucun fichier trouvé dans lib/corpus — garde vide").toBe(4);
+    // ⚠️ UN COMPTE EXACT, JAMAIS `toBeGreaterThan`. Relâcher cette assertion pour faire passer une
+    // story est précisément la façon dont les gardes meurent : un corpus ajouté sans être inscrit
+    // ici échapperait à TOUTES les gardes de ce fichier sans que rien ne rougisse.
+    expect(FICHIERS_CORPUS.length, "aucun fichier trouvé dans lib/corpus — garde vide").toBe(5);
     expect(FICHIERS_CORPUS).toContain("lib/corpus/port.ts");
     expect(FICHIERS_CORPUS).toContain("lib/corpus/numerologie.ts");
     // Story 5.4 — les deux corpus du socle quotidien vivent sous EXACTEMENT les mêmes gardes.
     expect(FICHIERS_CORPUS).toContain("lib/corpus/mantra.ts");
     expect(FICHIERS_CORPUS).toContain("lib/corpus/horoscope.ts");
+    // Story 5.5 — les neuf interprétations de type, déclarées et non écrites.
+    expect(FICHIERS_CORPUS).toContain("lib/corpus/enneagramme.ts");
   });
 
   it("[FR-054/FR-047] n'importe AUCUN modèle de langage — un corpus ne se génère pas", () => {
@@ -189,6 +194,35 @@ describe("[FR-053/(a)] le détecteur de prédiction attrape ce qu'il doit attrap
     "Ce nombre prophétise un passage.",
     "Il est écrit que tout se dénoue à l'automne.",
     "Tu es destinée à rencontrer quelqu'un.",
+
+    // ── Story 5.5 — LE FUTUR À LA TROISIÈME PERSONNE ────────────────────────────────────────────
+    //
+    // Tous les motifs `futur_adresse` sont ancrés sur `tu` : l'en-tête l'assume (« la sélectivité
+    // vient du destinataire »). Le raisonnement tenait tant que le corpus parlait de NOMBRES. Il
+    // tombe dès que le corpus parle de TYPES, parce qu'un portrait d'ennéagramme s'écrit sur « le
+    // 4 » — et qu'une fois le type retenu, « le 4 » EST elle. Le futur redevient adressé sans
+    // qu'un seul « tu » n'apparaisse.
+    //
+    // Mesuré le 2026-08-13, avant correctif : les cinq phrases ci-dessous étaient VERTES.
+    "Le 4 finira par se sentir seul.",
+    "Le 2 développera un ressentiment silencieux.",
+    "Le 9 évitera le conflit jusqu'à l'effacement.",
+    "Le type 1 ira vers la colère s'il ne lâche rien.",
+    "Le 5 donnera plus tard ce qu'il a compris.",
+    "Les 7 fuiront ce qui pèse.",
+    "Le 6 ne fera pas confiance du premier coup.",
+    "Le 3 va finir par se confondre avec son rôle.",
+    "Le 8 aura besoin de garder la main.",
+    // ── Story 5.5, T11 — LA DÉSIGNATION SANS CHIFFRE ────────────────────────────────────────────
+    //
+    // Trou trouvé par la FICHE D'ÉCRITURE, pas par une relecture : la fiche donnait ces phrases en
+    // exemples de refus, et le test qui exécute ses exemples a montré qu'elles passaient. Un
+    // portrait reprend naturellement son sujet sans le renuméroter — « ce type », « ce profil » —
+    // et toute la famille passait à côté.
+    "Ce type va chercher la reconnaissance.",
+    "Ce profil finira par s'épuiser.",
+    "Le type se retirera dès que ça pèse.",
+    "Ces types vont se heurter au même mur.",
   ];
 
   const CONNUES_BONNES = [
@@ -211,6 +245,25 @@ describe("[FR-053/(a)] le détecteur de prédiction attrape ce qu'il doit attrap
     "Tu te reconnais peut-être là-dedans.",
     "Le nombre de destinée se lit dans la date entière.",
     "Ce nombre décrit un embarras fréquent chez les 4.",
+    // Story 5.5 — la famille du futur à la 3ᵉ personne ne doit pas avaler le présent qui DÉCRIT.
+    // C'est toute la règle de la fiche d'écriture : le présent décrit, le futur annonce.
+    "Le 4 se retire quand le bruit monte.",
+    "Le 9 tient la paix en évitant le conflit.",
+    "Les 7 cherchent ce qui ouvre, plutôt que ce qui ferme.",
+    // Les mots français qui finissent en -ra / -ront sans être des verbes, dans une phrase qui
+    // désigne un type — c'est exactement la configuration où un détecteur naïf mordrait.
+    "Le 4 se reconnaît dans un mantra plus que dans une consigne.",
+    "Le 9 garde son aura tranquille.",
+    "Le 3 avance de front, et ça se voit.",
+    "Le 5 supporte mal une caméra.",
+    // ⚠️ LA CONSTRUCTION « LE TYPE DE… » N'EST PAS UNE DÉSIGNATION DE TYPE, et sans ces témoins la
+    // troisième alternative mordrait sur du français ordinaire — donc deviendrait un bruit qu'on
+    // finirait par contourner par une exclusion, c'est-à-dire par un trou.
+    "Le type de réponse qu'elle donnera lui appartient.",
+    "Ce type d'élan reviendra de lui-même.",
+    "Les types de liens qu'elle nouera ne se décident pas ici.",
+    // …et le présent qui décrit, sans chiffre non plus.
+    "Ce type se retire quand le bruit monte.",
   ];
 
   it("rejette CHAQUE chaîne connue-mauvaise, en citant sa preuve", () => {
@@ -257,6 +310,34 @@ describe("[FR-053/(a)] le détecteur de prédiction attrape ce qu'il doit attrap
     // Si quelqu'un fait tomber ce test en RESSERRANT le motif, qu'il relise d'abord les huit
     // phrases de D1 dans `CONNUES_MAUVAISES` : c'est ce qu'il rouvre.
     expect(chercherPredictions("Tu vois l'embarras que ça crée.").length).toBeGreaterThan(0);
+  });
+
+  it("[5.5] le futur n'est visé QU'EN PRÉSENCE d'un type — l'impersonnel reste épargné", () => {
+    // L'en-tête du détecteur épargne délibérément le futur impersonnel : « le cycle se refermera »
+    // n'annonce rien sur la vie de personne. La 5.5 ne renverse PAS cette décision — elle identifie
+    // le cas où sa prémisse est fausse. Une fois qu'un type lui a été attribué, une phrase sur « le
+    // 4 » n'est plus impersonnelle : c'est une phrase sur elle.
+    expect(chercherPredictions("Le cycle se refermera de lui-même.")).toEqual([]);
+    expect(chercherPredictions("Le 4 se refermera de lui-même.").length).toBeGreaterThan(0);
+  });
+
+  it("[5.5] la désignation doit précéder le verbe, et rester dans la MÊME phrase", () => {
+    // Sans borne de phrase, un texte qui nomme un type au début rendrait prédictive toute phrase
+    // au futur jusqu'à la fin du créneau — y compris une phrase impersonnelle légitime.
+    expect(chercherPredictions("Le 4 se retire. Le cycle se refermera de lui-même.")).toEqual([]);
+  });
+
+  it("[5.5 / LE PRIX, ASSUMÉ ET NOMMÉ] « le 4 l'aura oublié » n'est pas attrapé", () => {
+    // `aura` est à la fois le futur d'avoir et un nom du registre ésotérique — que ce corpus-ci
+    // emploiera. On épargne donc `aura` derrière un déterminant qui ne peut PAS précéder un verbe
+    // conjugué (« son aura », « l'aura »). Le prix est le pronom élidé : dans « le 4 l'aura
+    // oublié », `l'` est un complément d'objet, pas un déterminant — et la phrase passe.
+    //
+    // Arbitrage : « son aura » est une phrase que ce corpus écrira souvent ; « il l'aura oublié »
+    // est une tournure qu'on n'écrit pratiquement jamais dans un portrait. Qui resserre ceci
+    // rouvre un faux positif sur tout le vocabulaire du produit.
+    expect(chercherPredictions("Le 4 l'aura oublié.")).toEqual([]);
+    expect(chercherPredictions("Le 8 aura besoin de garder la main.").length).toBeGreaterThan(0);
   });
 
   it("[D1] « destinée » seule reste écrivable, « destinée À » ne l'est pas", () => {

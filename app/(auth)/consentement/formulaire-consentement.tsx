@@ -72,9 +72,22 @@ export default function FormulaireConsentement() {
             onChange={(e) => setArt9(e.target.checked)}
             className={s.checkbox}
           />
+          {/* ⚠️ « ET CE QU'ELLE EN DÉDUIT » A ÉTÉ AJOUTÉ PAR LA STORY 5.5 (décision D12), ET CE
+              N'EST PAS UN ENRICHISSEMENT DE STYLE.
+
+              Jusque-là, la phrase ne couvrait que ce qu'elle PARTAGE. Or un type d'ennéagramme
+              n'est pas partagé : il est PRODUIT par un score, ou INFÉRÉ par un modèle à partir de
+              ses paroles. L'amont l'a qualifié en toutes lettres — « profil psychologique …
+              catégories de données sensibles » (addendum.md:133).
+
+              Et la garde technique ne l'aurait jamais dit : `a_consenti_art9()` ne vérifie qu'un
+              booléen. Elle serait restée VERTE en laissant écrire une catégorie que le libellé ne
+              nommait pas — une conformité d'apparence, exactement ce que FR-072 refuse. C'est donc
+              le LIBELLÉ qui doit rattraper ce que la 5.5 ajoute, et avant toute écriture. */}
           <span className="t-corps">
             Je consens à ce qu&apos;Anam traite mes <strong>données sensibles</strong> —
-            ce que je partage sur mon intériorité, mes croyances, mon vécu — pour
+            ce que je partage sur mon intériorité, mes croyances, mon vécu, et{" "}
+            <strong>ce qu&apos;elle en déduit</strong> sur ma façon de fonctionner — pour
             m&apos;accompagner. C&apos;est le consentement « article&nbsp;9 » du RGPD.
           </span>
         </label>

@@ -59,7 +59,7 @@ Repris de l'épic (Story 2.5), découpés en critères testables. `Couvre : FR-0
   - [x] Mettre à jour `lib/safety/README.md` (filet hors-IA, source unique des ressources, garde de montage + seam) et `deferred-work.md` (couture `<GardeCommerciale>` → 2.9/Epic 3 ; sortie rapide + haltes en conversation → 2.6 ; liste ressources PROVISOIRE + revue trimestrielle FR-044 ; **`PRELANCEMENT=1` en CI de prod** ; « premier du menu » quand un menu existera ; matcher `proxy.ts` inchangé).
 
 - [x] **T6 — Validations complètes**
-  - [x] `set -a && . ./.env.local && set +a && npx vitest run` (Supabase local démarré + migrations 0010/0011 appliquées) → **462 tests verts (50 fichiers)**.
+  - [x] `npx vitest run` (Supabase local démarré + migrations 0010/0011 appliquées) → **462 tests verts (50 fichiers)**.
   - [x] `npx tsc --noEmit` propre · `npx eslint .` propre · `npm run build` propre (`/aide` prerendered **static**, aucune route `_commerce`).
   - [x] Vérifier les 5 ACs un par un ; noté dans *Completion Notes*.
 
@@ -166,7 +166,7 @@ La note 1.8 suggérait d'exclure `/aide` du matcher « si souhaité ». **Je ne 
 
 ### Testing standards
 
-- **Runner** : Vitest env **node**. `set -a && . ./.env.local && set +a && npx vitest run` (Vitest ne lit pas `.env.local`).
+- **Runner** : Vitest env **node**. `npx vitest run` (Vitest ne lit pas `.env.local`).
 - **Pur** (`ressources-aide.test.ts`) : zéro I/O ; tables de vérité des familles + cadence FR-044 (dont la garde périmée par date réelle).
 - **Unit mock admin** (`limites-commerciales.test.ts`, `garde-commerciale.test.ts`) : patron `depot-episode.test.ts` (`vi.mock('@/lib/data/supabase/admin')`). La RSC async se teste en l'appelant comme une fonction et en mockant le prédicat.
 - **Garde d'architecture** : lecture de fichier (`sansCommentaires`) — cibler les imports/appels avec `(` (angles morts des commentaires). Aucune migration SQL nouvelle (2.5 consomme 0010/0011).

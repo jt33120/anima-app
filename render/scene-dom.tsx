@@ -55,6 +55,11 @@ export interface ProprietesSceneRendue {
    * ce qui permet aux tests de rendu de monter la scène sans Supabase.
    */
   onSocleAnnonce?: () => void;
+  /**
+   * Story 5.5 (AC2) — l'hypothèse d'Anam a ATTEINT L'ÉCRAN. Même séparation que ci-dessus : le
+   * rendu SIGNALE, la page appelle la Server Action. `render/` ne connaît ni base ni session (AD-7).
+   */
+  onHypotheseDite?: (hypotheseId: string) => void;
 }
 
 /* Étoiles générées côté client APRÈS montage → aucun décalage d'hydratation. */
@@ -108,7 +113,7 @@ const CORPS: Record<IdRegion, string> = {
   arbre: "Ton arbre grandira à mesure que tu avances.",
 };
 
-export default function SceneDom({ projection, ouverture, onSocleAnnonce }: ProprietesSceneRendue) {
+export default function SceneDom({ projection, ouverture, onSocleAnnonce, onHypotheseDite }: ProprietesSceneRendue) {
   const [etat, dispatch] = useReducer(reducteurVue, etatInitial);
   const region = etat.regionCourante;
   /* Naviguer par la barre ANNULE le rejeu de l'échange source : sans ça, `echangeExtrait` restait collé et
@@ -159,6 +164,13 @@ export default function SceneDom({ projection, ouverture, onSocleAnnonce }: Prop
     aller("arbre");
     dispatch({ type: "ouvrirFiche", brancheId });
   };
+
+  /**
+   * Story 5.5 (AC2) — l'hypothèse mène à la HALTE, pas à une région. C'est la différence avec
+   * l'invitation ci-dessus : les trois réponses (accepter, refuser, corriger) demandent une page à
+   * elles, hors des trois régions de la scène — patron `/heure-naissance` (5.3, décision D11).
+   */
+  const allerVersHypothese = () => router.push("/enneagramme");
 
   // Le renommage passe par la route (jamais d'écriture DB au rendu, AD-7). Succès → nom mis à jour localement.
   const renommer = async (brancheId: string, nom: string): Promise<boolean> => {
@@ -310,6 +322,8 @@ export default function SceneDom({ projection, ouverture, onSocleAnnonce }: Prop
                     onPreparation={setAnamPrepare}
                     ouverture={ouverture}
                     onAllerVersBranche={allerVersBranche}
+                    onAllerVersHypothese={allerVersHypothese}
+                    onHypotheseDite={onHypotheseDite}
                     /* B3 — la mention de complétion ne se dépense que si CETTE région est active :
                        rendue sous `inert`, elle n'est vue ni annoncée par personne. */
                     regionActive={actif}

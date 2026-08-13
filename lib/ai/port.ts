@@ -16,7 +16,16 @@ import "server-only";
 // `retour_theme` (Story 4.7) = « ce tour revient-il sur le thème d'une branche existante ? ».
 // FORT lui aussi : l'effet est IRRÉVERSIBLE (l'intensité ne redescend jamais), et lire une
 // paraphrase demande le modèle capable — un faux positif s'inscrit définitivement dans son arbre.
-export type CapaciteIa = "echange" | "reconceptualisation" | "synthese" | "detection" | "retour_theme";
+// `hypothese_enneagramme` (Story 5.5) = « ce que cette personne raconte d'elle correspond-il à un
+// type ? ». FORT, et tranché EXPLICITEMENT dans `politique-tier` : l'objet touche à l'IDENTITÉ.
+// Se tromper ne coûte pas une phrase maladroite, ça pose une étiquette fausse sur quelqu'un.
+export type CapaciteIa =
+  | "echange"
+  | "reconceptualisation"
+  | "synthese"
+  | "detection"
+  | "retour_theme"
+  | "hypothese_enneagramme";
 export type TierIa = "leger" | "fort";
 /** Niveau de détresse (Story 2.3 le PRODUIT ; ici, la politique le CONSOMME — défaut 0). */
 export type NiveauSecurite = 0 | 1 | 2 | 3;

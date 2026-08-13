@@ -19,7 +19,7 @@
 # prod. Ce qui manque, c'est leur revue. C'est une dette réelle, pas un artefact de comptabilité.
 
 generated: 2026-08-07
-last_updated: 2026-08-13 # dette de revue soldée : 11 stories relues (revue-dette-2026-08.md), migrations 0041→0048 déployées
+last_updated: 2026-08-13 # dette de revue soldée (revue-dette-2026-08.md, migrations 0041→0048) ; dossier 5.5 écrit
 project: Anam
 project_key: ANAM
 tracking_system: file-system
@@ -85,7 +85,7 @@ development_status:
   5-2-numerologie-complete-deterministe: done # revue 2026-08-12 (D1, D5)
   5-3-degradation-gracieuse-sans-heure-completion-tronc: done # revue 2026-08-12 (A2, B5, B6 ; migration 0045)
   5-4-horoscope-mantra-du-jour: done # revue 2026-08-12 (A4 : cibles inaspectables sans heure ; B4) ; 87 créneaux de corpus restent à écrire
-  5-5-enneagramme-test-court-hypothese-anam: backlog
+  5-5-enneagramme-test-court-hypothese-anam: review # livrée le 2026-08-13 ; 0049 déployée cloud (49/49) ; 40 mutants, 39 tués + 1 survivant assumé ; 9 créneaux de corpus restent à écrire
   5-6-accueil-bibliotheque-en-cartes: backlog
   5-7-tirage-isole-jeu-proprietaire: backlog
   5-8-rituel-lecture-restitution-ecrite: backlog

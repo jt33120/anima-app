@@ -332,7 +332,7 @@ Vérifier de même où vit `start_date` dans cette version avant de coder.
 ### Commande de test
 
 ```
-set -a && . ./.env.local && set +a && npx vitest run
+npx vitest run
 ```
 CLI Supabase **globale** (`/opt/homebrew/bin/supabase`), jamais `npx supabase`.
 Vérification de mutation : restaurer depuis un snapshot `cp`, **jamais `git checkout`** (le dépôt porte

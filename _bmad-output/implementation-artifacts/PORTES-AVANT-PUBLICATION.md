@@ -19,7 +19,17 @@ Dernière revue : **2026-08-13**.
 
 ## 1. Mistral — sous-traitant art. 28 · 🔴 BLOQUANTE
 
-**État au 13/08/2026 : DPA non signé, plan gratuit, ZDR non confirmée.**
+> **⚠️ LA PORTE A ÉTÉ OUVERTE EN PRODUCTION LE 13/08/2026, SUR DÉCLARATION DE JULIAN.**
+> `AI_ADAPTER=mistral` et les trois attestations sont posées sur Vercel production. Julian a déclaré
+> ce jour-là : *« on a le contrat, je le glisserai plus tard »*. **La pièce justificative n'a pas été
+> produite au moment de la pose.** Ce paragraphe existe pour que la décision ait une date et un auteur :
+> le jour où quelqu'un demandera « depuis quand Anima envoie-t-elle de la donnée art. 9 à Mistral, et
+> sous quel contrat ? », la réponse est ici.
+>
+> **À faire :** ranger le DPA signé et la confirmation ZDR écrite, puis remplacer ce bloc par leur
+> référence. Tant que ce n'est pas fait, les trois drapeaux affirment quelque chose que rien ne prouve.
+
+**État constaté au 13/08/2026 : DPA non produit, compte sur clé gratuite, ZDR non confirmée par écrit.**
 
 Le boot-guard de [mistral.ts:20-32](../../lib/ai/adapters/mistral.ts#L20-L32) refuse de démarrer
 l'adaptateur sans `MISTRAL_ZDR_CONFIRMED=true`, `MISTRAL_DPA_SIGNED=true` et `MISTRAL_PLAN=scale`.
@@ -40,13 +50,16 @@ nourrir l'entraînement. Ce qui transite ici, ce sont des confidences intimes �
   [politique-tier.ts:20-21](../../lib/ai/politique-tier.ts#L20-L21)) — à ne jamais remplacer par un
   modèle Labs/Preview sans revérifier cette clause.
 
-### Dette temporaire à annuler ce jour-là
+### Où les drapeaux sont posés
 
-`.env.local` porte depuis le 13/08/2026 les **trois attestations à `true` alors qu'elles sont fausses**,
-pour permettre à Julian de tester Anam sur sa propre machine. Le fichier est ignoré par git
-(`.gitignore:10`) et ne quitte pas la machine.
-**Elles n'ont jamais été posées sur Vercel** — la production reste volontairement muette côté IA.
-Le jour du lancement : soit les attestations deviennent vraies, soit ces lignes disparaissent.
+| Emplacement | `AI_ADAPTER` | Les trois attestations | Depuis |
+|---|---|---|---|
+| `.env.local` (machine de Julian, jamais poussé) | `mistral` | `true` | 13/08/2026 |
+| Vercel **production** | `mistral` | `true` | 13/08/2026, sur déclaration |
+| Vercel **preview** | `factice` | absentes | — |
+
+Les préversions restent volontairement sur l'adaptateur factice : elles n'ont pas besoin d'un vrai
+modèle, et une clé de moins en circulation est une clé de moins à faire tourner.
 
 ---
 
@@ -111,6 +124,14 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
   la plus lourde du produit : le code applique un protocole que personne de qualifié n'a encore relu.
 - **Les 87 créneaux de corpus du quotidien (Story 5.4) restent à écrire** — le rendez-vous quotidien
   tourne sur un corpus incomplet.
+- **Les 9 textes d'ennéagramme (Story 5.5) restent à écrire.** Fiche :
+  `corpus-enneagramme-a-ecrire.md`. C'est la plus courte des trois fiches et la plus délicate — le
+  texte est lu par quelqu'un qui vient de dire « oui, ça me parle », et il doit se lire comme une
+  proposition, jamais comme un verdict. **165 créneaux déclarés au total, 0 écrit.**
+- **La copie de consentement a changé (Story 5.5, D12)** : elle couvre désormais ce qu'Anam
+  **déduit**, pas seulement ce que l'utilisatrice partage. Un type d'ennéagramme est produit par un
+  score ou inféré par un modèle — l'amont le qualifie de catégorie art. 9. **À faire relire par le
+  juriste avec le reste de l'écran**, la formulation ayant une portée juridique directe.
 
 ---
 
@@ -120,10 +141,18 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
   production : sans elle, le déploiement se déclare `local`, désaccord avec la base qui déclare
   `production`, et **l'ordonnanceur refuse d'exécuter le moindre job**. À poser à `production` le jour
   du lancement — et pas avant.
-- **`AI_ADAPTER` est volontairement absente** de Vercel production : la fabrique échoue en dur plutôt
-  que de servir un adaptateur factice à quelqu'un qui croit parler à Anam. À poser à `mistral` en même
-  temps que la porte n°1.
+- **`AI_ADAPTER=mistral` est posée en production depuis le 13/08/2026** (voir porte n°1). La fabrique
+  n'accepte que cette valeur en production : elle échoue en dur plutôt que de servir un adaptateur
+  factice à quelqu'un qui croit parler à Anam.
 - **Effacer les fausses données** de la base de lancement (`zlhlzoalmszohrxrnsmo`) — décidé le 12/08.
+  **Volume constaté le 13/08 : 92 comptes**, tous des fixtures de la suite de tests
+  (`cyc-eff-autre-…@exemple.fr`, `ann-b3-…@exemple.fr`), 43 le 12/08 et 49 le 13/08. Ils n'y sont pas
+  par erreur de saisie : la commande de test documentée dans tous les dossiers de story sourçait
+  `.env.local`, qui pointe sur la base de lancement depuis le 12/08 — la suite entière tournait donc
+  contre la production, y créait ses comptes, puis mourait sur un `429` en se plaignant de
+  *privilèges de table*. Le trou est refermé côté code (`tests/_environnement.ts` refuse désormais
+  toute cible non locale), mais **les données déjà écrites, elles, sont toujours là** — et pas
+  seulement dans `auth.users` : chaque fixture a pu écrire dans les tables art. 9 en cascade.
 - **`npm audit` : 8 vulnérabilités (6 hautes, 2 basses)** au 13/08. À trier avant lancement.
   **Ne pas lancer `npm audit fix --force`** — ça casse le build.
 - **`noindex` ou protection de l'URL publique** tant que le produit n'est pas prêt à être trouvé.

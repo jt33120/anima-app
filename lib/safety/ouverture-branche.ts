@@ -12,6 +12,8 @@ import {
 } from "@/lib/domain/arbitrage-ouverture";
 import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
 import { premiumSousJwt } from "@/lib/safety/entitlement-premium";
+import { lireHypotheseEnneagramme } from "@/lib/data/lire-enneagramme";
+import { PHRASE_OUVERTURE_HYPOTHESE } from "@/lib/domain/enneagramme-hypothese";
 
 /**
  * Story 4.5 (T4), ARBITRÉE PAR LA 4.10 — LE SEUL ENDROIT DU PRODUIT OÙ L'ON DÉCIDE D'OUVRIR UNE BRANCHE.
@@ -66,9 +68,11 @@ export type { Ouverture } from "@/lib/domain/arbitrage-ouverture";
 
 export async function chargerOuverture(
   supabase: SupabaseClient,
+  utilisatriceId: string,
   maintenant: Date = new Date(),
 ): Promise<Ouverture | null> {
   try {
+
     // ══════════════════════════════════════════════════════════════════════════════════════════
     // Story 5.3 (AC4) — LA MENTION DE COMPLÉTION DU SOCLE, ET POURQUOI ELLE EST *AVANT* LE GATE
     // ══════════════════════════════════════════════════════════════════════════════════════════
@@ -106,6 +110,46 @@ export async function chargerOuverture(
       }
     } catch (e) {
       journaliserIncidentSecurite("ouverture_socle_complete", e);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════════════════
+    // Story 5.5 (AC2) — L'HYPOTHÈSE D'ANAM, ET POURQUOI ELLE EST *AVANT* LE GATE, ELLE AUSSI
+    // ══════════════════════════════════════════════════════════════════════════════════════════
+    //
+    // ⚠️ NE JAMAIS DÉPLACER CE BLOC SOUS `premiumSousJwt`. Même raison qu'au-dessus, et elle est
+    // écrite noir sur blanc dans FR-055 : l'ennéagramme fait partie du socle GRATUIT À VIE.
+    // `tests/socle-jamais-coupe.test.ts` garde cette position.
+    //
+    // ⚠️ EN REVANCHE, IL PASSE *APRÈS* LA MENTION DE COMPLÉTION, ET C'EST L'INVERSE D'UN DÉTAIL. Les
+    // deux sont du socle libre, donc l'ordre entre elles se décide sur autre chose : ce qu'on perd à
+    // perdre l'arbitrage. La mention n'a qu'UNE SEULE CHANCE et s'auto-éteint — la faire passer
+    // seconde reviendrait à ne jamais la dire à quelqu'un qui a aussi une hypothèse en attente.
+    // L'hypothèse, elle, reste `en_attente` en base : elle repart au prochain chargement. La règle
+    // est constante dans ce fichier — ce qui ne revient pas de soi-même passe devant.
+    //
+    // ⚠️ LECTURE SEULE, ET C'EST LA TROISIÈME FOIS QUE CE DÉPÔT L'ÉCRIT. Ce chemin part
+    // d'`app/page.tsx`, donc à chaque rendu de la scène — et la scène monte ses trois régions en
+    // permanence, `inert` sauf l'active. Une parole marquée « dite » ici se dépenserait sans avoir
+    // jamais atteint un écran : la faute a été payée en revue 4.10 (`reserver_invitation_integration`
+    // consommée par un `router.refresh()`) puis en migration 0045. La dépense vit dans
+    // `marquerHypotheseDite`, appelée par le CLIENT quand la région est active.
+    //
+    // Son propre `try` : cette lecture est ajoutée sur un chemin qui marchait sans elle. La 4.10
+    // avait cassé la proposition de la 4.5 avec un `try` global — chaque effet porte le sien.
+    // Direction du doute : ON SE TAIT. L'hypothèse reste `en_attente` en base, elle sera dite au
+    // prochain chargement ; c'est l'inverse exact de la mention de complétion, qui n'a qu'une seule
+    // chance parce qu'elle s'auto-éteint.
+    try {
+      const h = await lireHypotheseEnneagramme(supabase, utilisatriceId, { seulementADire: true });
+      if (h.statut === "calcule") {
+        return {
+          type: "hypothese-enneagramme",
+          phrase: PHRASE_OUVERTURE_HYPOTHESE,
+          hypotheseId: h.hypothese.id,
+        };
+      }
+    } catch (e) {
+      journaliserIncidentSecurite("ouverture_hypothese_enneagramme", e);
     }
 
     // ── Story 3.3 (D2-A, FR-088) : SUR UN COMPTE GRATUIT, ANAM NE PROPOSE PAS ────────────────────────

@@ -91,6 +91,20 @@ export type Tour =
       readonly role: "invitation-integration";
       readonly phrase: string;
       readonly brancheCibleId: string;
+    }
+  /**
+   * L'HYPOTHÈSE D'ENNÉAGRAMME (Story 5.5, AC2). Tour CLIENT amorcé au MONTAGE, comme la proposition
+   * et l'invitation — même origine : une décision serveur, à un autre embranchement.
+   *
+   * ⚠️ AUCUN NUMÉRO. Pas de `type`, ni en nombre ni en chaîne : la phrase du fil ne le nomme pas, et
+   * la halte le lit en base. Le poser ici en ferait une SECONDE source du même fait, et rendrait
+   * l'assènement techniquement possible à un composant qui n'a aujourd'hui pas de quoi.
+   */
+  | {
+      readonly id: string;
+      readonly role: "hypothese-enneagramme";
+      readonly phrase: string;
+      readonly hypotheseId: string;
     };
 
 /** Le petit cycle local d'une proposition de branche dans le fil (Story 4.5). */
@@ -109,4 +123,7 @@ export type OuvertureData =
   | { readonly type: "invitation"; readonly phrase: string; readonly brancheCibleId: string }
   /** Story 5.3 (AC4) — la mention UNIQUE de la complétion du socle. Une phrase, rien d'autre :
    *  rien à ouvrir, rien à répondre, rien à consommer. */
-  | { readonly type: "socle-complete"; readonly phrase: string };
+  | { readonly type: "socle-complete"; readonly phrase: string }
+  /** Story 5.5 (AC2) — Anam a une hypothèse de type. Une phrase qui ne nomme AUCUN numéro, et
+   *  l'identifiant de la ligne : le rendu n'a pas de quoi asséner quoi que ce soit. */
+  | { readonly type: "hypothese-enneagramme"; readonly phrase: string; readonly hypotheseId: string };

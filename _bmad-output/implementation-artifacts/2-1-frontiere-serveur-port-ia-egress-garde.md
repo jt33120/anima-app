@@ -85,7 +85,7 @@ afin que **les données art. 9 ne quittent jamais le système sans garantie et q
 
 - [x] **Task 9 — Env + non-régression (AC1..AC5)**
   - [x] `.env.local.example` (ou équivalent) : documenter `MISTRAL_API_KEY` (serveur, **jamais** `NEXT_PUBLIC_`), `MISTRAL_ZDR_CONFIRMED`, `MISTRAL_DPA_SIGNED`, `MISTRAL_PLAN`, `AI_ADAPTER`. Rappeler : en prod Vercel, marquer les secrets **« Sensitive »**.
-  - [x] Lancer **toute** la suite (`set -a && . ./.env.local && set +a && npx vitest run`) — **aucune régression** des tests 1.1→1.9 ; noter le total avant/après.
+  - [x] Lancer **toute** la suite (`npx vitest run`) — **aucune régression** des tests 1.1→1.9 ; noter le total avant/après.
   - [x] `npm run lint` propre (strict, `verbatimModuleSyntax` → `import type` pour les types).
 
 ## Dev Notes
@@ -166,7 +166,7 @@ export interface AiPort {
 ### Testing standards (résumé — détail en Task 8)
 
 - **Runner** : vitest `4.1.10`, `environment: "node"`, `test.include: ["tests/**/*.test.ts"]`. Alias `@`→racine ; **`server-only` stubé** via `tests/_stubs/server-only.ts` (les modules `import "server-only"` sont donc testables). [Source: vitest.config.ts]
-- **Env des tests SQL réels** : `set -a && . ./.env.local && set +a && npx vitest run` (Vitest ne charge pas `.env.local`). Vars : `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY`. Local Supabase requis (`supabase start` via CLI **globale v2.67.1**, **jamais `npx supabase`** — casse le `service_role`).
+- **Env des tests SQL réels** : `npx vitest run` (Vitest ne charge pas `.env.local`). Vars : `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY`. Local Supabase requis (`supabase start` via CLI **globale v2.67.1**, **jamais `npx supabase`** — casse le `service_role`).
 - **Patron garde d'architecture** : `tests/scene-architecture.test.ts` — `readdirSync(recursive)` + `sansCommentaires()` (strip commentaires, préserve `://`) + regex d'imports. **Réutiliser `sansCommentaires`.**
 - **Patron route « n'importe pas X »** : `tests/aide-route.test.ts`. **Patron énumération de routes** : `tests/identite-route.test.ts` (`.filter(f => f.endsWith("page.tsx"))` → adapter à `route.ts`).
 - **Patron privilège positif+négatif (non tautologique)** : `tests/privileges-fonctions.test.ts` (service_role PEUT / anon NE PEUT PLUS). **Modèle exact pour le boot-guard ZDR (AC3).**

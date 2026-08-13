@@ -77,6 +77,52 @@ const MOTIFS_LEXICAUX: Array<{ famille: FamilleInterdit; motif: RegExp }> = [
   { famille: "medical", motif: /\bprescri(re|s|t|ption|ptions)\b/g },
   { famille: "medical", motif: /\bsante mentale\b/g },
   { famille: "medical", motif: /\btrouble(s)? anxieu(x|se|ses)\b/g },
+
+  // ── L'ADJECTIF CLINIQUE (Story 5.5, revue du 2026-08-13) ──────────────────────────────────────
+  //
+  // ⚠️ CE QUI MANQUAIT : le SUBSTANTIF était banni, l'ADJECTIF NU ne l'était pas. Mesuré :
+  //
+  //     « Le 6 vit dans l'anxiété. »   → rouge (`\banxiete(s)?\b`)
+  //     « Le 6 est anxieux. »          → VERT
+  //     « Le 6 est anxieuse. »         → VERT
+  //     « Le 5 est évitant et obsessionnel. » → VERT
+  //
+  // Ce n'était pas visible tant que le produit parlait de nombres et de planètes. Ça le devient
+  // avec l'ennéagramme : l'attribut est la formulation canonique de toute la littérature du
+  // domaine (« le 6 est anxieux », « le 4 est mélancolique »), donc la forme qu'on écrit sans y
+  // penser. Le corpus des neuf types pouvait être écrit INTÉGRALEMENT au registre clinique sans
+  // qu'un seul contrôle bloquant ne morde.
+  //
+  // Et ce n'est pas une question de goût : « une seule phrase du mauvais côté fait rejeter l'app
+  // lors de la revue ET CHANGE LE RÉGIME JURIDIQUE APPLICABLE » (addendum du brief). NFR-008 dit
+  // « lexique zéro médical », pas « zéro substantif médical ».
+  //
+  // Ces adjectifs-ci sont bannis SANS CONDITION : aucun n'a d'usage courant non clinique.
+  { famille: "medical", motif: /\banxieu(?:x|se|ses)\b/g },
+  { famille: "medical", motif: /\bobsessionnel(?:le|s|les)?\b/g },
+  { famille: "medical", motif: /\bphobi(?:e|es|que|ques)\b/g },
+  { famille: "medical", motif: /\bnarcissi(?:que|ques|sme)\b/g },
+  { famille: "medical", motif: /\bcompulsi(?:f|ve|fs|ves)\b/g },
+  { famille: "medical", motif: /\bnevro(?:tique|tiques|se|ses)\b/g },
+  { famille: "medical", motif: /\bpsychoti(?:que|ques)\b/g },
+  { famille: "medical", motif: /\bparanoia(?:que|ques)?\b/g },
+  { famille: "medical", motif: /\bbipolaire(?:s)?\b/g },
+  { famille: "medical", motif: /\bschizo\w*\b/g },
+  { famille: "medical", motif: /\bborderline(?:s)?\b/g },
+  { famille: "medical", motif: /\bhypocondria(?:que|ques)\b/g },
+  { famille: "medical", motif: /\bdissociati(?:f|ve|fs|ves)\b/g },
+  // ⚠️ « évitant » est GATÉ SUR LA POSITION D'ATTRIBUT, et c'est le seul de la liste qui l'est :
+  // « en évitant le conflit » est du français parfaitement ordinaire, et le bannir rendrait
+  // inécrivable la reformulation même qu'on demande. C'est « EST évitant » qui bascule — le
+  // participe présent décrit un geste, l'attribut range la personne.
+  {
+    famille: "medical",
+    motif: new RegExp(
+      `\\b(?:est|sont|es|suis|semble|semblent|parait|paraissent|devient|deviennent|reste|restent|sens|sent|sentent) ` +
+        `(?:tres |plutot |assez |un peu |souvent |parfois |plus |moins )?evitante?s?\\b`,
+      "g",
+    ),
+  },
   // « trouble » clinique GATÉ par un déterminant/possessif (« travaillons sur ton trouble », charte
   // §11.4) — n'attrape jamais le verbe courant « ça me trouble » (revue 2.8). « traiter » est
   // volontairement OMIS : trop surchargé RGPD dans cette app (« Anam traite/le traitement de tes

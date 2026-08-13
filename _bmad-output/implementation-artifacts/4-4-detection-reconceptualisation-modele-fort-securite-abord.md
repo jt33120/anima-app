@@ -65,7 +65,7 @@ afin qu'**une prise de conscience ne soit proposée que quand elle m'appartient 
   - [x] Étendre `tests/consentement.test.ts` : `signal_reconceptualisation` rejoint le bloc de fidélité de la frontière art. 9 (table de contenu/dérivé art. 9 possédée sous JWT).
 
 - [x] **T6 — Suite verte + gardes transverses (tout)**
-  - [x] Toute la suite verte : `set -a && . ./.env.local && set +a && npx vitest run` (Supabase local **démarré** via CLI globale v2.67.1).
+  - [x] Toute la suite verte : `npx vitest run` (Supabase local **démarré** via CLI globale v2.67.1).
   - [x] Gardes existantes **inchangées** : `pipeline-securite-architecture` (le détecteur de détresse reste confiné, AC5), `frontiere-serveur`, les sondes art. 9. La route reste sans SDK fournisseur / sans secret client.
   - [x] `npx tsc --noEmit`, `npx eslint`, `next build` propres. `supabase db reset` rejoue 0001→0020 sans erreur (migration FILE correcte, pas seulement le delta appliqué à la main).
 
@@ -118,7 +118,7 @@ Séparation **structurelle**, pas seulement conventionnelle : la sécurité (dé
 
 ### Rappels opérationnels
 
-- Tests : `set -a && . ./.env.local && set +a && npx vitest run` (Vitest ne charge pas `.env.local`). Supabase local via CLI **globale** v2.67.1, **jamais** `npx supabase`.
+- Tests : `npx vitest run` (Vitest ne charge pas `.env.local`). Supabase local via CLI **globale** v2.67.1, **jamais** `npx supabase`.
 - Migration en local : `supabase db reset` (rejoue 0001→0020 depuis les FICHIERS — reprend une migration éditée).
 - La migration 0020 rejoint la **porte OPS cloud** (`deferred-work.md`) : à déployer avant prod (Management API + `sbp_` token, projet `zlhlzoalmszohrxrnsmo`).
 

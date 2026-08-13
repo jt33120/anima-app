@@ -58,13 +58,21 @@ Gardé par `tests/corpus-architecture.test.ts`.
 | Corpus | Créneaux | Écrits | Story |
 |---|---|---|---|
 | **Numérologie** (`numerologie.ts`) | 69 | **0** | 5.2 |
-| Mantras du jour | — | — | 5.4 |
-| Ennéagramme | — | — | 5.5 |
+| **Mantras du jour** (`mantra.ts`) | 60 | **0** | 5.4 |
+| **Horoscope du jour** (`horoscope.ts`) | 27 | **0** | 5.4 |
+| **Ennéagramme** (`enneagramme.ts`) | 9 | **0** | 5.5 |
 | Sens des cartes | — | — | 5.7 |
+| **Total déclaré** | **165** | **0** | |
 
-Le corpus numérologique est **déclaré complet et écrit à zéro**. Ce n'est pas un travail inachevé,
-c'est la seule forme conforme : les 69 créneaux existent, chacun se rend honnêtement `non_ecrit`, et
-le jour où Anima en écrit un, il suffit de remplacer une entrée.
+Chaque corpus est **déclaré complet et écrit à zéro**. Ce n'est pas un travail inachevé, c'est la
+seule forme conforme : les créneaux existent, chacun se rend honnêtement `non_ecrit`, et le jour où
+Anima en écrit un, il suffit de remplacer une entrée.
+
+Les neuf créneaux d'ennéagramme sont l'axe MINIMAL — un texte par type. Les ailes (18), les instincts
+(27), les flèches (18) et le croisement complet (54) sont des produits cartésiens sur les mêmes neuf
+types, et la 5.4 a écrit la règle en refusant les siens : on garde l'axe qu'une personne identifie
+comme ELLE, on refuse le croisement. Les dix-huit énoncés du test court, eux, ne sont **pas** du
+corpus (ils n'interprètent rien) : ils vivent dans `lib/domain/enneagramme-items.ts`.
 
 **Porte pré-lancement ouverte** — voir `sprint-status.yaml`, entrée « LE CORPUS D'ANIMA ». Par ordre
 d'urgence : les 12 textes du **chemin de vie** (le seul nombre que les gens connaissent, il suffit à

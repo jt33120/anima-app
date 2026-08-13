@@ -50,6 +50,10 @@ function cleDOuverture(o?: OuvertureData | null): string | null {
     case "socle-complete":
       // Une seule mention possible dans la vie d'un compte (0040) : la clé n'a rien à distinguer.
       return "s:socle";
+    case "hypothese-enneagramme":
+      // La clé porte l'identifiant du germe : deux hypothèses successives (refus puis test) ne
+      // doivent pas partager une clé, sinon la seconde ne serait jamais servie.
+      return `h:${o.hypotheseId}`;
   }
 }
 
@@ -76,6 +80,13 @@ function toursDOuverture(o?: OuvertureData | null): Tour[] {
       // propre en ferait un événement — donc une récompense — alors que FR-051 demande « un motif
       // de retour honnête, jamais une carotte ». Elle se lit, et elle s'en va avec le fil.
       return [{ id: nouvelId(), role: "anam", texte: o.phrase, etat: "complet" }];
+    case "hypothese-enneagramme":
+      // Story 5.5 (AC2) — un rôle DÉDIÉ, contrairement à `socle-complete`, et pour la raison
+      // inverse : cette phrase-ci pose une question, donc elle doit mener quelque part. Une
+      // question sans issue est un reproche (leçon 4.10).
+      return [
+        { id: nouvelId(), role: "hypothese-enneagramme", phrase: o.phrase, hypotheseId: o.hypotheseId },
+      ];
   }
 }
 
@@ -83,6 +94,8 @@ export default function Conversation({
   onPreparation,
   ouverture,
   onAllerVersBranche,
+  onAllerVersHypothese,
+  onHypotheseDite,
   regionActive = true,
   onSocleAnnonce,
 }: {
@@ -95,6 +108,10 @@ export default function Conversation({
   ouverture?: OuvertureData | null;
   /** L'invitation doit MENER quelque part, sinon c'est un reproche : ceci ouvre la fiche de la branche visée. */
   onAllerVersBranche?: (brancheId: string) => void;
+  /** Story 5.5 (AC2) — l'hypothèse mène à la halte `/enneagramme`. */
+  onAllerVersHypothese?: () => void;
+  /** Story 5.5 — appelé UNE FOIS quand l'hypothèse a réellement atteint l'écran (patron B3). */
+  onHypotheseDite?: (hypotheseId: string) => void;
   /**
    * Cette conversation est-elle la région ACTIVE ? (revue du 2026-08-12, B3)
    *
@@ -144,6 +161,24 @@ export default function Conversation({
     setSocleAnnonce(true);
     onSocleAnnonce?.();
   }, [socleDansLeFil, regionActive, socleAnnonce, onSocleAnnonce]);
+
+  // ── MÊME PATRON POUR L'HYPOTHÈSE (Story 5.5, AC2) ─────────────────────────────────────────────
+  //
+  // Mêmes deux conditions, pour la même raison : une phrase rendue dans une région `inert` n'est
+  // annoncée par aucun lecteur d'écran et vue par personne. La marquer « dite » là reviendrait à
+  // la perdre.
+  //
+  // ⚠️ LA DIRECTION DU DOUTE EST L'INVERSE DE CELLE DU SOCLE, ET C'EST ÉCRIT EN TÊTE DE 0049 : si le
+  // marquage échoue, ON REDIT. Redire une hypothèse est un accroc ; ne jamais la dire est la story
+  // qui ne tient pas. C'est pourquoi le germe reste `en_attente` tant qu'elle n'a pas répondu, et
+  // que seule `dite_le` — une colonne dont seule la NULLITÉ décide — est consommée ici.
+  const [hypotheseAnnoncee, setHypotheseAnnoncee] = useState<string | null>(null);
+  const hypotheseDansLeFil = ouverture?.type === "hypothese-enneagramme" ? ouverture.hypotheseId : null;
+  useEffect(() => {
+    if (!hypotheseDansLeFil || !regionActive || hypotheseAnnoncee === hypotheseDansLeFil) return;
+    setHypotheseAnnoncee(hypotheseDansLeFil);
+    onHypotheseDite?.(hypotheseDansLeFil);
+  }, [hypotheseDansLeFil, regionActive, hypotheseAnnoncee, onHypotheseDite]);
   if (cle !== clePrec) {
     setClePrec(cle);
     const nouveaux = toursDOuverture(ouverture);
@@ -413,6 +448,7 @@ export default function Conversation({
         onRepondreProposition={repondreProposition}
         onNommerBranche={nommerBranche}
         onAllerVersBranche={onAllerVersBranche}
+        onAllerVersHypothese={onAllerVersHypothese}
         nommage={nommage}
         quotaEpuise={quotaEpuise}
       />

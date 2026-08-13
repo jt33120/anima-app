@@ -44,7 +44,7 @@ afin d'avoir la **preuve visible de mon chemin**, sans jamais qu'on me le note n
 ## Tasks / Subtasks
 
 > **Discipline TDD, dépendances descendantes (AD-1).** Pour chaque garde **[DUR]** : écrire d'abord le test **rouge**, implémenter le minimum pour le **vert**, puis **mutation-vérifier** (retirer la garde → le test redevient rouge → restaurer). Ordre : base → modèle pur → data → sécurité/app → render → gardes.
-> **Commande de test (Supabase local DOIT tourner)** : `set -a && . ./.env.local && set +a && npx vitest run`.
+> **Commande de test (Supabase local DOIT tourner)** : `npx vitest run`.
 > **Supabase local** : CLI **globale** `supabase` (v2.67.1), **jamais** `npx supabase`. Rejouer depuis les fichiers : `supabase db reset` (0001→0022 propre = critère de non-régression).
 > **4.6 n'a AUCUN appel LLM** : projection, renommage, lecture d'extrait = 100 % déterministes.
 

@@ -79,6 +79,16 @@ export default async function PageConsentement({
               (ta vie intérieure, tes croyances). Elles ne sont traitées qu&apos;avec ton
               consentement explicite, que tu peux retirer à tout moment.
             </p>
+            {/* Story 5.5 (décision D12) — le détail de ce que « déduire » veut dire. La case dit
+                le principe ; ici on dit la chose concrète, et surtout qu'elle reste défaisable. Une
+                déduction qu'on ne peut pas corriger n'est plus une hypothèse, c'est un verdict. */}
+            <p className="t-corps">
+              Anam ne conserve pas seulement ce que tu lui dis : elle en <strong>déduit</strong>{" "}
+              aussi des choses — les thèmes qui reviennent chez toi, et une lecture de ta façon de
+              fonctionner. Ces déductions sont elles aussi des données sensibles. Tu peux les{" "}
+              <strong>corriger</strong> ou les <strong>effacer</strong> à tout moment, sans perdre
+              le reste.
+            </p>
             <p className="t-corps">
               À ta demande de suppression, ton compte et tes contenus sont effacés, et la
               consigne d&apos;effacement est propagée aux prestataires concernés.

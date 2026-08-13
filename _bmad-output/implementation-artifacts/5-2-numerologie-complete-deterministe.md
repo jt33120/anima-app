@@ -16,7 +16,7 @@ prepare_pour:
   - "5-5-enneagramme-test-court-hypothese-anam"
   - "5-6-accueil-bibliotheque-en-cartes"
   - "5-7-tirage-isole-jeu-proprietaire"
-status: review
+status: done
 migration: aucune
 ---
 
@@ -691,3 +691,10 @@ bien d'Anima. C'est ce qui empêche le corpus de se remplir en silence.
 |---|---|---|
 | 2026-08-07 | 0.1 | Dossier de story créé — analyse des artefacts, treize pièges, neuf décisions arrêtées. Statut `ready-for-dev`. |
 | 2026-08-07 | 1.0 | T1→T8 livrés. Couche `lib/corpus/` posée (69 créneaux, 0 écrit — FR-054/FR-086), calcul numérologique pur, détecteur de prédiction, capture du prénom et du nom complet, chemin de lecture sans stockage. 2370 tests / 170 fichiers verts, 33 mutants tués, aucune migration. Statut `review`. |
+
+## Status
+
+done
+
+> **Revue de code : 2026-08-13.** D1 (détecteur de prédiction élargi au mot intercalé) et D5 (chaîne de prototypes).
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).

@@ -8,6 +8,12 @@ import {
   luneRelative,
   type CielDuJour,
   ecartAngulaire,
+  aspectableSansHeure,
+  ciblesNatalesDe,
+  CIBLES_NATALES,
+  ORBE_DEGRES,
+  DEMI_FENETRE_SANS_HEURE_JOURS,
+  VITESSE_DIURNE_MAXIMALE_DEGRES,
   indiceDuJour,
   numeroDeJour,
   type JourCivil,
@@ -341,6 +347,16 @@ function themeFictif(o: {
   lune?: number;
   ascendant?: number;
   autres?: Partial<Record<Corps, number>>;
+  /**
+   * L'heure de naissance est-elle connue ? DÉCOUPLÉ de l'ascendant depuis la revue du 2026-08-12.
+   *
+   * Les deux étaient liés dans ce harnais (« pas d'ascendant ⇒ midi par défaut »), et ce raccourci
+   * est faux dans les deux sens : on peut connaître l'heure sans pouvoir calculer l'ascendant (le
+   * LIEU manque), et le thème gravé porte bien deux champs distincts. Le défaut par défaut est
+   * `heure_connue` : les tests de GÉOMÉTRIE parlent de géométrie, et l'absence d'heure est
+   * désormais une condition qui RETIRE des cibles — elle doit se demander, jamais s'hériter.
+   */
+  precision?: "heure_connue" | "midi_par_defaut";
 }): ThemeNatal {
   const positions: PositionCorps[] = [];
   const ajouter = (corps: Corps, longitude: number) => {
@@ -366,7 +382,7 @@ function themeFictif(o: {
             maisons: maisonsSignesEntiers(o.ascendant),
             systeme: "signes_entiers",
           },
-    precision: o.ascendant === undefined ? "midi_par_defaut" : "heure_connue",
+    precision: o.precision ?? "heure_connue",
   };
 }
 
@@ -488,6 +504,80 @@ describe("[T3 / P11] une cible ABSENTE ne produit jamais de configuration fantô
     const c = configurations(cielFictif({ lune: 0 }), themeFictif({ lune: 0 }));
     expect(c.map((x) => x.cible)).toEqual(["lune"]);
     expect(c.map((x) => x.cible)).not.toContain("soleil");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // A4 (revue du 2026-08-12) — CE QU'ON N'ASPECTE PAS QUAND L'HEURE MANQUE
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // Sans heure de naissance, l'instant retenu est midi UTC : l'instant réel est à ±12 h, et la Lune
+  // natale à ±7,7° — DEUX FOIS ET DEMIE l'orbe de 3°. « Mars carré ta Lune natale, orbe 0,4° »
+  // n'était donc pas approximatif, il était sans rapport avec le ciel de naissance, tout en portant
+  // l'autorité d'un calcul et le chiffre rassurant d'une orbe serrée. Quatre comptes sur cinq n'ont
+  // pas d'heure de naissance.
+  //
+  // Le correctif est arrivé pendant que `configurations` n'avait encore AUCUN consommateur. Une fois
+  // l'horoscope câblé à un écran (5.6), il aurait fallu retirer à des gens un texte qu'ils lisaient
+  // depuis des semaines — irrattrapable en douceur.
+
+  it("[CONTRÔLE POSITIF] heure CONNUE : la Lune natale est bien aspectée", () => {
+    // Sans ce contrôle, une règle qui exclurait la Lune en toutes circonstances passerait le test
+    // suivant, et le produit perdrait la moitié de son horoscope pour les comptes complets.
+    const c = configurations(cielFictif({ mars: 0 }), themeFictif({ lune: 0, precision: "heure_connue" }));
+    expect(c.map((x) => x.cible)).toContain("lune");
+  });
+
+  it("[LE TEST QUI COMPTE] heure ABSENTE : plus AUCUNE configuration sur la Lune natale", () => {
+    const c = configurations(cielFictif({ mars: 0 }), themeFictif({ lune: 0, precision: "midi_par_defaut" }));
+    expect(c.map((x) => x.cible), "une position connue à ±7,7° ne peut pas porter un aspect à 3°").not.toContain(
+      "lune",
+    );
+  });
+
+  it("[LE BORD] heure absente : le SOLEIL natal, lui, reste aspecté", () => {
+    // La garde retire ce qui est inconnaissable, pas l'horoscope. Le Soleil bouge de ±0,51° sur la
+    // même fenêtre — un résidu assumé, très en deçà de l'orbe. Sans ce test, « ne rien aspecter
+    // sans heure » passerait le précédent en supprimant le produit pour 80 % des comptes.
+    const c = configurations(cielFictif({ mars: 0 }), themeFictif({ soleil: 0, precision: "midi_par_defaut" }));
+    expect(c.map((x) => x.cible)).toContain("soleil");
+  });
+
+  it("heure absente : le Soleil est aspecté ET la Lune écartée dans le MÊME thème", () => {
+    const c = configurations(
+      cielFictif({ mars: 0 }),
+      themeFictif({ soleil: 0, lune: 0, precision: "midi_par_defaut" }),
+    );
+    expect([...new Set(c.map((x) => x.cible))]).toEqual(["soleil"]);
+  });
+
+  it("`ciblesNatalesDe` rend les trois cibles avec l'heure, et deux sans", () => {
+    expect(ciblesNatalesDe(themeFictif({ ascendant: 0, precision: "heure_connue" }))).toEqual([...CIBLES_NATALES]);
+    expect(ciblesNatalesDe(themeFictif({ precision: "midi_par_defaut" }))).toEqual(["soleil"]);
+  });
+
+  it("la règle est DÉRIVÉE d'une vitesse et d'une orbe — pas d'une liste de noms", () => {
+    // C'est la différence entre fermer CE trou et fermer la CLASSE de trous : le jour où Mercure ou
+    // la Lune noire rejoindront `CIBLES_NATALES`, la question sera déjà tranchée pour elles.
+    expect(VITESSE_DIURNE_MAXIMALE_DEGRES.lune * DEMI_FENETRE_SANS_HEURE_JOURS).toBeGreaterThan(ORBE_DEGRES);
+    expect(VITESSE_DIURNE_MAXIMALE_DEGRES.soleil * DEMI_FENETRE_SANS_HEURE_JOURS).toBeLessThanOrEqual(ORBE_DEGRES);
+    expect(aspectableSansHeure("lune")).toBe(false);
+    expect(aspectableSansHeure("soleil")).toBe(true);
+  });
+
+  it("l'ASCENDANT est exclu par la même règle, indépendamment de son absence du thème", () => {
+    // Deux mécanismes concluent pareil pour deux raisons différentes (il fait un tour par jour ;
+    // il n'est pas calculable sans heure). Si l'un des deux tombait un jour, l'autre tiendrait.
+    expect(aspectableSansHeure("ascendant")).toBe(false);
+  });
+
+  it("[GARDE DE RÉÉCRITURE] toute cible de `CIBLES_NATALES` déclare sa vitesse diurne", () => {
+    // Une cible ajoutée sans vitesse rendrait `undefined * 0.5 <= 3` → `false` silencieusement :
+    // elle serait écartée sans heure sans que personne n'ait pris la décision. TypeScript l'attrape
+    // à la compilation ; ce test l'attrape aussi à l'exécution, car le `Record` peut être élargi.
+    for (const cible of CIBLES_NATALES) {
+      expect(typeof VITESSE_DIURNE_MAXIMALE_DEGRES[cible], `vitesse manquante pour ${cible}`).toBe("number");
+      expect(Number.isFinite(VITESSE_DIURNE_MAXIMALE_DEGRES[cible])).toBe(true);
+    }
   });
 
   it("un thème SANS AUCUNE cible ne produit aucune configuration, et n'explose pas", () => {

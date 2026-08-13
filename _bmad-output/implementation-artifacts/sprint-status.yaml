@@ -19,7 +19,7 @@
 # prod. Ce qui manque, c'est leur revue. C'est une dette réelle, pas un artefact de comptabilité.
 
 generated: 2026-08-07
-last_updated: 2026-08-11 # 5.3 livrée + 0040 déployée ; 5.4 livrée (aucune migration)
+last_updated: 2026-08-13 # dette de revue soldée : 11 stories relues (revue-dette-2026-08.md), migrations 0041→0048 déployées
 project: Anam
 project_key: ANAM
 tracking_system: file-system
@@ -28,9 +28,9 @@ story_location: "_bmad-output/implementation-artifacts"
 development_status:
   # ── Epic 1 : Franchir le seuil ────────────────────────────────────────────────
   epic-1: done
-  1-1-echafaudage-couches-rls: review # livrée ; revue jamais faite
-  1-2-fondation-design-system: review # livrée ; revue jamais faite (était à tort `ready-for-dev`)
-  1-3-creer-compte-sans-mot-de-passe: review # livrée ; revue jamais faite (était à tort `ready-for-dev`)
+  1-1-echafaudage-couches-rls: done # revue 2026-08-13 : AC3 et AC4 étaient partiellement faux (voir revue-dette-2026-08.md)
+  1-2-fondation-design-system: done # fermée SANS revue adversariale, motif écrit dans revue-dette-2026-08.md
+  1-3-creer-compte-sans-mot-de-passe: done # revue 2026-08-13 : majorité (0048), fixation de session, redirection ouverte, cookies
   1-4-date-naissance-majorite: done # revue faite → 0f14ec2 (était à tort `ready-for-dev`)
   1-5-consentement-art9-declaration-ia: done
   1-6-consentement-non-contournable-revocable: done
@@ -49,7 +49,7 @@ development_status:
   2-5-filet-hors-ia-aide-garde-limites-levees: done
   2-6-reponse-detresse-par-niveaux-anam-ne-quitte-jamais: done
   2-7-arc-seance-construire-observer-nommer-clore: done
-  2-8-voix-anam-controle-automatise-bloquant: review # livrée ; revue jamais faite
+  2-8-voix-anam-controle-automatise-bloquant: done # revue 2026-08-12 : entités HTML, miroir divergent, clause médicale absente
   2-9-cloture-anam-placement-garde-paywall: done
   epic-2-retrospective: optional
 
@@ -58,11 +58,11 @@ development_status:
   # 3.1, 3.3 et 3.5 n'ont aucune revue de code au dossier (voir action_items) — la règle en tête de
   # fichier ne laisse pas passer un `done` sans revue attestée.
   epic-3: in-progress
-  3-1-ossature-abonnement-stripe: review # livrée ; revue jamais faite
+  3-1-ossature-abonnement-stripe: done # revue 2026-08-12/13 : M1→M12 + la vente à un compte suspendu
   3-2-paywall-cloture-premiere-seance: done
-  3-3-tronc-gratuit-branches-premium-socle-jamais-coupe: review # livrée 2026-08-07 (ef097d2 + migration 0037) ; revue DUE
+  3-3-tronc-gratuit-branches-premium-socle-jamais-coupe: done # revue 2026-08-12
   3-4-allocation-residuelle-metrage-exactement-une-fois: done
-  3-5-resiliation-trois-clics-garantie-remboursement: review # livrée, revue de code DUE (migration 0038 non déployée)
+  3-5-resiliation-trois-clics-garantie-remboursement: done # revue 2026-08-12 ; migrations 0043/0044 déployées
   epic-3-retrospective: optional
 
   # ── Epic 4 : La mémoire & l'arbre ─────────────────────────────────────────────
@@ -81,10 +81,10 @@ development_status:
 
   # ── Epic 5 : Le socle & la lecture ────────────────────────────────────────────
   epic-5: in-progress
-  5-1-theme-natal-calcule-une-fois-grave: review # livrée 2026-08-07 (7c60fcb + migration 0039 déployée) ; revue DUE
-  5-2-numerologie-complete-deterministe: review # livrée 2026-08-07 ; AUCUNE migration ; revue DUE
-  5-3-degradation-gracieuse-sans-heure-completion-tronc: review # livrée 2026-08-11 (c14ed9a + migration 0040 déployée) ; revue DUE
-  5-4-horoscope-mantra-du-jour: review # livrée 2026-08-11 ; AUCUNE migration ; 87 créneaux de corpus à écrire ; revue DUE
+  5-1-theme-natal-calcule-une-fois-grave: done # revue 2026-08-12 (A7 : midi LOCAL, pas UTC)
+  5-2-numerologie-complete-deterministe: done # revue 2026-08-12 (D1, D5)
+  5-3-degradation-gracieuse-sans-heure-completion-tronc: done # revue 2026-08-12 (A2, B5, B6 ; migration 0045)
+  5-4-horoscope-mantra-du-jour: done # revue 2026-08-12 (A4 : cibles inaspectables sans heure ; B4) ; 87 créneaux de corpus restent à écrire
   5-5-enneagramme-test-court-hypothese-anam: backlog
   5-6-accueil-bibliotheque-en-cartes: backlog
   5-7-tirage-isole-jeu-proprietaire: backlog

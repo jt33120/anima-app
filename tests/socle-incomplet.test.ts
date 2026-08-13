@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   manquantsDuSocle,
   manqueLHeure,
@@ -202,5 +204,80 @@ describe("[T3 / AC2 / FR-050] les phrases disent CE QUI MANQUE, POURQUOI, et OÙ
   it("[CONTRÔLE DU CONTRÔLE] le détecteur mordrait sur la version rejetée", () => {
     // Sans ça, l'assertion précédente serait satisfaite par un détecteur en panne.
     expect(chercherPredictions("Tu pourras l'ajouter plus tard.").length).toBeGreaterThan(0);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// B6 (revue du 2026-08-12) — FR-053 S'APPLIQUE AUX ÉCRANS DU SOCLE, PAS SEULEMENT AU CORPUS
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[B6/FR-053] aucune surface du socle ne s'adresse à elle au futur", () => {
+  /**
+   * ══ LE DÉFAUT ═════════════════════════════════════════════════════════════════════════════════
+   *
+   * `formulaire-heure.tsx` disait : « Ton thème se recalcule tout seul — **tu le verras** à ton
+   * prochain passage. » Un futur adressé, dans la voix d'Anam (`t-anam`), sur l'écran même du
+   * socle. Le détecteur de prédiction existait depuis la 5.2 et ne regardait que `lib/corpus/` :
+   * la phrase vivait dans un angle mort.
+   *
+   * Elle était en plus FAUSSE : le recalcul a lieu à la prochaine lecture et peut échouer. Une
+   * prédiction dans un produit qui refuse de prédire, et une promesse que le code ne tient pas.
+   *
+   * ══ POURQUOI CETTE LISTE, ET PAS « TOUTES LES SURFACES » ══════════════════════════════════════
+   *
+   * Étendre le détecteur aux 209 fichiers d'`app/`, `render/` et `lib/` a été mesuré : 13 fichiers
+   * signalés, et QUATRE des cinq phrases humaines sont parfaitement légitimes —
+   *
+   *   « Reviens quand tu auras 18 ans »            → une invitation, l'inverse d'une prédiction ;
+   *   « Ce lieu ne te jugera pas »                 → une promesse du produit SUR LUI-MÊME ;
+   *   « Tu ne recevras plus ces courriels »        → la conséquence d'un réglage qu'elle vient de poser ;
+   *   « Tu ne pourras plus revenir en arrière »    → l'aveu d'une irréversibilité, une mise en garde.
+   *
+   * Le reste était du bruit de code (`annonce` en identifiant, `aria-live`). Une garde qui exige de
+   * réécrire quatre phrases justes pour en corriger une fausse se fait désarmer dans le mois. FR-053
+   * porte sur ce que le SOCLE dit de SA VIE — pas sur ce que le produit dit de lui-même.
+   *
+   * La liste est donc étroite et NOMMÉE. Elle grandit quand le socle gagne une surface.
+   */
+  const SURFACES_DU_SOCLE: readonly string[] = [
+    "lib/domain/message-sans-heure.ts",
+    "lib/domain/socle-incomplet.ts",
+    "render/arbre/FicheTronc.tsx",
+    "app/heure-naissance/page.tsx",
+    "app/heure-naissance/formulaire-heure.tsx",
+  ];
+
+  const sansCommentaires = (src: string) =>
+    src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+  const lire = (f: string) => sansCommentaires(readFileSync(resolve(process.cwd(), f), "utf-8"));
+
+  it("[PRÉSENCE AVANT ABSENCE] les surfaces existent et portent bien du texte d'Anam", () => {
+    // Sans ce témoin, « aucune prédiction » serait vrai d'un fichier renommé ou vidé — le mode
+    // d'échec silencieux de toute garde d'absence.
+    for (const f of SURFACES_DU_SOCLE) {
+      expect(existsSync(resolve(process.cwd(), f)), `${f} introuvable — garde vide`).toBe(true);
+      expect(lire(f).length, `${f} vide après retrait des commentaires`).toBeGreaterThan(200);
+    }
+    expect(SURFACES_DU_SOCLE.length).toBeGreaterThan(3);
+  });
+
+  it("[CONTRÔLE DU CONTRÔLE] la phrase RETIRÉE serait bien attrapée aujourd'hui", () => {
+    // C'est le texte exact qui vivait dans `formulaire-heure.tsx`. S'il ne rougissait pas ici, cette
+    // garde ne protégerait de rien — et c'est précisément le défaut qu'elle est censée fermer.
+    expect(
+      chercherPredictions("Ton thème se recalcule tout seul — tu le verras à ton prochain passage.")
+        .length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("aucune surface du socle ne prédit", () => {
+    for (const f of SURFACES_DU_SOCLE) {
+      const trouvees = chercherPredictions(lire(f));
+      expect(
+        trouvees.map((t) => `${t.famille}:${t.terme}`),
+        `${f} s'adresse à elle au futur — FR-053`,
+      ).toEqual([]);
+    }
   });
 });

@@ -300,9 +300,80 @@ describe("[VÉRIFICATION CROISÉE] l'ascendant et le milieu du ciel", () => {
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("resoudreInstant", () => {
-  it("sans heure : MIDI UTC, jamais minuit — la Lune parcourt 13° par jour", () => {
+  it("sans heure NI fuseau : midi UTC, jamais minuit — la Lune parcourt 13° par jour", () => {
     const r = resoudreInstant({ date: "1990-06-15" });
     expect(r.heureConnue).toBe(false);
+    expect(r.raisonSansHeure).toBe("heure_absente");
+    // Sans fuseau il n'existe aucun « jour local » à viser : midi UTC est le seul point nommable.
+    expect(r.instantUtc.toISOString()).toBe("1990-06-15T12:00:00.000Z");
+  });
+
+  // ── A7 (revue du 2026-08-12) — MIDI DU JOUR LOCAL, PAS MIDI UTC ────────────────────────────────
+  //
+  // Le jour de naissance est une date LOCALE. Midi UTC tombait n'importe où dans ce jour selon le
+  // fuseau — et parfois EN DEHORS. La combinaison « pas d'heure + fuseau connu » n'était atteignable
+  // par aucun écran quand le défaut a été trouvé (le formulaire écrivait heure et lieu ensemble) :
+  // c'est A2, qui découple les deux, qui la rend possible. Corrigé dans cet ordre exprès.
+
+  it("[A7] sans heure MAIS avec fuseau : midi LOCAL — à Paris en été, 10:00 UTC", () => {
+    const r = resoudreInstant({ date: "1990-06-15", fuseau: "Europe/Paris" });
+    expect(r.heureConnue).toBe(false);
+    expect(r.raisonSansHeure).toBe("heure_absente");
+    expect(r.instantUtc.toISOString()).toBe("1990-06-15T10:00:00.000Z");
+  });
+
+  it("[A7] le décalage suit la DATE, pas seulement le lieu : en hiver, midi local = 11:00 UTC", () => {
+    // Même garde que pour l'heure connue : un décalage figé « +01:00 » se tromperait d'une heure la
+    // moitié de l'année, et sur toutes les naissances françaises d'avant 1976.
+    const r = resoudreInstant({ date: "1990-01-15", fuseau: "Europe/Paris" });
+    expect(r.instantUtc.toISOString()).toBe("1990-01-15T11:00:00.000Z");
+  });
+
+  it("[A7 — LE CAS QUI FAISAIT MAL] à Kiribati (UTC+14), midi UTC tombait le LENDEMAIN local", () => {
+    // Midi UTC le 15 juin 2000 est le 16 juin à 2 h du matin à Kiritimati : le point retenu n'était
+    // même pas dans le jour de naissance, ni dans la fenêtre d'instants possibles calculée pour ce
+    // même thème. Deux fonctions du même fichier ne parlaient pas du même jour.
+    const r = resoudreInstant({ date: "2000-06-15", fuseau: "Pacific/Kiritimati" });
+    expect(r.instantUtc.toISOString()).toBe("2000-06-14T22:00:00.000Z");
+  });
+
+  it("[A7/DUR] AVANT 1995, Kiribati était à UTC−10 : le même lieu, l'autre côté de la ligne", () => {
+    // Kiritimati a SAUTÉ la ligne de changement de date le 1er janvier 1995 — l'île est passée de
+    // UTC−10 à UTC+14 et le 31 décembre 1994 n'a jamais existé là-bas. Une naissance de 1990 s'y
+    // résout donc dans l'autre sens. C'est la même leçon que « la France n'avait pas d'heure d'été
+    // avant 1976 », poussée à son extrême : le fuseau est un identifiant, jamais un décalage.
+    const r = resoudreInstant({ date: "1990-06-15", fuseau: "Pacific/Kiritimati" });
+    expect(r.instantUtc.toISOString()).toBe("1990-06-15T22:00:00.000Z");
+  });
+
+  it("[A7] à Baker (UTC−12), midi local est APRÈS midi UTC — l'écart joue dans les deux sens", () => {
+    const r = resoudreInstant({ date: "1990-06-15", fuseau: "Etc/GMT+12" });
+    expect(r.instantUtc.toISOString()).toBe("1990-06-16T00:00:00.000Z");
+  });
+
+  it("[A7] l'instant retenu sans heure est TOUJOURS dans la fenêtre d'incertitude", () => {
+    // C'est l'invariant que midi UTC violait. Il vaut pour tous les fuseaux, pas seulement ceux
+    // qu'on a pensé à tester — c'est ce qui en fait un invariant et pas un exemple de plus.
+    for (const fuseau of [
+      "Europe/Paris",
+      "Pacific/Kiritimati",
+      "Etc/GMT+12",
+      "America/New_York",
+      "Asia/Kolkata",
+      "Australia/Sydney",
+    ]) {
+      const r = resoudreInstant({ date: "1990-06-15", fuseau });
+      const f = fenetreIncertitude({ date: "1990-06-15", fuseau });
+      expect(r.instantUtc.getTime(), fuseau).toBeGreaterThanOrEqual(f.min.getTime());
+      expect(r.instantUtc.getTime(), fuseau).toBeLessThanOrEqual(f.max.getTime());
+    }
+  });
+
+  it("[A7] un fuseau INVALIDE sans heure retombe sur midi UTC, sans jeter", () => {
+    const r = resoudreInstant({ date: "1990-06-15", fuseau: "Mars/Olympus_Mons" });
+    expect(r.heureConnue).toBe(false);
+    // La raison reste « heure_absente » : c'est l'heure qui manque d'abord, le fuseau ne servirait
+    // à rien même valide. On ne renomme pas le défaut pour un champ qui n'aurait rien changé.
     expect(r.raisonSansHeure).toBe("heure_absente");
     expect(r.instantUtc.toISOString()).toBe("1990-06-15T12:00:00.000Z");
   });
@@ -712,5 +783,61 @@ describe("[5.3 / P1 / DUR] le numéro de SCHÉMA et le préfixe d'EMPREINTE sont
   it("[NON-VACUITÉ] le préfixe est bien la PREMIÈRE composante, et elle n'est pas vide", () => {
     // Sans ça, un `split` qui ne trouverait rien rendrait `undefined` des deux côtés un jour.
     expect(chaineEmpreinte(complet, "a@1").split("|")[0]).toMatch(/^v\d+$/);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// B5 (revue du 2026-08-12) — UNE HEURE ILLISIBLE NE TUE PAS LE SOCLE
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[B5] deux fonctions voisines, la même entrée, une seule décision", () => {
+  /**
+   * ══ LE DÉFAUT ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * Avec `{ date, heure: "7h15" }` et AUCUN fuseau, `resoudreInstant` dégrade proprement : il rend
+   * `fuseau_absent` et midi par défaut, sans jamais parser l'heure. Il a DÉCIDÉ qu'elle ne
+   * servirait pas.
+   *
+   * `fenetreIncertitude`, dix lignes plus bas, la reparsait quand même — et `eclaterHeure` JETTE.
+   * Donc `calculerThemeNatal`, dont l'en-tête promet qu'il « aboutit TOUJOURS avec ce qui est
+   * disponible » (AC6/FR-049), mourait sur une entrée que son propre fichier venait de savoir
+   * traiter. Deux fonctions du même module, la même donnée, deux décisions opposées.
+   *
+   * On suit celle qui dégrade : une heure illisible est une heure qu'on n'a pas.
+   */
+  it("[LE TEST QUI COMPTE] `calculerThemeNatal` aboutit sur une heure illisible sans fuseau", () => {
+    const theme = calculerThemeNatal({ date: "1990-06-15", heure: "7h15" }, ephemerideAstronomyEngine());
+    expect(theme.precision).toBe("midi_par_defaut");
+    expect(theme.positions.length, "le socle doit sortir avec ce qu'il a").toBeGreaterThan(5);
+  });
+
+  it("`fenetreIncertitude` rend la fenêtre LARGE plutôt que de lever", () => {
+    // Ni heure exploitable ni fuseau : l'instant vrai va de « minuit à UTC+14 » à « minuit du
+    // lendemain à UTC−12 ». C'est l'aveu correct — 50 h, pas une fenêtre inventée de 24 h.
+    const f = fenetreIncertitude({ date: "1990-06-15", heure: "7h15" });
+    const heures = (f.max.getTime() - f.min.getTime()) / 3_600_000;
+    expect(heures).toBe(50);
+  });
+
+  it("[CONTRÔLE] une heure LISIBLE sans fuseau garde sa fenêtre de 26 h", () => {
+    // Sans ce contrôle, « tout élargir à 50 h » passerait le test précédent — et on perdrait la
+    // précision que l'heure apporte réellement quand elle est lisible.
+    const f = fenetreIncertitude({ date: "1990-06-15", heure: "07:15" });
+    const heures = (f.max.getTime() - f.min.getTime()) / 3_600_000;
+    expect(heures).toBe(26);
+  });
+
+  it("[NON-RÉGRESSION] `resoudreInstant` LÈVE toujours quand l'heure ET le fuseau sont donnés", () => {
+    // La dégradation de `fenetreIncertitude` ne doit pas se propager en indulgence générale : quand
+    // les deux champs sont là, une heure illisible EST un défaut de donnée, et il doit se voir.
+    expect(() =>
+      resoudreInstant({ date: "1990-06-15", heure: "7h15", fuseau: "Europe/Paris" }),
+    ).toThrow();
+  });
+
+  it("une DATE illisible lève toujours — elle, rien ne peut la remplacer", () => {
+    // FR-048 : la date de naissance est la seule entrée obligatoire. Lui inventer un repli
+    // fabriquerait un thème entier pour quelqu'un d'autre.
+    expect(() => calculerThemeNatal({ date: "15/06/1990" }, ephemerideAstronomyEngine())).toThrow();
   });
 });

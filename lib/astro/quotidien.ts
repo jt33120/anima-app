@@ -322,6 +322,78 @@ export type CibleNatale = Corps | "ascendant";
  */
 export const CIBLES_NATALES: readonly CibleNatale[] = Object.freeze(["soleil", "lune", "ascendant"]);
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// CE QU'ON PEUT ASPECTER QUAND L'HEURE MANQUE (revue du 2026-08-12, A4)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Sans heure de naissance, l'instant retenu est MIDI UTC — donc l'instant réel est quelque part
+ * dans une fenêtre de ±12 h. C'est une demi-journée de mouvement d'incertitude sur chaque position.
+ */
+export const DEMI_FENETRE_SANS_HEURE_JOURS = 0.5;
+
+/**
+ * Déplacement diurne MAXIMAL de chaque point, en degrés par jour.
+ *
+ * ⚠️ MAXIMAL, PAS MOYEN, et c'est le cœur de l'affaire : une borne d'incertitude calculée sur une
+ * moyenne sous-estime précisément les cas où elle compte. La Lune parcourt 13,2° par jour en
+ * moyenne et jusqu'à 15,4° au périgée ; Mercure va de −1,4° (rétrograde) à +2,2°.
+ *
+ * Le tableau couvre TOUS les points aspectables, pas seulement les trois de `CIBLES_NATALES` :
+ * ajouter une cible sans déclarer sa vitesse ne compile pas. C'est la seule façon d'être sûr que la
+ * règle ci-dessous ne sera pas contournée par distraction.
+ */
+export const VITESSE_DIURNE_MAXIMALE_DEGRES: Readonly<Record<CibleNatale, number>> = Object.freeze({
+  lune: 15.4,
+  mercure: 2.2,
+  venus: 1.25,
+  soleil: 1.02,
+  mars: 0.79,
+  jupiter: 0.24,
+  saturne: 0.13,
+  uranus: 0.06,
+  neptune: 0.04,
+  pluton: 0.04,
+  chiron: 0.06,
+  noeud_moyen: 0.053,
+  noeud_vrai: 0.2,
+  // L'ascendant fait un tour complet par jour. La règle l'exclut donc AUSSI — et c'est cohérent :
+  // il est déjà absent du thème sans heure (`angles.statut !== "calcule"`). Deux mécanismes qui
+  // concluent pareil, chacun pour sa raison, c'est de la défense en profondeur, pas une redondance.
+  ascendant: 360,
+});
+
+/**
+ * Ce point natal peut-il porter un aspect quand l'heure de naissance manque ?
+ *
+ * ── LE DÉFAUT QUE CETTE RÈGLE FERME ─────────────────────────────────────────────────────────────
+ *
+ * L'orbe est de 3°. Sans heure, la Lune natale est connue à ±7,7° près : DEUX FOIS ET DEMIE l'orbe.
+ * Une configuration « Mars carré ta Lune natale, orbe 0,4° » n'était donc pas approximative — elle
+ * était SANS RAPPORT avec le ciel de naissance réel, tout en portant l'autorité d'un calcul et le
+ * chiffre rassurant d'une orbe serrée. Quatre comptes sur cinq n'ont pas d'heure de naissance :
+ * c'était la majorité des aspects lunaires du produit.
+ *
+ * ── CE QUE LA RÈGLE NE PRÉTEND PAS ──────────────────────────────────────────────────────────────
+ *
+ * Elle ne rend pas les aspects EXACTS. Le Soleil bouge encore de ±0,51° sur la fenêtre : une
+ * configuration rapportée à 2,9° d'orbe peut être en réalité à 3,4°, donc hors orbe. Ce résidu est
+ * assumé et borné. Le seuil sépare « peut se tromper à la marge » de « ne dit rien du tout ».
+ *
+ * C'est aussi pour ça que la règle se DÉRIVE au lieu de se lister : `CIBLES_NATALES.filter(c => c
+ * !== "lune")` aurait fermé ce trou-ci et laissé le suivant grand ouvert le jour où Mercure ou la
+ * Lune noire rejoindront les cibles.
+ */
+export function aspectableSansHeure(cible: CibleNatale): boolean {
+  return VITESSE_DIURNE_MAXIMALE_DEGRES[cible] * DEMI_FENETRE_SANS_HEURE_JOURS <= ORBE_DEGRES;
+}
+
+/** Les cibles que CE thème autorise à porter un aspect — toutes si l'heure est connue. */
+export function ciblesNatalesDe(theme: ThemeNatal): readonly CibleNatale[] {
+  if (theme.precision === "heure_connue") return CIBLES_NATALES;
+  return CIBLES_NATALES.filter(aspectableSansHeure);
+}
+
 export interface Configuration {
   readonly corpsTransitant: Corps;
   readonly aspect: Aspect;
@@ -362,7 +434,10 @@ export function configurations(ciel: CielDuJour, theme: ThemeNatal): readonly Co
     const transit = ciel.positions.find((p) => p.corps === corpsTransitant);
     if (!transit) continue; // la source ne sait pas placer ce corps aujourd'hui
 
-    for (const cible of CIBLES_NATALES) {
+    // A4 — les cibles dépendent du THÈME, pas seulement de la liste : sans heure de naissance, la
+    // Lune natale est à ±7,7° près, soit deux fois et demie l'orbe. L'aspecter fabriquerait une
+    // configuration serrée à partir d'une position inconnue.
+    for (const cible of ciblesNatalesDe(theme)) {
       const natal = longitudeNatale(theme, cible);
       if (natal === null) continue; // P11
 

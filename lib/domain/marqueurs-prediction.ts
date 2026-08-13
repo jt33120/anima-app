@@ -1,3 +1,4 @@
+import { normaliserTexte, UN_MOT_INTERCALE } from "./normalisation-texte";
 /**
  * marqueurs-prediction.ts — LE DÉTECTEUR DE PRÉDICTION (Story 5.2, T6 — FR-053).
  *
@@ -41,6 +42,21 @@
  *   bannir rendrait le corpus inécrivable ;
  * - « **prédisposition** » : mot légitime, épargné par les frontières de mots ;
  * - « les mois **à venir** » : un repère temporel n'annonce rien tant qu'aucun verbe ne suit.
+ *
+ * ── ⚠️ CE DÉTECTEUR N'EST PAS LA GARDE. LA RELECTURE HUMAINE EST LA GARDE. ─────────────────────
+ *
+ * À écrire tel quel dans la fiche de génération d'Anima, et à relire avant d'écrire une ligne de
+ * corpus. Ce fichier attrape des FORMES ; FR-053 interdit un ACTE. Les deux ne coïncident pas :
+ *
+ *   • « Cette configuration ouvre une période où beaucoup de choses se dénouent » ne contient
+ *     aucun futur adressé, aucun mot de la liste — et annonce l'avenir de quelqu'un.
+ *   • « Tu ne verras jamais rien venir » aurait été manqué jusqu'à la revue du 2026-08-12, où l'on
+ *     a mesuré que le détecteur attrapait DEUX phrases prédictives sur onze.
+ *
+ * La leçon de cette revue n'est pas « le motif était trop étroit », c'est **un détecteur lexical ne
+ * peut pas décider si un texte prédit**. Il rattrape les distractions, il ne relit pas. Quiconque
+ * s'appuie sur le vert de `tests/corpus-architecture.test.ts` pour ne pas relire une interprétation
+ * a mal compris à quoi sert ce fichier — et publiera une prédiction sous le nom d'Anima.
  */
 
 export type FamillePrediction = "futur_adresse" | "avenir" | "vocabulaire";
@@ -51,28 +67,48 @@ export interface Prediction {
   terme: string;
 }
 
-/** Identique à `lexique-interdit.ts` : diacritiques, apostrophes, casse, espaces. */
-function normaliser(texte: string): string {
-  return texte
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[‘’ʼ`]/g, "'")
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-}
+/**
+ * ⚠️ LA MÊME NORMALISATION QUE `lexique-interdit.ts`, ET C'EST LITTÉRALEMENT LA MÊME FONCTION.
+ *
+ * Elle était RECOPIÉE ici. Ce fichier se déclare « miroir structurel » de l'autre — et le miroir a
+ * cessé d'en être un le 2026-08-12, quand l'élargissement à UN MOT INTERCALÉ a été fait ici et pas
+ * là-bas. Deux implémentations d'un même invariant divergent (leçon R1-bis) : elles ont divergé le
+ * jour même de la correction. Une seule, désormais, dans `normalisation-texte.ts`.
+ */
+const normaliser = normaliserTexte;
+
+/**
+ * UN MOT INTERCALÉ, AU PLUS — et c'est ce qui manquait (revue du 2026-08-12, D1).
+ *
+ * Les motifs exigeaient que le verbe suive IMMÉDIATEMENT le pronom. En français, il ne le suit
+ * presque jamais : la négation, les pronoms compléments et les adverbes s'intercalent. Mesuré sur
+ * onze phrases prédictives réelles, le détecteur d'origine en attrapait DEUX.
+ *
+ *     tu ne verras rien      → passait        tu vas y arriver     → passait
+ *     tu me diras            → passait        tu vas te sentir     → passait
+ *     tu y trouveras         → passait        tu en sortiras       → passait
+ *     tu te sentiras mieux   → passait        cela te le dira      → passait
+ *
+ * « tu ne verras » est la forme la PLUS courante, et c'était la première à échapper. Un détecteur
+ * qui ne voit pas la négation ne détecte pas le français.
+ *
+ * Le fragment vit maintenant dans `normalisation-texte.ts`, partagé avec le lexique de la voix —
+ * qui souffrait du même défaut sans que personne ne fasse le lien (« je comprends PARFAITEMENT ce
+ * que tu vis » passait).
+ */
 
 const MOTIFS: Array<{ famille: FamillePrediction; motif: RegExp }> = [
   // ── Le futur ADRESSÉ (le cœur du détecteur) ──────────────────────────────────────────────────
-  // Futur simple à la 2ᵉ personne : « tu verras », « tu seras », « tu deviendras », « tu trouveras ».
-  // Le préfixe « tu » obligatoire est ce qui épargne « embarras », « fracas », « repas ».
-  { famille: "futur_adresse", motif: /\btu [a-z']+ras\b/g },
-  // Futur proche : « tu vas rencontrer », « tu vas découvrir », « tu vas connaître », « tu vas voir ».
+  // Futur simple à la 2ᵉ personne : « tu verras », « tu ne seras », « tu te sentiras », « tu y trouveras ».
+  // Le préfixe « tu » obligatoire est ce qui épargne « embarras », « fracas », « repas » isolés.
+  { famille: "futur_adresse", motif: new RegExp(`\\btu ${UN_MOT_INTERCALE}[a-z']+ras\\b`, "g") },
+  // Futur proche : « tu vas rencontrer », « tu vas y arriver », « tu vas te sentir », « tu vas voir ».
   // Les quatre terminaisons d'infinitif sont exigées, et c'est ce qui épargne le présent littéral
   // d'« aller » — « tu vas bien », « tu vas mieux » ne sont pas des annonces.
-  { famille: "futur_adresse", motif: /\btu vas [a-z']*(?:er|ir|re|oir)\b/g },
+  { famille: "futur_adresse", motif: new RegExp(`\\btu vas ${UN_MOT_INTERCALE}[a-z']*(?:er|ir|re|oir)\\b`, "g") },
   // Le complément d'objet : « cela t'apportera », « cette année t'ouvrira », « ils te mèneront ».
   { famille: "futur_adresse", motif: /\bt'[a-z]+(?:ra|ront)\b/g },
-  { famille: "futur_adresse", motif: /\bte [a-z]+(?:ra|ront)\b/g },
+  { famille: "futur_adresse", motif: new RegExp(`\\bte ${UN_MOT_INTERCALE}[a-z]+(?:ra|ront)\\b`, "g") },
   // « il t'arrivera » / « ce qui t'attend » — la promesse d'événement, sans verbe au futur.
   { famille: "futur_adresse", motif: /\bce qui t'attend\b/g },
 
@@ -95,6 +131,26 @@ const MOTIFS: Array<{ famille: FamillePrediction; motif: RegExp }> = [
   // « Ce nombre ANNONCE une période de… » est la formule prédictive type du genre. Elle sera
   // parfois signalée à tort (« l'annonce d'une naissance ») — arbitrage assumé, voir l'en-tête.
   { famille: "vocabulaire", motif: /\bannonc(?:e|es|ent)\b/g },
+
+  // ── LA FAMILLE QUI MANQUAIT (revue du 2026-08-12, D1) ────────────────────────────────────────
+  //
+  // Le vocabulaire divinatoire recensé s'arrêtait à quatre racines — « prédire », « prophétie »,
+  // « présager », « voyance ». Or c'est un champ lexical, pas une liste : le registre ésotérique
+  // dispose de dizaines de façons d'annoncer sans employer aucun de ces quatre mots, et ce sont
+  // justement les plus élégantes qui sont les plus faciles à écrire sans y penser. « Ce nombre
+  // augure une année de passage » n'aurait fait rougir personne.
+  { famille: "vocabulaire", motif: /\baugur(?:e|es|ent|er|ait|aient)\b/g },
+  { famille: "vocabulaire", motif: /\bauspices?\b/g },
+  { famille: "vocabulaire", motif: /\boracles?\b/g },
+  { famille: "vocabulaire", motif: /\bdivinatoires?\b/g },
+  { famille: "vocabulaire", motif: /\bdivinations?\b/g },
+  { famille: "vocabulaire", motif: /\bpremoni(?:tion|tions|toire|toires)\b/g },
+  { famille: "vocabulaire", motif: /\bprophetis(?:e|es|er|ent)\b/g },
+  // « il est écrit que… » — la prédiction déguisée en constat, la plus difficile à contredire.
+  { famille: "vocabulaire", motif: /\bil est ecrit\b/g },
+  // ⚠️ « destinée » SEULE reste épargnée (nombre de destinée, cf. en-tête). C'est « destinée À »
+  // qui bascule : « tu es destinée à rencontrer » annonce, là où « ton nombre de destinée » nomme.
+  { famille: "vocabulaire", motif: /\bdestine(?:e|es|s)? a [a-z']/g },
 ];
 
 /**

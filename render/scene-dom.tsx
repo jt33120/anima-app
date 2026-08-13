@@ -47,6 +47,14 @@ export interface ProprietesSceneRendue {
    * AUCUN COMPTE (FR-031/AC5 [DUR]) : le chiffre est mort côté serveur.
    */
   ouverture?: OuvertureData | null;
+  /**
+   * La mention de complétion du socle a ATTEINT L'ÉCRAN (revue du 2026-08-12, B3).
+   *
+   * Le rendu ne dépense rien lui-même — il SIGNALE, et c'est la page qui appelle la Server Action.
+   * La séparation n'est pas décorative : `render/` ne connaît ni base ni session (AD-7), et c'est
+   * ce qui permet aux tests de rendu de monter la scène sans Supabase.
+   */
+  onSocleAnnonce?: () => void;
 }
 
 /* Étoiles générées côté client APRÈS montage → aucun décalage d'hydratation. */
@@ -100,7 +108,7 @@ const CORPS: Record<IdRegion, string> = {
   arbre: "Ton arbre grandira à mesure que tu avances.",
 };
 
-export default function SceneDom({ projection, ouverture }: ProprietesSceneRendue) {
+export default function SceneDom({ projection, ouverture, onSocleAnnonce }: ProprietesSceneRendue) {
   const [etat, dispatch] = useReducer(reducteurVue, etatInitial);
   const region = etat.regionCourante;
   /* Naviguer par la barre ANNULE le rejeu de l'échange source : sans ça, `echangeExtrait` restait collé et
@@ -302,6 +310,10 @@ export default function SceneDom({ projection, ouverture }: ProprietesSceneRendu
                     onPreparation={setAnamPrepare}
                     ouverture={ouverture}
                     onAllerVersBranche={allerVersBranche}
+                    /* B3 — la mention de complétion ne se dépense que si CETTE région est active :
+                       rendue sous `inert`, elle n'est vue ni annoncée par personne. */
+                    regionActive={actif}
+                    onSocleAnnonce={onSocleAnnonce}
                   />
                 </div>
                 {echangeExtrait && <EchangeSource extraitSourceId={echangeExtrait} onRetour={retourArbre} />}

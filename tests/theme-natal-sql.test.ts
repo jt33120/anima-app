@@ -661,8 +661,18 @@ describe("[AC3] theme_natal : RLS activée ET forcée, aucun grant `anon`", () =
   it("une clé publishable NON authentifiée ne lit ni n'écrit `theme_natal`", async () => {
     const anonClient = clientScope();
     const { data, error: eLecture } = await anonClient.from("theme_natal").select("*");
-    expect(eLecture).toBeNull();
-    expect(data, "une table art. 9 a laissé fuir des lignes à un client anonyme").toEqual([]);
+    // ⚠️ CE TEST DISAIT L'INVERSE DE SON TITRE JUSQU'AU 2026-08-11 (revue, trouvaille E7).
+    // Il assertait `eLecture === null` — c'est-à-dire que la requête ABOUTISSAIT, donc qu'`anon`
+    // AVAIT bien le privilège SELECT et que seule la RLS le ramenait à zéro ligne. Le describe
+    // promettait « aucun grant `anon` » et personne ne vérifiait aucun grant.
+    // 0041 a révoqué les privilèges : le refus tombe maintenant au niveau du PRIVILÈGE (42501),
+    // AVANT que la policy n'ait son mot à dire. Deux serrures au lieu d'une — c'est ce qui compte
+    // le jour où une policy est écrite `using (true)` par recopie d'un gabarit.
+    expect(
+      eLecture?.code,
+      "anon doit être refusé au privilège, pas seulement filtré par la RLS",
+    ).toBe("42501");
+    expect(data, "une table art. 9 a laissé fuir des lignes à un client anonyme").toBeNull();
 
     const { error: eEcriture } = await anonClient.from("theme_natal").insert({
       utilisatrice_id: "00000000-0000-0000-0000-000000000000",

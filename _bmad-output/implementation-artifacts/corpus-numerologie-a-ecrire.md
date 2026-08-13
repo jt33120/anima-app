@@ -86,7 +86,21 @@ pratique, dis-le : c'est la définition qui change, pas ton texte.)*
 
 Ce ne sont pas des consignes de style — ce sont des contrôles **automatiques et bloquants**. Un
 texte qui les enfreint empêche l'application de se construire, et le message d'erreur cite le mot en
-cause. Tu ne peux donc pas te tromper sans le savoir.
+cause.
+
+> **⚠️ Mais le contrôle automatique n'est pas la garde. Ta relecture est la garde.**
+>
+> Une phrase précédente disait ici « tu ne peux donc pas te tromper sans le savoir ». C'était faux,
+> et une revue du code l'a mesuré le 12 août 2026 : sur onze phrases prédictives écrites exprès, le
+> contrôle en attrapait **deux**. Il ne voyait pas « tu **ne** verras rien venir », parce qu'il
+> cherchait le verbe collé au « tu ». Il a été élargi depuis, et il en manquera d'autres.
+>
+> La raison est de fond, pas technique : le contrôle reconnaît des **mots**, la règle interdit un
+> **geste**. « Cette configuration ouvre une période où beaucoup de choses se dénouent » ne contient
+> aucun mot interdit — et annonce l'avenir de quelqu'un.
+>
+> Écris comme si aucun contrôle n'existait. Le contrôle est là pour rattraper une distraction un
+> jour de fatigue, pas pour valider un texte à ta place.
 
 ### 1. Aucune prédiction
 
@@ -100,8 +114,13 @@ C'est la règle centrale du produit (FR-053). Le socle **décrit**, il n'annonce
 | « Ce nombre annonce un retrait. » | « On associe ce nombre à un mouvement de retrait. » |
 | « Ce nombre prédit… », « les cartes présagent… » | — |
 
-En pratique : **pas de futur adressé à elle.** « tu verras », « tu seras », « ça t'apportera » sont
-refusés. Le conditionnel passe (« ce serait une façon de le lire »), le présent aussi.
+En pratique : **pas de futur adressé à elle.** « tu verras », « tu seras », « tu ne verras pas »,
+« tu te sentiras », « tu vas y arriver », « ça t'apportera » sont refusés. Le conditionnel passe
+(« ce serait une façon de le lire »), le présent aussi.
+
+Et pas de vocabulaire d'annonce : *prédire*, *présager*, *prophétiser*, *augurer*, *auspices*,
+*oracle*, *prémonition*, *divinatoire*, *« il est écrit que »*, *« tu es destinée à »*. « Le nombre
+de **destinée** » reste évidemment permis — c'est le vocabulaire du métier.
 
 ### 2. Aucun vocabulaire médical
 

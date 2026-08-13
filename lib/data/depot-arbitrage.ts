@@ -34,7 +34,10 @@ export interface DepotArbitrage {
    * jamais dit, heure présente, thème recalculé, hors fenêtre de détresse — parce qu'une garde
    * écrite ici serait une garde qu'un second appelant pourrait oublier.
    */
-  reserverAnnonceSocle(): Promise<boolean>;
+  /** La mention de complétion est-elle DUE ? LECTURE SEULE : ne dépense rien (revue B3). */
+  annonceSocleDue(): Promise<boolean>;
+  /** La phrase a atteint l'écran : on la dépense. Rend `true` si c'est CET appel qui l'a posée. */
+  marquerAnnonceSocleDite(): Promise<boolean>;
 }
 
 export function creerDepotArbitrage(client?: SupabaseClient): DepotArbitrage {
@@ -66,12 +69,19 @@ export function creerDepotArbitrage(client?: SupabaseClient): DepotArbitrage {
       return data === true;
     },
 
-    async reserverAnnonceSocle(): Promise<boolean> {
+    async annonceSocleDue(): Promise<boolean> {
       const supabase = await clientOu();
-      const { data, error } = await supabase.rpc("reserver_annonce_socle_complet");
-      if (error) throw new Error(`arbitrage.reserverAnnonceSocle: ${error.code ?? "echec"}`);
-      // Même direction de doute que ci-dessus, et elle est plus forte ici : la mention n'a qu'une
-      // seule chance. Se taire à tort la reporte au prochain chargement ; parler à tort la dépense.
+      const { data, error } = await supabase.rpc("annonce_socle_due");
+      if (error) throw new Error(`arbitrage.annonceSocleDue: ${error.code ?? "echec"}`);
+      // Dans le doute : NE PAS parler. Cet appel ne dépense plus rien (0045), donc se taire à tort
+      // ne coûte qu'un chargement de retard — la mention reste due.
+      return data === true;
+    },
+
+    async marquerAnnonceSocleDite(): Promise<boolean> {
+      const supabase = await clientOu();
+      const { data, error } = await supabase.rpc("marquer_annonce_socle_dite");
+      if (error) throw new Error(`arbitrage.marquerAnnonceSocleDite: ${error.code ?? "echec"}`);
       return data === true;
     },
   };

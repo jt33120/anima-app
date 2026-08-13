@@ -269,3 +269,87 @@ describe("[T7 / P10] `lireThemeNatal` peut ÉCRIRE — il est appelé une fois, 
     expect(lireThemeNatalMock).toHaveBeenCalledWith(supabase, "u1", ephemeride);
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// B4 (revue du 2026-08-12) — LE MANTRA SURVIT À TOUT LE RESTE
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[B4/FR-055] une panne de l'horoscope n'emporte pas le mantra", () => {
+  /**
+   * ══ LE DÉFAUT ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * L'en-tête de ce fichier annonçait déjà la propriété — « la DÉGRADATION : le mantra doit sortir
+   * même quand tout le reste échoue (AC6) » — et elle n'était vraie que du cas SAGE, celui où
+   * `lireThemeNatal` rend proprement `indisponible`. Sur une LEVÉE, rien ne rattrapait :
+   * `lireSocleQuotidien` n'avait aucun `try`, et le mantra — un calcul pur, déjà terminé à la
+   * deuxième ligne de la fonction — partait avec l'exception.
+   *
+   * Un commentaire qui décrit une propriété n'est pas cette propriété. C'est la troisième fois de
+   * cette revue : la 0040 décrivait le danger de B3, `astro-architecture` annonçait un contrôle des
+   * motifs qui n'en certifiait qu'un cinquième.
+   *
+   * ══ POURQUOI ÇA COMPTE ══════════════════════════════════════════════════════════════════════
+   *
+   * « Mantra du jour » est un item de FR-055 : du GRATUIT À VIE. Une lenteur de Supabase, une
+   * éphéméride qui bronche, et c'est un morceau du socle gratuit qui disparaît chez quelqu'un qui
+   * n'a rien demandé — alors qu'il était calculé, en mémoire, prêt à être servi.
+   */
+  const AVEC_MANTRA = "le mantra était déjà calculé : rien ne justifie de le perdre";
+
+  it("[LE TEST QUI COMPTE] `lireThemeNatal` LÈVE → le mantra sort quand même", async () => {
+    lireThemeNatalMock.mockRejectedValueOnce(new Error("supabase indisponible"));
+    const socle = await lireSocleQuotidien(supabase, "u1", new Date("2026-08-11T10:00:00Z"), ephemeride);
+    expect(socle.mantra, AVEC_MANTRA).toBeDefined();
+    expect(socle.jour).toEqual({ a: 2026, m: 8, j: 11 });
+    expect(socle.horoscope.statut).toBe("indisponible");
+  });
+
+  it("la raison dit « incident », jamais « il te manque quelque chose »", async () => {
+    // Faire porter une panne de serveur à quelqu'un comme si son dossier était incomplet est le
+    // mensonge que la revue 4.6 a payé sur l'arbre. `naissance_absente` serait ce mensonge-là.
+    lireThemeNatalMock.mockRejectedValueOnce(new Error("supabase indisponible"));
+    const socle = await lireSocleQuotidien(supabase, "u1", new Date("2026-08-11T10:00:00Z"), ephemeride);
+    expect(socle.horoscope.statut === "indisponible" && socle.horoscope.raison).toBe("lecture_impossible");
+  });
+
+  it("une éphéméride qui LÈVE pendant l'assemblage ne coûte pas non plus le mantra", async () => {
+    // L'autre moitié du chemin : le thème est lu, et c'est le CIEL DU JOUR qui casse. Sans ce cas,
+    // un `try` posé autour du seul appel à `lireThemeNatal` passerait le test précédent.
+    lireThemeNatalMock.mockResolvedValueOnce({
+      statut: "calcule",
+      version: 2,
+      theme: calculerThemeNatal({ date: "1990-06-15" }, ephemerideAstronomyEngine()),
+    });
+    const ephemerideCassee: EphemerisPort = {
+      identifiant: "cassee",
+      longitudeEcliptique: () => {
+        throw new Error("éphéméride en panne");
+      },
+      obliquiteVraie: () => {
+        throw new Error("éphéméride en panne");
+      },
+      tempsSideralGreenwich: () => {
+        throw new Error("éphéméride en panne");
+      },
+    };
+    const socle = await lireSocleQuotidien(
+      supabase,
+      "u1",
+      new Date("2026-09-19T10:00:00Z"),
+      ephemerideCassee,
+    );
+    expect(socle.mantra, AVEC_MANTRA).toBeDefined();
+    expect(socle.horoscope.statut).toBe("indisponible");
+  });
+
+  it("[CONTRÔLE POSITIF] sans panne, l'horoscope sort bien — la garde ne dégrade pas tout", async () => {
+    lireThemeNatalMock.mockResolvedValueOnce({
+      statut: "calcule",
+      version: 2,
+      theme: calculerThemeNatal({ date: "1990-06-15" }, ephemerideAstronomyEngine()),
+    });
+    const socle = await lireSocleQuotidien(supabase, "u1", new Date("2026-09-20T10:00:00Z"), ephemeride);
+    expect(socle.horoscope.statut, "un `catch` trop large avalerait le cas nominal").toBe("calcule");
+    expect(socle.mantra).toBeDefined();
+  });
+});

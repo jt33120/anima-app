@@ -16,8 +16,8 @@
  *
  * Aucun rouge, aucun cadenas, aucun pointillé, aucun pourcentage, aucune jauge. Il ne manque pas
  * « 40 % du socle » : il manque une information, elle a un nom, et on dit où la chercher.
- * `tests/tronc-absence.test.ts` garde le vocabulaire ; `tests/rendu/tronc-fiche.test.tsx` garde la
- * forme (deux actions, ni plus ni moins).
+ * `tests/tronc-absence.test.ts` garde le vocabulaire ; `tests/rendu/tronc-incomplet.test.tsx` garde
+ * la forme (deux actions, ni plus ni moins) en MONTANT le composant.
  *
  * AD-7 : muet. Il reçoit ses phrases en props (elles viennent de `lib/domain` via la projection) et
  * ne décide rien.

@@ -90,7 +90,18 @@ export async function chargerOuverture(
     // Direction du doute : ON SE TAIT — la mention n'a qu'une seule chance, et se taire à tort la
     // reporte au prochain chargement, tandis que parler à tort la dépense pour rien.
     try {
-      if (await creerDepotArbitrage(supabase).reserverAnnonceSocle()) {
+      // ⚠️ LECTURE SEULE DEPUIS UN RENDU SERVEUR (revue du 2026-08-12, B3 — migration 0045).
+      //
+      // Cet appel dépensait la mention. Or il part d'`app/page.tsx`, donc à chaque rendu de la
+      // scène — et la scène monte ses trois régions en permanence, `inert` sauf l'active. Une
+      // utilisatrice qui arrive dans la région ARBRE faisait consommer sa phrase par un rendu qui
+      // la plaçait dans une région qu'aucun lecteur d'écran n'annonce. Un rechargement avant
+      // d'ouvrir la conversation, et la phrase était perdue POUR TOUJOURS.
+      //
+      // C'est le défaut de la revue 4.10 rejoué : une écriture irréversible déclenchée par un
+      // rendu. La dépense vit maintenant dans `marquerAnnonceSocleDite`, appelée quand la phrase a
+      // atteint l'écran.
+      if (await creerDepotArbitrage(supabase).annonceSocleDue()) {
         return { type: "socle-complete", phrase: PHRASE_SOCLE_COMPLETE };
       }
     } catch (e) {

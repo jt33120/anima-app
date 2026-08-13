@@ -17,7 +17,7 @@ prepare_pour:
   - "5-3-degradation-gracieuse-sans-heure-completion-tronc"
   - "5-4-horoscope-mantra-du-jour"
   - "5-6-accueil-bibliotheque-en-cartes"
-status: review
+status: done
 created: "2026-08-07"
 sources:
   - _bmad-output/planning-artifacts/epics.md#story-5-1
@@ -27,7 +27,10 @@ sources:
 
 # Story 5.1 : Le thème natal, calculé une fois et gravé
 
-Status: review
+Status: done
+
+> **Revue de code : 2026-08-13.** A7 : l'instant de référence se calculait à midi UTC et non à midi LOCAL.
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).
 
 **Première story de l'Epic 5.** Elle ouvre la couche `lib/astro/`, qui n'existe aujourd'hui que sous la
 forme d'un README d'une ligne. Tout le reste de l'epic s'appuie dessus : la numérologie (5.2) partage la

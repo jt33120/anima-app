@@ -106,11 +106,21 @@ export function ecrit(texte: string): TexteCorpus {
  * personne n'irait la chercher.
  */
 export function lireTexte(c: Corpus, cle: string): TexteCorpus {
-  const entree = c.textes[cle];
-  if (entree === undefined) {
+  // ⚠️ `Object.hasOwn`, JAMAIS `c.textes[cle] === undefined` (revue du 2026-08-12, D5).
+  //
+  // L'indexation traverse la CHAÎNE DE PROTOTYPES. `lireTexte(c, "constructor")` rendait donc une
+  // FONCTION, `"__proto__"` un objet, `"toString"` une fonction — et la garde « jette sur une clé
+  // non déclarée », qui est le cœur de ce module, était fausse pour une dizaine de clés. Le texte
+  // rendu n'aurait alors ni `statut` ni `texte` : le composant lirait `undefined` sur les deux et
+  // afficherait du vide là où il aurait dû crier.
+  //
+  // Aucune de ces clés n'est atteignable par les créneaux d'aujourd'hui (tous construits par
+  // `cleNumerologie` / le domaine de l'horoscope). C'est précisément ce qui rend le défaut durable :
+  // rien ne le révèle, et il attend le jour où une clé viendra d'ailleurs.
+  if (!Object.hasOwn(c.textes, cle)) {
     throw new Error(`corpus ${c.identifiant} : créneau non déclaré « ${cle} »`);
   }
-  return entree;
+  return c.textes[cle];
 }
 
 /** Les créneaux qu'Anima a écrits. */

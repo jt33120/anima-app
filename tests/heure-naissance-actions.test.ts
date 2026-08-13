@@ -26,6 +26,8 @@ const redirect = vi.fn((chemin: string) => {
 let utilisateur: { id: string } | null = { id: "u1" };
 /** Ce que la base répond quand on lui demande si l'heure est déjà là. */
 let heureDejaLa: string | null = null;
+/** Ce que la base répond quand on lui demande si le LIEU est déjà là (revue du 2026-08-12, A2). */
+let lieuDejaLa: string | null = null;
 let erreurEcriture: { code: string } | null = null;
 let erreurLecture: { code: string } | null = null;
 
@@ -37,7 +39,7 @@ vi.mock("@/lib/data/supabase/server", () => ({
       select: () => ({
         eq: () => ({
           maybeSingle: async () => ({
-            data: { heure_naissance: heureDejaLa },
+            data: { heure_naissance: heureDejaLa, lieu_naissance: lieuDejaLa },
             error: erreurLecture,
           }),
         }),
@@ -76,6 +78,7 @@ beforeEach(() => {
   redirect.mockClear();
   utilisateur = { id: "u1" };
   heureDejaLa = null;
+  lieuDejaLa = null;
   erreurEcriture = null;
   erreurLecture = null;
 });
@@ -253,5 +256,109 @@ describe("[T7] la recherche de lieu exige une session", () => {
     expect(r.length).toBeGreaterThan(0);
     expect(r[0].code).toBe("33063");
     expect(r[0].fuseau).toBe("Europe/Paris");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// A2 (revue du 2026-08-12) — LE LIEU NE DÉPEND PAS DE L'HEURE
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Les deux champs étaient obligatoires TOUS LES DEUX. Quelqu'un qui ne connaît pas son heure de
+// naissance — la majorité des gens — ne pouvait donc pas non plus donner son LIEU. Or le lieu seul
+// répare déjà beaucoup : il apporte le FUSEAU, qui ramène la fenêtre d'incertitude de 50 h à 24 h
+// (des corps « signe indéterminable » redeviennent déterminables) et fait passer l'instant retenu
+// de midi UTC à midi du jour local (A7). Le refus était donc doublement coûteux : il privait du
+// lieu ceux qui n'ont pas l'heure, c'est-à-dire précisément ceux qui en avaient le plus besoin.
+
+describe("[A2] on peut enregistrer son LIEU sans son heure — mais en le déclarant", () => {
+  const SANS_HEURE = { sans_heure: "oui", code_lieu: "33063", confirmation: "oui" };
+
+  it("[LE TEST QUI COMPTE] `sans_heure` coché : le lieu est gravé, l'heure NON", async () => {
+    const r = await appeler(SANS_HEURE);
+    expect(r.statut).toBe("enregistre");
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update.mock.calls[0][0]).toEqual({
+      lieu_naissance: BORDEAUX.nom,
+      lieu_latitude: BORDEAUX.latitude,
+      lieu_longitude: BORDEAUX.longitude,
+      lieu_fuseau: BORDEAUX.fuseau,
+    });
+    expect(
+      Object.keys(update.mock.calls[0][0]),
+      "écrire `heure_naissance: null` consommerait le write-once pour rien",
+    ).not.toContain("heure_naissance");
+  });
+
+  it("[CONTRÔLE] sans la case ET sans heure : REFUSÉ — l'heure n'est pas devenue facultative", () => {
+    // Sans ce contrôle, « le lieu suffit » serait devenu la règle silencieuse : un envoi où l'heure
+    // n'a pas été saisie par distraction graverait un socle amputé, définitivement.
+    return appeler({ code_lieu: "33063", confirmation: "oui" }).then((r) => {
+      expect(r.statut).toBe("erreur");
+      expect(update).not.toHaveBeenCalled();
+    });
+  });
+
+  it("[DUR] case cochée ET heure remplie : on ne CHOISIT PAS à sa place", async () => {
+    // Les deux lectures sont défendables et l'écriture est irréversible. Retenir l'une des deux au
+    // hasard, c'est graver un ascendant faux dans la moitié des cas.
+    const r = await appeler({ ...SANS_HEURE, heure_naissance: "07:15" });
+    expect(r.statut).toBe("erreur");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("la confirmation reste exigée sur le chemin sans heure", async () => {
+    const r = await appeler({ sans_heure: "oui", code_lieu: "33063" });
+    expect(r.statut).toBe("erreur");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("sans commune ET sans rien de gravé : refus explicite, pas un faux succès", async () => {
+    const r = await appeler({ sans_heure: "oui", confirmation: "oui" });
+    expect(r.statut).toBe("erreur");
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe("[A2] elle peut REVENIR : le write-once de 0039 est par colonne", () => {
+  it("[LE PARCOURS QU'OUVRE A2] lieu déjà gravé, elle ajoute son heure — et rien d'autre", async () => {
+    // C'est le trajet complet du découplage : commune aujourd'hui, heure le jour où elle la trouve.
+    // Réécrire le lieu à l'identique passerait le trigger, mais écrire ce qu'on n'a pas à écrire sur
+    // des colonnes irréversibles est exactement l'habitude qu'on ne veut pas prendre.
+    lieuDejaLa = BORDEAUX.nom;
+    const r = await appeler({ heure_naissance: "07:15", confirmation: "oui" });
+    expect(r.statut).toBe("enregistre");
+    expect(update.mock.calls[0][0]).toEqual({ heure_naissance: "07:15:00" });
+  });
+
+  it("lieu déjà gravé + la MÊME commune repostée : l'heure seule est écrite", async () => {
+    lieuDejaLa = BORDEAUX.nom;
+    const r = await appeler({ ...VALIDE });
+    expect(r.statut).toBe("enregistre");
+    expect(update.mock.calls[0][0]).toEqual({ heure_naissance: "07:15:00" });
+  });
+
+  it("[DUR] une AUTRE commune que celle gravée est refusée EN CLAIR, pas par le trigger", async () => {
+    // Sans ce contrôle, le trigger de 0039 lèverait une erreur Postgres brute qu'on afficherait
+    // comme une panne — « réessaie » — sur un geste qui ne réussira jamais.
+    lieuDejaLa = "Une autre commune";
+    const r = await appeler({ ...VALIDE });
+    expect(r.statut).toBe("erreur");
+    expect(r.message).toMatch(/déjà enregistré/i);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("heure déjà gravée : refus explicite, distinct d'une panne (non-régression)", async () => {
+    heureDejaLa = "07:15:00";
+    const r = await appeler(VALIDE);
+    expect(r.statut).toBe("erreur");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("tout est déjà gravé : on le DIT, on ne simule pas un enregistrement", async () => {
+    heureDejaLa = "07:15:00";
+    lieuDejaLa = BORDEAUX.nom;
+    const r = await appeler({ sans_heure: "oui", code_lieu: "33063", confirmation: "oui" });
+    expect(r.statut).toBe("erreur");
+    expect(update).not.toHaveBeenCalled();
   });
 });

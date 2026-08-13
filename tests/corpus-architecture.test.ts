@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { chercherInterdits } from "@/lib/domain/lexique-interdit";
 import { chercherPredictions } from "@/lib/domain/marqueurs-prediction";
+import { modulesImportes, viseLeDossier } from "./_imports";
 import {
   clesEcrites,
   clesNonEcrites,
@@ -85,19 +86,48 @@ describe("[AD-1/DUR] lib/corpus est une couche PURE", () => {
     }
   });
 
+  /**
+   * ⚠️ CETTE GARDE NE VOYAIT PAS LA FAUTE QU'ELLE SURVEILLE (revue du 2026-08-12, E1).
+   *
+   * Les six motifs étaient bâtis sur `from "…"`. Or `server-only` s'importe POUR SON EFFET DE BORD,
+   * sans `from` — et c'est la seule forme employée dans tout le dépôt
+   * (`lib/ordonnanceur/environnement.ts:1`). La ligne exacte qu'il fallait interdire était
+   * précisément celle que le motif ne pouvait pas reconnaître. Même trou pour un import dynamique
+   * ou un chemin relatif.
+   *
+   * On interroge donc la LISTE DES MODULES IMPORTÉS (`tests/_imports.ts`), qui connaît les cinq
+   * formes, plutôt que le texte source à la regex.
+   */
+  const INTERDITS: Array<[(m: string) => boolean, string]> = [
+    [(m) => m === "server-only", "server-only"],
+    [(m) => viseLeDossier(m, "lib/data"), "lib/data"],
+    [(m) => m.startsWith("@supabase/"), "supabase"],
+    [(m) => viseLeDossier(m, "app"), "app/"],
+    [(m) => viseLeDossier(m, "render"), "render/"],
+    [(m) => m === "next" || m.startsWith("next/"), "next"],
+  ];
+
+  it("[CONTRÔLE DU CONTRÔLE] les interdits attrapent les CINQ formes d'import", () => {
+    // Sans ce contrôle, la garde ci-dessous resterait verte pour la raison qu'on vient de corriger :
+    // elle regarderait à côté. Chaque forme est éprouvée sur un source FABRIQUÉ.
+    const attrape = (src: string) =>
+      INTERDITS.some(([predicat]) => modulesImportes(src).some(predicat));
+    expect(attrape('import "server-only";'), "effet de bord — LE trou d'origine").toBe(true);
+    expect(attrape('import x from "server-only";')).toBe(true);
+    expect(attrape('const x = await import("@/lib/data/depot-seance");'), "dynamique").toBe(true);
+    expect(attrape('import { a } from "../../lib/data/depot-seance";'), "chemin relatif").toBe(true);
+    expect(attrape('const s = require("@supabase/supabase-js");'), "require").toBe(true);
+    expect(attrape('export { x } from "@/render/arbre/copie-arbre";'), "ré-export").toBe(true);
+    // Et il ne mord pas sur du légitime : un corpus importe bien ses propres voisins.
+    expect(attrape('import { NON_ECRIT } from "./port";')).toBe(false);
+    expect(attrape('import { NOMBRES } from "@/lib/astro/numerologie";')).toBe(false);
+  });
+
   it("ne connaît ni base, ni serveur, ni rendu", () => {
-    const INTERDITS: Array<[RegExp, string]> = [
-      [/from\s+["']server-only["']/, "server-only"],
-      [/from\s+["']@?\/?lib\/data/, "lib/data"],
-      [/@supabase\//, "supabase"],
-      [/from\s+["']@\/app\//, "app/"],
-      [/from\s+["']@\/render\//, "render/"],
-      [/from\s+["']next\//, "next"],
-    ];
     for (const f of FICHIERS_CORPUS) {
-      const src = sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"));
-      for (const [motif, nom] of INTERDITS) {
-        expect(motif.test(src), `${f} connaît ${nom}`).toBe(false);
+      const modules = modulesImportes(sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8")));
+      for (const [predicat, nom] of INTERDITS) {
+        expect(modules.filter(predicat), `${f} connaît ${nom}`).toEqual([]);
       }
     }
   });
@@ -131,6 +161,34 @@ describe("[FR-053/(a)] le détecteur de prédiction attrape ce qu'il doit attrap
     "Ce nombre prédit une période de retrait.",
     "Les cartes présagent un changement.",
     "C'est une prophétie ancienne.",
+
+    // ── D1 (revue du 2026-08-12) — LE MOT INTERCALÉ ─────────────────────────────────────────────
+    //
+    // Le détecteur exigeait que le verbe suive IMMÉDIATEMENT le pronom. En français il ne le suit
+    // presque jamais : négation, pronoms compléments, adverbes. Mesuré sur onze phrases
+    // prédictives réelles, l'ancien motif en attrapait DEUX — et « tu ne verras », la forme la plus
+    // courante de toutes, était la première à passer.
+    "Tu ne verras rien venir.",
+    "Tu y trouveras de quoi t'appuyer.",
+    "Tu te sentiras plus légère au printemps.",
+    "Tu en sortiras autrement.",
+    "Tu vas y arriver.",
+    "Tu vas te sentir plus libre.",
+    "Ce nombre te le dira mieux que moi.",
+
+    // ── D1 — LA FAMILLE LEXICALE QUI MANQUAIT ───────────────────────────────────────────────────
+    //
+    // Quatre racines étaient recensées (prédire, prophétie, présager, voyance). Le registre
+    // ésotérique en a des dizaines, et ce sont les plus élégantes qu'on écrit sans y penser :
+    // aucune de ces phrases n'aurait fait rougir quoi que ce soit.
+    "Ce nombre augure une année de passage.",
+    "Les auspices sont favorables cette année.",
+    "Ce tirage est un oracle.",
+    "C'est une pratique divinatoire.",
+    "Une prémonition, peut-être.",
+    "Ce nombre prophétise un passage.",
+    "Il est écrit que tout se dénoue à l'automne.",
+    "Tu es destinée à rencontrer quelqu'un.",
   ];
 
   const CONNUES_BONNES = [
@@ -146,6 +204,13 @@ describe("[FR-053/(a)] le détecteur de prédiction attrape ce qu'il doit attrap
     "Le cycle se refermera de lui-même.",
     "Tu vas bien, et ce nombre n'y change rien.",
     "Tu vas mieux quand tu ralentis.",
+    // L'élargissement de D1 autorise UN mot intercalé. Ces phrases-ci en ont un et ne prédisent
+    // rien : sans elles, on ne saurait pas si le motif élargi mord encore ou avale la langue.
+    "Tu as déjà tout ce qu'il faut pour le lire.",
+    "Tu le lis comme tu veux, ou pas du tout.",
+    "Tu te reconnais peut-être là-dedans.",
+    "Le nombre de destinée se lit dans la date entière.",
+    "Ce nombre décrit un embarras fréquent chez les 4.",
   ];
 
   it("rejette CHAQUE chaîne connue-mauvaise, en citant sa preuve", () => {
@@ -174,6 +239,31 @@ describe("[FR-053/(a)] le détecteur de prédiction attrape ce qu'il doit attrap
     expect(chercherPredictions("TU VAS DÉCOUVRIR").length).toBeGreaterThan(0);
     expect(chercherPredictions("Ce nombre prédit tout").length).toBeGreaterThan(0);
     expect(chercherPredictions("Ce nombre predit tout").length).toBeGreaterThan(0);
+  });
+
+  it("[D1] UN mot intercalé, pas DEUX — la borne de l'élargissement est nommée", () => {
+    // Aller jusqu'à deux mots ferait exploser les faux positifs pour un rendement marginal : les
+    // constructions réelles (« tu ne verras », « tu te sentiras ») n'en intercalent qu'un.
+    expect(chercherPredictions("Tu ne verras rien.").length).toBeGreaterThan(0);
+    expect(chercherPredictions("Tu ne me verras plus.")).toEqual([]);
+  });
+
+  it("[LE PRIX DE D1, ASSUMÉ ET NOMMÉ] un faux positif connu, écrit noir sur blanc", () => {
+    // Ce test AFFIRME un faux positif au lieu de le découvrir un jour en production. « tu vois
+    // l'embarras » compte un mot intercalé puis un mot en `-ras` : le détecteur le signale, et
+    // c'est l'arbitrage assumé — un faux positif coûte une reformulation, un faux négatif publie
+    // une prédiction sous le nom d'une personne réelle.
+    //
+    // Si quelqu'un fait tomber ce test en RESSERRANT le motif, qu'il relise d'abord les huit
+    // phrases de D1 dans `CONNUES_MAUVAISES` : c'est ce qu'il rouvre.
+    expect(chercherPredictions("Tu vois l'embarras que ça crée.").length).toBeGreaterThan(0);
+  });
+
+  it("[D1] « destinée » seule reste écrivable, « destinée À » ne l'est pas", () => {
+    // La numérologie ne s'écrit pas sans « nombre de destinée ». La bannir rendrait le corpus
+    // inécrivable — c'est le préfixe qui bascule, pas le mot.
+    expect(chercherPredictions("Le nombre de destinée porte ce mouvement.")).toEqual([]);
+    expect(chercherPredictions("Tu es destinée à partir.").length).toBeGreaterThan(0);
   });
 });
 
@@ -316,5 +406,128 @@ describe("[T5] la jonction nombre → texte ne fabrique rien", () => {
         expect("texte" in t!, `${n}:${v} porte un champ texte`).toBe(false);
       }
     }
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// D5 (revue du 2026-08-12) — LA CHAÎNE DE PROTOTYPES N'EST PAS UN CRÉNEAU
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[D5] `lireTexte` jette sur TOUTE clé non déclarée, y compris celles d'Object", () => {
+  /**
+   * ══ LE DÉFAUT ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `lireTexte` testait `c.textes[cle] === undefined`. L'indexation traverse la CHAÎNE DE
+   * PROTOTYPES : `"constructor"`, `"toString"`, `"valueOf"`, `"hasOwnProperty"` et `"__proto__"`
+   * rendaient donc une valeur non-undefined, la garde ne levait pas, et l'appelant recevait une
+   * FONCTION à la place d'un `TexteCorpus`. Il aurait lu `undefined` sur `statut` comme sur
+   * `texte` : du vide affiché là où le module promet de crier.
+   *
+   * « Jette sur une clé non déclarée » est la promesse centrale de ce module — celle qui empêche
+   * qu'un créneau fautif passe pour du travail d'écriture en attente. Elle était fausse pour une
+   * dizaine de clés.
+   *
+   * ══ CE QUE ÇA VAUT AUJOURD'HUI ══════════════════════════════════════════════════════════════
+   *
+   * Aucune de ces clés n'est atteignable : tous les créneaux sont construits par `cleNumerologie`
+   * ou par le domaine de l'horoscope. C'est exactement ce qui rend le défaut durable — rien ne le
+   * révèle, et il attend le jour où une clé viendra d'ailleurs (un paramètre d'URL, un import).
+   */
+  const CLES_DU_PROTOTYPE = [
+    "constructor",
+    "toString",
+    "valueOf",
+    "hasOwnProperty",
+    "isPrototypeOf",
+    "propertyIsEnumerable",
+    "__proto__",
+  ];
+
+  it("[CONTRÔLE DU CONTRÔLE] ces clés rendent bien quelque chose par indexation nue", () => {
+    // Sans ce témoin, le test suivant serait vrai d'un JavaScript imaginaire. On prouve d'abord que
+    // le piège existe, puis qu'on l'a fermé.
+    const nu: Record<string, unknown> = { "chemin_de_vie:7": 1 };
+    const traversantes = CLES_DU_PROTOTYPE.filter((k) => nu[k] !== undefined);
+    expect(traversantes.length, "le piège de prototype n'existe plus dans ce moteur").toBeGreaterThan(4);
+  });
+
+  it("[LE TEST QUI COMPTE] chacune de ces clés fait LEVER `lireTexte`", () => {
+    const c = corpus("test-d5", { "chemin_de_vie:7": NON_ECRIT });
+    for (const cle of CLES_DU_PROTOTYPE) {
+      expect(() => lireTexte(c, cle), `« ${cle} » n'a pas levé`).toThrow(/non déclaré/);
+    }
+  });
+
+  it("[CONTRÔLE POSITIF] un créneau RÉELLEMENT déclaré se lit toujours", () => {
+    // Sans lui, un `throw` inconditionnel passerait le test précédent et rendrait le corpus illisible.
+    const c = corpus("test-d5", { "chemin_de_vie:7": NON_ECRIT });
+    expect(lireTexte(c, "chemin_de_vie:7").statut).toBe("non_ecrit");
+  });
+
+  it("une clé simplement inconnue lève aussi, et le message la cite", () => {
+    const c = corpus("test-d5", { "chemin_de_vie:7": NON_ECRIT });
+    expect(() => lireTexte(c, "chemin_de_vie:99")).toThrow(/chemin_de_vie:99/);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// LES COMMENTAIRES QUI CITENT UNE GARDE DOIVENT CITER UNE GARDE QUI EXISTE
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("aucun commentaire ne renvoie vers un fichier qui n'existe pas", () => {
+  /**
+   * ══ POURQUOI CETTE GARDE ════════════════════════════════════════════════════════════════════
+   *
+   * Ce dépôt s'appuie beaucoup sur des commentaires qui NOMMENT la garde d'un invariant :
+   * « `tests/tronc-absence.test.ts` garde le vocabulaire ». C'est une bonne pratique — elle rend
+   * une propriété vérifiable au lieu de la laisser à la mémoire de quelqu'un.
+   *
+   * Elle a un mode d'échec propre, et la revue du 2026-08-12 l'a trouvé : `FicheTronc.tsx` renvoyait
+   * vers `tests/rendu/tronc-fiche.test.tsx`, qui n'a jamais existé. La garde, elle, existait bien —
+   * sous un autre nom. Le lecteur qui suit la référence conclut donc l'inverse de la vérité, dans
+   * les deux sens possibles : soit il croit qu'il manque une garde et la réécrit, soit il croit
+   * qu'une propriété est gardée alors que le fichier a été supprimé.
+   *
+   * Le second cas est le dangereux, et il arrive TOUT SEUL : il suffit de renommer un test.
+   */
+  const RACINE_DEPOT = process.cwd();
+
+  function sourcesDuProduit(): string[] {
+    const lister = (d: string) =>
+      (readdirSync(resolve(RACINE_DEPOT, d), { recursive: true, encoding: "utf-8" }) as string[])
+        .filter((f) => /\.tsx?$/.test(f))
+        .map((f) => `${d}/${f}`);
+    return [...lister("lib"), ...lister("app"), ...lister("render")];
+  }
+
+  it("[NON-VACUITÉ] on balaie bien des sources, et elles citent bien des gardes", () => {
+    const sources = sourcesDuProduit();
+    expect(sources.length).toBeGreaterThan(100);
+    const citantes = sources.filter((f) =>
+      /`?tests\/[A-Za-z0-9._/-]+\.tsx?`?/.test(readFileSync(resolve(RACINE_DEPOT, f), "utf-8")),
+    );
+    expect(citantes.length, "aucun commentaire ne cite de test — la garde serait vide").toBeGreaterThan(10);
+  });
+
+  it("chaque `tests/…` cité dans une source EXISTE", () => {
+    const morts: string[] = [];
+    for (const f of sourcesDuProduit()) {
+      const src = readFileSync(resolve(RACINE_DEPOT, f), "utf-8");
+      for (const m of src.matchAll(/`?(tests\/[A-Za-z0-9._/-]+\.tsx?)`?/g)) {
+        if (!existsSync(resolve(RACINE_DEPOT, m[1]))) morts.push(`${f} → ${m[1]}`);
+      }
+    }
+    expect(morts, `référence(s) morte(s) : ${morts.join(" | ")}`).toEqual([]);
+  });
+
+  it("chaque `supabase/migrations/…` cité dans une source EXISTE", () => {
+    const morts: string[] = [];
+    for (const f of sourcesDuProduit()) {
+      const src = readFileSync(resolve(RACINE_DEPOT, f), "utf-8");
+      for (const m of src.matchAll(/`(supabase\/migrations\/[A-Za-z0-9._-]+\.sql)`/g)) {
+        if (!existsSync(resolve(RACINE_DEPOT, m[1]))) morts.push(`${f} → ${m[1]}`);
+      }
+    }
+    expect(morts, `migration(s) citée(s) et absente(s) : ${morts.join(" | ")}`).toEqual([]);
   });
 });

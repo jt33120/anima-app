@@ -46,12 +46,22 @@ export default async function Page() {
   if (etape === "consentement") redirect("/consentement");
   if (etape === "revoque") redirect("/consentement/revoque");
 
+  // Ce qui est DÉJÀ gravé (revue du 2026-08-12, A2). Le write-once de 0039 étant PAR COLONNE, elle
+  // peut avoir enregistré sa commune sans son heure et revenir des mois plus tard : le formulaire
+  // ne redemande que ce qui manque, et une panne de lecture le fait tout demander plutôt que de
+  // prétendre que rien n'est posé — le serveur, lui, refusera proprement une réécriture.
+  const { data: deja } = await supabase
+    .from("utilisatrice")
+    .select("heure_naissance, lieu_naissance")
+    .eq("id", user.id)
+    .maybeSingle<{ heure_naissance: string | null; lieu_naissance: string | null }>();
+
   return (
     <main className={s.halte}>
       <h1 className="t-titre">Ton heure de naissance</h1>
       {/* La même phrase que la fiche du tronc, depuis la même source : un second texte divergerait. */}
       <p className="t-corps">{OU_TROUVER_SON_HEURE}</p>
-      <FormulaireHeure />
+      <FormulaireHeure deja={{ heure: deja?.heure_naissance ?? null, lieu: deja?.lieu_naissance ?? null }} />
     </main>
   );
 }

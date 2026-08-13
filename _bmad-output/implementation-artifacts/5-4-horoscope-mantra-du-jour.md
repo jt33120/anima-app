@@ -13,7 +13,7 @@ depends_on:
 prepare_pour:
   - "5-6-accueil-bibliotheque-en-cartes"
   - "epic-7-ordonnanceur-notification-du-matin"
-status: review
+status: done
 migration: null
 ---
 
@@ -525,3 +525,10 @@ arbre vérifié **identique** au snapshot après ; le harnais a été supprimé.
 | 2026-08-11 | Dossier créé (`create-story`) — statut `ready-for-dev` |
 | 2026-08-11 | Budget de corpus tranché par Julian : option complète, 87 créneaux (D11) |
 | 2026-08-11 | T1→T9 livrées. 2632 tests / 178 fichiers. 22 mutants, 22 tués. Statut `review` |
+
+## Status
+
+done
+
+> **Revue de code : 2026-08-13.** A4 : les cibles trop rapides pour être aspectées sans heure de naissance étaient quand même aspectées. B4 : le mantra gratuit à vie tombait avec le thème.
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).

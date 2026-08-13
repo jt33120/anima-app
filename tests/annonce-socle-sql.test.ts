@@ -83,17 +83,39 @@ async function rendreEligible(id: string): Promise<void> {
   if (e3) throw new Error(`theme recalcul: ${e3.message}`);
 }
 
-const reserver = async (client: SupabaseClient) => {
-  const { data, error } = await client.rpc("reserver_annonce_socle_complet");
-  if (error) throw new Error(`rpc: ${error.message}`);
+/**
+ * ⚠️ DEUX TEMPS DEPUIS LA REVUE DU 2026-08-12 (B3, migration 0045).
+ *
+ * `reserver_annonce_socle_complet()` lisait ET dépensait d'un seul geste, et elle était appelée
+ * depuis un rendu serveur — donc la mention se consommait même rendue dans une région `inert` que
+ * personne ne voit. Elle est remplacée par `annonce_socle_due()` (lecture seule) et
+ * `marquer_annonce_socle_dite()` (l'écriture, déclenchée quand la phrase atteint l'écran).
+ *
+ * `reserver` conserve son nom et son contrat — « est-ce dû, et je le consomme » — pour que tous les
+ * cas de ce fichier restent lisibles : ce sont les mêmes invariants, sur un protocole en deux temps.
+ */
+const due = async (client: SupabaseClient) => {
+  const { data, error } = await client.rpc("annonce_socle_due");
+  if (error) throw new Error(`rpc due: ${error.message}`);
   return data;
+};
+
+const marquer = async (client: SupabaseClient) => {
+  const { data, error } = await client.rpc("marquer_annonce_socle_dite");
+  if (error) throw new Error(`rpc marquer: ${error.message}`);
+  return data;
+};
+
+const reserver = async (client: SupabaseClient) => {
+  if (!(await due(client))) return false;
+  return await marquer(client);
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // AC4 — une seule fois
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[5.3 / AC4 DUR] reserver_annonce_socle_complet — vrai AU PLUS UNE FOIS", () => {
+describe("[5.3 / AC4 DUR] la mention de complétion — vraie AU PLUS UNE FOIS", () => {
   let u: Awaited<ReturnType<typeof creerUtilisatrice>>;
 
   beforeAll(async () => {
@@ -258,18 +280,29 @@ describe("[5.3] la migration 0040 dit ce qu'elle fait", () => {
     "utf-8",
   );
 
-  it("[CONTRÔLE DU CONTRÔLE] la migration est bien lue", () => {
+  const m45 = readFileSync(
+    resolve(process.cwd(), "supabase/migrations/0045_annonce_socle_dite_pas_servie.sql"),
+    "utf-8",
+  );
+
+  it("[CONTRÔLE DU CONTRÔLE] les migrations sont bien lues", () => {
     expect(migration.length).toBeGreaterThan(2000);
-    expect(migration).toContain("create function public.reserver_annonce_socle_complet");
+    expect(m45.length).toBeGreaterThan(2000);
+    expect(m45).toContain("create function public.annonce_socle_due");
+    expect(m45).toContain("create function public.marquer_annonce_socle_dite");
   });
 
-  it("la RPC n'est exécutable ni par `public` ni par `anon`", () => {
-    expect(migration).toMatch(
-      /revoke execute on function public\.reserver_annonce_socle_complet\(\) from public, anon/,
-    );
-    expect(migration).toMatch(
-      /grant\s+execute on function public\.reserver_annonce_socle_complet\(\) to authenticated/,
-    );
+  it("[B3] l'ancienne porte à un temps est SUPPRIMÉE, pas laissée « au cas où »", () => {
+    // Deux chemins vers la même décision, dont l'un dépense à la lecture, c'est la garantie qu'un
+    // appelant futur reprendra le mauvais — et que B3 revient sans que personne ne l'ait décidé.
+    expect(m45).toContain("drop function public.reserver_annonce_socle_complet()");
+  });
+
+  it("aucune des deux RPC n'est exécutable par `public` ni par `anon`", () => {
+    for (const nom of ["annonce_socle_due", "marquer_annonce_socle_dite"]) {
+      expect(m45).toMatch(new RegExp(`revoke execute on function public\\.${nom}\\(\\) from public, anon`));
+      expect(m45).toMatch(new RegExp(`grant\\s+execute on function public\\.${nom}\\(\\) to authenticated`));
+    }
   });
 
   it("elle porte son propre sel de verrou — jamais celui d'un autre mécanisme", () => {
@@ -285,5 +318,85 @@ describe("[5.3] la migration 0040 dit ce qu'elle fait", () => {
   it("la garde de détresse est en SQL, pas chez l'appelant", () => {
     // Une garde AD-17 posée dans du TypeScript est une garde qu'un second appelant peut oublier.
     expect(migration).toContain("public.branche_bloquee_par_detresse()");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// B3 (revue du 2026-08-12) — LIRE NE DÉPENSE PLUS
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[B3] la mention se dépense quand elle est DITE, jamais quand elle est servie", () => {
+  let u: Awaited<ReturnType<typeof creerUtilisatrice>>;
+
+  beforeAll(async () => {
+    u = await creerUtilisatrice("b3");
+    await rendreEligible(u.id);
+  }, 60_000);
+
+  afterAll(async () => {
+    if (u?.id) await admin.auth.admin.deleteUser(u.id);
+  }, 60_000);
+
+  it("[LE TEST QUI COMPTE] dix lectures d'affilée ne consomment RIEN", async () => {
+    // C'est exactement ce que faisait le produit : `chargerOuverture()` part d'`app/page.tsx`, donc
+    // à chaque rendu serveur de la scène. Chaque navigation, chaque `router.refresh()`, chaque
+    // rechargement. Avec l'ancienne RPC, le PREMIER de ces rendus dépensait la mention — y compris
+    // lorsqu'il la plaçait dans une région `inert` que personne ne voit et qu'aucun lecteur
+    // d'écran n'annonce. Un rechargement avant d'ouvrir la conversation, et la phrase était perdue
+    // à vie, sans trace et sans recours.
+    for (let i = 0; i < 10; i++) {
+      expect(await due(u.client), `la lecture n°${i + 1} a dépensé la mention`).toBe(true);
+    }
+  });
+
+  it("puis UN marquage la pose, et la lecture bascule pour toujours", async () => {
+    expect(await marquer(u.client)).toBe(true);
+    expect(await due(u.client)).toBe(false);
+  });
+
+  it("un second marquage ne repose rien (idempotent, deux onglets)", async () => {
+    expect(await marquer(u.client), "la date ne se réécrit pas").toBe(false);
+  });
+
+  it("[CONTRÔLE] la colonne porte bien une date après le marquage", async () => {
+    // Sans ce témoin, « la lecture dit false » serait vrai d'une lecture cassée plutôt que d'une
+    // mention réellement dite.
+    const { data } = await admin
+      .from("utilisatrice")
+      .select("socle_complete_annonce_le")
+      .eq("id", u.id)
+      .maybeSingle<{ socle_complete_annonce_le: string | null }>();
+    expect(data?.socle_complete_annonce_le).toBeTruthy();
+  });
+});
+
+describe("[B3/DUR] le marquage RÉAFFIRME toutes les conditions — il ne fait pas confiance à l'appelant", () => {
+  let u: Awaited<ReturnType<typeof creerUtilisatrice>>;
+
+  beforeAll(async () => {
+    u = await creerUtilisatrice("b3-direct");
+  }, 60_000);
+
+  afterAll(async () => {
+    if (u?.id) await admin.auth.admin.deleteUser(u.id);
+  }, 60_000);
+
+  it("sans heure de naissance, un appel DIRECT au marquage ne brûle pas la mention", async () => {
+    // `authenticated` a le grant d'exécution : un POST direct sur `/rest/v1/rpc/` est à la portée de
+    // n'importe qui sous son propre jeton. Si les conditions ne vivaient que dans la lecture — ou
+    // pire, dans le TypeScript qui l'appelle — on pourrait se priver de sa propre phrase avant même
+    // qu'elle ne soit due. C'est la leçon centrale de cette revue, appliquée au plus petit enjeu du
+    // dépôt : une garde qui n'est pas dans la fonction n'existe pas.
+    expect(await marquer(u.client)).toBe(false);
+    const { data } = await admin
+      .from("utilisatrice")
+      .select("socle_complete_annonce_le")
+      .eq("id", u.id)
+      .maybeSingle<{ socle_complete_annonce_le: string | null }>();
+    expect(data?.socle_complete_annonce_le, "la mention a été brûlée avant d'être due").toBeNull();
+
+    // Et elle reste due une fois le socle complété : rien n'a été consommé.
+    await rendreEligible(u.id);
+    expect(await due(u.client)).toBe(true);
   });
 });

@@ -15,7 +15,7 @@ depends_on:
 prepare_pour:
   - "5-4-horoscope-mantra-du-jour"
   - "5-6-accueil-bibliotheque-en-cartes"
-status: review
+status: done
 migration: "0040_completion_socle.sql"
 ---
 
@@ -841,3 +841,10 @@ Le déploiement passe par la Management API (`SUPABASE_ACCESS_TOKEN`, projet `zl
 |---|---|---|
 | 2026-08-07 | 0.1 | Contexte créé — 8 AC, 10 décisions, 13 pièges, 9 tâches |
 | 2026-08-11 | 1.0 | T1→T9 livrés — 2526 tests / 175 fichiers, 28/28 mutants tués, migration 0040 locale |
+
+## Status
+
+done
+
+> **Revue de code : 2026-08-13.** A2, B5, B6 ; migration 0045 (l'annonce est DITE, pas servie).
+> Dossier complet : [`revue-dette-2026-08.md`](revue-dette-2026-08.md).

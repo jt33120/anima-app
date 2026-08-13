@@ -4,6 +4,7 @@ import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { chargerOuverture } from "@/lib/safety/ouverture-branche";
 import { chargerProjectionArbre } from "@/lib/safety/projection-arbre";
 import SceneDom from "@/render/scene-dom";
+import { marquerAnnonceSocleDite } from "@/app/_socle/marquer-annonce";
 
 /*
  * La scène — le cœur du lieu. Accessible SEULEMENT une fois le seuil légal franchi :
@@ -42,5 +43,5 @@ export default async function Page() {
     chargerOuverture(supabase),
     chargerProjectionArbre(supabase, user.id),
   ]);
-  return <SceneDom projection={projection} ouverture={ouverture} />;
+  return <SceneDom projection={projection} ouverture={ouverture} onSocleAnnonce={marquerAnnonceSocleDite} />;
 }

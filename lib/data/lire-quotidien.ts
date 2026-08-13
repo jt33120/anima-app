@@ -184,19 +184,47 @@ export async function lireSocleQuotidien(
   const jour = jourResoluParis(maintenant);
   const mantra = mantraDuJour(jour.jour);
 
-  // UN SEUL appel (P10) : `lireThemeNatal` fait deux requêtes et peut ÉCRIRE (premier calcul ou
-  // recalcul après ajout de l'heure, 5.3).
-  const theme = await lireThemeNatal(supabase, utilisatriceId, ephemeride);
-  if (theme.statut !== "calcule") {
-    return { jour: jour.jour, mantra, horoscope: { statut: "indisponible", raison: theme.raison } };
-  }
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // ⚠️ LE MANTRA NE MEURT PAS D'UNE PANNE D'HOROSCOPE (revue du 2026-08-12, B4)
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // `mantraDuJour` est un calcul PUR, déjà terminé à la ligne précédente : il ne dépend ni de la
+  // base, ni de l'éphéméride, ni du thème. L'horoscope, lui, dépend des trois — `lireThemeNatal`
+  // fait deux requêtes et peut ÉCRIRE, `cielMemoise` interroge l'éphéméride.
+  //
+  // Sans ce `try`, une seule de ces pannes emportait un mantra DÉJÀ CALCULÉ. Et ce n'est pas un
+  // détail d'affichage : « mantra du jour » est un item de FR-055, du GRATUIT À VIE. Une lenteur de
+  // Supabase supprimait un morceau du socle gratuit d'une personne qui n'a rien demandé à personne.
+  //
+  // C'est la même faute que la revue 4.10 a trouvée sur l'arbitrage, et que la 5.3 a corrigée sur la
+  // mention de complétion : un chemin fragile placé en amont d'un chemin robuste. Le patron du
+  // dépôt est constant — chaque effet qui peut échouer porte son propre `try`, et l'échec de l'un
+  // ne fait jamais taire l'autre.
+  try {
+    // UN SEUL appel (P10) : `lireThemeNatal` fait deux requêtes et peut ÉCRIRE (premier calcul ou
+    // recalcul après ajout de l'heure, 5.3).
+    const theme = await lireThemeNatal(supabase, utilisatriceId, ephemeride);
+    if (theme.statut !== "calcule") {
+      return { jour: jour.jour, mantra, horoscope: { statut: "indisponible", raison: theme.raison } };
+    }
 
-  return {
-    jour: jour.jour,
-    mantra,
-    horoscope: {
-      statut: "calcule",
-      horoscope: assemblerHoroscope(theme.theme, jour.jour, cielMemoise(jour, ephemeride)),
-    },
-  };
+    return {
+      jour: jour.jour,
+      mantra,
+      horoscope: {
+        statut: "calcule",
+        horoscope: assemblerHoroscope(theme.theme, jour.jour, cielMemoise(jour, ephemeride)),
+      },
+    };
+  } catch (e) {
+    // `raison` est une union FERMÉE (aucune prose, FR-053) : on rend celle qui dit le mieux « on ne
+    // sait pas », et on journalise sans PII pour que la panne reste trouvable.
+    console.error("[socle-quotidien] horoscope indisponible — le mantra est servi quand même", {
+      nom: e instanceof Error ? e.name : "inconnu",
+    });
+    // `lecture_impossible` et pas `naissance_absente` : la raison doit dire « incident », jamais
+    // « il te manque quelque chose ». Faire porter une panne de serveur à quelqu'un comme si son
+    // dossier était incomplet, c'est le mensonge que la revue 4.6 a payé sur l'arbre.
+    return { jour: jour.jour, mantra, horoscope: { statut: "indisponible", raison: "lecture_impossible" } };
+  }
 }

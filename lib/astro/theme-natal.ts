@@ -130,7 +130,7 @@ export type RaisonSansAngles = RaisonSansHeure | "coordonnees_absentes" | "latit
 
 export interface InstantResolu {
   readonly instantUtc: Date;
-  /** Faux ⇒ midi UTC par défaut (voir `resoudreInstant`), et la Lune devient approximative. */
+  /** Faux ⇒ midi du jour LOCAL par défaut (voir `resoudreInstant`), et la Lune devient approximative. */
   readonly heureConnue: boolean;
   readonly raisonSansHeure?: RaisonSansHeure;
 }
@@ -221,11 +221,50 @@ function eclaterHeure(texte: string): { hh: number; mi: number; ss: number } {
   return { hh: Number(hm[1]), mi: Number(hm[2]), ss: Number(hm[3] ?? 0) };
 }
 
+/**
+ * L'instant retenu quand l'heure manque : MIDI DU JOUR LOCAL, pas midi UTC (revue du 2026-08-12, A7).
+ *
+ * ── CE QUE MIDI UTC FAISAIT DE FAUX ─────────────────────────────────────────────────────────────
+ *
+ * Le jour de naissance est une date LOCALE : « née le 3 mai » veut dire le 3 mai là où elle est
+ * née. Prendre midi UTC, c'est prendre un instant qui, selon le fuseau, tombe n'importe où dans ce
+ * jour — voire en dehors. À Kiribati (UTC+14), midi UTC est 2 h du matin le LENDEMAIN local ; à
+ * Baker (UTC−12), c'est minuit le jour PRÉCÉDENT. Le point retenu n'était même pas dans la fenêtre
+ * d'instants possibles que `fenetreIncertitude` calcule pour ce même thème — deux fonctions du même
+ * fichier qui ne parlaient pas du même jour.
+ *
+ * En France l'écart n'est que d'une ou deux heures, donc ~1° de Lune : invisible, et faux quand
+ * même. Le défaut mordait vraiment loin d'ici, c'est-à-dire là où personne n'aurait testé.
+ *
+ * ── LE RÉSIDU, DIT ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Midi local n'est pas exactement le milieu de la fenêtre les jours de changement d'heure, où le
+ * jour local dure 23 ou 25 h : l'écart est alors d'une demi-heure, soit ~0,3° de Lune. On préfère
+ * un point NOMMÉ (« midi ») à un milieu calculé, parce que le milieu exigerait d'appeler
+ * `fenetreIncertitude`, qui appelle `resoudreInstant` — la boucle serait pire que le résidu.
+ *
+ * ── SANS FUSEAU ────────────────────────────────────────────────────────────────────────────────
+ *
+ * On retombe sur midi UTC. Ce n'est pas mieux qu'avant, mais ce n'est pas pire : sans fuseau, il
+ * n'existe aucun « jour local » à viser. La fenêtre d'incertitude, elle, s'élargit à 50 h et c'est
+ * elle qui porte l'aveu.
+ */
+function midiDuJourLocal(a: number, m: number, j: number, fuseau: string | null | undefined): Date {
+  const naif = Date.UTC(a, m - 1, j, 12, 0, 0);
+  if (!fuseau) return new Date(naif);
+  try {
+    return instantDepuisLocal(naif, fuseau);
+  } catch {
+    // Fuseau inconnu d'`Intl` : c'est le cas `fuseau_invalide`, déjà nommé par l'appelant.
+    return new Date(naif);
+  }
+}
+
 export function resoudreInstant(entrees: EntreesNaissance): InstantResolu {
   const { a, m, j } = eclaterDate(entrees.date);
 
   const sansHeure = (raison: RaisonSansHeure): InstantResolu => ({
-    instantUtc: new Date(Date.UTC(a, m - 1, j, 12, 0, 0)),
+    instantUtc: midiDuJourLocal(a, m, j, entrees.fuseau),
     heureConnue: false,
     raisonSansHeure: raison,
   });
@@ -288,6 +327,16 @@ export interface FenetreInstant {
  * pas : l'instant vrai va de « minuit à UTC+14 » à « minuit du lendemain à UTC−12 ». Prendre 24 h
  * déclarerait certains des signes qui ne le sont pas (P7) — le mensonge exact que la 5.3 refuse.
  */
+/** Les composantes d'une heure, ou `null` si elle est absente OU illisible. Ne jette jamais. */
+function lireHeureOuRien(texte: string | null | undefined): { hh: number; mi: number; ss: number } | null {
+  if (!texte) return null;
+  try {
+    return eclaterHeure(texte);
+  } catch {
+    return null;
+  }
+}
+
 export function fenetreIncertitude(entrees: EntreesNaissance): FenetreInstant {
   const { a, m, j } = eclaterDate(entrees.date);
 
@@ -311,7 +360,19 @@ export function fenetreIncertitude(entrees: EntreesNaissance): FenetreInstant {
 
   // Le décalage est inconnu. `naif` = la lecture de calendrier locale prise comme si elle était UTC ;
   // l'instant vrai est `naif − décalage`, donc quelque part dans `[naif − 14 h, naif + 12 h]`.
-  const heure = resolu.raisonSansHeure === "heure_absente" ? null : eclaterHeure(entrees.heure!);
+  // ⚠️ LA LECTURE DE L'HEURE NE DOIT PAS FAIRE EXPLOSER LE SOCLE (revue du 2026-08-12, B5).
+  //
+  // `eclaterHeure` JETTE sur une heure illisible, et c'est juste là où elle est appelée — mais ici
+  // elle contredisait une décision déjà prise deux fonctions plus haut. Avec `{ heure: "7h15" }` et
+  // AUCUN fuseau, `resoudreInstant` dégrade proprement (`fuseau_absent`, midi par défaut) : il a
+  // décidé que cette heure ne servirait pas. `fenetreIncertitude` la reparsait quand même et
+  // levait — donc `calculerThemeNatal`, documenté « aboutit TOUJOURS avec ce qui est disponible »
+  // (AC6/FR-049), mourait sur une entrée que son propre fichier venait de savoir traiter.
+  //
+  // Deux fonctions voisines, la même entrée, deux décisions opposées. On suit celle qui dégrade :
+  // une heure illisible est une heure qu'on n'a pas, et la fenêtre s'élargit à la journée entière —
+  // ce qui est exactement l'aveu correct.
+  const heure = lireHeureOuRien(resolu.raisonSansHeure === "heure_absente" ? null : entrees.heure);
   const naifDebut = Date.UTC(a, m - 1, j, heure?.hh ?? 0, heure?.mi ?? 0, heure?.ss ?? 0);
   // Sans heure, `naif` couvre tout le jour : la borne haute part de MINUIT DU LENDEMAIN.
   const naifFin = heure ? naifDebut : Date.UTC(a, m - 1, j + 1, 0, 0, 0);
@@ -503,8 +564,10 @@ export interface ThemeNatal {
   readonly absents: readonly CorpsNonCalcule[];
   readonly angles: Angles;
   /**
-   * `midi_par_defaut` ⇒ l'heure manquait, l'instant est midi UTC : la Lune est à ±6,6° près et tout
-   * ce qui dépend de l'heure est absent. La story 5.3 lit ce champ pour dire quoi il manque.
+   * `midi_par_defaut` ⇒ l'heure manquait, l'instant retenu est midi du jour LOCAL (midi UTC si le
+   * fuseau est lui aussi inconnu) : la Lune est à ±7,7° près et tout ce qui dépend de l'heure est
+   * absent. La story 5.3 lit ce champ pour dire ce qui manque ; `ciblesNatalesDe` (5.4) le lit pour
+   * refuser d'aspecter la Lune natale, qu'on ne connaît alors pas à mieux que deux fois l'orbe.
    */
   readonly precision: "heure_connue" | "midi_par_defaut";
 }

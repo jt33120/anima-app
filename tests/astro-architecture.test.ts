@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { calculerThemeNatal, type EntreesNaissance } from "@/lib/astro/theme-natal";
 import { ephemerideAstronomyEngine } from "@/lib/astro/adapters/astronomy-engine";
+import { modulesImportes, viseLeDossier } from "./_imports";
 
 /**
  * Story 5.1 (T8) — LES INVARIANTS D'ARCHITECTURE DE LA COUCHE ASTRO (AD-6, AD-1, AC5, AC7).
@@ -46,7 +47,26 @@ function fichiersTs(dossier: string): string[] {
 }
 
 const FICHIERS_ASTRO = fichiersTs("lib/astro");
-const TOUTES_SOURCES = [...fichiersTs("app"), ...fichiersTs("lib"), ...fichiersTs("render")];
+/**
+ * Les `.ts` de la RACINE — et c'est E4 (revue du 2026-08-12).
+ *
+ * `TOUTES_SOURCES` ne balayait que `app/`, `lib/` et `render/`. Or `proxy.ts` vit à la racine, et
+ * c'est le middleware de Next 16 : il s'exécute sur CHAQUE REQUÊTE, avant tout le reste. Un import
+ * d'éphéméride ou de SDK de modèle posé là aurait échappé à toutes les gardes de ce fichier — le
+ * seul endroit du produit où le coût se paie à chaque page vue était le seul non surveillé.
+ *
+ * On prend tout ce qui est à la racine, sans liste d'exceptions : une liste s'oublie.
+ */
+function fichiersTsRacine(): string[] {
+  return readdirSync(RACINE, { encoding: "utf-8" }).filter((f) => /\.tsx?$/.test(f) && !f.endsWith(".d.ts"));
+}
+
+const TOUTES_SOURCES = [
+  ...fichiersTsRacine(),
+  ...fichiersTs("app"),
+  ...fichiersTs("lib"),
+  ...fichiersTs("render"),
+];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // 1. La frontière de déterminisme (AD-6 / NFR-011)
@@ -91,25 +111,88 @@ describe("[AC3/DUR] lib/astro n'a ni horloge implicite ni hasard", () => {
    * valeurs, pas une lecture de « maintenant » — `theme-natal.ts` s'en sert pour bâtir l'instant de
    * naissance. C'est la forme SANS argument qui est bannie, avec `Date.now()` et `Math.random()`.
    */
-  it("[CONTRÔLE DU CONTRÔLE] les motifs bannis attrapent bien ce qu'ils visent", () => {
-    const SANS_ARG = /new\s+Date\s*\(\s*\)/;
-    expect(SANS_ARG.test("const d = new Date();"), "le motif rate `new Date()`").toBe(true);
-    expect(SANS_ARG.test("new Date(Date.UTC(2026, 0, 1))"), "le motif mord sur du légitime").toBe(false);
+  /**
+   * ⚠️ CINQ FORMES SUR SIX PASSAIENT (revue du 2026-08-12, E6).
+   *
+   * Le motif unique `new Date()` ne reconnaissait que la forme la plus explicite. Mesuré :
+   *
+   *     new Date;              → passait   (l'opérateur `new` n'exige pas de parenthèses)
+   *     Date();                → passait   (appelée en fonction, rend l'heure courante en chaîne)
+   *     performance.now()      → passait   (horloge monotone, mais horloge)
+   *     crypto.randomUUID()    → passait   (hasard sans `Math.random`)
+   *     await import("…")      → passait   (échappatoire aux monopoles d'adaptateur)
+   *
+   * Aucune n'est exotique : `new Date` sans parenthèses est une écriture courante, et
+   * `performance.now()` est ce qu'on écrit spontanément pour mesurer un calcul. Le déterminisme du
+   * socle (NFR-011, FR-047) tombe pareil dans les cinq cas.
+   */
+  const HORLOGES: Array<[RegExp, string]> = [
+    [/new\s+Date\b(?!\s*\(\s*[^)\s])/, "new Date sans argument"],
+    [/(?<!new\s)(?<![.\w$])Date\s*\(/, "Date() appelée en fonction"],
+    [/\bDate\.now\s*\(/, "Date.now()"],
+    [/\bperformance\s*\.\s*now\s*\(/, "performance.now()"],
+    [/\bMath\.random\s*\(/, "Math.random()"],
+    [/\bcrypto\s*\.\s*(randomUUID|getRandomValues)\s*\(/, "crypto aléatoire"],
+    [/process\.env/, "variable d'environnement"],
+  ];
+
+  it("[CONTRÔLE DU CONTRÔLE] les motifs bannis attrapent bien les six formes", () => {
+    const mord = (src: string) => HORLOGES.some(([m]) => m.test(src));
+    for (const coupable of [
+      "const d = new Date();",
+      "const d = new Date;",
+      "const d = Date();",
+      "const t = performance.now();",
+      "const t = Date.now();",
+      "const x = Math.random();",
+      "const id = crypto.randomUUID();",
+      "const k = process.env.CLE;",
+    ]) {
+      expect(mord(coupable), `le motif rate « ${coupable} »`).toBe(true);
+    }
+    // Et il ne mord PAS sur les constructions de date à partir de valeurs, qui sont légitimes.
+    for (const legitime of [
+      "new Date(Date.UTC(2026, 0, 1))",
+      "new Date(naif - decalage * 60000)",
+      "return new Date(terme);",
+      "const t = new Date(iso).getTime();",
+    ]) {
+      expect(mord(legitime), `le motif mord sur « ${legitime} »`).toBe(false);
+    }
   });
 
   it("[CONTRÔLE POSITIF] les constructions de date à partir de valeurs sont bien présentes", () => {
     // Sans ce témoin, « aucune horloge » serait vrai d'une couche qui n'aurait aucune date du tout.
+    //
+    // ⚠️ LE TÉMOIN VISE UN FAIT, PAS UNE TOURNURE (revue du 2026-08-12). Il exigeait la forme
+    // exacte `new Date(Date.UTC(…))` ; extraire le calcul de midi dans `midiDuJourLocal` — qui
+    // écrit `const naif = Date.UTC(…)` puis `new Date(naif)` — a fait rougir la garde alors que le
+    // fichier construit toujours autant de dates à partir de valeurs. Un témoin de présence qui
+    // dépend de la MISE EN FORME finit par être assoupli lors d'un refactor de routine, et ce
+    // jour-là c'est la garde entière qu'on perd. On vérifie donc les deux faits séparément.
     const natal = sansCommentaires(readFileSync(resolve(RACINE, "lib/astro/theme-natal.ts"), "utf-8"));
-    expect(natal).toMatch(/new\s+Date\s*\(\s*Date\.UTC/);
+    expect(natal, "aucun calendrier explicite").toMatch(/\bDate\.UTC\s*\(/);
+    expect(natal, "aucune date construite depuis une valeur").toMatch(/new\s+Date\s*\(\s*[^)\s]/);
   });
 
   it("aucun module de lib/astro ne lit l'heure ni ne tire au hasard", () => {
     for (const f of FICHIERS_ASTRO) {
       const src = sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"));
-      expect(src, `${f} lit « maintenant » — le déterminisme est perdu`).not.toMatch(/new\s+Date\s*\(\s*\)/);
-      expect(src, `${f} lit l'horloge`).not.toMatch(/\bDate\.now\s*\(/);
-      expect(src, `${f} tire au hasard`).not.toMatch(/\bMath\.random\s*\(/);
-      expect(src, `${f} lit une variable d'environnement`).not.toMatch(/process\.env/);
+      for (const [motif, nom] of HORLOGES) {
+        expect(motif.test(src), `${f} : ${nom} — le déterminisme est perdu`).toBe(false);
+      }
+    }
+  });
+
+  it("[E6] aucun import DYNAMIQUE dans lib/astro — ce serait l'échappatoire aux monopoles", () => {
+    // Toutes les gardes de monopole de ce fichier interrogent les modules importés. Un
+    // `await import("astronomy-engine")` y est désormais visible (E5) ; on interdit en plus la
+    // forme elle-même dans le socle, où elle n'a aucune raison d'être : un calcul pur ne charge
+    // rien à la demande, et ce qui est chargé à la demande n'est pas balayable statiquement.
+    for (const f of FICHIERS_ASTRO) {
+      const src = sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"));
+      expect(/\bimport\s*\(/.test(src), `${f} charge un module à la demande`).toBe(false);
+      expect(/\brequire\s*\(/.test(src), `${f} utilise require`).toBe(false);
     }
   });
 });
@@ -132,6 +215,8 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
     expect(TOUTES_SOURCES.some((f) => f.startsWith("app/"))).toBe(true);
     expect(TOUTES_SOURCES.some((f) => f.startsWith("lib/"))).toBe(true);
     expect(TOUTES_SOURCES.some((f) => f.startsWith("render/"))).toBe(true);
+    // E4 : le middleware, qui tourne sur chaque requête, doit être DANS le balayage.
+    expect(TOUTES_SOURCES, "proxy.ts hors du balayage — cf. E4").toContain("proxy.ts");
   });
 
   it("[CONTRÔLE POSITIF] l'adaptateur autorisé l'importe bien — sinon la garde ne prouve rien", () => {
@@ -139,13 +224,17 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
     expect(src).toMatch(/from\s*["']astronomy-engine["']/);
   });
 
-  it("aucun AUTRE fichier de app/, lib/ ou render/ ne l'importe", () => {
-    const coupables = TOUTES_SOURCES.filter((f) => {
-      if (AUTORISES.includes(f)) return false;
-      return /from\s*["']astronomy-engine["']/.test(
-        sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8")),
-      );
-    });
+  it("aucun AUTRE fichier du produit ne l'importe", () => {
+    // E5 (revue du 2026-08-12) : le motif était `from "astronomy-engine"`. Un
+    // `await import("astronomy-engine")` — la forme même qu'on écrirait pour « ne le charger qu'au
+    // besoin », donc la plus tentante — passait à travers. On interroge la liste des modules.
+    const coupables = TOUTES_SOURCES.filter(
+      (f) =>
+        !AUTORISES.includes(f) &&
+        modulesImportes(sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"))).includes(
+          "astronomy-engine",
+        ),
+    );
     expect(coupables, `moteur d'éphéméride hors de son adaptateur : ${coupables.join(", ")}`).toEqual([]);
   });
 
@@ -167,7 +256,9 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
     const coupables = TOUTES_SOURCES.filter(
       (f) =>
         f !== autorise &&
-        /communes-france\.json/.test(sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"))),
+        modulesImportes(sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"))).some((m) =>
+          m.endsWith("communes-france.json"),
+        ),
     );
     expect(coupables, `référentiel de lieux importé hors de son adaptateur : ${coupables.join(", ")}`).toEqual([]);
   });
@@ -190,11 +281,14 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
      * Aucun de ces trois fichiers ne dépend du CONTENU de son adaptateur : tous ne manipulent que
      * les types du port.
      */
+    // E5 : le motif exigeait l'alias `@/lib/astro/adapters/`. Un `../astro/adapters/x` désigne
+    // exactement le même fichier et n'aurait rien déclenché — c'est ainsi qu'on ajoute un point de
+    // composition sans que personne ne le voie en revue.
     const referents = TOUTES_SOURCES.filter(
       (f) =>
         !f.startsWith("lib/astro/") &&
-        /from\s*["']@\/lib\/astro\/adapters\//.test(
-          sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8")),
+        modulesImportes(sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"))).some((m) =>
+          viseLeDossier(m, "astro/adapters"),
         ),
     );
     expect(referents.sort()).toEqual([
@@ -249,12 +343,21 @@ describe("[5.4 / FR-033 / P8/DUR] le socle quotidien ne peut PAS atteindre l'his
     "lib/corpus/horoscope.ts",
   ];
 
-  const PERSONNEL: Array<[RegExp, string]> = [
-    [/depot-journal|\bjournal\b/, "le journal"],
-    [/lib\/domain\/branche|depot-branche/, "les branches"],
-    [/depot-seance|lib\/domain\/seance|arc-seance/, "les séances"],
-    [/lib\/domain\/synthese|depot-synthese/, "les synthèses"],
-    [/depot-faits|fusion-fait/, "les faits extraits"],
+  /**
+   * Chaque motif porte SON témoin — et c'est E8 (revue du 2026-08-12).
+   *
+   * Le contrôle-du-contrôle s'écrivait `PERSONNEL.some(([m]) => m.test(faux))` sur UNE seule chaîne
+   * fabriquée (`depot-journal`). `.some()` s'arrête au premier motif qui mord : le premier était
+   * donc certifié, et les QUATRE AUTRES pouvaient être cassés — une faute de frappe, un chemin
+   * renommé — sans que rien ne l'indique. Un contrôle-du-contrôle qui n'en contrôle qu'un cinquième
+   * est plus dangereux que pas de contrôle : il porte le nom qui rassure.
+   */
+  const PERSONNEL: Array<[RegExp, string, string]> = [
+    [/depot-journal|\bjournal\b/, "le journal", 'import { lireJournal } from "@/lib/data/depot-journal";'],
+    [/lib\/domain\/branche|depot-branche/, "les branches", 'import { poser } from "@/lib/data/depot-branche";'],
+    [/depot-seance|lib\/domain\/seance|arc-seance/, "les séances", 'import { phase } from "@/lib/domain/arc-seance";'],
+    [/lib\/domain\/synthese|depot-synthese/, "les synthèses", 'import { lire } from "@/lib/data/depot-synthese";'],
+    [/depot-faits|fusion-fait/, "les faits extraits", 'import { fusionner } from "@/lib/domain/fusion-fait";'],
   ];
 
   it("[CONTRÔLE DU CONTRÔLE] les trois modules existent et sont lus", () => {
@@ -263,9 +366,17 @@ describe("[5.4 / FR-033 / P8/DUR] le socle quotidien ne peut PAS atteindre l'his
     }
   });
 
-  it("[CONTRÔLE DU CONTRÔLE] les motifs mordent bien sur du code qui ATTEINDRAIT le personnel", () => {
-    const faux = 'import { lireJournal } from "@/lib/data/depot-journal";';
-    expect(PERSONNEL.some(([m]) => m.test(faux)), "les motifs ne mordent pas").toBe(true);
+  it("[CONTRÔLE DU CONTRÔLE] CHAQUE motif mord sur son propre témoin (E8)", () => {
+    for (const [motif, nom, temoin] of PERSONNEL) {
+      expect(motif.test(temoin), `le motif de « ${nom} » ne mord pas sur son témoin`).toBe(true);
+    }
+    // Et aucun ne mord sur du socle légitime : sinon les gardes seraient inutilisables.
+    for (const [motif, nom] of PERSONNEL) {
+      expect(
+        motif.test('import { CORPS } from "@/lib/astro/port";'),
+        `le motif de « ${nom} » mord sur du socle`,
+      ).toBe(false);
+    }
   });
 
   it("aucun des trois ne connaît le journal, une branche, une séance, une synthèse ou un fait", () => {

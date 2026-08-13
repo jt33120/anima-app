@@ -83,6 +83,8 @@ export default function Conversation({
   onPreparation,
   ouverture,
   onAllerVersBranche,
+  regionActive = true,
+  onSocleAnnonce,
 }: {
   onPreparation?: (prepare: boolean) => void;
   /**
@@ -93,6 +95,19 @@ export default function Conversation({
   ouverture?: OuvertureData | null;
   /** L'invitation doit MENER quelque part, sinon c'est un reproche : ceci ouvre la fiche de la branche visée. */
   onAllerVersBranche?: (brancheId: string) => void;
+  /**
+   * Cette conversation est-elle la région ACTIVE ? (revue du 2026-08-12, B3)
+   *
+   * La scène monte ses trois régions en permanence et rend `inert` + `aria-hidden` toutes celles
+   * qui ne sont pas actives. Ce composant est donc RENDU même quand personne ne le voit — et c'est
+   * exactement ce qui faisait dépenser la mention de complétion du socle sans qu'elle atteigne
+   * l'écran. Le serveur ne peut pas connaître cette information : elle vit dans l'état client.
+   *
+   * Défaut à `true` : un appelant qui ne passe rien monte forcément une conversation visible.
+   */
+  regionActive?: boolean;
+  /** Appelé UNE FOIS quand la mention de complétion a réellement atteint l'écran. */
+  onSocleAnnonce?: () => void;
 }) {
   // ⚠️ `ouverture` EST RÉACTIVE, et ça n'a rien d'optionnel (revue 4.10, défaut le plus grave trouvé).
   //
@@ -113,6 +128,22 @@ export default function Conversation({
   const cle = cleDOuverture(ouverture);
   const [tours, setTours] = useState<Tour[]>(() => toursDOuverture(ouverture));
   const [clePrec, setClePrec] = useState(cle);
+
+  // ── B3 : LA MENTION SE DÉPENSE QUAND ELLE EST LUE, PAS QUAND ELLE EST RENDUE ──────────────────
+  //
+  // Deux conditions, et les deux sont nécessaires : la phrase doit être DANS le fil, et la région
+  // doit être ACTIVE. Rendue dans une région `inert`, elle n'est annoncée par aucun lecteur d'écran
+  // et vue par personne — la dépenser là revient à la perdre.
+  //
+  // `annonce` garde la trace pour que le rappel ne parte qu'une fois : le composant reste monté
+  // toute la séance et se rend à chaque frappe du composeur.
+  const [socleAnnonce, setSocleAnnonce] = useState(false);
+  const socleDansLeFil = ouverture?.type === "socle-complete";
+  useEffect(() => {
+    if (!socleDansLeFil || !regionActive || socleAnnonce) return;
+    setSocleAnnonce(true);
+    onSocleAnnonce?.();
+  }, [socleDansLeFil, regionActive, socleAnnonce, onSocleAnnonce]);
   if (cle !== clePrec) {
     setClePrec(cle);
     const nouveaux = toursDOuverture(ouverture);

@@ -37,6 +37,11 @@ export function tierPour(capacite: CapaciteIa, niveauSecurite: NiveauSecurite = 
   // l'IDENTITÉ : se tromper ne coûte pas une phrase maladroite, ça pose une étiquette fausse sur
   // quelqu'un. Le choix est donc écrit, pas hérité.
   if (capacite === "hypothese_enneagramme") return "fort";
+  // LA LECTURE (Story 5.8), tranchée ici pour la même raison que ci-dessus : le repli final tient à
+  // la seule expression `=== "echange"`, et quiconque la retournerait ferait basculer celle-ci sans
+  // le voir. Une lecture reprend SES mots dans un document qu'elle relira dans un an ; un modèle
+  // léger qui la paraphrase de travers laisse une trace écrite, pas une phrase oubliée.
+  if (capacite === "lecture") return "fort";
   if (niveauSecurite >= 1) return "fort"; // AD-5 : détresse → le plus capable, jamais le léger
   // Tout le reste (reconceptualisation, synthèse, retour_theme) est du travail de schéma : FORT.
   return capacite === "echange" ? "leger" : "fort";

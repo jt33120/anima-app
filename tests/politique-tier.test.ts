@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { tierPour, modelePour } from "@/lib/ai/politique-tier";
 import type { CapaciteIa, TierIa } from "@/lib/ai/port";
 
@@ -18,6 +20,9 @@ const TIER_ATTENDU: Record<CapaciteIa, TierIa> = {
   detection: "fort",
   retour_theme: "fort",
   hypothese_enneagramme: "fort",
+  // Story 5.8 — la lecture reprend SES mots dans un document qu'elle relira dans un an. Un modèle
+  // léger qui la paraphrase de travers laisse une trace écrite, pas une phrase oubliée.
+  lecture: "fort",
 };
 
 /**
@@ -78,6 +83,32 @@ describe("Politique de tier — (capacité, niveau_sécurité) → tier (AD-5)",
     }
     expect(tierPour("hypothese_enneagramme")).toBe("fort");
     expect(tierPour("hypothese_enneagramme", 0)).not.toBe("leger");
+  });
+
+  it("⚠️ LES CAPACITÉS SENSIBLES SONT TRANCHÉES DANS LA SOURCE, pas héritées du repli", () => {
+    // ── POURQUOI UN TEST DE SOURCE, ICI ET PAS AILLEURS ───────────────────────────────────────
+    //
+    // Retirer `if (capacite === "lecture") return "fort";` NE CHANGE RIEN au comportement : le repli
+    // `capacite === "echange" ? "leger" : "fort"` rend « fort » de toute façon. Aucun test
+    // comportemental ne peut donc voir ce mutant — il survit à `tierPour(...)` sous tous les angles,
+    // et c'est le survivant assumé de la 5.5.
+    //
+    // Ce que la ligne explicite protège n'est pas AUJOURD'HUI, c'est DEMAIN : le repli tient à une
+    // seule expression, et quiconque la retournerait — pour donner le léger à une capacité bon marché
+    // — ferait basculer ces deux-ci avec, sans le voir. « Fort par héritage » se lit exactement comme
+    // « fort par décision », et personne ne s'aperçoit de la différence tant que le repli ne bouge pas.
+    //
+    // La garde ne peut donc vivre que dans la source. Elle ferme aussi le survivant documenté en 5.5.
+    const src = readFileSync(resolve(__dirname, "..", "lib/ai/politique-tier.ts"), "utf-8").replace(
+      /\/\/.*$/gm,
+      "",
+    );
+    for (const capacite of ["hypothese_enneagramme", "lecture"] as const) {
+      expect(
+        src,
+        `« ${capacite} » n'est plus tranchée explicitement : elle hérite du repli, et personne ne le verra`,
+      ).toMatch(new RegExp(`capacite === "${capacite}"[\\s\\S]{0,40}return "fort"`));
+    }
   });
 
   it("mappe chaque tier vers un id de modèle DATÉ (jamais -latest)", () => {

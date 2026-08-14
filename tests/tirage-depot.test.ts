@@ -50,7 +50,10 @@ function fauxClient(erreur: { code: string } | null = null) {
         insert: (ligne: Record<string, unknown>) => {
           journal.ordre.push(`insert:${table}`);
           insertions.push(ligne);
-          return Promise.resolve({ error: erreur });
+          // `.select("id").single()` : la 5.8 relit l'identifiant pour rattacher la LECTURE au
+          // tirage. Le faux client rend la même forme que PostgREST — data + error.
+          const resultat = { data: erreur ? null : { id: "aaaaaaaa-0000-4000-8000-000000000001" }, error: erreur };
+          return { select: () => ({ single: () => Promise.resolve(resultat) }) };
         },
       }),
     },

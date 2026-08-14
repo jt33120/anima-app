@@ -24,7 +24,19 @@ import { creerDepotEnneagramme } from "@/lib/data/depot-enneagramme";
 import { lireFaitsHypothese } from "@/lib/data/lire-enneagramme";
 import { creerDepotSignalReconcept } from "@/lib/data/depot-reconceptualisation";
 import { avancerArc, SIGNAUX_NEUTRES, type EtatArc } from "@/lib/domain/arc-seance";
-import { requeteExtractionArc, extraireSignauxArc } from "@/lib/domain/signaux-arc";
+import { requeteExtractionArc, extraireSignauxArc, extraireDemandeLecture } from "@/lib/domain/signaux-arc";
+import { accesLecture } from "@/lib/domain/acces-lecture";
+import { consigneLecture } from "@/lib/domain/consigne-lecture";
+import {
+  QUESTION_LECTURE,
+  REFUS_DETRESSE,
+  REFUS_MINORITE,
+  REFUS_CONSENTEMENT,
+  OFFRE_LECTURE,
+} from "@/lib/domain/copie-lecture";
+import { causesRefusLecture, lectureEnAttente, ouvrirLecture, cloreLecture, type Lecture } from "@/lib/data/depot-lecture";
+import { lireDescriptionCarte } from "@/lib/corpus/description-cartes";
+import type { CleCarteJeu } from "@/lib/tirage/jeu";
 import { consignePhaseArc } from "@/lib/domain/consigne-phase";
 import { consigneVoixAnam } from "@/lib/domain/consigne-voix";
 import { consigneBilan } from "@/lib/domain/consigne-bilan";
@@ -331,6 +343,8 @@ export async function POST(request: NextRequest) {
   // détresse est LU du verdict (jamais re-détecté — une seule horloge, AD-16/AD-17). Ne plante JAMAIS.
   let arc: ReturnType<typeof avancerArc> | null = null;
   let usageExtractionArc: { tier: TierIa; modele: string; tokensEntree: number; tokensSortie: number } | null = null;
+  /** Story 5.8 — passager de l'extraction d'arc (voir `extraireDemandeLecture`). Repli : `false`. */
+  let demandeLecture = false;
   if (etatArcCharge) {
     try {
       const extraction = await envoyerSousEgressArt9({
@@ -342,6 +356,10 @@ export async function POST(request: NextRequest) {
       if (!extraction.bloque) {
         const dernierTourUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
         signaux = extraireSignauxArc(extraction.reponse.texte, dernierTourUser);
+        // Story 5.8 (AC1) — la DEMANDE DE LECTURE voyage dans cette même sortie : zéro appel de plus,
+        // zéro latence. Elle ne rejoint PAS `SignauxTour` (la machine d'arc ne la consomme pas et n'a
+        // pas à s'élargir) : deux lectures distinctes du même texte. Repli = pas de demande.
+        demandeLecture = extraireDemandeLecture(extraction.reponse.texte);
         // L'extraction d'arc EST métrée (produit — FR-043 n'exempte QUE la détresse) : clé DISTINCTE.
         const u = extraction.reponse.usage;
         usageExtractionArc = {
@@ -442,6 +460,167 @@ export async function POST(request: NextRequest) {
     after(async () => {
       await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence: `${cleIdempotence}:arc`, ...usageArc });
     });
+  }
+
+  // ── ÉTAGE LECTURE (Story 5.8, FR-017→FR-021 · AD-9/AD-11/AD-17) ───────────────────────────────
+  //
+  // Cet étage est le SEUL du pipeline qui prend le tour à son compte : les quatre autres (reconcept,
+  // retour au thème, hypothèse, arc) observent et laissent Anam répondre ; celui-ci REMPLACE la
+  // réponse. Il court-circuite donc la génération, comme le fait le gate d'allocation — et pour la
+  // même raison : ce qui est émis n'est pas une conversation.
+  //
+  // Deux tours distincts, discriminés par l'ÉTAT EN BASE et jamais par un drapeau client :
+  //
+  //   • une lecture est OUVERTE (`reponse is null`) → ce tour est SA PROJECTION → tour de LECTURE ;
+  //   • sinon, et si la demande a été lue → tour de PRÉSENTATION (la carte, puis la question).
+  //
+  // L'ordre des deux n'est pas arbitraire : tant qu'une carte attend une réponse, tout ce qu'elle dit
+  // est la réponse. Tester la demande d'abord ouvrirait un second rituel sur le premier.
+  //
+  // ⚠️ LE GATE DE DÉTRESSE VIT ICI, SÉPARÉMENT DE `clotureAutorisee`. L'expression est la même, et la
+  // partager ferait dépendre une garde de sécurité (AD-17) d'une décision de produit (2.9). Les deux
+  // vivent séparément et sont testées séparément — la leçon de la 5.5.
+  const horsDetresse = niveauSecurite === 0 && !securite.limitesLevees;
+
+  /** Émet une suite de trames et clôt. Aucun appel modèle : ce chemin ne génère rien. */
+  const fluxDeTrames = (trames: readonly Parameters<typeof ligneNdjson>[0][]) =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          const encoder = new TextEncoder();
+          for (const trame of trames) {
+            try {
+              controller.enqueue(encoder.encode(ligneNdjson(trame)));
+            } catch {
+              /* client déjà parti */
+            }
+          }
+          try {
+            controller.close();
+          } catch {
+            /* déjà fermé */
+          }
+        },
+      }),
+      { headers: { ...ENTETES_ART9, "Content-Type": "application/x-ndjson; charset=utf-8" } },
+    );
+
+  let lectureOuverte: Lecture | null = null;
+  if (dernierMessage?.role === "user" && niveauSecurite === 0) {
+    try {
+      lectureOuverte = await lectureEnAttente(supabase);
+    } catch (e) {
+      // Une lecture illisible ne bloque pas le tour : Anam répond normalement, la carte reste
+      // ouverte, et sa réponse sera rattachée au prochain tour. Ne JAMAIS refermer sur un doute.
+      console.error("anam/message : lecture en attente illisible (repli)", { nom: e instanceof Error ? e.name : "inconnu" });
+      lectureOuverte = null;
+    }
+  }
+
+  // ── LE TOUR DE LECTURE ────────────────────────────────────────────────────────────────────────
+  if (lectureOuverte && dernierMessage?.role === "user" && horsDetresse) {
+    const ouverte = lectureOuverte;
+    const sesMots = dernierMessage.content;
+    try {
+      const rendu = await envoyerSousEgressArt9({
+        supabase,
+        adaptateur,
+        // ⚠️ LA CARTE N'EST PAS DANS LA REQUÊTE. Ni sa clé, ni sa description, ni son sens. Le modèle
+        // ne reçoit que ce qu'ELLE dit avoir vu — lui donner l'image l'inviterait à corriger sa
+        // projection, et FR-018 a déjà tranché : c'est sa projection qui fait foi.
+        requete: { capacite: "lecture", messages: [consigneLecture(), ...messages], contientArt9: true, niveauSecurite: 0 },
+      });
+      if (rendu.bloque) return fluxDeTrames([{ t: "erreur" }]);
+      const texte = rendu.reponse.texte.trim();
+      if (!texte) return fluxDeTrames([{ t: "erreur" }]);
+
+      // La clôture est ce qui LIBÈRE l'index partiel. Si elle échoue, la lecture reste ouverte et la
+      // carte reste la sienne : on n'émet pas un document qu'on n'a pas su graver (patron du journal
+      // brut 4.1). Le « Réessayer » du client rejoue le tour sur la MÊME carte.
+      await cloreLecture(supabase, ouverte.id, {
+        reponse: sesMots,
+        restitution: texte,
+        cleTourSource: cleIdempotence,
+      });
+
+      const u = rendu.reponse.usage;
+      after(async () => {
+        await metrerUsageIa({
+          utilisatriceId: user.id,
+          cleIdempotence: `${cleIdempotence}:lecture`,
+          tier: rendu.reponse.tier,
+          modele: rendu.reponse.modele,
+          tokensEntree: u.tokensEntree,
+          tokensSortie: u.tokensSortie,
+        });
+      });
+      return fluxDeTrames([{ t: "lecture", lectureId: ouverte.id, texte }, { t: "fin" }]);
+    } catch (e) {
+      console.error("anam/message : tour de lecture en échec (la carte reste ouverte)", { nom: e instanceof Error ? e.name : "inconnu" });
+      // ⚠️ LA CARTE N'EST PAS RETIRÉE ET N'EST JAMAIS RETIRÉE (UX, échec de UJ-3). Un nouveau tirage
+      // nierait le rituel — et l'index partiel l'interdit de toute façon.
+      return fluxDeTrames([{ t: "erreur" }]);
+    }
+  }
+
+  // ── LE TOUR DE PRÉSENTATION ───────────────────────────────────────────────────────────────────
+  if (demandeLecture && !lectureOuverte && dernierMessage?.role === "user") {
+    // Détresse VIVE (niveau ≥ 1) : cet étage est INERTE et le protocole de détresse (2.3–2.6) répond.
+    // C'est mieux que n'importe quelle phrase écrite ici : lui, il oriente et donne les ressources.
+    if (niveauSecurite === 0) {
+      if (securite.limitesLevees) {
+        // Épisode ouvert, tour calme : aucune carte, AUCUNE OFFRE (AD-9), Anam reste.
+        return fluxDeTrames([{ t: "delta", c: REFUS_DETRESSE }, { t: "fin" }]);
+      }
+      let acces;
+      try {
+        const causes = await causesRefusLecture(supabase);
+        let premiumLecture = false;
+        try {
+          premiumLecture = await estPremiumCourante();
+        } catch (e) {
+          // Direction du doute INVERSÉE par rapport au quota (3.4) : ici le doute SUSPEND le commerce
+          // — on présume premium, on ouvre le rituel, et on ne montre pas d'offre sur une panne de
+          // lecture. Le socle n'est jamais coupé ; une offre affichée à tort est un défaut, le
+          // rituel ouvert à tort n'en est pas un.
+          console.error("anam/message : lecture premium (rituel) en repli — offre retenue", { nom: e instanceof Error ? e.name : "inconnu" });
+          premiumLecture = true;
+        }
+        acces = accesLecture(causes, premiumLecture);
+      } catch (e) {
+        // Les causes illisibles : on n'ouvre pas le rituel sur un doute (une carte tirée ne se
+        // retire jamais) et on ne dit pas une cause qu'on ne connaît pas. Anam répond normalement.
+        console.error("anam/message : causes de refus illisibles (rituel non ouvert)", { nom: e instanceof Error ? e.name : "inconnu" });
+        acces = null;
+      }
+
+      if (acces && acces.type !== "ouvert") {
+        const phrase =
+          acces.type === "detresse" ? REFUS_DETRESSE
+          : acces.type === "minorite" ? REFUS_MINORITE
+          : acces.type === "consentement" ? REFUS_CONSENTEMENT
+          : OFFRE_LECTURE;
+        return fluxDeTrames([{ t: "delta", c: phrase }, { t: "fin" }]);
+      }
+
+      if (acces) {
+        try {
+          const { lecture, dejaOuverte } = await ouvrirLecture(supabase, user.id);
+          const desc = lireDescriptionCarte(lecture.carte as CleCarteJeu);
+          const trames: Parameters<typeof ligneNdjson>[0][] = [
+            { t: "carte", cle: lecture.carte, description: desc.statut === "ecrit" ? desc.texte : null },
+          ];
+          // Une carte DÉJÀ présentée ne repose pas sa question : la reposer sous la même carte a
+          // l'air d'un bug, et l'est. On redépose le visuel (le fil a pu être rechargé), rien d'autre.
+          if (!dejaOuverte) trames.push({ t: "delta", c: QUESTION_LECTURE });
+          trames.push({ t: "fin" });
+          return fluxDeTrames(trames);
+        } catch (e) {
+          console.error("anam/message : ouverture de lecture en échec", { nom: e instanceof Error ? e.name : "inconnu" });
+          return fluxDeTrames([{ t: "erreur" }]);
+        }
+      }
+    }
   }
 
   // ── RÉPONSE PAR NIVEAUX (Story 2.6, AD-16/AD-5) ───────────────────────────────────────────────

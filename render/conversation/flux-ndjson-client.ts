@@ -26,7 +26,20 @@ export type TrameRecue =
   | { t: "paywall" }
   /** Allocation résiduelle épuisée (Story 3.4) : signal PUR, aucun payload. SEULE trame du flux quand
    *  on coupe (aucun delta, aucun `fin`) — la copie (ligne système + motif) vit côté client. */
-  | { t: "quota" };
+  | { t: "quota" }
+  /**
+   * LA CARTE DÉPOSÉE (Story 5.8) : NON terminale — le visuel se pose, puis la question arrive en
+   * `delta`, puis `fin`.
+   *
+   * ⚠️ DEUX CHAMPS, ET C'EST UNE GARDE, PAS UNE ÉCONOMIE. Il n'y a pas de champ de signification et
+   * il n'y en aura pas (FR-018) : le catalogue de sens existe côté serveur et n'a AUCUNE
+   * représentation client avant la réponse de l'utilisatrice. `description` dit ce qui est DESSINÉ —
+   * la matière que l'œil reçoit — jamais ce que ça veut dire ; elle peut être `null` (23 des 24
+   * visuels ne sont pas encore dessinés, et le rendu dit l'absence plutôt que de la combler).
+   */
+  | { t: "carte"; cle: string; description: string | null }
+  /** LA LECTURE (Story 5.8) : bloc DOCUMENT, comme `bilan`. NON terminale — `fin` suit. */
+  | { t: "lecture"; lectureId: string; texte: string };
 
 /** Beat d'apparition d'Anam (Story 2.7). Miroir client du variant serveur `flux-ndjson.ts`. */
 export type BeatRecu = "ouverture" | "nommer" | "cloture";
@@ -67,7 +80,33 @@ export function analyserTrame(ligne: string): TrameRecue | null {
   if (t === "bilan") return analyserBilan(obj);
   if (t === "paywall") return { t: "paywall" }; // signal pur (Story 3.2), aucun champ à valider
   if (t === "quota") return { t: "quota" }; // signal pur (Story 3.4), aucun champ à valider
+  if (t === "carte") return analyserCarte(obj);
+  if (t === "lecture") return analyserLecture(obj);
   return null;
+}
+
+/**
+ * Valide STRICTEMENT une trame `carte` (Story 5.8). `cle` non vide obligatoire ; `description`
+ * facultative — `null` quand le visuel n'est pas encore dessiné, et c'est un état NORMAL du produit
+ * aujourd'hui (23 cartes sur 24).
+ *
+ * ⚠️ TOUT CHAMP SUPPLÉMENTAIRE EST IGNORÉ, ET C'EST LA DERNIÈRE LIGNE DE DÉFENSE DE FR-018. Si un
+ * jour le serveur émettait un `sens` — par accident, par refactor, par zèle —, il n'atteindrait pas
+ * le fil : cette fonction reconstruit la trame champ par champ au lieu de la laisser passer.
+ */
+function analyserCarte(obj: object): TrameRecue | null {
+  const o = obj as { cle?: unknown; description?: unknown };
+  if (typeof o.cle !== "string" || o.cle.length === 0) return null;
+  const description = typeof o.description === "string" && o.description.length > 0 ? o.description : null;
+  return { t: "carte", cle: o.cle, description };
+}
+
+/** Valide STRICTEMENT une trame `lecture` (Story 5.8) : un identifiant et un texte, tous deux non vides. */
+function analyserLecture(obj: object): TrameRecue | null {
+  const o = obj as { lectureId?: unknown; texte?: unknown };
+  if (typeof o.lectureId !== "string" || o.lectureId.length === 0) return null;
+  if (typeof o.texte !== "string" || o.texte.length === 0) return null;
+  return { t: "lecture", lectureId: o.lectureId, texte: o.texte };
 }
 
 /**

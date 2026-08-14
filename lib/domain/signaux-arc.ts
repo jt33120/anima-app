@@ -29,6 +29,11 @@ export const INSTRUCTION_EXTRACTION_ARC = [
   "CONFIRMATION: (l'utilisatrice a confirmé explicitement une reformulation d'Anam)",
   "REJET: (l'utilisatrice a rejeté une proposition ou une interprétation d'Anam)",
   "RESTITUTION: (ce tour relie et restitue un fil déjà tissé plus tôt dans la séance)",
+  // Story 5.8 — la DEMANDE DE LECTURE. Ce n'est pas un signal d'arc (la machine ne la consomme
+  // jamais) : c'est un passager de la même passe, pour la raison écrite dans `extraireDemandeLecture`.
+  "DEMANDE_LECTURE: (l'utilisatrice demande explicitement une lecture, c'est-à-dire le rituel où une",
+  "  carte est tirée — pas un livre, pas une lecture au sens de lire un texte, pas un simple souhait",
+  "  d'être comprise. `non` si elle parle de lire, de relire, ou de ce qu'elle a lu.)",
   "En cas de doute, réponds `non` : ne fais jamais franchir un seuil qui n'est pas manifeste.",
 ].join("\n");
 
@@ -72,6 +77,43 @@ export function extraireSignauxArc(sortieModele: string, dernierTourUtilisateur:
     rejetProposition: lireBooleen(sortieModele, "REJET"),
     restitution: lireBooleen(sortieModele, "RESTITUTION"),
   };
+}
+
+/**
+ * LA DEMANDE DE LECTURE (Story 5.8, AC1) — lue dans la MÊME sortie, jamais dans un appel de plus.
+ *
+ * ── POURQUOI ELLE VOYAGE ICI ──────────────────────────────────────────────────────────────────
+ *
+ * L'UX interdit un bouton « tirer une carte » dans le composeur : « le rituel se demande, il ne se
+ * déclenche pas ». La formulation est donc libre, et la reconnaître réclame un modèle. Trois places
+ * étaient possibles, et deux sont fermées :
+ *
+ *   - un étage de détection DÉDIÉ en tour → un appel bloquant de plus à CHAQUE tour, pour un
+ *     événement rare. Refusé : la latence se paie sur tous les tours, le bénéfice sur un sur cent ;
+ *   - un étage en `after()` (patron reconceptualisation / retour au thème / hypothèse) → impossible :
+ *     `after()` s'exécute APRÈS la réponse, et la demande doit agir sur CE tour-ci ;
+ *   - cette passe, qui tourne DÉJÀ en tour, au tier fort, sous egress art. 9. Coût marginal : nul.
+ *
+ * ── CE QU'ELLE N'EST PAS ──────────────────────────────────────────────────────────────────────
+ *
+ * ⚠️ ELLE NE REJOINT PAS `SignauxTour`. La machine d'arc (`avancerArc`) est une machine d'état dont
+ * chaque entrée a été pesée ; y glisser un signal qu'elle ne consomme pas l'élargirait sans raison et
+ * inviterait un futur `if` à s'en servir. La demande de lecture est un passager de la requête, pas un
+ * signal de l'arc — deux fonctions distinctes sur la même sortie.
+ *
+ * ── LE REPLI EST « NON », ET C'EST LE BON SENS ────────────────────────────────────────────────
+ *
+ * Sortie illisible, extraction bloquée par l'egress, trace de séance absente : pas de demande vue ce
+ * tour-là. Elle redemandera — c'est exactement le comportement d'un rituel qui « se demande » : il
+ * n'a pas à être infaillible au premier mot. Le contraire (ouvrir sur un doute) tire une carte que
+ * personne n'a demandée, et une carte tirée ne se retire jamais.
+ *
+ * Ce qui serait un DÉFAUT, et qu'on refuse explicitement : dégrader vers un `includes("lecture")`
+ * côté serveur. Un tel filtre ouvrirait le rituel sur « j'ai fini ma lecture du soir » — c'est
+ * précisément ce que la ligne d'instruction écarte à voix haute.
+ */
+export function extraireDemandeLecture(sortieModele: string): boolean {
+  return lireBooleen(sortieModele, "DEMANDE_LECTURE");
 }
 
 /**

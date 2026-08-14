@@ -46,6 +46,10 @@ export interface RappelsFlux {
   /** Allocation résiduelle épuisée (Story 3.4) : SEULE trame du flux (aucun texte). Ni succès ni échec
    *  re-tentable → aucun « Réessayer ». Le placeholder d'Anam est retiré, le composeur passe désactivé-visible. */
   onQuota?: () => void;
+  /** La carte déposée (Story 5.8) : NON terminale, passive (le composeur garde le focus, AC3). */
+  onCarte?: (cle: string, description: string | null) => void;
+  /** La lecture (Story 5.8) : bloc document, NON terminal. Aucun texte d'Anam ne l'accompagne. */
+  onLecture?: (lectureId: string, texte: string) => void;
 }
 
 export function useFluxAnam() {
@@ -144,6 +148,14 @@ export function useFluxAnam() {
               // Proposition d'abonnement (3.2), NON terminale : la carte s'insère SOUS le bilan, on
               // CONTINUE de lire jusqu'à `fin`. Passive : ne vole jamais le focus (composeur actif).
               rappels.onPaywall?.();
+            } else if (trame.t === "carte") {
+              // La carte (5.8), NON terminale : elle se pose, puis la question arrive en `delta`, puis
+              // `fin`. Passive : ne vole jamais le focus (le composeur le prend, et c'est lui qui doit
+              // l'avoir — elle a une question à laquelle répondre).
+              rappels.onCarte?.(trame.cle, trame.description);
+            } else if (trame.t === "lecture") {
+              // La lecture (5.8), NON terminale : bloc document, aucun texte d'Anam ne l'accompagne.
+              rappels.onLecture?.(trame.lectureId, trame.texte);
             } else if (trame.t === "quota") {
               // Allocation épuisée (3.4) : SEULE trame du flux (aucun delta, aucun `fin`). TERMINALE —
               // on cesse de lire. Mais NI succès (aucun texte d'Anam) NI échec re-tentable (retenter

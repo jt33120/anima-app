@@ -19,13 +19,18 @@ import "server-only";
 // `hypothese_enneagramme` (Story 5.5) = « ce que cette personne raconte d'elle correspond-il à un
 // type ? ». FORT, et tranché EXPLICITEMENT dans `politique-tier` : l'objet touche à l'IDENTITÉ.
 // Se tromper ne coûte pas une phrase maladroite, ça pose une étiquette fausse sur quelqu'un.
+// `lecture` (Story 5.8) = le texte long qui part de CE QU'ELLE A PROJETÉ sur la carte. FORT, et
+// tranché explicitement dans `politique-tier` : registre document, il reprend ses mots en clair et
+// n'a pas droit à la prédiction. C'est la capacité où vit toute la personnalisation du rituel —
+// jamais dans la sélection de la carte, qui elle ne sait rien de personne (AD-11, FR-019).
 export type CapaciteIa =
   | "echange"
   | "reconceptualisation"
   | "synthese"
   | "detection"
   | "retour_theme"
-  | "hypothese_enneagramme";
+  | "hypothese_enneagramme"
+  | "lecture";
 export type TierIa = "leger" | "fort";
 /** Niveau de détresse (Story 2.3 le PRODUIT ; ici, la politique le CONSOMME — défaut 0). */
 export type NiveauSecurite = 0 | 1 | 2 | 3;

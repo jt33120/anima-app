@@ -105,6 +105,42 @@ export type Tour =
       readonly role: "hypothese-enneagramme";
       readonly phrase: string;
       readonly hypotheseId: string;
+    }
+  /**
+   * LA CARTE DÉPOSÉE (Story 5.8, AC2). Tour du fil, comme tout ce qu'Anam pose.
+   *
+   * ⚠️ AUCUN CHAMP DE SIGNIFICATION, ET C'EST L'AC2 [DUR]. Pas de `sens`, pas de mot-clé, pas de nom
+   * affichable — le catalogue de sens existe côté serveur et n'a AUCUNE représentation client avant
+   * la réponse de l'utilisatrice (FR-018). Même garde que `invitation-integration`, où le COMPTE ne
+   * franchit pas la frontière : ce que le rendu n'a pas, il ne peut pas l'afficher.
+   *
+   * `cle` désigne un fichier de visuel — elle ne s'affiche jamais (l'UX interdit de nommer la carte
+   * devant celle qui la tire). `description` dit ce qui est DESSINÉ, pour le texte alternatif ;
+   * `null` quand le visuel n'est pas encore dessiné, et le rendu dit alors l'absence.
+   *
+   * ⚠️ PAS D'`ancreId`, ET C'EST DÉLIBÉRÉ — c'est l'inverse exact du patron `ressource`/`bilan`/
+   * `paywall`. Ceux-là se purgent avec le tour d'Anam au « Réessayer » ; la carte, jamais : « la
+   * carte n'est pas retirée et n'est JAMAIS retirée » (UX, échec de UJ-3). Un nouveau tirage nierait
+   * le rituel. Ne pas lui donner d'ancre est ce qui rend la purge impossible plutôt qu'interdite.
+   */
+  | {
+      readonly id: string;
+      readonly role: "carte";
+      readonly cle: string;
+      readonly description: string | null;
+    }
+  /**
+   * LA LECTURE (Story 5.8, AC4/AC6). Bloc DOCUMENT, même registre que le bilan : elle reprend ses
+   * mots en clair et échappe à la troncature à trois phrases de la voix (FR-084).
+   *
+   * `lectureId` la relie à « Mes lectures » — sans lui, la restitution consultable et le bloc du fil
+   * seraient deux textes sans lien, et FR-021 demande précisément qu'ils n'en fassent qu'un.
+   */
+  | {
+      readonly id: string;
+      readonly role: "lecture";
+      readonly lectureId: string;
+      readonly texte: string;
     };
 
 /** Le petit cycle local d'une proposition de branche dans le fil (Story 4.5). */

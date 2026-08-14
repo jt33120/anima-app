@@ -43,3 +43,50 @@
   margin: 0;
   color: var(--texte-doux);
 }
+
+/* La halte « Mes lectures » (Story 5.8). Même gabarit que `/synthese` : une halte se pose
+   par-dessus la scène — largeur de lecture, respiration, jamais pleine largeur. */
+.halte {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: var(--esp-7) var(--esp-4) var(--esp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-5);
+}
+
+/* ── La restitution écrite (Story 5.8, FR-021) ────────────────────────────────────────────────
+   Registre document : la prose respire en paragraphes. Bornée à `--contenu-max` comme tout
+   document ; le texte de lecture soutenue reste sous `--mesure` par la typographie globale. */
+.restitution {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  width: 100%;
+  max-width: var(--contenu-max);
+  margin: 0;
+  padding: var(--esp-5);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  background: var(--surface);
+}
+
+.restitution p {
+  margin: 0;
+}
+
+/* SES MOTS. Filet vertical à gauche — le même signe que son tour dans le fil — et `--texte` à
+   PLEINE VALEUR : on ne met jamais ses mots en sourdine (DESIGN.md, `tour-utilisatrice`). La
+   distinction d'avec la prose d'Anam se fait par le filet et le retrait, jamais par l'extinction. */
+.sesMots {
+  margin: 0;
+  padding-left: var(--esp-4);
+  border-left: 2px solid var(--bordure-forte);
+  color: var(--texte);
+}
+
+/* La carte dans la halte : plus petite que dans le fil — c'est un document qu'on relit, pas un
+   moment qu'on vit. Le rapport 2/3 est conservé par `.carte`. */
+.restitution .carte {
+  max-width: 12rem;
+}

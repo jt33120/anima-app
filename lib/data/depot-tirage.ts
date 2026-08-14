@@ -51,14 +51,24 @@ export async function deposerTirage(
   supabase: ClientJwt,
   utilisatriceId: string,
   tirage: Tirage,
-): Promise<void> {
-  const { error } = await supabase.from("tirage").insert({
-    utilisatrice_id: utilisatriceId,
-    carte: tirage.cle,
-    graine: tirage.graine,
-    taille_jeu: tirage.tailleJeu,
-  });
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("tirage")
+    .insert({
+      utilisatrice_id: utilisatriceId,
+      carte: tirage.cle,
+      graine: tirage.graine,
+      taille_jeu: tirage.tailleJeu,
+    })
+    // L'identifiant est relu parce que la 5.8 en a besoin pour rattacher la LECTURE au tirage — le
+    // rattachement est ce qui ferme le re-tirage (`lecture.tirage_id` unique, 0051). Le générer côté
+    // client pour l'éviter reviendrait à laisser l'écrivain choisir la clé primaire d'un journal
+    // d'audit ; il vaut mieux un aller-retour de plus.
+    .select("id")
+    .single();
   if (error) throw new Error(`tirage.deposer: ${error.code ?? "echec"}`);
+  if (!data?.id) throw new Error("tirage.deposer: identifiant absent");
+  return data.id as string;
 }
 
 /**
@@ -69,8 +79,11 @@ export async function deposerTirage(
  * interdit (« ne jamais faire : proposer un re-tirage »). Une carte tirée sans trace journalisée est
  * une carte qu'on ne peut pas auditer ; mieux vaut la perdre que la montrer.
  */
-export async function tirerEtDeposer(supabase: ClientJwt, utilisatriceId: string): Promise<Tirage> {
+export async function tirerEtDeposer(
+  supabase: ClientJwt,
+  utilisatriceId: string,
+): Promise<Tirage & { readonly id: string }> {
   const tirage = tirerUneCarte();
-  await deposerTirage(supabase, utilisatriceId, tirage);
-  return tirage;
+  const id = await deposerTirage(supabase, utilisatriceId, tirage);
+  return { ...tirage, id };
 }

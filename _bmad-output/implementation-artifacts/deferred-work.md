@@ -800,6 +800,83 @@ troisième policy sera réécrite, pas avant.
   [lib/tirage/jeu.ts, → Anima]
 
 
+## Story 5.8 — le rituel de lecture & la restitution écrite
+
+**Deux résidus de la 5.7 sont FERMÉS ici**, et par des lignes nommables :
+- « rien n'empêche de tirer dix fois de suite » → `create unique index lecture_une_seule_en_attente
+  on public.lecture (utilisatrice_id) where reponse is null` (0051) + la relecture sur `23505`
+  (`lib/data/depot-lecture.ts`). Doublé par l'unicité de `lecture.tirage_id`, qui ferme la porte de
+  derrière (tirer dix fois, regarder, puis n'ouvrir la lecture que sur celle qui plaît).
+- « le `42501` indistinct » → `causes_refus_lecture()` (0051) + `lib/domain/acces-lecture.ts`.
+
+- **LA GARDE PREMIUM MANQUAIT DANS LA POLICY, ET C'EST LE DÉFAUT LE PLUS SÉRIEUX DE CETTE STORY.**
+  `lecture_depot` a été écrite avec les quatre gardes de 0050 (propriété, art. 9, minorité, détresse)
+  **sans** `est_premium_courante()` — alors que 0037 dit en toutes lettres qu'« une garde premium
+  posée uniquement dans la RPC serait décorative ». La route arbitrait correctement, mais
+  `authenticated` détient le grant INSERT table-level : un `.insert()` direct ouvrait une lecture
+  premium sans jamais croiser la route. Trouvé en relisant la doctrine des migrations voisines, pas
+  par un test — **aucun test ne cherchait ce qui n'avait pas été écrit**. Réparé, et le mutant qui
+  retire la ligne est tué par trois tests. [supabase/migrations/0051_lecture.sql]
+
+- **MON PROPRE HARNAIS DE MUTATION A RENDU CINQ NON-VERDICTS, ET C'EST LA LEÇON DE LA 5.7 RÉPÉTÉE.**
+  Il décidait « la migration est-elle valide ? » en cherchant l'absence du mot « error » après le nom
+  du fichier dans la sortie texte de `supabase db reset` — une heuristique sur de la prose de CLI.
+  Cinq mutants sur dix sont revenus « indécidable ». Repris avec un harnais qui interroge **Postgres**
+  (`select to_regclass('public.lecture') is not null`) : les cinq sont tués. Et le 502 sur
+  « Restarting containers » s'est reproduit, à l'identique de la 5.7. **Un contrôle qui lit du texte
+  libre n'est pas un contrôle.** [→ toute campagne SQL future]
+
+- **UN TEST DE FRONTIÈRE PEUT ÊTRE VERT EN NE GARDANT RIEN, ET LE MIEN L'ÉTAIT.** La garde « le
+  « Réessayer » ne purge jamais la carte » cherchait la chaîne `t.role === "carte"` dans le filtre. Le
+  mutant naturel — celui qu'on écrit spontanément pour exclure la carte d'un filtre de conservation —
+  s'écrit `t.role !== "carte"`, et passait sous le nez de l'assertion. Corrigé en cherchant le MOT,
+  commentaires retirés. **Une assertion `not.toContain` sur une forme syntaxique précise ne garde que
+  cette forme-là.** [tests/lecture-frontiere.test.ts]
+
+- **Le survivant assumé de la 5.5 est fermé.** Retirer `if (capacite === "lecture") return "fort"` ne
+  change rien au comportement (le repli rend « fort »), donc aucun test comportemental ne peut le
+  voir. La garde ne pouvait vivre que dans la source : un test vérifie désormais que
+  `hypothese_enneagramme` **et** `lecture` sont tranchées explicitement. [tests/politique-tier.test.ts]
+
+- **LA DEMANDE DE LECTURE N'EST PAS VUE QUAND LA TRACE DE SÉANCE EST ILLISIBLE.** Le signal voyage
+  dans la passe d'extraction d'arc, qui ne tourne que `if (etatArcCharge)`. Repli assumé : elle
+  redemandera. Ce qui a été explicitement REFUSÉ, c'est de dégrader vers un `includes("lecture")`
+  serveur — un tel filtre ouvrirait le rituel sur « j'ai fini ma lecture du soir », et une carte tirée
+  ne se retire jamais. [lib/domain/signaux-arc.ts]
+
+- **LE TIRAGE PERDANT D'UNE COURSE RESTE ORPHELIN DANS LE JOURNAL, ET ON NE L'EFFACE PAS.** Deux
+  onglets, deux tirages, un seul rattaché. Le perdant n'est rattachable à aucune lecture
+  (`tirage_id` unique) donc il ne peut pas resservir. L'effacer donnerait un journal d'audit plus
+  propre que la réalité. [lib/data/depot-lecture.ts]
+
+- **« MES LECTURES » N'EST ATTEIGNABLE QUE PAR SON URL.** Le menu de compte (la feuille qui liste
+  *Aide et ressources, Ce qu'Anam retient, La synthèse, Mes lectures, L'abonnement, Mes données, Ce
+  que j'ai accepté, Réglages*) **n'existe pas encore** comme composant — `/synthese` et `/enneagramme`
+  sont dans le même cas. La place de la halte dans l'ordre invariable est documentée dans son en-tête ;
+  le menu reste à construire. [app/lectures/page.tsx, → refonte de l'entrée / Epic 6]
+
+- **Le `delete` sur `lecture` existe (FR-067) mais n'est rattaché à AUCUN inventaire d'effacement.**
+  Même statut que `tirage` en 5.7 : la policy est là, le moteur unique d'effacement (AD-14) est
+  l'Epic 6, et c'est lui qui devra énumérer `lecture` — sans quoi une lecture survivrait à une
+  demande de suppression. [supabase/migrations/0051_lecture.sql, → 6-7]
+
+- **La conformité du TEXTE GÉNÉRÉ n'est pas prouvable par un test statique**, et la frontière est la
+  même que pour le bilan (2.9) et la synthèse (4.9) : la consigne porte les interdits AU RUNTIME
+  (aucune prédiction FR-020, ne jamais nommer la carte, aucun lexique clinique), le contrôle bloquant
+  ne scanne que les libellés STATIQUES. Une lecture qui prédit passerait. [lib/domain/consigne-lecture.ts]
+
+- **LES 23 VISUELS MANQUANTS SONT DÉSORMAIS VISIBLES À L'ÉCRAN.** Jusqu'ici `CarteTiree` était livré
+  isolé, monté nulle part : l'absence honnête n'était vue par personne. Le rituel la montre. Sur 24
+  tirages, 23 rendent « Le visuel de cette carte n'est pas encore dessiné. » — c'est honnête, et ce
+  n'est pas publiable. La commande d'art est bloquée par la Q1 (les noms) chez Anima.
+  [render/lecture/visuels.ts, → porte avant publication]
+
+- **Le catalogue de sens reste DÉBRANCHÉ**, derrière une couture unique (`consigneLecture()`), en
+  attente de la Q2 d'Anima. Les trois issues sont sans dette : « note privée » et « garde-fou »
+  ajoutent un paramètre à cette seule signature ; « suppression » retire `lib/lecture/sens-cartes.ts`
+  sans toucher au reste. [lib/domain/consigne-lecture.ts, → Anima]
+
+
 ---
 
 **Fragilité de suite observée, non corrigée** : les fichiers de tests SQL frappent le même Postgres local

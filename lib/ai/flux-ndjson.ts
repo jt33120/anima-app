@@ -58,7 +58,31 @@ export type TrameClient =
    * ce tour). Émise UNIQUEMENT hors détresse (jamais si `limites_levees`, AC6), post-séance, non premium,
    * allocation atteinte (gate serveur, route). Ce n'est PAS un paywall : jamais « Passe au premium ».
    */
-  | { t: "quota" };
+  | { t: "quota" }
+  /**
+   * LA CARTE DÉPOSÉE (Story 5.8, AC2). Émise au tour de PRÉSENTATION, avant la question.
+   *
+   * ⚠️ DEUX CHAMPS, ET LE TROISIÈME EST CE QUI N'EST PAS LÀ. `cle` désigne un fichier de visuel (elle
+   * ne s'affiche jamais : l'UX interdit de nommer la carte devant celle qui la tire) ; `description`
+   * dit ce qui est DESSINÉ, pour que le lecteur d'écran reçoive la même matière que l'œil.
+   *
+   * IL N'Y A PAS DE CHAMP DE SIGNIFICATION, ET IL N'Y EN AURA PAS (FR-018). Le catalogue de sens
+   * existe côté serveur et n'a AUCUNE représentation client avant la réponse de l'utilisatrice — un
+   * champ `sens?: string` posé ici, même optionnel, même jamais rempli, serait la porte par laquelle
+   * la signification traverserait un jour sans que rien ne rougisse.
+   *
+   * `description` peut être absente : 23 des 24 visuels ne sont pas encore dessinés, et le rendu dit
+   * l'absence honnêtement plutôt que de la combler.
+   */
+  | { t: "carte"; cle: string; description: string | null }
+  /**
+   * LA LECTURE (Story 5.8, AC4/AC6). BLOC DOCUMENT — même registre que `bilan`, même raison : elle
+   * reprend ses mots en clair et contourne la troncature à trois phrases de la voix (FR-084).
+   *
+   * `lectureId` permet à « Mes lectures » d'y renvoyer et au fil de porter le lien vers l'échange
+   * source (FR-021). Aucune donnée de sélection ne transite : ni graine, ni taille de jeu, ni sens.
+   */
+  | { t: "lecture"; lectureId: string; texte: string };
 
 /** Sérialise une trame en une ligne NDJSON (JSON compact + `\n` terminal). */
 export function ligneNdjson(trame: TrameClient): string {

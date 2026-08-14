@@ -237,6 +237,10 @@ export default function Conversation({
       // Id du bilan de CE tour (ancre de la carte d'abonnement 3.2). Capturé dans la même clôture que
       // les rappels de flux → `onPaywall` insère la carte sous le bon bilan, sans état partagé.
       let idBilanCourant: string | null = null;
+      // Story 5.8 — ce tour a-t-il rendu une LECTURE ? Le flux du rituel n'émet aucun `delta`, donc
+      // `onFin` arriverait avec une chaîne VIDE et écraserait l'annonce a11y « Ta lecture est
+      // écrite. » par du silence. Le drapeau vit dans la clôture du tour, comme `idBilanCourant`.
+      let lectureRendue = false;
       envoisParTour.current.set(idAnam, { messages, jeton });
       setTours((prev) => [...prev, { id: idAnam, role: "anam", texte: "", etat: "flux" }]);
       setAnnonce("");
@@ -248,6 +252,7 @@ export default function Conversation({
             ),
           ),
         onFin: (complet) => {
+          if (lectureRendue) return; // le document a déjà été posé et annoncé (5.8)
           setTours((prev) =>
             prev.map((t) =>
               t.id === idAnam && t.role === "anam" ? { ...t, texte: complet, etat: "complet" } : t,
@@ -308,6 +313,30 @@ export default function Conversation({
         // détresse/premium — gate serveur). Aucun texte d'Anam ne viendra : on RETIRE le placeholder
         // d'Anam (vide) et on passe le composeur en désactivé-visible. Le message optimiste de
         // l'utilisatrice RESTE. Jamais « Réessayer », jamais « Passe au premium » — le socle reste ouvert.
+        // ── Story 5.8 — LA CARTE SE DÉPOSE (AC2) ──────────────────────────────────────────────
+        // Insérée AVANT le tour d'Anam (la carte paraît, PUIS la question). Passive : elle ne vole
+        // jamais le focus — le composeur le garde, et c'est lui qui doit l'avoir, puisqu'il y a une
+        // question à laquelle répondre.
+        //
+        // ⚠️ AUCUN `ancreId`. C'est l'inverse exact du bloc ressources / bilan / paywall : ceux-là se
+        // purgent avec leur tour d'Anam au « Réessayer », la carte JAMAIS. « La carte n'est pas
+        // retirée et n'est jamais retirée » — un nouveau tirage nierait le rituel.
+        onCarte: (cle, description) => {
+          setTours((prev) =>
+            insererTour(prev, idAnam, "avant", { id: nouvelId(), role: "carte", cle, description }),
+          );
+        },
+        // ── Story 5.8 — LA LECTURE (AC4/AC6) ──────────────────────────────────────────────────
+        // Aucun texte d'Anam n'accompagne ce tour : on RETIRE le placeholder vide (patron `onQuota`)
+        // et on pose le document. Le retirer AVANT d'insérer évite un tour fantôme dans le fil.
+        onLecture: (lectureId, texte) => {
+          lectureRendue = true;
+          setTours((prev) => [
+            ...prev.filter((t) => t.id !== idAnam),
+            { id: nouvelId(), role: "lecture", lectureId, texte },
+          ]);
+          setAnnonce("Ta lecture est écrite.");
+        },
         onQuota: () => {
           setTours((prev) => prev.filter((t) => t.id !== idAnam));
           setQuotaEpuise(true);
@@ -326,8 +355,15 @@ export default function Conversation({
         // Garde de type : seuls les tours PORTEURS DE TEXTE entrent dans l'historique envoyé. Les blocs
         // `ressource` et `bilan` (2.9, sans `texte`) en sont exclus — par le rôle, pas juste par Exclude.
         .filter(
-          (t): t is Extract<Tour, { role: "utilisatrice" | "anam" }> =>
-            t.role === "utilisatrice" || (t.role === "anam" && t.etat === "complet"),
+          (t): t is Extract<Tour, { role: "utilisatrice" | "anam" | "lecture" }> =>
+            t.role === "utilisatrice" ||
+            (t.role === "anam" && t.etat === "complet") ||
+            // Story 5.8 — LA LECTURE ENTRE DANS L'HISTORIQUE, contrairement au bilan. Les deux sont
+            // des blocs document, mais le bilan CLÔT une séance (rien ne le suit) tandis que la
+            // lecture est suivie d'une conversation. Anam qui ne se souviendrait pas, au tour
+            // suivant, du texte qu'elle vient d'écrire serait un défaut visible à la première
+            // question — et « Mes lectures » est un document dont on reparle.
+            t.role === "lecture",
         )
         .map((t) => ({ role: t.role === "utilisatrice" ? "user" : "assistant", content: t.texte }));
       setTours((prev) => [...prev, { id: nouvelId(), role: "utilisatrice", texte }]);

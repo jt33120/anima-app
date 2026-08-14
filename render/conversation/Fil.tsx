@@ -9,6 +9,8 @@ import CarteAbonnement from "./CarteAbonnement";
 import PropositionBranche from "./PropositionBranche";
 import InvitationIntegration from "./InvitationIntegration";
 import HypotheseEnneagramme from "./HypotheseEnneagramme";
+import CarteTiree from "../lecture/CarteTiree";
+import Restitution from "../lecture/Restitution";
 import { estAncreEnBas } from "./composeur-clavier";
 import type { Tour } from "./types";
 import s from "./conversation.module.css";
@@ -111,6 +113,22 @@ export default function Fil({
           />
         ) : t.role === "hypothese-enneagramme" ? (
           <HypotheseEnneagramme key={t.id} phrase={t.phrase} onVoir={onAllerVersHypothese} />
+        ) : t.role === "carte" ? (
+          // Story 5.8 — la carte se dépose. Aucune animation d'entrée : « la carte est déjà là ».
+          // La `key` porte l'id du TOUR, pas la clé de carte : deux lectures successives sur la même
+          // carte (c'est possible, le tirage est uniforme) doivent être deux tours distincts, sinon
+          // React réutilise le nœud et la seconde n'apparaît jamais (le piège de la 4.6).
+          <CarteTiree
+            key={t.id}
+            carte={{
+              cle: t.cle,
+              description: t.description === null ? { statut: "non_ecrit" } : { statut: "ecrit", texte: t.description },
+            }}
+          />
+        ) : t.role === "lecture" ? (
+          // Ses mots ne sont pas repris ici : son propre tour est juste au-dessus dans le fil. Ils le
+          // sont dans « Mes lectures », où il n'y a plus de fil autour (FR-021).
+          <Restitution key={t.id} texte={t.texte} />
         ) : (
           <TourUtilisatrice key={t.id} texte={t.texte} />
         ),

@@ -145,7 +145,12 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
   seule forme conforme à FR-054 + FR-086. **Mais c'est le PREMIER ÉCRAN.** L'accueil n'est pas
   publiable en l'état. Priorité d'écriture : les 87 créneaux du quotidien
   (`corpus-quotidien-a-ecrire.md`) avant tout le reste — ce sont eux qui remplissent la vitrine.
-- **⚠️ LES 24 VISUELS DU JEU N'EXISTENT PAS (Story 5.7, FR-022).** Le tirage est mécaniquement
+- **⚠️ 23 DES 24 VISUELS DU JEU N'EXISTENT PAS, ET DEPUIS LA 5.8 ÇA SE VOIT À L'ÉCRAN
+  (Stories 5.7/5.8, FR-022).** Tant que `CarteTiree` était livré isolé, monté nulle part, l'absence
+  n'était vue par personne. **Le rituel de lecture la montre** : sur 24 tirages, 23 rendent « Le
+  visuel de cette carte n'est pas encore dessiné. » C'est honnête, et ce n'est pas publiable — cette
+  porte est passée de « à préparer » à **bloquante**. Seul `puits` (la carte mère, style validé)
+  existe. Le tirage, lui, est mécaniquement
   irréprochable — arité nulle, CSPRNG, échantillonnage par rejet, journal rejouable — et il n'a
   **rien à montrer**. Chaque carte le dit à l'écran plutôt que d'afficher un dos de carte générique :
   un substitut « en attendant » serait littéralement un visuel non créé pour Anima, à la place d'un

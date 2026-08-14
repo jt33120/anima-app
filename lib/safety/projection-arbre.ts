@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { creerDepotBranche } from "@/lib/data/depot-branche";
-import { lireThemeNatal } from "@/lib/data/depot-theme-natal";
+import { lireThemeNatal, type ResultatThemeNatal } from "@/lib/data/depot-theme-natal";
 import { manqueLHeure } from "@/lib/domain/socle-incomplet";
 import { MESSAGE_SANS_HEURE, OU_TROUVER_SON_HEURE } from "@/lib/domain/message-sans-heure";
 import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
@@ -102,9 +102,19 @@ async function abonnementGerable(supabase: SupabaseClient): Promise<boolean> {
  * `naissance_absente` / `ecriture_refusee` / `lecture_impossible` mènent tous au même silence : sans
  * thème, on ne sait pas ce qui manque, et on ne le devine pas.
  */
-async function troncIncomplet(supabase: SupabaseClient, utilisatriceId: string): Promise<boolean> {
+async function troncIncomplet(
+  supabase: SupabaseClient,
+  utilisatriceId: string,
+  themeDejaLu?: ResultatThemeNatal,
+): Promise<boolean> {
   try {
-    const r = await lireThemeNatal(supabase, utilisatriceId);
+    // ⚠️ `themeDejaLu` N'EST PAS UNE OPTIMISATION (Story 5.6, T8). Depuis que l'accueil affiche le
+    // socle, DEUX chemins de la même page ont besoin du thème natal : celui-ci et la bibliothèque.
+    // Or `lireThemeNatal` peut ÉCRIRE (premier calcul, ou recalcul après ajout de l'heure), et les
+    // deux chemins vivent dans le même `Promise.all` — donc CONCURREMMENT. Deux premiers calculs
+    // simultanés, chacun ~663 lectures d'éphéméride dans le cas dégradé, et deux écritures en
+    // course dont aucune ne voit l'autre. La page lit donc le thème UNE FOIS et le passe.
+    const r = themeDejaLu ?? (await lireThemeNatal(supabase, utilisatriceId));
     return r.statut === "calcule" && manqueLHeure(r.theme);
   } catch (e) {
     journaliserIncidentSecurite("projection_arbre_socle", e);
@@ -115,12 +125,13 @@ async function troncIncomplet(supabase: SupabaseClient, utilisatriceId: string):
 export async function chargerProjectionArbre(
   supabase: SupabaseClient,
   utilisatriceId: string,
+  themeDejaLu?: ResultatThemeNatal,
 ): Promise<ProjectionScene> {
   try {
     const branches = await creerDepotBranche(supabase).chargerBranches();
     const suspendus = await gestesSuspendus(supabase);
     const gerable = await abonnementGerable(supabase);
-    const incomplet = await troncIncomplet(supabase, utilisatriceId);
+    const incomplet = await troncIncomplet(supabase, utilisatriceId, themeDejaLu);
     // Écrire une intention est un dépôt de contenu art. 9 : la fenêtre de détresse la ferme aussi
     // (AD-17, miroir du WITH CHECK de `intention_insertion`). Deux conditions, une seule question posée
     // au rendu — il n'a pas à savoir laquelle des deux a fermé le champ, et surtout pas à le dire.

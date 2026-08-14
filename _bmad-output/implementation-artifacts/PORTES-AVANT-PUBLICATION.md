@@ -128,6 +128,14 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
   `corpus-enneagramme-a-ecrire.md`. C'est la plus courte des trois fiches et la plus délicate — le
   texte est lu par quelqu'un qui vient de dire « oui, ça me parle », et il doit se lire comme une
   proposition, jamais comme un verdict. **165 créneaux déclarés au total, 0 écrit.**
+- **⚠️ DEPUIS LA STORY 5.6, CETTE PORTE EST DEVENUE LA PLUS VISIBLE DU PRODUIT.** L'accueil affiche
+  désormais le socle en cartes — et **deux cartes sur cinq n'ont rien à montrer** : le mantra du jour
+  EST son texte (60 créneaux vides) et l'horoscope ne produit que des clés de corpus (27 vides). Les
+  trois autres montrent des faits calculés sans interprétation. Le code dit l'absence honnêtement
+  (« Anima n'a pas encore écrit cette carte »), sans « bientôt » et sans repli fabriqué — c'est la
+  seule forme conforme à FR-054 + FR-086. **Mais c'est le PREMIER ÉCRAN.** L'accueil n'est pas
+  publiable en l'état. Priorité d'écriture : les 87 créneaux du quotidien
+  (`corpus-quotidien-a-ecrire.md`) avant tout le reste — ce sont eux qui remplissent la vitrine.
 - **La copie de consentement a changé (Story 5.5, D12)** : elle couvre désormais ce qu'Anam
   **déduit**, pas seulement ce que l'utilisatrice partage. Un type d'ennéagramme est produit par un
   score ou inféré par un modèle — l'amont le qualifie de catégorie art. 9. **À faire relire par le

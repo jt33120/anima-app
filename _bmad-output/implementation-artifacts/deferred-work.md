@@ -559,6 +559,9 @@ troisième policy sera réécrite, pas avant.
   cartes) devra afficher une carte de numérologie dont **tous** les textes sont absents. Le rendu de cette
   absence est une vraie question de conception, pas un cas dégradé à traiter à la va-vite.
   [lib/corpus/numerologie.ts]
+  **TRAITÉ le 2026-08-14 (5.6/T5)** : trois états de carte — fait + texte, fait seul, rien. L'absence
+  est DITE, sans « bientôt », sans excuse et sans repli fabriqué. Voir ci-dessous : ce traitement
+  rend la dette d'écriture visible sur le premier écran, ce qui est le vrai sujet.
 
 - **Le détecteur de prédiction ne couvre que le français, et volontairement plus large que nécessaire.**
   « tu pourras » est signalé alors qu'il est souvent anodin — arbitrage assumé (un faux positif coûte une
@@ -608,6 +611,8 @@ troisième policy sera réécrite, pas avant.
   Story 5.6 doit brancher sur `precision`** ; aucune garde ne l'y oblige aujourd'hui. Un champ
   `degreIncertain` sur chaque position aurait été un MIROIR de `precision` (faute R1-bis) — c'est
   pourquoi il n'existe pas. [lib/astro/theme-natal.ts, → 5.6]
+  **SOLDÉ le 2026-08-14 (5.6/T6)** : `carteTheme` branche sur `precision` et n'affiche aucun degré
+  sous `midi_par_defaut`. Deux mutants symétriques (degré toujours / degré jamais) meurent.
 
 - **L'heure de naissance reste WRITE-ONCE : une faute de frappe est définitive.** Décision confirmée
   par Julian le 2026-08-11 : on n'affaiblit pas une garde déployée (0039) comme effet de bord d'une
@@ -620,6 +625,9 @@ troisième policy sera réécrite, pas avant.
   « elle voit son tronc, y compris incomplet ». La 5.3 rend la fiche atteignable dans les trois états
   (un bouton nommé), donc rien n'est inaccessible — mais le DESSIN manque. Antérieur à cette story
   (Story 3.3) ; à traiter avec l'accueil en cartes. [render/arbre/EtatVideArbre.tsx, → 5.6]
+  **SOLDÉ le 2026-08-14 (5.6/T9)** : le chemin du tronc vit désormais dans `render/arbre/Tronc.tsx`,
+  source unique consommée par le canevas ET l'état vide. Le mutant qui le retire de l'état vide
+  rougit trois tests — ce qui prouve au passage que le canevas n'est PAS rendu en parallèle.
 
 - **Le thème natal va être calculé pour de vrai pour la première fois, en production.**
   `lireThemeNatal` n'avait AUCUN appelant applicatif avant cette story. Au premier chargement après
@@ -627,6 +635,11 @@ troisième policy sera réécrite, pas avant.
   dégradé** (aucun lieu n'est capturé aujourd'hui) : fenêtre de 50 h, échantillonnage horaire,
   ~663 lectures d'éphéméride. C'est une fois par compte, jamais deux — mais c'est aussi la première
   mise à l'épreuve réelle du write-gate art. 9 de 0039. [lib/data/depot-theme-natal.ts]
+  **AGGRAVÉ PUIS FERMÉ le 2026-08-14 (5.6/T8)** : l'accueil a ajouté un SECOND lecteur du thème dans
+  le même `Promise.all` que `chargerProjectionArbre` — donc deux premiers calculs CONCURRENTS et deux
+  écritures en course, dont aucune ne voyait l'autre. `app/page.tsx` lit désormais le thème une fois
+  et le passe aux deux (`themeDejaLu`). Reste entier : la première mise à l'épreuve réelle du
+  write-gate art. 9 de 0039, qui arrivera au premier chargement après déploiement.
 
 ## Story 5.4 — l'horoscope et le mantra du jour
 
@@ -646,6 +659,8 @@ troisième policy sera réécrite, pas avant.
   La configuration dominante par-dessus (~un jour sur deux) est ce qui distingue les jours. **La 5.6
   doit le savoir avant de dessiner la carte** — afficher deux jours de suite un texte identique sans
   rien d'autre autour se lirait comme une panne. [→ 5.6]
+  **PRIS EN COMPTE le 2026-08-14 (5.6/D4)** : la bibliothèque porte le JOUR CIVIL jusqu'à l'écran.
+  Deux jours identiques se lisent « le ciel n'a pas bougé » et non « l'application est bloquée ».
 
 - **Environ un jour sur deux n'a AUCUNE configuration dominante.** Estimé, pas mesuré finement : la
   mesure sur août 2026 avec un thème d'exemple donne ≥10 changements de dominante sur 31 jours, mais
@@ -674,6 +689,60 @@ troisième policy sera réécrite, pas avant.
   parade adoptée (exporter la CLÉ, espionner l'ARGUMENT) vaut pour **tous les corpus à venir** —
   5.5 (ennéagramme) et 5.7 (sens des cartes) hériteront du même angle mort s'ils l'oublient.
   [lib/corpus/mantra.ts, → 5.5, → 5.7]
+
+## Story 5.6 — l'accueil, la bibliothèque en cartes
+
+- **DEUX CARTES SUR CINQ N'ONT RIEN À MONTRER, ET C'EST DÉSORMAIS SUR LE PREMIER ÉCRAN.** Le mantra
+  du jour EST son texte (60 créneaux, 0 écrit) ; l'horoscope ne produit que des clés de corpus
+  (27 créneaux, 0 écrit). Les trois autres cartes montrent des faits calculés sans interprétation.
+  La 5.6 n'a pas créé cette dette — elle la rend **visible**, ce qui était l'objet même de la story.
+  **Ce n'est pas de la dette technique : c'est la porte pré-lancement d'écriture, et l'accueil n'est
+  pas publiable tant qu'au moins les 87 créneaux du quotidien ne sont pas écrits**
+  (`corpus-quotidien-a-ecrire.md`). Seule Anima peut les écrire (FR-054 + FR-086). Trois issues, à
+  trancher par Julian : écrire d'abord ; publier avec l'absence dite honnêtement (ce que le code
+  fait) ; ou réduire la bibliothèque à trois cartes — mais UX-DR-30 pose un plancher de quatre.
+  [lib/corpus/mantra.ts, lib/corpus/horoscope.ts]
+
+- **Il n'existe AUCUN corpus de thème natal, et ce n'est pas un oubli de cette story.** Les 5.1 à 5.5
+  ont déclaré des créneaux pour la numérologie (69), l'horoscope (27), le mantra (60) et
+  l'ennéagramme (9) — jamais pour le thème. Son interprétation n'a été cadrée par aucune story, donc
+  la carte du thème montre ses faits et rien d'autre. C'est cohérent et honnête aujourd'hui ; c'est
+  une **décision produit non prise**, pas un trou technique. [lib/domain/cartes-socle.ts]
+
+- **La carte mise en avant CHANGERA quand Anima écrira.** La rotation ne tourne que sur les cartes
+  présentables (AC5 — sinon l'accueil s'ouvrirait deux jours sur cinq sur une carte vide). Cet
+  ensemble grandit à mesure que le corpus se remplit, donc la carte d'un jour donné ne sera pas la
+  même avant et après. Il n'y a pas d'archive en v1 (`EXPERIENCE.md` §607) : personne ne peut
+  constater l'écart. C'est un fait connu, pas un défaut. [lib/domain/bibliotheque.ts]
+
+- **`aPremium` est câblé et sans effet réel.** Aucune carte de la bibliothèque n'est premium avant la
+  5.8 (la lecture) et la 5.9 (l'ancrage). Le filtre est donc exercé par une **fixture explicite** dans
+  `tests/bibliotheque.test.ts`, jamais par une vraie carte. C'est assumé — câbler la mécanique
+  maintenant évite qu'elle se câble dans l'urgence, avec la carte cadenassée qui revient par la porte
+  de derrière (`EXPERIENCE.md` §511). À re-vérifier sur données réelles en 5.8. [lib/data/lire-bibliotheque.ts]
+
+- **Le degré s'affiche en degrés ENTIERS, sans minutes d'arc.** Choix de lisibilité de carte, pas de
+  précision : « Balance, 6° » plutôt que « Balance, 6°31' ». La fiche du socle pourra être plus
+  précise si le besoin apparaît. [lib/domain/cartes-socle.ts]
+
+- **La carte du thème ne montre que CINQ corps** (Soleil, Lune, Mercure, Vénus, Mars) plus
+  l'ascendant. Une carte est un objet qu'on saisit d'un regard, pas un tableau d'éphémérides — mais
+  cela veut dire que Jupiter, Saturne et les transsaturniennes ne sont visibles NULLE PART dans le
+  produit aujourd'hui. La fiche complète du thème n'existe pas encore. [lib/domain/cartes-socle.ts]
+
+- **`lib/data/lire-bibliotheque.ts` n'est PAS dans le balayage lexical « zéro premium ».** Il ne peut
+  pas y être : il porte `aPremium` légitimement. La garde équivalente est comportementale
+  (`socle-jamais-coupe.test.ts` : les cinq cartes du socle survivent à `aPremium = false`), et elle
+  est plus forte — elle interdit le résultat, pas le vocabulaire. Ce qu'aucune garde ne voit : un
+  `if (aPremium)` qui déciderait du CONTENU d'une carte du socle plutôt que de sa présence.
+  [lib/data/lire-bibliotheque.ts]
+
+- **Le substantif « soin » était libre dans tout le produit, et FR-023 le nomme explicitement.**
+  Le lexique bannissait les DÉRIVÉS (formes verbales) et épargnait LE MOT — l'inverse de l'exigence,
+  assumé en toutes lettres par la revue 2.8 et verrouillé par deux assertions de test, dont
+  « des soins de support » (du vocabulaire d'oncologie). Réparé en 5.6/T1, zéro faux positif sur le
+  dépôt entier. **Ce qui reste à en tirer : une garde peut être verrouillée À L'ENVERS par son
+  propre test négatif, et rien ne le signale.** [lib/domain/lexique-interdit.ts]
 
 ---
 

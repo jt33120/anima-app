@@ -48,6 +48,7 @@ import {
 } from "./copie-arbre";
 import FicheBranche, { type ResultatGeste } from "./FicheBranche";
 import FicheTronc from "./FicheTronc";
+import { CheminTronc } from "./Tronc";
 import VueListe from "./VueListe";
 import s from "./arbre.module.css";
 
@@ -428,10 +429,7 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
                   Story 5.3 (AC3) : sans son heure, la MATIÈRE est « en réserve » — le contour reste
                   ENTIER (jamais un pointillé, jamais un fantôme), seule la densité change. Un tronc
                   en pointillés dirait « cassé » ; celui-ci dit « pas encore rempli ». */}
-              <path
-                d="M 500 950 C 470 900 450 880 430 880 M 500 950 C 530 900 550 880 570 880 M 500 950 L 500 560"
-                className={`${s.tronc} ${troncIncomplet ? s.troncEnReserve : ""}`}
-              />
+              <CheminTronc enReserve={Boolean(troncIncomplet)} />
               {placees.map((pl) => {
                 const intensite = intensiteBornee(pl.branche.intensite);
                 return (

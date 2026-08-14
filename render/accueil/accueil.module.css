@@ -1,0 +1,109 @@
+/*
+ * accueil.module.css — La bibliothèque en cartes (région « accueil », Story 5.6).
+ * Charte « nuit galactique » : argent lunaire, accent lotus RÉSERVÉ à la carte du jour.
+ * La carte est un OBJET REÇU, pas une ligne de menu (EXPERIENCE.md, « fiches de bibliothèque »).
+ * Aucun badge, aucun compteur, aucun cadenas — il n'y a pas de classe pour en dessiner un.
+ */
+
+.bibliotheque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  width: 100%;
+  max-width: var(--contenu-max);
+}
+
+.jour {
+  color: var(--texte-doux);
+  margin: 0;
+}
+
+.grille {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--esp-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* `md` et au-delà : deux colonnes (EXPERIENCE.md §492). La carte du jour, en tête, garde toute
+   la largeur — c'est ce qui la met en avant sans avoir besoin d'un badge. */
+@media (min-width: 640px) {
+  .grille {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .item:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.item {
+  display: flex;
+}
+
+.carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  width: 100%;
+  padding: var(--esp-4);
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-md);
+}
+
+.carte h2 {
+  margin: 0;
+  color: var(--texte);
+}
+
+.carte p {
+  margin: 0;
+}
+
+/* La carte du jour : une surface plus haute et un filet d'accent. Rien de clignotant, rien de
+   compté — une carte posée devant, pas une notification. */
+.enAvant {
+  background: var(--surface-elevee);
+  border-color: var(--bordure-forte);
+  padding: var(--esp-5);
+  gap: var(--esp-3);
+}
+
+.mention {
+  color: var(--accent);
+  margin: 0;
+}
+
+.faits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2) var(--esp-5);
+  margin: 0;
+}
+
+.fait {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fait dt {
+  color: var(--texte-doux);
+  margin: 0;
+}
+
+.fait dd {
+  color: var(--texte);
+  margin: 0;
+  /* Les chiffres du socle s'alignent : chemin de vie, année personnelle, degrés. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* L'absence de texte d'Anima. Discrète et lisible — ni une alerte, ni un teasing. */
+.nonEcrit {
+  color: var(--texte-doux);
+  font-style: italic;
+}

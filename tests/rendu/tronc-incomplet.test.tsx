@@ -244,3 +244,55 @@ describe("[5.3 / AC3 / DUR] le mot « incomplet » n'est nulle part, aria compri
     expect(vue.container.innerHTML).toContain(ARIA_TRONC_A_COMPLETER);
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Story 5.6 (T9) — LE TRONC EST DESSINÉ MÊME QUAND L'ARBRE EST VIDE (FR-088, dette de la 3.3)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[5.6/AC9 · FR-088] l'état vide dessine le tronc", () => {
+  /**
+   * ⚠️ CE MANQUE EST RESTÉ INVISIBLE PENDANT TROIS STORIES, et pour une raison instructive : la 5.3
+   * a rendu la FICHE du tronc atteignable dans les trois états, donc rien n'était inaccessible.
+   * Seul le DESSIN manquait — et il manquait exactement au moment où FR-088 compte le plus, le
+   * premier jour, quand aucune branche n'existe encore.
+   *
+   * L'état vide REMPLACE le canevas (vérifié : le mutant qui retire le tronc de `EtatVideArbre`
+   * rougit ces trois tests, donc le canevas n'est bien pas rendu en parallèle).
+   */
+  const VIDE: ProjectionScene = { tronc: { present: true }, branches: [] };
+  const EST_LE_TRONC = "M 500 950 L 500 560";
+
+  const cheminsTronc = (c: HTMLElement) =>
+    Array.from(c.querySelectorAll("path")).filter((p) =>
+      (p.getAttribute("d") ?? "").includes(EST_LE_TRONC),
+    );
+
+  it("[LE TEST QUI COMPTE] un arbre sans branche montre quand même un tronc", () => {
+    const { container } = monter(VIDE);
+    expect(
+      cheminsTronc(container).length,
+      "aucun tronc dessiné dans l'état vide — FR-088 dit « elle voit son tronc, y compris incomplet »",
+    ).toBeGreaterThan(0);
+  });
+
+  it("le tronc de l'état vide est en RÉSERVE quand l'heure manque, entier sinon", () => {
+    const classes = (c: HTMLElement) =>
+      cheminsTronc(c)
+        .map((p) => p.getAttribute("class") ?? "")
+        .join(" ");
+    const complet = classes(monter(VIDE).container);
+    const incomplet = classes(monter(VIDE_INCOMPLET).container);
+    expect(complet, "témoin : le tronc complet est bien dessiné").toContain("tronc");
+    expect(incomplet, "la matière en réserve ne se distingue pas (5.3/AC3)").not.toBe(complet);
+  });
+
+  it("[5.3-AC3] le tronc dessiné n'ANNONCE rien — « incomplet » n'atteint jamais l'écran", () => {
+    // L'écran vide dit déjà en toutes lettres ce qu'il a à dire, et le chemin vers la fiche passe
+    // par un bouton nommé. Un tronc annoncé ferait entendre deux fois la même chose.
+    const { container } = monter(VIDE_INCOMPLET);
+    expect(cheminsTronc(container).length, "témoin : le tronc est bien là").toBeGreaterThan(0);
+    for (const el of Array.from(container.querySelectorAll("svg"))) {
+      expect((el.getAttribute("aria-label") ?? "").toLowerCase()).not.toContain("incomplet");
+    }
+  });
+});

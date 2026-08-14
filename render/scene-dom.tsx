@@ -34,6 +34,8 @@ import ArbreInteractif from "./arbre/ArbreInteractif";
 import Surimpression from "./surimpression";
 import Conversation from "./conversation/Conversation";
 import EchangeSource from "./conversation/EchangeSource";
+import Bibliotheque from "./accueil/Bibliotheque";
+import type { BibliothequeVue } from "./accueil/types";
 import type { OuvertureData } from "./conversation/types";
 import type { ResultatGeste } from "./arbre/FicheBranche";
 import s from "./monde.module.css";
@@ -60,6 +62,15 @@ export interface ProprietesSceneRendue {
    * rendu SIGNALE, la page appelle la Server Action. `render/` ne connaît ni base ni session (AD-7).
    */
   onHypotheseDite?: (hypotheseId: string) => void;
+  /**
+   * Story 5.6 — la bibliothèque de l'accueil, DÉJÀ ORDONNÉE par le serveur (ordre fixe + carte du
+   * jour en tête). Le rendu ne trie ni ne filtre : lui donner ce pouvoir annulerait la garde
+   * « jamais algorithmique » que `lib/domain/bibliotheque.ts` tient (FR-033).
+   *
+   * `null` = la lecture a échoué. La scène s'ouvre quand même (AC7) : l'accueil est une région
+   * parmi quatre, et une panne de socle ne doit fermer ni la conversation ni l'arbre.
+   */
+  bibliotheque?: BibliothequeVue | null;
 }
 
 /* Étoiles générées côté client APRÈS montage → aucun décalage d'hydratation. */
@@ -108,12 +119,18 @@ function Etoiles() {
  */
 const CORPS: Record<IdRegion, string> = {
   seuil: "",
-  accueil: "La bibliothèque de tes repères prendra place ici.",
+  accueil: "", // la région accueil rend <Bibliotheque/> depuis la Story 5.6
   anam: "", // la région anam rend <Conversation/>, jamais ce placeholder (Story 2.2)
   arbre: "Ton arbre grandira à mesure que tu avances.",
 };
 
-export default function SceneDom({ projection, ouverture, onSocleAnnonce, onHypotheseDite }: ProprietesSceneRendue) {
+export default function SceneDom({
+  projection,
+  ouverture,
+  onSocleAnnonce,
+  onHypotheseDite,
+  bibliotheque,
+}: ProprietesSceneRendue) {
   const [etat, dispatch] = useReducer(reducteurVue, etatInitial);
   const region = etat.regionCourante;
   /* Naviguer par la barre ANNULE le rejeu de l'échange source : sans ça, `echangeExtrait` restait collé et
@@ -360,7 +377,15 @@ export default function SceneDom({ projection, ouverture, onSocleAnnonce, onHypo
                 <h1 className="t-titre" tabIndex={-1} ref={(el) => void (entetes.current[r.id] = el)}>
                   {r.nom}
                 </h1>
-                <p className="t-corps">{CORPS[r.id]}</p>
+                {/* Story 5.6 — la bibliothèque remplace le texte d'attente. Une lecture en panne
+                    (`null`) laisse la région vide plutôt que de fermer la scène (AC7). */}
+                {r.id === "accueil" ? (
+                  bibliotheque ? (
+                    <Bibliotheque bibliotheque={bibliotheque} />
+                  ) : null
+                ) : (
+                  <p className="t-corps">{CORPS[r.id]}</p>
+                )}
               </div>
             )}
           </section>

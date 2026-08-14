@@ -6,6 +6,15 @@ import { doitCouperConversation } from "@/lib/domain/allocation-residuelle";
 import { limiteAllocationResiduelle } from "@/lib/ai/allocation-config";
 import { LIGNE_QUOTA_EPUISEE } from "@/render/conversation/ligne-quota";
 import { chargerProjectionArbre } from "@/lib/safety/projection-arbre";
+import { cartesDisponibles } from "@/lib/domain/bibliotheque";
+import {
+  carteEnneagramme,
+  carteHoroscope,
+  carteMantra,
+  carteNombres,
+  carteTheme,
+} from "@/lib/domain/cartes-socle";
+import { NON_ECRIT } from "@/lib/corpus/port";
 
 /**
  * Story 3.3 (T6) — LE SOCLE N'EST JAMAIS COUPÉ (AC4 / FR-055, AC5 / FR-058).
@@ -340,6 +349,36 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
         expect(src, `garde COMMERCIALE sur le socle gratuit dans ${f} : ${gate}`).not.toMatch(gate);
       }
     }
+  });
+
+  it("[FR-055 / Story 5.6] les CINQ cartes du socle survivent à un compte gratuit", () => {
+    // ⚠️ POURQUOI CETTE GARDE EST COMPORTEMENTALE ET NON LEXICALE. `lib/data/lire-bibliotheque.ts`
+    // ne peut PAS entrer dans les listes « aucun mot premium » ci-dessus : il porte `aPremium`, et
+    // légitimement — la bibliothèque est le contenant, et elle accueillera des cartes payantes en
+    // 5.8 (la lecture) et 5.9 (l'ancrage).
+    //
+    // Refuser le mot serait donc impossible ; refuser le RÉSULTAT ne l'est pas. On construit les
+    // cinq VRAIES cartes du socle — pas des doublures — et on vérifie qu'un compte gratuit les
+    // garde toutes. C'est plus fort que le balayage : ça interdit la conséquence, pas le vocabulaire.
+    const socle = [
+      carteMantra(NON_ECRIT),
+      carteHoroscope(null),
+      carteTheme(null),
+      carteNombres(null),
+      carteEnneagramme(null, NON_ECRIT),
+    ];
+    expect(socle, "témoin : les cinq cartes du socle sont bien construites").toHaveLength(5);
+
+    const gratuite = cartesDisponibles(socle, false);
+    expect(
+      gratuite.map((c) => c.cle).sort(),
+      "une carte du socle a disparu pour un compte gratuit — FR-055",
+    ).toEqual(["enneagramme", "horoscope", "mantra", "nombres", "theme"]);
+
+    // Et l'entitlement n'AJOUTE rien non plus : le socle est le même des deux côtés du paywall.
+    expect(cartesDisponibles(socle, true).map((c) => c.cle).sort()).toEqual(
+      gratuite.map((c) => c.cle).sort(),
+    );
   });
 
   it("[FR-055 / Story 5.2] la NUMÉROLOGIE n'est gardée par AUCUN chemin premium", () => {

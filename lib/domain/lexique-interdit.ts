@@ -20,8 +20,9 @@ import { decoderEntites, normaliserTexte, UN_MOT_INTERCALE } from "./normalisati
  *
  * Conception ANTI-FAUX-POSITIF (le cœur — sinon on casse du contenu légitime) :
  *   - normalisation casse + accents (« THÉRAPIE » = « therapie ») ;
- *   - FRONTIÈRES DE MOTS + formes bornées : « soigner » ne matche que les formes VERBALES (jamais
- *     « be**soin** », « soigneusement », « soigneux », « soignant ») ; « santé » seul reste permis
+ *   - FRONTIÈRES DE MOTS + formes bornées : « soin » et « soigner » sont bannis — le substantif ET
+ *     les formes verbales (FR-023 : « le mot soin **et ses dérivés** ») —, jamais « be**soin** »
+ *     (aucune frontière de mot), ni « soigneusement », « soigneux », « soignant » ; « santé » reste permis
  *     (« Fil Santé Jeunes ») — seule « santé mentale » est bannie ; « trouble » n'est banni que gaté
  *     par un déterminant (« **ton** trouble »), jamais « ça me trouble » ; « traiter » est omis
  *     (surchargé RGPD dans cette app) ; l'emoji exige une présentation emoji (jamais © ® ™ ♥) ;
@@ -134,7 +135,7 @@ const MOTIFS_LEXICAUX: Array<{ famille: FamilleInterdit; motif: RegExp }> = [
   { famille: "medical", motif: new RegExp(`\\b(?:ca|cela|tout ca|tout cela) ${UN_MOT_INTERCALE}va ${UN_MOT_INTERCALE}passer\\b`, "g") },
   { famille: "medical", motif: new RegExp(`\\btu ${UN_MOT_INTERCALE}seras ${UN_MOT_INTERCALE}plus heureuse\\b`, "g") },
 
-  // ── « soin/soigner » (FR-023) — le VERBE et la locution, jamais le substantif « soin » ─────────
+  // ── « soin/soigner » (FR-023) — LE MOT LUI-MÊME, ET SES DÉRIVÉS ────────────────────────────────
   // Formes VERBALES bornées (revue 2.8) : jamais l'adverbe « soigneusement », l'adjectif « soigneux »
   // ni le nom « soignant » (orientation vers un pro, légitime).
   //
@@ -144,7 +145,28 @@ const MOTIFS_LEXICAUX: Array<{ famille: FamilleInterdit; motif: RegExp }> = [
   // alternance. Or cette application tutoie une femme : « Anam t'a soignée » est exactement la
   // forme que le produit écrirait, et c'était la seule qui manquait.
   { famille: "soigner", motif: /\bsoign(er|e|ee|es|ees|ent|ait|aient|ais|era|eras|erai|erons|erez|eront|erais|erait)\b/g },
-  { famille: "soigner", motif: /\bprends? soin de\b/g },
+
+  // ⚠️ LE SUBSTANTIF ÉTAIT ÉPARGNÉ, ET C'ÉTAIT L'INVERSE DE L'EXIGENCE (Story 5.6, T1).
+  //
+  // FR-023 se lit : « **Le mot "soin"** et ses dérivés sont proscrits de toute l'interface. » Le
+  // module bannissait les DÉRIVÉS (formes verbales) et épargnait LE MOT — la revue 2.8 l'assumait
+  // en toutes lettres (« jamais le substantif »), par crainte du faux positif sur « be**soin** ».
+  //
+  // Cette crainte n'avait pas de fondement : `\bsoins?\b` ne mord pas sur « besoin » (le `s` y est
+  // précédé d'un `e`, donc aucune frontière de mot). Mesuré le 2026-08-13, ce que le trou laissait
+  // passer, toutes VERTES :
+  //
+  //     « Prendre soin de toi »      « Un soin pour aujourd'hui »      « soin du jour »
+  //     « Des soins quotidiens »     « Ce soin dure trois minutes »
+  //
+  // La première est le libellé d'accueil canonique d'un produit de bien-être — précisément ce que
+  // FR-023 existe pour tenir dehors —, et la 5.6 est la story qui écrit des libellés d'accueil.
+  //
+  // ⚠️ CE MOTIF SUBSUME `prends soin de`, qui vivait ici et a été RETIRÉ. Deux motifs dont l'un
+  // couvre l'autre, c'est une défense redondante : le mutant qui supprime celui-ci resterait
+  // invisible sur « Prends soin de toi », la phrase même qu'on testerait spontanément. Un seul
+  // motif pour une seule règle — et le test de mutation vise donc « Un soin pour aujourd'hui ».
+  { famille: "soigner", motif: /\bsoins?\b/g },
 
   // ── Formulations bannies (FR-085 — charte §3/§4/§6) — des PHRASES ──────────────────────────────
   { famille: "formulation", motif: /\btu as tout a fait raison\b/g },

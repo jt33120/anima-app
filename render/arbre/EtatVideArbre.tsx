@@ -15,6 +15,7 @@
 
 import { VIDE_TITRE, VIDE_CORPS, VIDE_OU_NAISSENT_LES_BRANCHES } from "./copie-arbre";
 import BoutonTronc from "./BoutonTronc";
+import TroncSeul from "./Tronc";
 import s from "./arbre.module.css";
 
 export interface ProprietesEtatVideArbre {
@@ -36,6 +37,19 @@ export interface ProprietesEtatVideArbre {
 export default function EtatVideArbre({ direOuNaissentLesBranches, onOuvrirTronc }: ProprietesEtatVideArbre) {
   return (
     <div className={s.vide}>
+      {/*
+        Story 5.6 (T9) — LE TRONC EST DESSINÉ ICI AUSSI (FR-088, dette de la 3.3).
+
+        Cet écran REMPLACE le canevas : sans ce dessin, la personne qui n'a encore aucune branche —
+        c'est-à-dire tout le monde le premier jour — ne voyait jamais son tronc, alors que FR-088 dit
+        « elle voit son tronc, y compris incomplet ». La 5.3 avait rendu sa FICHE atteignable, ce qui
+        a masqué le manque : rien n'était inaccessible, seul le dessin était absent.
+
+        `enReserve` est DÉRIVÉ de `onOuvrirTronc` plutôt que reçu à part, et c'est délibéré : le
+        rappel n'existe que si le tronc est incomplet (voir la prop ci-dessus). Deux props séparées
+        pourraient se contredire ; celle-ci ne le peut pas.
+      */}
+      <TroncSeul enReserve={Boolean(onOuvrirTronc)} />
       <p className={s.videTitre}>{VIDE_TITRE}</p>
       <p className={s.videCorps}>{VIDE_CORPS}</p>
       {/* Un `<p>` nu, dans le flux, sans bouton ni lien ni fermeture : la phrase n'est pas une bannière,

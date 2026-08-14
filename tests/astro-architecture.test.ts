@@ -277,8 +277,14 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
      *     stocker : la recherche ne touche aucune table, elle lit un fichier embarqué.
      *   • `lib/data/lire-quotidien.ts` — compose l'éphéméride pour le CIEL DU JOUR (5.4), et la
      *     passe à `lireThemeNatal` pour qu'une seule source serve les deux calculs du chemin.
+     *   • `lib/data/lire-bibliotheque.ts` — même raison, un cran plus haut (5.6) : l'accueil lit le
+     *     socle, et son éphéméride descend jusqu'au ciel du jour.
+     *   • `app/page.tsx` — LE point de composition de la page (5.6). Il lit le thème natal UNE FOIS
+     *     et le passe à ses deux consommateurs (`chargerProjectionArbre` et la bibliothèque), qui
+     *     vivent dans le même `Promise.all`. Sans cela, le premier chargement d'un compte lançait
+     *     deux calculs concurrents et deux écritures en course.
      *
-     * Aucun de ces trois fichiers ne dépend du CONTENU de son adaptateur : tous ne manipulent que
+     * Aucun de ces fichiers ne dépend du CONTENU de son adaptateur : tous ne manipulent que
      * les types du port.
      */
     // E5 : le motif exigeait l'alias `@/lib/astro/adapters/`. Un `../astro/adapters/x` désigne
@@ -293,7 +299,9 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
     );
     expect(referents.sort()).toEqual([
       "app/heure-naissance/actions.ts",
+      "app/page.tsx",
       "lib/data/depot-theme-natal.ts",
+      "lib/data/lire-bibliotheque.ts",
       "lib/data/lire-quotidien.ts",
     ]);
   });

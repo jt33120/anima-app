@@ -14,7 +14,11 @@ import {
 import { mantraDuJour } from "@/lib/corpus/mantra";
 import type { TexteCorpus } from "@/lib/corpus/port";
 import { FUSEAU } from "@/lib/domain/ordonnanceur";
-import { lireThemeNatal, type RaisonIndisponible } from "@/lib/data/depot-theme-natal";
+import {
+  lireThemeNatal,
+  type RaisonIndisponible,
+  type ResultatThemeNatal,
+} from "@/lib/data/depot-theme-natal";
 
 /**
  * lire-quotidien.ts — LE SOCLE QUOTIDIEN DE L'UTILISATRICE COURANTE (Story 5.4, T7).
@@ -163,6 +167,19 @@ export interface SocleQuotidien {
    */
   readonly mantra: TexteCorpus;
   readonly horoscope: ResultatHoroscope;
+  /**
+   * LE THÈME NATAL TEL QU'IL A ÉTÉ LU ICI — remonté depuis la Story 5.6 (T4), et pour une raison
+   * qui n'est pas de commodité.
+   *
+   * `lireThemeNatal` fait deux requêtes et peut **écrire** (premier calcul, ou recalcul après ajout
+   * de l'heure en 5.3) ; dans le cas dégradé, ce calcul coûte ~663 lectures d'éphéméride. L'accueil
+   * a besoin du thème pour SA carte, et l'horoscope en a besoin pour la sienne : si chacun
+   * l'appelait, ce coût serait payé deux fois, et l'écriture tentée deux fois (piège P10).
+   *
+   * Le remonter plutôt que d'accepter un thème en paramètre rend le partage **structurel** : il n'y
+   * a pas de version de ce chemin où l'appelant oublie de le passer.
+   */
+  readonly theme: ResultatThemeNatal;
 }
 
 /**
@@ -180,6 +197,7 @@ export async function lireSocleQuotidien(
   utilisatriceId: string,
   maintenant: Date,
   ephemeride: EphemerisPort = ephemerideAstronomyEngine(),
+  themeDejaLu?: ResultatThemeNatal,
 ): Promise<SocleQuotidien> {
   const jour = jourResoluParis(maintenant);
   const mantra = mantraDuJour(jour.jour);
@@ -203,9 +221,20 @@ export async function lireSocleQuotidien(
   try {
     // UN SEUL appel (P10) : `lireThemeNatal` fait deux requêtes et peut ÉCRIRE (premier calcul ou
     // recalcul après ajout de l'heure, 5.3).
-    const theme = await lireThemeNatal(supabase, utilisatriceId, ephemeride);
+    //
+    // ⚠️ ET UN SEUL APPEL À L'ÉCHELLE DE LA PAGE, depuis la Story 5.6. L'accueil affiche désormais
+    // le socle : `chargerProjectionArbre` (pour le drapeau de tronc incomplet) et la bibliothèque
+    // ont besoin du même thème, dans le même `Promise.all`, donc EN MÊME TEMPS. Sans ce paramètre,
+    // le premier chargement d'un compte lançait deux calculs concurrents — chacun ~663 lectures
+    // d'éphéméride dans le cas dégradé — et deux écritures en course dont aucune ne voit l'autre.
+    const theme = themeDejaLu ?? (await lireThemeNatal(supabase, utilisatriceId, ephemeride));
     if (theme.statut !== "calcule") {
-      return { jour: jour.jour, mantra, horoscope: { statut: "indisponible", raison: theme.raison } };
+      return {
+        jour: jour.jour,
+        mantra,
+        horoscope: { statut: "indisponible", raison: theme.raison },
+        theme,
+      };
     }
 
     return {
@@ -215,6 +244,7 @@ export async function lireSocleQuotidien(
         statut: "calcule",
         horoscope: assemblerHoroscope(theme.theme, jour.jour, cielMemoise(jour, ephemeride)),
       },
+      theme,
     };
   } catch (e) {
     // `raison` est une union FERMÉE (aucune prose, FR-053) : on rend celle qui dit le mieux « on ne
@@ -225,6 +255,11 @@ export async function lireSocleQuotidien(
     // `lecture_impossible` et pas `naissance_absente` : la raison doit dire « incident », jamais
     // « il te manque quelque chose ». Faire porter une panne de serveur à quelqu'un comme si son
     // dossier était incomplet, c'est le mensonge que la revue 4.6 a payé sur l'arbre.
-    return { jour: jour.jour, mantra, horoscope: { statut: "indisponible", raison: "lecture_impossible" } };
+    return {
+      jour: jour.jour,
+      mantra,
+      horoscope: { statut: "indisponible", raison: "lecture_impossible" },
+      theme: { statut: "indisponible", raison: "lecture_impossible" },
+    };
   }
 }

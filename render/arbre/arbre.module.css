@@ -455,3 +455,15 @@
   color: var(--texte);
   font-family: var(--pile-ui);
 }
+
+/* Story 5.6 (T9) — le tronc dans l'ÉTAT VIDE, qui n'a pas de canevas (FR-088, dette de la 3.3).
+   Hauteur bornée : c'est le décor de l'écran, pas son sujet — le texte reste ce qu'on lit d'abord. */
+.troncSeul {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  height: auto;
+  max-height: 180px;
+  margin: 0 auto var(--esp-2);
+  flex: none;
+}

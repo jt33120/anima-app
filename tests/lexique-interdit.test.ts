@@ -98,7 +98,6 @@ describe("Story 2.8 — lexique interdit : CONTRÔLE NÉGATIF (épargne le légi
     "Je lis ce que tu écris.", // attention autorisée
     "Je note.", // attention autorisée
     "Je me souviens de ce que tu m'as dit en mars.", // attention autorisée
-    "Le soin apporté au détail compte.", // substantif « soin » ≠ soigner
     "Lisez soigneusement les conditions.", // revue 2.8 : adverbe ≠ verbe soigner
     "Un travail soigneux et précis.", // revue 2.8 : adjectif ≠ verbe
     "Adresse-toi à un soignant.", // revue 2.8 : orientation vers un pro, légitime
@@ -240,12 +239,53 @@ describe("[revue 2.8] « soignée » — le participe FÉMININ manquait, dans un
     expect(chercherInterdits("un patient soigné").length).toBeGreaterThan(0);
   });
 
-  it("[CONTRÔLE NÉGATIF] l'adverbe, l'adjectif et le nom restent épargnés", () => {
+  it("[CONTRÔLE NÉGATIF] l'adverbe, l'adjectif et le NOM DE MÉTIER restent épargnés", () => {
+    // « soignant » désigne une PERSONNE vers qui orienter — c'est le filet hors-IA (Story 2.5), et
+    // l'orientation vers un professionnel est le seul endroit du produit où ce registre est
+    // légitime. « soigneusement » et « soigneux » ne parlent pas de soin du tout.
+    for (const phrase of ["soigneusement rangé", "un soignant t'accompagnera", "un travail soigneux"]) {
+      expect(chercherInterdits(phrase), `faux positif : « ${phrase} »`).toEqual([]);
+    }
+  });
+});
+
+describe("[5.6/T1] « soin », le SUBSTANTIF — le mot que FR-023 nomme, et qui passait", () => {
+  /**
+   * FR-023 se lit : « **Le mot "soin"** et ses dérivés sont proscrits de toute l'interface. » Le
+   * lexique bannissait les dérivés et épargnait le mot. La revue 2.8 l'assumait (« jamais le
+   * substantif »), et deux assertions de ce fichier le verrouillaient — dont « des soins de
+   * support », qui est du vocabulaire d'oncologie, c'est-à-dire l'exemple même de ce que FR-023
+   * tient dehors.
+   *
+   * La 5.6 écrit les libellés de l'accueil. « Prendre soin de toi » est LE libellé qu'on y pose
+   * sans y penser.
+   */
+  it("[LE TEST QUI COMPTE] le substantif est attrapé, seul comme en locution", () => {
     for (const phrase of [
-      "soigneusement rangé",
-      "un soignant t'accompagnera",
+      "Prendre soin de toi",
+      "Un soin pour aujourd'hui",
+      "Des soins quotidiens",
+      "Ce soin dure trois minutes",
+      "soin du jour",
       "le soin des choses",
       "des soins de support",
+      "Prends soin de toi.", // couverte par le SEUL motif du substantif depuis le retrait du doublon
+    ]) {
+      expect(chercherInterdits(phrase).length, `« ${phrase} » passe encore`).toBeGreaterThan(0);
+    }
+  });
+
+  it("[CONTRÔLE NÉGATIF] « besoin » et les mots qui ne contiennent « soin » que par accident", () => {
+    // C'est la crainte qui avait motivé le trou. Elle n'avait pas lieu d'être : dans « besoin », le
+    // `s` est précédé d'un `e` — aucune frontière de mot, donc aucun match.
+    for (const phrase of [
+      "Si tu as besoin de parler, des ressources existent.",
+      "au besoin",
+      "tes besoins",
+      "moins de trois minutes",
+      "un témoin",
+      "dans un coin",
+      "à ce point",
     ]) {
       expect(chercherInterdits(phrase), `faux positif : « ${phrase} »`).toEqual([]);
     }

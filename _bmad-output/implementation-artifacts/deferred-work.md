@@ -877,6 +877,50 @@ troisième policy sera réécrite, pas avant.
   sans toucher au reste. [lib/domain/consigne-lecture.ts, → Anima]
 
 
+## Story 5.9 — l'ancrage, l'exercice guidé premium (2026-08-14)
+
+- **La variante AUDIO est déférée en v1.1**, et rien ne l'amorce : aucun `<audio>`, aucun bouton
+  inerte, aucune mention d'une version à venir dans la copie. Le report est une décision de périmètre
+  (AC7), pas une dette technique — le texte se suffit. Ce qu'il faudra alors trancher : où vivent les
+  fichiers (Supabase Storage sous RLS ? le corpus ne sait porter que du texte), et si c'est la voix
+  d'Anima qui enregistre — auquel cas FR-086 s'applique au son comme il s'applique au texte.
+  [→ v1.1]
+
+- **Aucune trace n'est écrite, et c'est un choix reconductible mais pas gratuit.** L'ancrage ne
+  persiste ni ouverture, ni progression, ni achèvement : rien à retenir (AD-14), rien à effacer
+  (FR-067), rien à métrer (3.4). Le jour où quelqu'un demandera « reprendre où j'en étais » ou
+  « combien de fois je l'ai traversé », ce sera une table art. 9 de plus **et** une entrée dans
+  l'inventaire d'effacement de l'Epic 6. À décider les yeux ouverts, pas par glissement.
+  [lib/data/lire-ancrage.ts]
+
+- **`/ancrages` n'est atteignable que par URL** — comme `/lectures`, `/synthese` et `/enneagramme`.
+  Le menu de compte reste à construire. ⚠️ **Et il ne faut PAS y ajouter les ancrages avant qu'un
+  ancrage soit complet** : une entrée de menu qui mène systématiquement à « Anima n'a pas encore
+  écrit d'ancrage » se lit comme une panne, alors que la même phrase atteinte par URL se lit comme un
+  état. [→ menu de compte]
+
+- **L'ancrage N'EST PAS une carte de la bibliothèque, et c'est un refus de conception** (D1). La
+  mécanique existait pourtant gratuitement (`cartesDisponibles` + le terme premium du glossaire) — on
+  ne l'a pas prise, parce qu'une `CarteVue` est une vignette de texte statique et qu'un ancrage rendu
+  ainsi serait, à l'écran, exactement le format court dont FR-080 exige qu'il reste distinct. Si
+  quelqu'un rouvre ce choix, c'est ce raisonnement qu'il faut réfuter, pas le plafond de six cartes.
+  [lib/domain/bibliotheque.ts — le catalogue reste à 5]
+
+- **Écart assumé au document d'epic** : les epics listent AD-3 (« via `AiPort` ») sur cette story. Le
+  critère d'acceptation dit l'inverse — « déroulé pas à pas **depuis le corpus d'Anima** ». Aucun
+  appel modèle n'a donc été câblé. Si l'ancrage devait un jour se générer, ce serait une story à part
+  entière, et elle se heurterait d'abord à FR-054 + FR-086.
+
+- **24 créneaux de plus chez Anima** (4 ancrages × 1 titre + 5 temps), fiche
+  `corpus-ancrages-a-ecrire.md`, et **une question qui précède l'écriture** (Q6 : combien d'ancrages,
+  et sous quels noms). Total du corpus déclaré : **213 créneaux, 0 écrit**. [→ Anima]
+
+- **Le mutant M18 était ÉQUIVALENT, et il est documenté plutôt que masqué** : boucler la progression
+  sur `% (total + 1)` produit exactement la même suite d'indices, puisqu'on ne peut pas cliquer
+  au-delà du dernier temps (il n'y a plus de bouton). Remplacé par M18b (`% total`), qui fait
+  réellement recommencer l'exercice et meurt. La distinction compte : un survivant équivalent n'est
+  pas un trou de test.
+
 ---
 
 **Fragilité de suite observée, non corrigée** : les fichiers de tests SQL frappent le même Postgres local

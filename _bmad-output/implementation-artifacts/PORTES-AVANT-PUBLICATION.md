@@ -129,14 +129,22 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
   texte est lu par quelqu'un qui vient de dire « oui, ça me parle », et il doit se lire comme une
   proposition, jamais comme un verdict.
 - **📄 La fiche de synthèse pour Anima est `POUR-ANIMA-ce-qui-attend.md`** — les quatre piles dans
-  l'ordre d'urgence, les règles de voix, et **cinq questions ouvertes** dont trois bloquent du
+  l'ordre d'urgence, les règles de voix, et **six questions ouvertes** dont trois bloquent du
   développement : les 24 noms de carte (à figer AVANT les visuels), le rôle du catalogue de sens
   (option C = le supprimer, ce qui est cohérent et allège la 5.8), et si l'ennéagramme est
   seulement un outil qu'elle utilise.
 - **Les 24 textes de SENS DES CARTES (Story 5.7) restent à écrire** — ils vivent hors de
   `lib/corpus/`, sous `server-only` (`lib/lecture/sens-cartes.ts`), parce qu'ils ne doivent JAMAIS
   franchir la frontière client. Derniers par ordre d'urgence : le rituel de lecture n'est de toute
-  façon pas publiable avant la commande d'art ci-dessous. **189 créneaux déclarés au total, 0 écrit.**
+  façon pas publiable avant la commande d'art ci-dessous.
+- **Les 24 textes des ANCRAGES (Story 5.9) restent à écrire.** Fiche : `corpus-ancrages-a-ecrire.md`
+  (4 ancrages × 1 titre + 5 temps). ⚠️ **Seule pile où il vaut mieux finir UN ancrage que d'en
+  commencer quatre** : un exercice est servi seulement s'il est complet — un temps manquant laisserait
+  un écran vide au milieu de la traversée. Conséquence en v1 : `/ancrages` ne montre AUCUN exercice, à
+  une abonnée qui paie. Ce n'est pas une panne, c'est l'état réel du corpus, dit honnêtement — mais
+  **la halte ne doit pas être annoncée dans le menu de compte avant qu'un ancrage soit complet.**
+  Et une question précède l'écriture (Q6) : combien d'ancrages, et sous quels noms.
+  **213 créneaux déclarés au total, 0 écrit.**
 - **⚠️ DEPUIS LA STORY 5.6, CETTE PORTE EST DEVENUE LA PLUS VISIBLE DU PRODUIT.** L'accueil affiche
   désormais le socle en cartes — et **deux cartes sur cinq n'ont rien à montrer** : le mantra du jour
   EST son texte (60 créneaux vides) et l'horoscope ne produit que des clés de corpus (27 vides). Les

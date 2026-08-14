@@ -1,0 +1,71 @@
+/*
+ * ancrage.module.css — L'exercice guidé (Story 5.9). Charte « nuit galactique ».
+ *
+ * Aucune animation de transition entre les temps, et c'est délibéré : un enchaînement animé
+ * imposerait un rythme, alors que l'avancée appartient à l'utilisatrice. Le calme du produit se
+ * fait par l'espace, jamais par le mouvement.
+ */
+
+/* La halte. Même gabarit que `/lectures` et `/synthese` : une halte se pose par-dessus la scène —
+   largeur de lecture, respiration, jamais pleine largeur. */
+.halte {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: var(--esp-7) var(--esp-4) var(--esp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-5);
+}
+
+.ancrage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  width: 100%;
+  max-width: var(--contenu-max);
+  padding: var(--esp-5);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  background: var(--surface);
+}
+
+/* Le repère de parcours — discret. Il situe, il ne presse pas. */
+.repere {
+  margin: 0;
+  color: var(--texte-doux);
+}
+
+/* Le temps courant occupe seul l'espace : c'est la seule chose à faire à cet instant. */
+.temps {
+  margin: 0;
+  min-height: 6rem;
+}
+
+.commandes {
+  display: flex;
+  gap: var(--esp-3);
+  align-items: center;
+}
+
+.avancer,
+.retour {
+  padding: var(--esp-3) var(--esp-5);
+  border-radius: var(--rayon-md);
+  border: 1px solid var(--bordure-forte);
+  background: transparent;
+  color: var(--texte);
+  cursor: pointer;
+}
+
+/* « Revenir » passe après « Continuer » dans l'ordre visuel de l'attention, jamais dans l'ordre du
+   DOM : l'ordre de tabulation suit la lecture, et revenir en arrière reste atteignable au clavier. */
+.retour {
+  color: var(--texte-doux);
+  border-color: var(--bordure);
+}
+
+.avancer:focus-visible,
+.retour:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

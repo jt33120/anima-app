@@ -66,6 +66,36 @@ La plus courte des fiches, et la plus délicate. Le texte est lu par quelqu'un q
 Le jeu de 24 cartes existe, le tirage fonctionne, les images sont en cours. Mais avant d'écrire ces
 24 textes, il y a une question de fond à trancher — elle est plus bas.
 
+### 5️⃣ Les 24 textes des ancrages — **et là aussi, une question avant**
+
+📄 Fiche : `corpus-ancrages-a-ecrire.md`
+
+Un **ancrage**, c'est un petit exercice qu'on traverse pas à pas, en trois à quatre minutes. Ce n'est
+pas un texte qu'on lit : c'est un temps qu'on passe. L'écran n'affiche **qu'un seul temps à la
+fois**, et la personne appuie sur « Continuer » quand elle est prête.
+
+La structure est fixe — **cinq temps, toujours les mêmes, dans cet ordre** :
+
+| Temps | Ce qu'il fait |
+|---|---|
+| **l'arrivée** | on se pose, on arrive là où on est |
+| **le souffle** | quelque chose de simple à faire avec la respiration |
+| **le corps** | ce que le corps porte à cet instant |
+| **nommer** | mettre un mot sur ce qui est là |
+| **le retour** | on revient, on repart |
+
+Quatre ancrages sont prévus. Pour chacun : **un titre + cinq temps** = 6 textes, donc 24 en tout.
+
+Chaque temps fait deux ou trois phrases — pas plus. Ce qu'on te demande n'est pas d'écrire une
+explication de l'exercice, mais **ce que la personne lit à ce moment-là**, comme si tu étais à côté
+d'elle.
+
+Rien n'est chronométré, rien n'est verrouillé : elle peut revenir en arrière, s'arrêter, rester. Il
+n'y a aucune félicitation à la fin, aucune série à tenir.
+
+⚠️ **Le mot proscrit** (celui de la liste des règles de voix) est particulièrement tentant sur ce
+format. Il est refusé automatiquement. Ce format s'appelle **un ancrage**, jamais autrement.
+
 ---
 
 ## Les règles de voix (les mêmes partout)
@@ -177,6 +207,20 @@ qui ne réclame rien. Mais c'est un choix, et il t'appartient.
 
 Soixante mantras tournent sur l'année. Est-ce que ça te paraît juste, ou est-ce que tu voudrais un
 autre rythme ?
+
+## Q6 — Les ancrages : combien, et comment ils s'appellent ?
+
+Quatre ancrages, c'est un point de départ qu'on a posé pour que le code existe — pas une décision.
+Deux questions, et les deux t'appartiennent :
+
+1. **Combien ?** Quatre suffisent-ils, ou est-ce qu'il en faut un pour des moments différents (le
+   matin, un moment de tension, avant de dormir, après une séance) ?
+2. **Comment ils s'appellent ?** Aujourd'hui ils n'ont aucun nom — le code les appelle
+   « ancrage-1 » à « ancrage-4 », ce qui n'est pas un nom, c'est une étiquette technique. Le titre
+   est ce que la personne lit avant de choisir : c'est toi qui l'écris.
+
+Tant qu'on n'a pas ta réponse, l'écran des ancrages dit simplement « Anima n'a pas encore écrit
+d'ancrage ». Il ne fabrique rien à ta place.
 
 ## Q5 — Ton rythme
 

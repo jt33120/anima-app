@@ -73,7 +73,7 @@ describe("[AD-1/DUR] lib/corpus est une couche PURE", () => {
     // ⚠️ UN COMPTE EXACT, JAMAIS `toBeGreaterThan`. Relâcher cette assertion pour faire passer une
     // story est précisément la façon dont les gardes meurent : un corpus ajouté sans être inscrit
     // ici échapperait à TOUTES les gardes de ce fichier sans que rien ne rougisse.
-    expect(FICHIERS_CORPUS.length, "aucun fichier trouvé dans lib/corpus — garde vide").toBe(6);
+    expect(FICHIERS_CORPUS.length, "aucun fichier trouvé dans lib/corpus — garde vide").toBe(7);
     expect(FICHIERS_CORPUS).toContain("lib/corpus/port.ts");
     expect(FICHIERS_CORPUS).toContain("lib/corpus/numerologie.ts");
     // Story 5.4 — les deux corpus du socle quotidien vivent sous EXACTEMENT les mêmes gardes.
@@ -81,6 +81,10 @@ describe("[AD-1/DUR] lib/corpus est une couche PURE", () => {
     expect(FICHIERS_CORPUS).toContain("lib/corpus/horoscope.ts");
     // Story 5.5 — les neuf interprétations de type, déclarées et non écrites.
     expect(FICHIERS_CORPUS).toContain("lib/corpus/enneagramme.ts");
+    // Story 5.9 — les 24 créneaux des ancrages. ⚠️ Seul corpus PREMIUM (FR-056) : sa pureté ne
+    // suffit pas, il lui faut EN PLUS de ne jamais entrer dans le bundle client — garde séparée,
+    // `tests/ancrage-frontiere.test.ts`. Aucune des deux ne couvre l'autre.
+    expect(FICHIERS_CORPUS).toContain("lib/corpus/ancrage.ts");
     // Story 5.7 — les 24 descriptions de cartes. ⚠️ Ce ne sont PAS des textes d'Anima : une
     // description littérale n'interprète rien (FR-054 ne la lui réserve donc pas). Elles vivent ici
     // quand même, parce qu'elles doivent subir les MÊMES gardes — voix (2.8), prédiction (FR-053) —

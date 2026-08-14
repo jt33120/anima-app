@@ -88,4 +88,74 @@ export default tseslint.config(
       ],
     },
   },
+
+  // ── LE TIRAGE EST AVEUGLE (AD-11, Story 5.7) ───────────────────────────────────────────────────
+  //
+  // AD-11 exige que le point d'entrée du tirage n'ait AUCUN accès au profil, à l'historique ni à
+  // l'état émotionnel, et précise : « contrainte d'architecture, PAS règle de code ». Ce bloc EST
+  // cette contrainte. Sans lui, l'exigence ne serait qu'un commentaire — et une garde qui vit dans
+  // un commentaire n'existe pas.
+  //
+  // La liste n'est pas défensive au hasard, chaque entrée ferme une porte nommée :
+  //   `@/lib/data`    → le profil, l'historique, les branches, les abonnements ;
+  //   `@/lib/domain`  → le thème natal, la numérologie, l'ennéagramme — le profil calculé ;
+  //   `@/lib/safety`  → l'épisode de détresse, c'est-à-dire l'ÉTAT ÉMOTIONNEL nommément visé ;
+  //   `@/lib/ai`      → aucun modèle ne choisit une carte (ce serait FR-016 par la grande porte) ;
+  //   `@/lib/lecture` → le CATALOGUE DE SENS. C'est l'entrée décisive : un tireur qui ne peut pas
+  //                     savoir ce qu'une carte veut dire ne peut pas la choisir pour ce qu'elle veut
+  //                     dire. FR-016 devient impossible plutôt qu'interdit.
+  //   `@/lib/corpus`  → même raison, par l'autre bout (les descriptions).
+  //
+  // Mêmes deux échappatoires refermées qu'en AD-10, pour les mêmes raisons : `lib/tirage/` est PLAT,
+  // donc tout `../` sort de la couche ; et l'import dynamique n'est jamais visité par
+  // `no-restricted-imports`.
+  {
+    files: ["lib/tirage/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/lib/data/*",
+                "@/lib/domain/*",
+                "@/lib/safety/*",
+                "@/lib/ai/*",
+                "@/lib/lecture/*",
+                "@/lib/corpus/*",
+                "@/app/*",
+                "@/render/*",
+              ],
+              message:
+                "AD-11 : le tirage n'a aucun accès au profil, à l'historique, à l'état émotionnel ni au sens des cartes.",
+            },
+            {
+              group: ["next", "next/*", "@supabase/*", "@mistralai/*", "stripe", "astronomy-engine"],
+              message: "AD-11 : le tirage ne connaît ni le framework, ni la base, ni aucun fournisseur.",
+            },
+            {
+              group: ["../*", "../**"],
+              message:
+                "AD-11 : `lib/tirage/` est plat — tout « ../ » sort de la couche et échappe aux motifs par alias.",
+            },
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ImportExpression",
+          message: "AD-11 : pas d'import dynamique dans le tirage (il échappe à `no-restricted-imports`).",
+        },
+        {
+          // `Math.random` n'est pas cryptographique et n'est pas journalisable : il n'expose aucune
+          // graine, donc un tirage qui s'en servirait serait inauditable (AC2/AC3). L'interdire ici
+          // vaut mieux que de compter sur la relecture — la substitution est d'une facilité redoutable.
+          selector: "MemberExpression[object.name='Math'][property.name='random']",
+          message: "AD-11 : la graine vient d'un CSPRNG système (`csprngSysteme`), jamais de `Math.random`.",
+        },
+      ],
+    },
+  },
 );

@@ -165,7 +165,13 @@ describe("Frontière art. 9 : le gabarit du write-gate + la première table de c
   // Le SIGNAL DE RECONCEPTUALISATION — `signal_reconceptualisation` (Story 4.4) — existe désormais (art. 9
   // possédé sous JWT, POINTEUR-SEUL vers l'entrée exacte, aucun verbatim ; write-gate durci + garde AD-17 au
   // point d'écriture ; comportement prouvé dans signal-reconceptualisation.test.ts).
-  const tablesContenuAVenir = ["tirage", "socle"]; // couches de contenu restantes, pas encore livrées
+  // Le JOURNAL DE TIRAGE — `tirage` (Story 5.7) — existe désormais. Il ne porte AUCUN verbatim (une clé
+  // de carte, un mot de 32 bits, une taille de jeu), mais il porte le write-gate art. 9 quand même : le
+  // tirage OUVRE un rituel dont la suite immédiate — « qu'est-ce que tu vois ? » — recueille de l'art. 9.
+  // On garde la porte, pas la pièce. Il porte EN PLUS la garde de détresse (AD-17), que ni `entree_journal`
+  // ni `theme_natal` ne portent — justifié dans l'en-tête de 0050 ; comportement prouvé dans
+  // tirage-sql.test.ts.
+  const tablesContenuAVenir = ["socle"]; // couches de contenu restantes, pas encore livrées
   it("le gabarit `art9_temoin` existe (sonde vivante du write-gate)", async () => {
     const { error } = await admin.from("art9_temoin").select("*").limit(1);
     expect(error).toBeNull();

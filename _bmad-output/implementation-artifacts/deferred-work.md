@@ -744,6 +744,62 @@ troisième policy sera réécrite, pas avant.
   dépôt entier. **Ce qui reste à en tirer : une garde peut être verrouillée À L'ENVERS par son
   propre test négatif, et rien ne le signale.** [lib/domain/lexique-interdit.ts]
 
+## Story 5.7 — le tirage isolé & le jeu propriétaire
+
+- **RIEN N'EMPÊCHE ENCORE DE TIRER DIX FOIS DE SUITE, ET C'EST UNE TÂCHE OBLIGATOIRE DE LA 5.8.**
+  L'UX interdit de *proposer* un re-tirage, mais tant que le tirage n'est rattaché à aucune LECTURE —
+  entité qui naît en 5.8 —, il n'existe aucune clé sur laquelle poser l'unicité. Une utilisatrice
+  déterminée peut rappeler le point d'entrée jusqu'à obtenir la carte qui lui plaît. Ce n'est pas le
+  défaut FR-016 (le SYSTÈME ne choisit pas), mais c'en est le voisin immédiat. La 5.8 doit poser la
+  contrainte au moment où `lecture` existe : un tirage par lecture, unicité structurelle.
+  [supabase/migrations/0050_tirage.sql, → 5.8]
+
+- **Le journal prouve la REJOUABILITÉ, pas que le mot accepté fut le premier tiré.** Un code qui
+  rejetterait sélectivement les mots menant à une carte indésirable produirait un journal
+  parfaitement cohérent. Le résidu est réel et borné : un tel rejet sélectif DÉFORME la distribution
+  et tombe sous le χ² sur grand N. Les deux gardes se complètent, aucune ne suffit seule.
+  [lib/tirage/alea.ts]
+
+- **La garde principale de l'uniformité est DÉTERMINISTE, et il faut savoir pourquoi avant d'y
+  toucher.** Le biais de modulo vaut ~1,4·10⁻⁸ sur 24 cartes : il faudrait ~10¹⁶ tirages pour le voir
+  au χ². Le mutant `mot % borne` sans rejet SURVIT au test sur grand N — il n'est tué que par les
+  trois mots scriptés qui interrogent la frontière du rejet. **Corollaire piégeux : si le jeu passait
+  un jour à 32 cartes (puissance de deux), la zone de rejet deviendrait VIDE et cette garde cesserait
+  de prouver quoi que ce soit.** Les tests fixent donc leurs bornes en dur (3, 24, 40) et ne les
+  empruntent jamais à `TAILLE_JEU` ; une assertion dédiée surveille que la taille n'est pas une
+  puissance de deux. [lib/tirage/alea.ts, tests/tirage-alea.test.ts]
+
+- **Le seuil du χ² est très lâche (60 pour 23 ddl, quantile ~0,99997), et c'est assumé.** À 5 % la
+  suite rougirait un jour sur vingt sans qu'aucune ligne de code n'ait bougé, et un test qui crie au
+  loup finit désactivé. Ce que le seuil laisse passer : tout ce qui est plus fin qu'une faute
+  grossière — mais la finesse est couverte par la garde déterministe. [tests/tirage-alea.test.ts]
+
+- **L'INDÉPENDANCE AU PROFIL NE SE TESTE PAS STATISTIQUEMENT, et le test le dit au lieu de simuler.**
+  On ne mesure pas la corrélation à une entrée qui n'existe pas : `tirerUneCarte()` a une arité nulle.
+  La garde est structurelle (arité + verrou d'imports), et écrire un faux test de corrélation aurait
+  produit exactement le genre de rassurance vide que ce dépôt combat. [tests/tirage-architecture.test.ts]
+
+- **UN HARNAIS DE MUTATION PEUT PRODUIRE DE FAUX KILLS, ET LE MIEN L'A FAIT.** Le harnais SQL comptait
+  pour « tué » tout mutant dont le `db reset` échouait. Or `supabase db reset` rend parfois un `502`
+  sur le redémarrage des conteneurs — un hoquet d'infra, la migration s'appliquant très bien. Quatre
+  mutants ont été déclarés morts sans qu'aucun test ne les ait vus, puis repris avec un harnais qui
+  distingue « migration invalide » de « reset qui hoquette ». **La doctrine du dépôt vaut aussi pour
+  les outils qui la vérifient : un contrôle aveugle est vert.** [→ toute campagne SQL future]
+
+- **`tirage` porte la garde de détresse alors que `theme_natal` ne la porte pas — arbitrage explicite
+  à ne pas défaire par symétrie.** Un calcul astronomique n'adresse rien à personne ; une carte tirée
+  puis présentée comme porteuse de sens est du même ordre qu'une hypothèse d'ennéagramme (0049), en
+  plus chargé. Coût assumé : pendant la fenêtre de 72 h, une demande de lecture est REFUSÉE par la
+  base avec un `42501` indistinct des trois autres gardes. **La 5.8 doit le dire avec des mots, pas
+  avec une erreur** — et doit donc distinguer les quatre causes. [supabase/migrations/0050_tirage.sql, → 5.8]
+
+- **Les 24 clés de carte sont internes et renommables — mais le coût monte avec le temps.** Elles ne
+  s'affichent jamais (l'UX interdit de nommer la carte), donc les renommer coûte un `UPDATE` sur
+  `tirage.carte` plus le renommage des fichiers de visuels. Réversible aujourd'hui ; à trancher avec
+  Anima AVANT la commande d'art, parce qu'un visuel dessiné fige son nom de fait.
+  [lib/tirage/jeu.ts, → Anima]
+
+
 ---
 
 **Fragilité de suite observée, non corrigée** : les fichiers de tests SQL frappent le même Postgres local
@@ -751,3 +807,12 @@ en parallèle. Sous forte contention (typiquement pendant une campagne de mutati
 fonctions sur cette même base), un fichier peut échouer de façon transitoire. Quatre passes complètes
 consécutives sont propres hors campagne. Si ça devient gênant, la réponse est un schéma par worker, pas
 un `retry`.
+
+**Observation renforcée en 5.7** : après une campagne de mutation SQL, la passe complète a rendu CINQ
+fichiers rouges d'un coup (`branche-cycle-sql`, `episode-detresse`, `tirage-sql`, `theme-natal-sql`,
+`webhook-robustesse-sql`), avec des durées de 27 à 76 secondes. Les cinq passent seuls, et la passe
+complète est verte après un `supabase db reset`. La cause n'est donc pas la contention seule : une
+campagne laisse derrière elle des dizaines de comptes de fixtures, et c'est leur accumulation qui fait
+basculer la contention en échec. **Conséquence pratique : `db reset` AVANT la passe de clôture, pas
+après.** Et ne jamais lire un rouge de fin de campagne comme un verdict sur le code sans avoir refait
+la passe sur une base propre.

@@ -87,7 +87,7 @@ development_status:
   5-4-horoscope-mantra-du-jour: done # revue 2026-08-12 (A4 : cibles inaspectables sans heure ; B4) ; 87 créneaux de corpus restent à écrire
   5-5-enneagramme-test-court-hypothese-anam: review # livrée le 2026-08-13 ; 0049 déployée cloud (49/49) ; 40 mutants, 39 tués + 1 survivant assumé ; 9 créneaux de corpus restent à écrire
   5-6-accueil-bibliotheque-en-cartes: review # livrée le 2026-08-14 ; aucune migration ; 15 mutants, 15 tués ; détecteur FR-023 réparé (le substantif « soin » était libre) ; l'accueil rend VISIBLES les 165 créneaux de corpus vides — porte pré-lancement
-  5-7-tirage-isole-jeu-proprietaire: backlog
+  5-7-tirage-isole-jeu-proprietaire: review # livrée le 2026-08-14 ; migration 0050 ; 28 mutants, 28 tués (dont 4 faux kills du harnais SQL détectés et repris) ; le tirage a une arité NULLE et un verrou ESLint ; +24 créneaux de sens (Anima) +24 descriptions +24 visuels à produire → 189 créneaux d'Anima au total
   5-8-rituel-lecture-restitution-ecrite: backlog
   5-9-ancrage-exercice-guide-premium: backlog
   epic-5-retrospective: optional
@@ -153,8 +153,35 @@ pre_launch_gates:
       avec les règles de voix (aucune prédiction — FR-053 ; aucun lexique médical — NFR-008 ; aucune
       revendication d'affect). Chaque texte livré passe automatiquement sous le contrôle bloquant de
       la 2.8 dès qu'il est déposé dans `lib/corpus/`.
-      Le même corpus alimentera les MANTRAS (5.4), l'ENNÉAGRAMME (5.5) et le SENS DES CARTES (5.7) :
+      Le même corpus alimente les MANTRAS (5.4), l'ENNÉAGRAMME (5.5) et le SENS DES CARTES (5.7) :
       c'est le plus gros travail d'écriture du produit et il n'a qu'un seul auteur possible.
+      ÉTAT AU 2026-08-14, après la 5.7 : 189 créneaux déclarés, 0 écrit — 69 numérologie, 60 mantras,
+      27 horoscope, 9 ennéagramme, 24 sens des cartes. L'ordre d'urgence a changé en 5.6 : les 87
+      créneaux du QUOTIDIEN (mantras + horoscope) passent devant, parce que l'accueil est le premier
+      écran et que deux de ses cinq cartes sont vides sans eux. Le sens des cartes vient en dernier :
+      le rituel de lecture n'est pas publiable avant la commande d'art de toute façon (porte ci-dessous).
+  - gate: "LES 24 VISUELS DU JEU — commande d'art propriétaire (FR-022)"
+    concerne: "Epic 5 (5.7, 5.8) — le rituel de lecture"
+    status: open
+    note: >
+      OUVERTE le 2026-08-14 en livrant la 5.7. FR-022 exige que le jeu soit PROPRIÉTAIRE — « visuels
+      créés pour Anima, aucun oracle du commerce embarqué ». C'est une promesse de PRODUIT avant
+      d'être une question de droit d'auteur : plusieurs jeux classiques sont dans le domaine public,
+      et les recopier resterait une trahison de la promesse faite à l'utilisatrice.
+      ÉTAT : le jeu de 24 cartes est déclaré et tirable ; ZÉRO visuel existe. Chaque carte le dit à
+      l'écran (« Le visuel de cette carte n'est pas encore dessiné ») plutôt que d'afficher un dos de
+      carte générique — un substitut « en attendant » serait littéralement un visuel non créé pour
+      Anima, affiché à la place d'un visuel d'Anima.
+      IL FAUT DEUX CHOSES PAR CARTE, ET ELLES VONT ENSEMBLE : (a) le VISUEL, sous
+      `public/jeu/<cle>.webp` ; (b) la DESCRIPTION LITTÉRALE, dans `lib/corpus/description-cartes.ts`
+      — le texte alternatif, qui dit ce qui est DESSINÉ et jamais ce que ça veut dire (un balayage
+      bloquant rejette « symbolise », « représente », « évoque », l'adresse à la deuxième personne…).
+      Sans description écrite, `render/lecture/visuels.ts` refuse d'afficher le visuel : une image
+      sans texte alternatif utilisable ferait recevoir « une image » à une utilisatrice au lecteur
+      d'écran, à qui on demanderait ensuite ce qu'elle y voit.
+      À TRANCHER AVEC ANIMA AVANT DE COMMANDER : les 24 noms de carte. Ils sont internes (l'UX
+      interdit de nommer la carte à l'écran) et renommables aujourd'hui pour le prix d'un UPDATE —
+      mais un visuel dessiné fige son nom de fait.
   - gate: "Domaine réel pour ANIMA_SITE_URL + SPF/DKIM/DMARC + DPA Resend"
     concerne: "Epic 4 (4.9 canal courriel)"
     status: open

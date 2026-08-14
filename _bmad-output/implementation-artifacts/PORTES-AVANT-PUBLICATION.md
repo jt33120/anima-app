@@ -127,7 +127,16 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
 - **Les 9 textes d'ennéagramme (Story 5.5) restent à écrire.** Fiche :
   `corpus-enneagramme-a-ecrire.md`. C'est la plus courte des trois fiches et la plus délicate — le
   texte est lu par quelqu'un qui vient de dire « oui, ça me parle », et il doit se lire comme une
-  proposition, jamais comme un verdict. **165 créneaux déclarés au total, 0 écrit.**
+  proposition, jamais comme un verdict.
+- **📄 La fiche de synthèse pour Anima est `POUR-ANIMA-ce-qui-attend.md`** — les quatre piles dans
+  l'ordre d'urgence, les règles de voix, et **cinq questions ouvertes** dont trois bloquent du
+  développement : les 24 noms de carte (à figer AVANT les visuels), le rôle du catalogue de sens
+  (option C = le supprimer, ce qui est cohérent et allège la 5.8), et si l'ennéagramme est
+  seulement un outil qu'elle utilise.
+- **Les 24 textes de SENS DES CARTES (Story 5.7) restent à écrire** — ils vivent hors de
+  `lib/corpus/`, sous `server-only` (`lib/lecture/sens-cartes.ts`), parce qu'ils ne doivent JAMAIS
+  franchir la frontière client. Derniers par ordre d'urgence : le rituel de lecture n'est de toute
+  façon pas publiable avant la commande d'art ci-dessous. **189 créneaux déclarés au total, 0 écrit.**
 - **⚠️ DEPUIS LA STORY 5.6, CETTE PORTE EST DEVENUE LA PLUS VISIBLE DU PRODUIT.** L'accueil affiche
   désormais le socle en cartes — et **deux cartes sur cinq n'ont rien à montrer** : le mantra du jour
   EST son texte (60 créneaux vides) et l'horoscope ne produit que des clés de corpus (27 vides). Les
@@ -136,6 +145,18 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
   seule forme conforme à FR-054 + FR-086. **Mais c'est le PREMIER ÉCRAN.** L'accueil n'est pas
   publiable en l'état. Priorité d'écriture : les 87 créneaux du quotidien
   (`corpus-quotidien-a-ecrire.md`) avant tout le reste — ce sont eux qui remplissent la vitrine.
+- **⚠️ LES 24 VISUELS DU JEU N'EXISTENT PAS (Story 5.7, FR-022).** Le tirage est mécaniquement
+  irréprochable — arité nulle, CSPRNG, échantillonnage par rejet, journal rejouable — et il n'a
+  **rien à montrer**. Chaque carte le dit à l'écran plutôt que d'afficher un dos de carte générique :
+  un substitut « en attendant » serait littéralement un visuel non créé pour Anima, à la place d'un
+  visuel d'Anima. **Il faut deux choses par carte, et elles vont ensemble** : le visuel
+  (`public/jeu/<cle>.webp`) et sa **description littérale** (le texte alternatif — ce qui est
+  *dessiné*, jamais ce que ça *veut dire* ; un balayage bloquant rejette « symbolise », « représente »,
+  « évoque », l'adresse à la deuxième personne). Sans description, le visuel ne s'affiche pas : une
+  image sans texte alternatif utilisable ferait recevoir « une image » à une utilisatrice au lecteur
+  d'écran, à qui on demanderait ensuite ce qu'elle y voit. **À trancher avec Anima AVANT de
+  commander : les 24 noms de carte** — internes et renommables aujourd'hui, figés de fait dès qu'un
+  visuel est dessiné.
 - **La copie de consentement a changé (Story 5.5, D12)** : elle couvre désormais ce qu'Anam
   **déduit**, pas seulement ce que l'utilisatrice partage. Un type d'ennéagramme est produit par un
   score ou inféré par un modèle — l'amont le qualifie de catégorie art. 9. **À faire relire par le

@@ -73,7 +73,7 @@ describe("[AD-1/DUR] lib/corpus est une couche PURE", () => {
     // ⚠️ UN COMPTE EXACT, JAMAIS `toBeGreaterThan`. Relâcher cette assertion pour faire passer une
     // story est précisément la façon dont les gardes meurent : un corpus ajouté sans être inscrit
     // ici échapperait à TOUTES les gardes de ce fichier sans que rien ne rougisse.
-    expect(FICHIERS_CORPUS.length, "aucun fichier trouvé dans lib/corpus — garde vide").toBe(5);
+    expect(FICHIERS_CORPUS.length, "aucun fichier trouvé dans lib/corpus — garde vide").toBe(6);
     expect(FICHIERS_CORPUS).toContain("lib/corpus/port.ts");
     expect(FICHIERS_CORPUS).toContain("lib/corpus/numerologie.ts");
     // Story 5.4 — les deux corpus du socle quotidien vivent sous EXACTEMENT les mêmes gardes.
@@ -81,6 +81,31 @@ describe("[AD-1/DUR] lib/corpus est une couche PURE", () => {
     expect(FICHIERS_CORPUS).toContain("lib/corpus/horoscope.ts");
     // Story 5.5 — les neuf interprétations de type, déclarées et non écrites.
     expect(FICHIERS_CORPUS).toContain("lib/corpus/enneagramme.ts");
+    // Story 5.7 — les 24 descriptions de cartes. ⚠️ Ce ne sont PAS des textes d'Anima : une
+    // description littérale n'interprète rien (FR-054 ne la lui réserve donc pas). Elles vivent ici
+    // quand même, parce qu'elles doivent subir les MÊMES gardes — voix (2.8), prédiction (FR-053) —
+    // et que le port `TexteCorpus` est ce qui empêche un créneau vide de se déguiser en texte.
+    expect(FICHIERS_CORPUS).toContain("lib/corpus/description-cartes.ts");
+  });
+
+  it("[Story 5.7] le SENS des cartes vit hors de ce dossier, et c'est une décision", () => {
+    // Le sixième corpus d'Anima — 24 créneaux — est le seul à ne pas être ici : il porte
+    // `import "server-only"`, que la garde de pureté ci-dessous interdit dans `lib/corpus/`.
+    //
+    // Ce n'est pas un contournement, c'est l'inverse. Un corpus du socle est une CONSTANTE partagée
+    // que le rendu peut lire ; le catalogue de sens, lui, ne vaut QUE s'il ne franchit jamais la
+    // frontière client (AD-11 / AC4). `server-only` transforme cette exigence en échec de build.
+    // Le poser ici aurait obligé à percer une exception dans une garde saine — et une garde à
+    // exceptions finit par n'en être plus une.
+    //
+    // Cette assertion existe pour que l'absence soit VÉRIFIÉE plutôt que constatée : si quelqu'un
+    // déplaçait un jour `sens-cartes.ts` dans `lib/corpus/`, il faudrait qu'il retire d'abord son
+    // `server-only`, et c'est exactement ce qu'on ne veut pas laisser passer en silence.
+    expect(FICHIERS_CORPUS).not.toContain("lib/corpus/sens-cartes.ts");
+    expect(existsSync(resolve(RACINE, "lib/lecture/sens-cartes.ts"))).toBe(true);
+    expect(readFileSync(resolve(RACINE, "lib/lecture/sens-cartes.ts"), "utf-8").split("\n")[0]).toMatch(
+      /^import "server-only";/,
+    );
   });
 
   it("[FR-054/FR-047] n'importe AUCUN modèle de langage — un corpus ne se génère pas", () => {

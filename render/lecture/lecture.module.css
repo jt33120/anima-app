@@ -1,0 +1,45 @@
+/*
+ * lecture.module.css — La carte tirée (région « lecture », Story 5.7).
+ * Charte « nuit galactique ». Aucune animation, aucun retournement, aucun scintillement :
+ * l'UX les interdit nommément — « la théâtralisation suggérerait une magie que le produit ne
+ * revendique pas. La carte est déjà là. »
+ * Pleine largeur de colonne, dépôt simple (dossier « Le rituel de lecture », §2).
+ */
+
+.carte {
+  margin: 0;
+  width: 100%;
+  max-width: var(--contenu-max);
+  /* Le rapport d'une carte posée. Réservé ici plutôt que sur l'image : le cadre doit être le même
+     que le visuel soit dessiné ou non, sinon l'arrivée du premier visuel ferait sauter la mise en
+     page de toutes les cartes qui n'en ont pas encore. */
+  aspect-ratio: 2 / 3;
+}
+
+.visuel {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--rayon-lg);
+}
+
+/* L'absence dite. Une surface calme qui a la forme d'une carte — pas un dos de carte, pas un motif
+   d'emprunt : rien qui puisse se lire comme un visuel (FR-022). */
+.nonDessine {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: var(--esp-5);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  background: var(--surface);
+  text-align: center;
+}
+
+.nonDessine p {
+  margin: 0;
+  color: var(--texte-doux);
+}

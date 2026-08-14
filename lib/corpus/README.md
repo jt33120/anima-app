@@ -61,8 +61,27 @@ Gardé par `tests/corpus-architecture.test.ts`.
 | **Mantras du jour** (`mantra.ts`) | 60 | **0** | 5.4 |
 | **Horoscope du jour** (`horoscope.ts`) | 27 | **0** | 5.4 |
 | **Ennéagramme** (`enneagramme.ts`) | 9 | **0** | 5.5 |
-| Sens des cartes | — | — | 5.7 |
-| **Total déclaré** | **165** | **0** | |
+| **Sens des cartes** (`../lecture/sens-cartes.ts`) | 24 | **0** | 5.7 |
+| **Total déclaré** | **189** | **0** | |
+
+Le **sens des cartes** est le seul corpus qui ne vit pas dans ce dossier, et c'est délibéré : il
+porte `import "server-only"`, que `tests/corpus-architecture.test.ts` interdit ici. Toute sa valeur
+tient à ce qu'il **ne franchisse jamais** la frontière client (AD-11 : « le catalogue de sens n'a
+aucune représentation côté client avant la réponse de l'utilisatrice »), et `server-only` transforme
+cette exigence en **échec de build**. Le poser dans `lib/corpus/` aurait obligé à percer une
+exception dans une garde saine — et une garde à exceptions finit par n'en être plus une.
+
+### Ce qui n'est PAS du corpus d'Anima
+
+| Textes | Créneaux | Écrits | Qui les écrit |
+|---|---|---|---|
+| **Descriptions des cartes** (`description-cartes.ts`) | 24 | **0** | produites **avec les visuels**, en regardant l'image |
+
+Une description dit ce qui est **dessiné** — *une porte entrouverte dans un mur de pierre, au
+crépuscule* —, jamais ce que ça veut dire. Ce n'est pas une interprétation, donc FR-054 ne la réserve
+pas à Anima ; les compter dans le total ci-dessus corromprait le seul chiffre qui dit où en est la
+porte pré-lancement d'écriture. Le balayage qui les empêche de dériver vers le sens vit dans
+`description-cartes.ts` et se prouve dans `tests/description-cartes.test.ts`.
 
 Chaque corpus est **déclaré complet et écrit à zéro**. Ce n'est pas un travail inachevé, c'est la
 seule forme conforme : les créneaux existent, chacun se rend honnêtement `non_ecrit`, et le jour où
@@ -73,6 +92,10 @@ Les neuf créneaux d'ennéagramme sont l'axe MINIMAL — un texte par type. Les 
 types, et la 5.4 a écrit la règle en refusant les siens : on garde l'axe qu'une personne identifie
 comme ELLE, on refuse le croisement. Les dix-huit énoncés du test court, eux, ne sont **pas** du
 corpus (ils n'interprètent rien) : ils vivent dans `lib/domain/enneagramme-items.ts`.
+
+**Vue d'ensemble pour Anima** — `_bmad-output/implementation-artifacts/POUR-ANIMA-ce-qui-attend.md` :
+les quatre piles dans l'ordre, les règles de voix, et les cinq questions dont la réponse décide de
+ce qu'on construit ensuite (dont : à quoi sert le catalogue de sens, et faut-il le supprimer).
 
 **Porte pré-lancement ouverte** — voir `sprint-status.yaml`, entrée « LE CORPUS D'ANIMA ». Par ordre
 d'urgence : les 12 textes du **chemin de vie** (le seul nombre que les gens connaissent, il suffit à

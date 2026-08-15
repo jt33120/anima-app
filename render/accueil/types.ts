@@ -37,8 +37,32 @@ export interface CarteVue {
   readonly texte: TexteVue;
 }
 
+/**
+ * La carte « Anam » (Story 6.3, AC6). Trois chaînes, et RIEN d'autre.
+ *
+ * ⚠️ AUCUN CHAMP NUMÉRIQUE, ET AUCUN BOOLÉEN NON PLUS. Un `aUnMotif: boolean` serait la porte : le
+ * rendu s'en servirait pour dessiner une pastille, et FR-031 ne tiendrait plus qu'à la discipline.
+ * L'existence d'un motif se lit à `ligne !== null`, et cette information EST la ligne — il n'y a rien
+ * à en extraire de plus.
+ *
+ * `presence` est la phrase invariante, identique pour tout le monde : elle ne peut rien laisser fuir.
+ * `ligne` est la seule chose qui varie, et c'est du TEXTE DÉJÀ ÉCRIT — le rendu ne formate ni date, ni
+ * mot, ni rien (AD-7).
+ */
+export interface CarteAnamVue {
+  readonly titre: string;
+  readonly presence: string;
+  readonly ligne: string | null;
+}
+
 export interface BibliothequeVue {
   readonly cartes: readonly CarteVue[];
+  /**
+   * La carte d'Anam. REQUISE, et c'est la moitié de la garde : une carte qui apparaît et disparaît
+   * selon qu'Anam a quelque chose à dire EST une pastille — simplement dessinée avec la carte au lieu
+   * d'un point rouge. Le champ obligatoire interdit l'omission ; le `ligne: null` porte l'absence.
+   */
+  readonly anam: CarteAnamVue;
   /** La clé de la carte mise en avant, ou `null` si aucune n'a rien à montrer aujourd'hui. */
   readonly enAvant: string | null;
   /**

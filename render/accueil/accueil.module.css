@@ -107,3 +107,15 @@
   color: var(--texte-doux);
   font-style: italic;
 }
+
+/* ── LA CARTE D'ANAM (Story 6.3) ────────────────────────────────────────────────────────────────
+   Hors de la grille, donc pleine largeur par construction. AUCUNE variante « avec motif » : il n'y
+   a pas de classe qui s'allume quand Anam a quelque chose à dire, parce qu'un accent qui s'allume
+   est un badge sans le mot (FR-031). La seule différence est une ligne de texte en plus. */
+.carteAnam {
+  border-style: dashed;
+}
+
+.presenceAnam {
+  color: var(--texte-doux);
+}

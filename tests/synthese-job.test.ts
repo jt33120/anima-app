@@ -204,9 +204,16 @@ function supabaseFactice(options: { eligible?: (id: string) => boolean; echoue?:
  * jamais. Ceux qui en parlent la passent explicitement — c'est plus lisible qu'une horloge simulée, et
  * ça évite qu'un test échoue le jour où la machine est lente.
  */
-function contexte(depot: DepotOrdonnanceur, echeanceDansMs = 3_600_000): ContexteJob {
-  return { depot, instant: INSTANT, echeance: new Date(Date.now() + echeanceDansMs), registre: [] };
+function contexte(depot: DepotOrdonnanceur, echeanceDansMs = 3_600_000, instant = INSTANT): ContexteJob {
+  return { depot, instant, echeance: new Date(Date.now() + echeanceDansMs), registre: [] };
 }
+
+/**
+ * Story 6.3 — 22 h 00 à Paris. Hors du créneau diurne, et loin de sa borne : ce n'est pas un test de
+ * frontière (celles-ci se prouvent au domaine, `regime-anam.test.ts`), c'est un test de CÂBLAGE — le job
+ * consulte-t-il le créneau, oui ou non.
+ */
+const INSTANT_SOIR = new Date("2026-08-05T20:00:00Z");
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -306,6 +313,88 @@ describe("[D4 / revue 4.10] LE RATTRAPAGE D'ANNONCE, câblé dans le job", () =>
     const { client } = supabaseFactice();
     const muet = { estConfigure: () => false, async envoyer() {}, async envoyerInformationLegale() {} };
     await executerSyntheseAvec(contexte(ordo), { depot: depotTrace, ia, supabase: client, courriel: muet });
+    expect(lectures, "aucune lecture quand rien ne peut partir").toHaveLength(0);
+  });
+});
+
+describe("[Story 6.3, D6 / AC2] LE CRÉNEAU DIURNE — deux chemins d'annonce, une seule garde", () => {
+  /**
+   * ⚠️ CE BLOC EXISTE PARCE QUE LA PREMIÈRE CONCEPTION ÉTAIT FAUSSE. Elle plaçait un `return` « dans le
+   * bloc d'annonce » du job. Or il y a DEUX chemins d'annonce dans une seule fonction, et un `return`
+   * posé dans le bloc de rattrapage sort du JOB ENTIER : il ne repousserait pas l'annonce du soir, il
+   * supprimerait la PRODUCTION des synthèses du soir. Le premier test ci-dessous est exactement celui
+   * qui aurait rougi.
+   */
+
+  it("[LE CŒUR] le soir, la synthèse est PRODUITE — et seulement son annonce est retenue", async () => {
+    // Mutation-cible n°1 : retirer `if (!creneauDiurneOuvert(instant)) return;` de `notifier`.
+    // Mutation-cible n°2 : remonter cette garde d'un cran, en tête du job. Les deux se voient ici, et
+    // elles se voient EN SENS INVERSE — c'est ce qui rend ce test irremplaçable par un autre.
+    const { depot: ordo, trace: traceOrdo } = depotOrdoFactice();
+    const { depot: syn, trace } = depotSyntheseFactice({ candidates: ["u1"] });
+    const { ia } = iaFactice();
+    const courriel = creerPortCourrielFactice();
+
+    await executerSyntheseAvec(contexte(ordo, 3_600_000, INSTANT_SOIR), {
+      depot: syn,
+      ia,
+      supabase: supabaseFactice().client,
+      courriel,
+    });
+
+    // Le travail a bien eu lieu : la synthèse est écrite, la personne est close en réussite, la purge
+    // de rétention a tourné. Rien de tout cela ne doit dépendre de l'heure.
+    expect(trace.enregistrements.map((e) => e.id), "la synthèse du soir est ÉCRITE").toEqual(["u1"]);
+    expect(traceOrdo.clos.map((c) => c.reussi), "et close en réussite").toEqual([true]);
+    expect(trace.purges, "et la purge de rétention a tourné").toEqual([RETENTION_NOTIFICATION_JOURS]);
+
+    // Seule l'annonce est retenue — et AVANT la réservation : refuser ne consomme rien, sinon le
+    // plafond de 72 h bloquerait demain matin un courriel qui n'est jamais parti ce soir.
+    expect(trace.reservations, "aucune réservation consommée").toEqual([]);
+    expect(courriel.envoyes, "et aucun courriel").toEqual([]);
+  });
+
+  it("la synthèse retenue le soir est RATTRAPÉE le lendemain — rien n'est perdu", async () => {
+    // L'asymétrie assumée de D6, prouvée du bon côté : la synthèse reste dans `syntheses_non_annoncees`
+    // et le rattrapage du matin la reprend. (Le rappel d'échéance, lui, est perdu — voir son propre
+    // fichier de test, où c'est écrit noir sur blanc.)
+    const { depot: syn, trace } = depotSyntheseFactice({
+      candidates: [],
+      nonAnnoncees: [{ utilisatriceId: "u1", syntheseId: "syn-du-soir" }],
+    });
+    const { depot: ordo } = depotOrdoFactice();
+    const { ia } = iaFactice();
+    const courriel = creerPortCourrielFactice();
+
+    await executerSyntheseAvec(contexte(ordo), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
+
+    expect(trace.reservations.map((r) => r.cle)).toEqual(["syn-du-soir"]);
+    expect(courriel.envoyes.map((e) => e.motif)).toEqual(["synthese_prete"]);
+  });
+
+  it("le soir, on ne LIT même pas les synthèses en attente", async () => {
+    // Mutation-cible : retirer `&& creneauDiurneOuvert(ctx.instant)` de la condition du rattrapage.
+    // Cette garde-là ne couvre QUE le rattrapage ; elle ne remplace pas celle de `notifier`, et c'est
+    // le test précédent qui l'interdit. Chacune tue son propre mutant.
+    const lectures: number[] = [];
+    const { depot } = depotSyntheseFactice({ candidates: [] });
+    const depotTrace = {
+      ...depot,
+      async syntheseesNonAnnoncees() {
+        lectures.push(1);
+        return [{ utilisatriceId: "u1", syntheseId: "syn-a" }];
+      },
+    };
+    const { depot: ordo } = depotOrdoFactice();
+    const { ia } = iaFactice();
+
+    await executerSyntheseAvec(contexte(ordo, 3_600_000, INSTANT_SOIR), {
+      depot: depotTrace,
+      ia,
+      supabase: supabaseFactice().client,
+      courriel: creerPortCourrielFactice(),
+    });
+
     expect(lectures, "aucune lecture quand rien ne peut partir").toHaveLength(0);
   });
 });

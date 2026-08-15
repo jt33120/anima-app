@@ -23,10 +23,18 @@ const carte = (cle: string, o: Partial<CarteVue> = {}): CarteVue => ({
   ...o,
 });
 
+/** La carte d'Anam NEUTRE — l'état de très loin le plus fréquent (Story 6.3). */
+const ANAM_NEUTRE = {
+  titre: "Anam",
+  presence: "Elle se manifeste quand elle a quelque chose de précis à dire.",
+  ligne: null,
+} as const;
+
 /** L'état RÉEL du produit aujourd'hui : 165 créneaux déclarés, 0 écrit. */
 const REELLE: BibliothequeVue = {
   jour: { a: 2026, m: 8, j: 14 },
   enAvant: "theme",
+  anam: ANAM_NEUTRE,
   cartes: [
     carte("theme", {
       titre: "Ton thème",
@@ -46,12 +54,15 @@ describe("[5.6/AC1] l'ordre du DOM est EXACTEMENT celui reçu — le rendu ne tr
   it("les titres paraissent dans l'ordre des cartes", () => {
     render(<Bibliotheque bibliotheque={REELLE} />);
     const titres = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    // « Anam » ferme la liste et n'entre PAS dans la rotation du jour (Story 6.3, D8) : elle est
+    // rendue hors de la grille, donc toujours en dernier, quelle que soit la carte mise en avant.
     expect(titres).toEqual([
       "Ton thème",
       "Le mantra du jour",
       "Ton ciel du jour",
       "Tes nombres",
       "Ton ennéagramme",
+      "Anam",
     ]);
   });
 

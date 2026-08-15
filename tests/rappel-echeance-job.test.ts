@@ -80,14 +80,17 @@ function courrielFactice(options: { configure?: boolean; echoue?: (destinataire:
 }
 
 /** Un contexte avec de la marge : `echeance` très loin → aucune coupure de lot. */
-function ctxLarge(): ContexteJob {
+function ctxLarge(instant = new Date("2026-08-06T06:00:00Z")): ContexteJob {
   return {
     depot: {} as never,
-    instant: new Date("2026-08-06T06:00:00Z"),
+    instant,
     echeance: new Date(Date.now() + 60_000),
     registre: [],
   };
 }
+
+/** Story 6.3 — 22 h 00 à Paris, hors créneau et loin de la borne (les bornes se prouvent au domaine). */
+const INSTANT_SOIR = new Date("2026-08-06T20:00:00Z");
 
 describe("[AC3] l'ordre des effets : tout ce qui peut EMPÊCHER l'envoi est connu avant de réserver", () => {
   it("[LE CŒUR] adresse → jeton → réservation → envoi, dans cet ordre", async () => {
@@ -326,5 +329,74 @@ describe("[NFR-015] ce que Resend, et l'écran verrouillé, ne voient PAS", () =
 
   it("un motif hors de l'ensemble fermé rend `null` (l'adaptateur refuse alors d'envoyer)", async () => {
     expect(gabaritPour("promo" as never, { origine, jeton })).toBeNull();
+  });
+});
+
+describe("[Story 6.3, D6 / AC2] LE CRÉNEAU DIURNE — et ce que ce refus COÛTE", () => {
+  it("[LE CŒUR] le soir, on ne LIT rien et on ne RÉSERVE rien", async () => {
+    // Mutation-cible : retirer `if (!creneauDiurneOuvert(ctx.instant)) return;`.
+    //
+    // Deux propriétés en un test, et elles ne sont pas décoratives :
+    //   • RIEN N'EST LU — même raison qu'`estConfigure()` juste en dessous : interroger la base pour dix
+    //     rappels qui ne partiront pas est du budget dépensé pour rien ;
+    //   • RIEN N'EST RÉSERVÉ — et c'est la propriété qui compte. Réserver puis refuser d'envoyer
+    //     consommerait la clé du jour, et comme l'échéance ne repasse JAMAIS (`echeance = aujourd'hui`),
+    //     ce rendez-vous serait perdu par la garde censée le protéger.
+    const lectures: number[] = [];
+    const { canal, reservations } = canalFactice();
+    const { port, envois } = courrielFactice();
+
+    await executerRappelEcheanceAvec(ctxLarge(INSTANT_SOIR), {
+      canal,
+      courriel: port,
+      dus: async () => {
+        lectures.push(1);
+        return [{ utilisatriceId: "u1", jour: JOUR }];
+      },
+    });
+
+    expect(lectures, "aucune lecture").toHaveLength(0);
+    expect(reservations, "aucune réservation consommée").toEqual([]);
+    expect(envois, "aucun courriel").toEqual([]);
+  });
+
+  it("[L'ASYMÉTRIE ASSUMÉE] ce rappel-là est PERDU, et rien ne le rattrape", async () => {
+    // ⚠️ CE TEST NE PROTÈGE PAS UN COMPORTEMENT : IL PROTÈGE UNE DÉCISION.
+    //
+    // La synthèse refusée le soir est rattrapée trois jours (`syntheses_non_annoncees`). Le rappel
+    // d'échéance, lui, ne l'est pas : l'échéance est due le jour même et jamais `<=`, il n'existe aucune
+    // file où le retard s'accumulerait, et c'est STRUCTUREL. Un rappel délivré à 22 h n'est plus un
+    // rappel — c'est un reproche à l'heure du coucher, sur un objectif qu'elle s'était fixé le matin.
+    //
+    // Le jour où quelqu'un voudra « ne rien perdre » et ajoutera une file d'attente ou un `libererNotif`
+    // de rattrapage, c'est ce test qui rougira — et le commentaire qu'il lira est celui-ci.
+    const { canal, liberations, reservations } = canalFactice();
+    const { port } = courrielFactice();
+
+    await executerRappelEcheanceAvec(ctxLarge(INSTANT_SOIR), {
+      canal,
+      courriel: port,
+      dus: async () => [{ utilisatriceId: "u1", jour: JOUR }],
+    });
+
+    expect(liberations, "aucune file, aucun report : le rappel du jour est simplement perdu").toEqual([]);
+    expect(reservations).toEqual([]);
+  });
+
+  it("au matin, le même rappel part normalement", async () => {
+    // Le témoin. Sans lui, un `return` inconditionnel en tête de job passerait les deux tests ci-dessus.
+    const { canal, reservations } = canalFactice();
+    const { port, envois } = courrielFactice();
+
+    await executerRappelEcheanceAvec(ctxLarge(), {
+      canal,
+      courriel: port,
+      dus: async () => [{ utilisatriceId: "u1", jour: JOUR }],
+    });
+
+    expect(reservations.map((r) => ({ motif: r.motif, cle: r.cle }))).toEqual([
+      { motif: "echeance_intention", cle: JOUR },
+    ]);
+    expect(envois.map((e) => e.motif)).toEqual(["echeance_intention"]);
   });
 });

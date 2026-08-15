@@ -15,6 +15,8 @@ import {
   carteNombres,
   carteTheme,
 } from "@/lib/domain/cartes-socle";
+import { carteAnam, type CarteAnam } from "@/lib/domain/carte-anam";
+import { creerDepotMotifsAnam } from "@/lib/data/depot-motifs-anam";
 import { lireEnneagramme } from "@/lib/data/lire-enneagramme";
 import { lireNumerologie } from "@/lib/data/lire-numerologie";
 import { lireSocleQuotidien, jourCivilParis } from "@/lib/data/lire-quotidien";
@@ -78,6 +80,17 @@ import { NON_ECRIT } from "@/lib/corpus/port";
 export interface ResultatBibliotheque extends Bibliotheque {
   /** Le jour civil parisien qui a servi à la mise en avant — porté jusqu'à la carte (report 5.4). */
   readonly jour: { readonly a: number; readonly m: number; readonly j: number };
+  /**
+   * Story 6.3 (D9) — LA CARTE « ANAM ». Elle vit ICI et non sur `Bibliotheque`, pour deux raisons qui
+   * se rejoignent : le domaine pur ne sait pas la produire (elle demande une lecture), et l'ajouter en
+   * champ requis casserait `assemblerBibliotheque`, qui rend deux littéraux sans elle.
+   *
+   * ⚠️ ELLE N'ENTRE PAS DANS `CATALOGUE_CARTES` (D8). Ce n'est pas une carte du socle : elle n'a ni
+   * fait calculé ni texte d'Anima, et le repli « Anima n'a pas encore écrit cette carte » n'a aucun
+   * sens pour elle. En revanche elle COMPTE dans la borne UX-DR-30, qui porte sur les objets RENDUS —
+   * cinq cartes de catalogue plus celle-ci font six, soit exactement le plafond.
+   */
+  readonly anam: CarteAnam;
 }
 
 /**
@@ -101,6 +114,27 @@ export async function lireBibliotheque(
   themeDejaLu?: ResultatThemeNatal,
 ): Promise<ResultatBibliotheque> {
   const cartes: CarteBibliotheque[] = [];
+
+  // ── La carte « Anam » : LANCÉE ICI, ATTENDUE À LA FIN (Story 6.3, AC6) ────────────────────────
+  //
+  // Elle n'a besoin d'aucune des trois lectures ci-dessous, donc la faire attendre son tour coûterait
+  // un aller-retour de plus sur le chemin critique de l'accueil, pour rien. Le `catch` est attaché
+  // ICI, à la création — attaché plus bas, une RPC qui échoue avant le premier `await` produirait un
+  // rejet non traité.
+  //
+  // REPLI VERS MOINS D'EFFET (AD-15) : carte NEUTRE, jamais une ligne fabriquée. Se taire à tort coûte
+  // un rappel différé ; parler à tort met sur son accueil une phrase qui ne correspond à rien.
+  //
+  // ⚠️ CE `catch` NE PEUT PAS MASQUER LA GARDE AD-17. La fenêtre de détresse est portée par le SQL :
+  // en épisode, la fonction rend zéro ligne — donc la carte est neutre par le CHEMIN NORMAL, pas par
+  // le chemin d'erreur. C'est ce qui permet de le prouver contre le vrai Postgres plutôt que de faire
+  // confiance à un `catch`.
+  const motifsEnVol = creerDepotMotifsAnam(supabase)
+    .motifs()
+    .catch((e) => {
+      journaliser("motifs anam", e);
+      return [];
+    });
 
   // ── Le quotidien : mantra + horoscope + LE THÈME, en un seul appel ───────────────────────────
   // `lireSocleQuotidien` porte déjà son propre `try` interne (le mantra survit à une panne
@@ -145,7 +179,22 @@ export async function lireBibliotheque(
     cartes.push(carteEnneagramme(null, NON_ECRIT));
   }
 
-  return { ...assemblerBibliotheque(cartesDisponibles(cartes, aPremium), jour), jour };
+  // ── La carte « Anam » (Story 6.3, AC6) ───────────────────────────────────────────────────────
+  //
+  // Son propre `try`, comme les trois autres lectures : une panne de la RPC des motifs ne doit pas
+  // faire disparaître le socle. Et le repli va vers MOINS d'effet (AD-15) — carte NEUTRE, jamais une
+  // ligne fabriquée. Se taire à tort coûte un rappel différé ; parler à tort met sur son accueil une
+  // phrase qui ne correspond à rien.
+  //
+  // ⚠️ CE `catch` NE PEUT PAS MASQUER LA GARDE AD-17. La fenêtre de détresse est portée par le SQL :
+  // en épisode, la fonction rend zéro ligne — donc la carte est neutre par le CHEMIN NORMAL, pas par
+  // le chemin d'erreur. C'est ce qui permet à `tests/motifs-anam-sql.test.ts` de le prouver contre le
+  // vrai Postgres plutôt que de faire confiance à un `catch`.
+  return {
+    ...assemblerBibliotheque(cartesDisponibles(cartes, aPremium), jour),
+    jour,
+    anam: carteAnam(await motifsEnVol),
+  };
 }
 
 /** Le nom de l'erreur, rien d'autre : ni identifiant, ni date, ni nombre (NFR-022). */

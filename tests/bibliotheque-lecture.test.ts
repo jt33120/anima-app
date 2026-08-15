@@ -19,6 +19,7 @@ import { resolve } from "node:path";
 const lireThemeNatal = vi.fn();
 const lireNumerologie = vi.fn();
 const lireEnneagramme = vi.fn();
+const motifsAnam = vi.fn();
 
 vi.mock("@/lib/data/depot-theme-natal", () => ({
   lireThemeNatal: (...a: unknown[]) => lireThemeNatal(...a),
@@ -29,6 +30,9 @@ vi.mock("@/lib/data/lire-numerologie", () => ({
 }));
 vi.mock("@/lib/data/lire-enneagramme", () => ({
   lireEnneagramme: (...a: unknown[]) => lireEnneagramme(...a),
+}));
+vi.mock("@/lib/data/depot-motifs-anam", () => ({
+  creerDepotMotifsAnam: () => ({ motifs: () => motifsAnam() }),
 }));
 
 const { lireBibliotheque } = await import("@/lib/data/lire-bibliotheque");
@@ -43,6 +47,7 @@ beforeEach(() => {
   lireThemeNatal.mockResolvedValue({ statut: "indisponible", raison: "naissance_absente" });
   lireNumerologie.mockResolvedValue({ statut: "indisponible", raison: "naissance_absente" });
   lireEnneagramme.mockResolvedValue({ statut: "indisponible", raison: "sans_type" });
+  motifsAnam.mockResolvedValue([]);
 });
 
 describe("[5.6/T4] le thème natal est lu UNE SEULE FOIS", () => {
@@ -203,5 +208,46 @@ describe("[5.6/T8] `app/page.tsx` lit le thème UNE FOIS et le passe à ses DEUX
 
   it("une seule éphéméride est composée, et elle est partagée", () => {
     expect([...sansCommentaires.matchAll(/ephemerideAstronomyEngine\s*\(/g)]).toHaveLength(1);
+  });
+});
+
+describe("[6.3/AC6] la carte d'Anam est CÂBLÉE au dépôt, pas décorative", () => {
+  it("aucun motif → carte NEUTRE, et la carte existe quand même", async () => {
+    const b = await lireBibliotheque(SUPABASE, UID, MAINTENANT, false);
+    expect(b.anam.ligne).toBeNull();
+    expect(b.anam.titre.length, "la carte est toujours là").toBeGreaterThan(0);
+  });
+
+  it("[LE TEST QUI COMPTE] ce que le dépôt rend ARRIVE sur la carte", async () => {
+    // ⚠️ CE TEST EST NÉ D'UN MUTANT SURVIVANT. Remplacer `carteAnam(await motifsEnVol)` par
+    // `carteAnam([])` — donc jeter la lecture et rendre la carte définitivement neutre — laissait
+    // TOUTE la suite verte : le domaine était prouvé, le rendu était prouvé, et le fil entre les
+    // deux ne l'était pas. Une carte muette pour toujours est aussi cassée qu'une carte bavarde, et
+    // beaucoup plus discrète.
+    motifsAnam.mockResolvedValue([
+      { motif: "synthese_prete", jour: "2026-08-07", titre: null, detail: null },
+    ]);
+    const b = await lireBibliotheque(SUPABASE, UID, MAINTENANT, false);
+    expect(b.anam.ligne).toContain("7 août 2026");
+  });
+
+  it("l'ARBITRAGE traverse aussi : trois motifs présents, une seule ligne, la prioritaire", async () => {
+    motifsAnam.mockResolvedValue([
+      { motif: "synthese_prete", jour: "2026-08-07", titre: null, detail: null },
+      { motif: "proposition_branche", jour: "2026-08-06", titre: null, detail: null },
+      { motif: "echeance_intention", jour: "2026-08-14", titre: "je bloque", detail: "j'écris" },
+    ]);
+    const b = await lireBibliotheque(SUPABASE, UID, MAINTENANT, false);
+    expect(b.anam.ligne).toBe("Pour aujourd'hui : si je bloque, alors j'écris.");
+  });
+
+  it("[AD-15] une panne du dépôt rend la carte NEUTRE — et n'emporte pas les cinq autres", async () => {
+    // Le repli va vers MOINS d'effet : se taire à tort coûte un rappel différé ; parler à tort met
+    // sur son accueil une phrase qui ne correspond à rien. Et le socle survit, comme les trois
+    // autres lectures de ce module.
+    motifsAnam.mockRejectedValue(new Error("PGRST000"));
+    const b = await lireBibliotheque(SUPABASE, UID, MAINTENANT, false);
+    expect(b.anam.ligne).toBeNull();
+    expect(b.cartes).toHaveLength(5);
   });
 });

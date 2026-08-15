@@ -98,7 +98,7 @@ development_status:
   6-1-rythmes-retention-ordonnanceur-unique: review # contextée le 2026-08-14 ; RESSERRÉE à la mesure seule (zéro migration) après validation adversariale : 34 constats, dont 15 critiques
   6-1a-sql-ordonnanceur-jeton-alarme: review # AJOUTÉE le 2026-08-14 — extraite de la 6.1 : toute la SQL (migration 0052, jeton T6-19, homme mort 48h→60h, boucle de fermeture de l'alarme, idempotence prouvée sur un effet compté). À faire APRÈS la 6.1, bloque la 6.8
   6-2-socle-quotidien-impersonnel-notifications-discretes: review # livrée le 2026-08-15 ; migration 0053 ; fondation web push complète (manifeste, service worker sans cache, VAPID sans dépendance) + /reglages + privacy-cover. INERTE sur le palier hobby (1 cron/jour ne peut honorer une heure choisie) : le job REFUSE d'émettre, et l'écran le dit. Porte ajoutée en §2 des portes ; 7 corps d'aperçu à faire relire par Anima
-  6-3-anam-rare-et-specifique: backlog
+  6-3-anam-rare-et-specifique: review # livrée le 2026-08-15 ; migration 0054 ; N'ÉMET RIEN DE NOUVEAU (MOTIFS_POUSSEE=1, MotifCourriel=2, reserver_notification intouchée) : elle DÉCLARE l'ensemble fermé des 3 motifs en un seul endroit, pose le créneau diurne 6h-21h Paris AVANT toute réservation dans notifier() (signature + 2 appelants) et dans le job de rappel, et livre la carte « Anam » de l'accueil dont l'annonce et l'affichage dérivent de la MÊME source (AC8 prouvé par égalité). AD-17 porté en SQL. 44 mutants, 43 tués. ⚠️ L'accueil rend désormais 6 objets = plafond UX-DR-30 : toute carte de catalogue ajoutée fera rougir
   6-4-geste-de-pause: backlog
   6-5-ce-quanam-retient-consulter-corriger-supprimer: backlog
   6-6-export-complet: backlog

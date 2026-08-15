@@ -1281,3 +1281,73 @@ rejeu, parce que ce script acceptait *n'importe quel* rouge comme un verdict de 
 faute des sept faux morts de la 6.1a, retournée : là-bas un vrai mutant passait pour mort à cause d'un
 502 ; ici un survivant passait pour mort à cause d'un rouge transitoire. **Un mutant n'est tué que par un
 test NOMMÉ** — le rejeu isolé, qui affiche quel test échoue, a rendu le bon verdict.
+
+---
+
+## Story 6.3 — ce qu'elle laisse derrière elle
+
+### 1. ⚠️ L'accueil est AU PLAFOND d'UX-DR-30 : six objets rendus sur six
+
+La borne « 4 à 6 objets » était mesurée sur `CATALOGUE_CARTES.length` (cinq) pendant que l'écran en
+rendait déjà six. Une sixième carte de catalogue serait donc passée avec un build vert et **sept**
+objets à l'écran. `tests/rendu/carte-anam.test.tsx` compte désormais les `<article>` rendus.
+
+**Conséquence à connaître avant d'ouvrir une story de carte** : la prochaine carte de catalogue fera
+rougir cette garde. Il faudra alors **retirer quelque chose**, pas relever la borne — UX-DR-30 dit
+« 4 à 6 maximum », et la carte d'Anam est celle qui a le moins de raisons de partir (elle est la
+seule à ne rien exiger d'Anima).
+
+### 2. L'AC6 promettait « la branche concernée » — c'était impossible (D10)
+
+`signal_reconceptualisation` (0020) ne référence qu'une `entree_journal_id` : **il n'y a pas de
+branche à nommer** au moment de la proposition, puisqu'elle consiste précisément à en ouvrir une. La
+seule chose nommable de ce côté serait son verbatim de journal, que la 4.5 refuse de faire traverser.
+L'AC est amendée dans la story, et chaque motif est spécifique de la façon dont il PEUT l'être.
+
+**Le jour où une branche existera au moment du signal** (si un futur modèle de données l'attache), la
+ligne pourra la nommer et il faudra revenir ici.
+
+### 3. `synthese_prete` peut se répéter jusqu'à trois jours sur la carte
+
+Il n'existe **aucune notion de « lue »** en base : la table `synthese` (0029) n'a pas de colonne
+`lu_le`. La carte reprend donc la fenêtre du canal sortant (`syntheses_non_annoncees(_, 3)`) et
+réaffiche la même ligne tant que la synthèse a moins de trois jours. Le correctif est une colonne,
+donc une migration — **décision suivante, pas celle-ci**, et surtout pas un compteur côté client.
+
+### 4. `service_role` peut appeler `motifs_anam_du()` — et c'est sans effet
+
+J'avais d'abord mesuré `permission denied` et conclu que le grant fermait la porte. **C'est faux** :
+`charger_proposition_branche`, le modèle de cette fonction, répond exactement pareil — pas d'erreur,
+zéro ligne. La mesure d'origine portait sur un état antérieur au `db reset`.
+
+Ce qui ferme la porte est `security invoker` + `auth.uid()` : **sans session, la clause de propriété
+ne peut matcher personne**. La propriété est plus forte que celle annoncée, et elle est écrite en
+test — aucun job d'ordonnanceur ne pourra se servir de cette fonction pour décider d'un envoi, quel
+que soit le grant qu'on lui donnera un jour.
+
+### 5. Le créneau du soir ne mord pas encore, et c'est normal
+
+Le cron est quotidien (`0 6 * * *`, soit 07 h/08 h Paris) : aucune émission ne peut tomber le soir
+aujourd'hui. La garde ne mordra pour de bon que **sous le cron horaire du palier `pro`** (porte de
+publication §2). Elle est posée maintenant parce qu'elle est bon marché maintenant et qu'elle sera
+oubliée le jour où le palier changera.
+
+### 6. Un mutant survivant, assumé et documenté
+
+`ligneAnam` porte `if (!p) return null;` après un `find`. Ce n'est **pas une garde** : `gagnant` sort
+de `motifPrioritaire(presents.map(…))`, donc il vient forcément de `presents`, donc `find` ne peut pas
+échouer. Aucun mutant ne peut le tuer — il est là parce que TypeScript exige qu'on traite le
+`undefined` de `find`, et le supprimer demanderait un `!`, qui mentirait davantage. Écrit dans le
+fichier pour que personne ne lui cherche un test.
+
+### 7. Deux tests nés de mutants survivants
+
+- **Le fil entre le dépôt et la carte n'était prouvé nulle part.** Remplacer `carteAnam(await
+  motifsEnVol)` par `carteAnam([])` — donc rendre la carte définitivement muette — laissait TOUTE la
+  suite verte. Le domaine était prouvé, le rendu était prouvé, la couture ne l'était pas.
+- **`depot-motifs-anam.ts` n'avait aucun test.** Aplatir `null` en chaîne vide faisait sauter le
+  fail-closed d'`ligneAnam` sans qu'aucune de ses gardes ne rougisse — elles reçoivent ce que le
+  dépôt leur donne.
+
+Les deux ont maintenant leur fichier. C'est la même leçon que la 4.10 : **les gardes de chaque couche
+peuvent toutes être vertes pendant que le passage de l'une à l'autre est cassé.**

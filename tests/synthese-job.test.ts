@@ -32,8 +32,14 @@ const JOUR = "2026-08-05"; // la fenêtre de réclamation par personne est le JO
 
 interface TraceOrdo {
   reclames: { job: string; fenetre: string; cible: string | null; bail: number }[];
-  clos: { fenetre: string; cible: string | null; reussi: boolean; motif: string | null }[];
+  /** `jeton` depuis la 6.1a : le fan-out doit rendre à `clore` celui que `reclamer` lui a donné, PAR PERSONNE. */
+  clos: { fenetre: string; cible: string | null; reussi: boolean; motif: string | null; jeton: string }[];
   incidents: { type: TypeIncident; job: string; detail: string | null }[];
+}
+
+/** Les clôtures sans leur jeton — voir la garde dédiée plus bas pour ce qui porte SUR le jeton. */
+function closSansJeton(trace: TraceOrdo) {
+  return trace.clos.map(({ fenetre, cible, reussi, motif }) => ({ fenetre, cible, reussi, motif }));
 }
 
 function depotOrdoFactice(options: { reclamer?: (cible: string | null) => boolean } = {}) {
@@ -44,10 +50,14 @@ function depotOrdoFactice(options: { reclamer?: (cible: string | null) => boolea
     },
     async reclamer(job, fenetre, cible, bail) {
       trace.reclames.push({ job, fenetre, cible, bail });
-      return options.reclamer ? options.reclamer(cible) : true;
+      const accorde = options.reclamer ? options.reclamer(cible) : true;
+      // Un jeton PAR CIBLE (6.1a) : le fan-out en réclame un par personne, et rendre le même à toutes
+      // laisserait passer un job qui clôturerait la personne suivante avec le jeton de la précédente.
+      return accorde ? `jeton-${cible}` : null;
     },
-    async clore(_j, fenetre, cible, reussi, motif) {
-      trace.clos.push({ fenetre, cible, reussi, motif });
+    async clore(_j, fenetre, cible, reussi, motif, jeton) {
+      trace.clos.push({ fenetre, cible, reussi, motif, jeton });
+      return true;
     },
     async etat(): Promise<EtatOrdonnanceur> {
       return { naissance: null, reussites: new Map() };
@@ -375,7 +385,7 @@ describe("[D3 / FR-034] rien à dire → rien du tout", () => {
     expect(requetes, "des faits anciens ne suffisent pas — ils ont déjà été racontés").toEqual([]);
     expect(traceSyn.enregistrements).toEqual([]);
     expect(courriel.envoyes).toEqual([]);
-    expect(trace.clos).toEqual([{ fenetre: JOUR, cible: "u1", reussi: true, motif: null }]);
+    expect(closSansJeton(trace)).toEqual([{ fenetre: JOUR, cible: "u1", reussi: true, motif: null }]);
   });
 });
 
@@ -569,7 +579,7 @@ describe("[AC4] l'annonce : réserver AVANT d'envoyer, et jamais l'inverse", () 
     });
 
     try {
-      expect(trace.clos).toEqual([{ fenetre: JOUR, cible: "u1", reussi: true, motif: null }]);
+      expect(closSansJeton(trace)).toEqual([{ fenetre: JOUR, cible: "u1", reussi: true, motif: null }]);
       expect(trace.incidents, "un courriel perdu n'est pas un incident système").toEqual([]);
     } finally {
       // Hors `finally`, un échec d'assertion laissait `console.error` muet pour TOUT le reste du
@@ -719,7 +729,7 @@ describe("[AC1] une personne cassée n'emporte pas les autres", () => {
 
     await executerSyntheseAvec(contexte(depot), { depot: syn, ia, supabase: supabaseFactice().client, courriel });
 
-    expect(trace.clos).toEqual([
+    expect(closSansJeton(trace)).toEqual([
       { fenetre: JOUR, cible: "u1", reussi: false, motif: "materiau_synthese: 08006" },
       { fenetre: JOUR, cible: "u2", reussi: true, motif: null },
     ]);
@@ -842,6 +852,16 @@ describe("[T2-1 / AD-13] l'état vivant est relu JUSTE AVANT de poster le journa
         { cible: "u1", reussi: true },
         { cible: "u2", reussi: true },
       ]);
+
+      // ⚠️ Story 6.1a — CHAQUE PERSONNE EST CLOSE AVEC SON PROPRE JETON. Trouvé par la campagne de
+      // mutation, pas par la revue : hisser le jeton hors de la boucle (ou le figer) ne faisait
+      // rougir AUCUN des 41 tests de ce fichier. Le fan-out réclame par personne, donc il détient
+      // autant de jetons que de personnes — et fermer la personne suivante avec le jeton de la
+      // précédente serait refusé en base, silencieusement, pour tout le monde sauf la première.
+      //
+      // Le dépôt factice frappe `jeton-<cible>` : l'assertion dit littéralement « le jeton d'ELLE ».
+      // Mutation-cible : figer `jeton` avant la boucle dans `jobs/synthese.ts`.
+      expect(trace.clos.map((c) => c.jeton)).toEqual(["jeton-u1", "jeton-u2"]);
     } finally {
       espion.mockRestore();
     }
@@ -1000,9 +1020,9 @@ describe("[T3-7] la clôture est HORS du try, et elle est protégée", () => {
       const { depot, trace } = depotOrdoFactice();
       const depotQuiCasse: DepotOrdonnanceur = {
         ...depot,
-        async clore(j, fenetre, cible, reussi, motif) {
+        async clore(j, fenetre, cible, reussi, motif, jeton) {
           if (cible === "u1") throw new Error("clore_indisponible: 08006");
-          return depot.clore(j, fenetre, cible, reussi, motif);
+          return depot.clore(j, fenetre, cible, reussi, motif, jeton);
         },
       };
       const { depot: syn, trace: traceSyn } = depotSyntheseFactice({ candidates: ["u1", "u2", "u3"] });

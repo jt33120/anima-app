@@ -2,7 +2,7 @@ import "server-only";
 import { avecDelai } from "@/lib/domain/delai";
 import { fenetreDe } from "@/lib/domain/ordonnanceur";
 import { codeDErreur } from "@/lib/domain/code-erreur";
-import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
+import { journaliserExploitation, journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
 import type { DepotOrdonnanceur } from "@/lib/data/depot-ordonnanceur";
 import { REGISTRE, type JobEnregistre } from "@/lib/ordonnanceur/registre";
 import { verifierEnvironnement } from "@/lib/ordonnanceur/environnement";
@@ -66,8 +66,20 @@ export async function executerOrdonnanceur(deps: DepsOrdonnanceur): Promise<Rapp
     try {
       // La réclamation EST la décision. Si elle refuse, quelqu'un a déjà fait ce travail dans cette fenêtre
       // (ou le fait en ce moment) — il n'y a rien à décider de plus, et surtout rien à décider ici.
-      const reclame = await deps.depot.reclamer(job.nom, fenetre, null, bail);
-      if (!reclame) {
+      const jeton = await deps.depot.reclamer(job.nom, fenetre, null, bail);
+      if (jeton === null) {
+        // ⚠️ Story 6.1 — CE CHEMIN NE LAISSAIT AUCUNE TRACE, NULLE PART. La ligne `execution_job`
+        // est celle d'hier, `tentatives` n'est pas incrémenté, et le `deja_fait` poussé ci-dessous
+        // ne vit que dans le rapport HTTP — qui part vers l'ordonnanceur externe et se perd.
+        //
+        // Ce n'est pas un détail comptable : sur un rejeu de purge (6.8), il ne resterait ensuite
+        // AUCUNE trace disant « la rétention a été rejouée et n'a rien refait ». Or c'est
+        // exactement la phrase qu'il faut pouvoir produire pour une obligation légale — l'absence
+        // d'effet est le résultat attendu, et un résultat attendu qu'on ne peut pas montrer ne vaut
+        // pas mieux qu'un travail non fait.
+        //
+        // Sous `code`, avec le NOM DU JOB — un identifiant technique, jamais une cible (NFR-022).
+        journaliserExploitation("ordonnanceur_deja_fait", { code: job.nom });
         jobs.push({ nom: job.nom, issue: "deja_fait" });
         continue;
       }
@@ -90,7 +102,9 @@ export async function executerOrdonnanceur(deps: DepsOrdonnanceur): Promise<Rapp
         const code = codeDErreur(e);
         // Clore en ÉCHEC, pas laisser pendre : une ligne `echoue` est immédiatement re-réclamable, alors
         // qu'une ligne `en_cours` abandonnée immobilise la fenêtre jusqu'à l'expiration du bail.
-        await deps.depot.clore(job.nom, fenetre, null, false, code);
+        if (!(await deps.depot.clore(job.nom, fenetre, null, false, code, jeton))) {
+          journaliserExploitation("ordonnanceur_cloture_refusee", { code: job.nom });
+        }
         await deps.depot.leverIncident("job_echoue", job.nom, code);
         jobs.push({ nom: job.nom, issue: "echoue" });
       }
@@ -103,7 +117,16 @@ export async function executerOrdonnanceur(deps: DepsOrdonnanceur): Promise<Rapp
       // synthèse (4.9), c'eût été une seconde synthèse et une seconde notification ; sur la rétention
       // (Epic 6), un second effacement.
       if (travailFait) {
-        await deps.depot.clore(job.nom, fenetre, null, true, null);
+        // ⚠️ Story 6.1a — LE REFUS DE CLÔTURE NE CHANGE PAS L'ISSUE RAPPORTÉE, et c'est délibéré.
+        // L'issue suit le TRAVAIL, jamais la comptabilité (voir le catch ci-dessous, revue 4.8) : le job
+        // a bel et bien tourné. Ce qu'un refus dit, c'est qu'une AUTRE exécution détient désormais la
+        // fenêtre — parce que celle-ci a dépassé son bail sans le savoir. C'est le seul signal qui
+        // permette, plus tard, de distinguer « la purge n'a rien refait » de « deux purges se sont
+        // marché dessus ». Il ne vit que dans le journal du processus : la base, elle, appartient à
+        // l'autre, et on n'y réécrit rien.
+        if (!(await deps.depot.clore(job.nom, fenetre, null, true, null, jeton))) {
+          journaliserExploitation("ordonnanceur_cloture_refusee", { code: job.nom });
+        }
         jobs.push({ nom: job.nom, issue: "execute" });
       }
     } catch (e) {

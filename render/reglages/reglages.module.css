@@ -1,0 +1,108 @@
+/* La halte des réglages (Story 6.2). Sobre par nécessité : c'est un écran de contrôle, pas une
+   région du monde — il ne porte aucune imagerie de séance et n'anime rien. */
+
+.halte {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.titreHalte {
+  font-family: var(--pile-anam);
+  font-size: 1.75rem;
+  font-weight: 400;
+  color: var(--texte);
+  margin: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.titre {
+  font-family: var(--pile-anam);
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: var(--texte);
+  margin: 0;
+}
+
+.description,
+.etat,
+.message {
+  margin: 0;
+  color: var(--texte-doux);
+  line-height: 1.6;
+}
+
+.etat {
+  color: var(--texte);
+}
+
+/* Réservé même vide : sans hauteur minimale, l'apparition d'un message pousse le contenu sous le
+   doigt qui vient de cliquer. */
+.message {
+  min-height: 1.6em;
+  font-size: 0.94rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.bouton {
+  font: inherit;
+  color: var(--texte);
+  background: transparent;
+  border: 1px solid var(--texte-doux);
+  border-radius: 999px;
+  /* La cible tactile minimale passe par le JETON, pas par un littéral : `tests/cible-tactile.test.ts`
+     lit les feuilles de style et refuse une commande qui la redéclare à la main — deux littéraux
+     divergent, un jeton non. */
+  min-height: var(--cible-tactile);
+  padding: 0 1.4rem;
+  cursor: pointer;
+}
+
+.bouton:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.bouton:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--texte);
+  outline-offset: 2px;
+}
+
+.champHeure {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--texte-doux);
+  min-height: var(--cible-tactile);
+}
+
+.select {
+  font: inherit;
+  color: var(--texte);
+  background: transparent;
+  border: 1px solid var(--texte-doux);
+  border-radius: 0.5rem;
+  min-height: var(--cible-tactile);
+  padding: 0 0.6rem;
+}
+
+/* Le fond du menu déroulant natif est peint par le système : sans ça, du texte clair sur fond clair
+   sur certains navigateurs de bureau. */
+.select option {
+  color: #1b1836;
+  background: #ffffff;
+}

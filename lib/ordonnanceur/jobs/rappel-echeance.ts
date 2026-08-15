@@ -65,14 +65,14 @@ export const LOT_PAR_TICK = 10;
 export const DELAI_ENVOI_MS = 4_000;
 
 /**
- * Ce qu'il faut avoir en réserve pour tenter une personne de plus (patron `RESERVE_PERSONNE_MS` de la
+ * Ce qu'il faut avoir en réserve pour tenter une personne de plus (patron `RESERVE_ENVOI_MS` de la
  * synthèse, T3-1). Se faire couper par `avecDelai` clôt le job en `echoue` et lève un `job_echoue` —
  * alors que tout le monde a peut-être été servi. Rendre la main proprement, c'est réussir.
  *
  * Doit couvrir l'ENVOI (borné ci-dessus) plus ses trois allers-retours de base — sans quoi la réserve
  * ne réserve rien et le job se fait couper au milieu d'une personne.
  */
-export const RESERVE_PERSONNE_MS = DELAI_ENVOI_MS + 1_500;
+export const RESERVE_ENVOI_MS = DELAI_ENVOI_MS + 1_500;
 
 export interface DepsRappel {
   readonly canal: DepotCanalCourriel;
@@ -98,7 +98,7 @@ export async function executerRappelEcheanceAvec(ctx: ContexteJob, deps: DepsRap
 
   let envoyes = 0;
   for (const [rang, { utilisatriceId, jour }] of dus.entries()) {
-    if (ctx.echeance.getTime() - Date.now() < RESERVE_PERSONNE_MS) {
+    if (ctx.echeance.getTime() - Date.now() < RESERVE_ENVOI_MS) {
       journaliserExploitation("rappel_lot_incomplet", { code: `restantes_${dus.length - rang}` });
       break;
     }

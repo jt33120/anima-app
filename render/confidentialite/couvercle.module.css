@@ -1,0 +1,39 @@
+/*
+ * Le PRIVACY-COVER (Story 6.2, AC5 · DESIGN.md §301, §427).
+ *
+ * ⚠️ LA VISIBILITÉ EST PILOTÉE PAR UN ATTRIBUT SUR `<html>`, PAS PAR UN RENDU REACT, et c'est tout le
+ * point technique de ce fichier. iOS prend la vignette du sélecteur de tâches à l'instant où
+ * l'application passe en arrière-plan ; un `setState` React reprogramme un rendu, un rendu attend une
+ * peinture, et la peinture arrive après la capture. L'attribut est posé de façon SYNCHRONE dans le
+ * gestionnaire d'événement, le style s'applique dans la même image, et la vignette est déjà couverte.
+ *
+ * Pas de transition non plus : une transition est un délai avec un joli nom.
+ */
+
+.couvercle {
+  position: fixed;
+  inset: 0;
+  /* Au-dessus de tout, y compris des surimpressions de séance et de la mention IA persistante. */
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--fond);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+:global(html[data-couvercle="pose"]) .couvercle {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Le mot, et rien d'autre : le même que l'onglet, le manifeste et l'aperçu de notification. Ni
+   personnage, ni lune, ni lotus — l'imagerie de séance vit derrière l'authentification (DESIGN.md). */
+.mot {
+  font-family: var(--pile-anam);
+  font-size: 1.5rem;
+  letter-spacing: 0.16em;
+  color: var(--texte-doux);
+}

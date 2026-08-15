@@ -4,15 +4,23 @@ import { creerDepotOrdonnanceur } from "@/lib/data/depot-ordonnanceur";
 import { executerOrdonnanceur } from "@/lib/ordonnanceur/executer";
 
 /**
- * Story 4.8 (AC1/AC3) — LA PORTE UNIQUE de l'ordonnanceur. Vercel Cron l'appelle ; personne d'autre ne le
+ * Story 4.8 (AC1/AC3) — LA PORTE UNIQUE de l'ordonnanceur. L'ordonnanceur externe l'appelle ; personne d'autre ne le
  * peut. C'est le seul point d'entrée d'un mécanisme périodique dans tout le produit, et un test de garde
  * casse le build si un second apparaît (AC4).
  *
- * En GET, parce que Vercel Cron émet des GET — ce qui rend l'authentification d'autant plus critique : un
+ * En GET, parce que l'ordonnanceur externe émet des GET — ce qui rend l'authentification d'autant plus critique : un
  * GET est ce qu'un navigateur, un aspirateur de liens ou un préchargeur émettent le plus facilement.
  */
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// ⚠️ UN LITTÉRAL, et jamais une constante importée : Next exige une valeur statiquement analysable,
+// et une expression est IGNORÉE EN SILENCE — la plateforme retombe alors sur son défaut. Sa valeur
+// doit égaler `Math.ceil(BUDGET_TICK_MS / 1000)` (`lib/domain/ordonnanceur-budget.ts`), et deux
+// assertions distinctes gardent cette couture : l'une que c'est bien un nombre écrit en clair,
+// l'autre que c'est le bon. Aucune ne remplace l'autre.
+//
+// Ce 60 n'a jamais été un plafond de plateforme — le palier `hobby` en autorise 300. Le monter sans
+// job pour le justifier reconstruirait le mou dans lequel les gardes cessent de mordre (Story 6.1).
+export const maxDuration = 74;
 
 /**
  * Comparaison à temps constant. On HACHE avant de comparer plutôt que de comparer les chaînes : `===`

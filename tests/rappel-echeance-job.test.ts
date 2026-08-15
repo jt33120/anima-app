@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   executerRappelEcheanceAvec,
   LOT_PAR_TICK,
-  RESERVE_PERSONNE_MS,
+  RESERVE_ENVOI_MS,
   DELAI_ENVOI_MS,
   NOM_JOB,
 } from "@/lib/ordonnanceur/jobs/rappel-echeance";
@@ -223,7 +223,7 @@ describe("repli et budget", () => {
     const { canal } = canalFactice();
     const { port, envois } = courrielFactice();
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const ctxSerre: ContexteJob = { ...ctxLarge(), echeance: new Date(Date.now() + RESERVE_PERSONNE_MS - 100) };
+    const ctxSerre: ContexteJob = { ...ctxLarge(), echeance: new Date(Date.now() + RESERVE_ENVOI_MS - 100) };
     await executerRappelEcheanceAvec(ctxSerre, {
       canal,
       courriel: port,
@@ -242,18 +242,35 @@ describe("[D5] le budget du registre après rééquilibrage", () => {
     expect(rappel!.toleranceHeures % 24, "jamais pile sur un multiple : l'alerte se jouerait au hasard").not.toBe(0);
   });
 
-  it("[LE CŒUR] Σ delaiMs n'a pas AUGMENTÉ en accueillant un troisième job", async () => {
-    // La garde `[T3-3]` (`ordonnanceur-architecture.test.ts`) vérifie déjà `Σ + marge ≤ maxDuration`.
-    // Celle-ci dit autre chose, et c'est le sens de la décision D5 : le troisième job n'a pas été
-    // financé par la plateforme, il a été financé par le temps que le job de santé n'utilisait pas.
-    // Mutation-cible : remonter la synthèse à 38 s « puisqu'il reste de la place ».
-    const somme = REGISTRE.reduce((t, j) => t + j.delaiMs, 0);
-    expect(somme, "le registre consomme exactement ce qu'il consommait à deux jobs").toBe(50_000);
-  });
+  /*
+   * ⚠️ Story 6.1 — le test « Σ delaiMs vaut exactement 50 000 » qui vivait ici est SUPPRIMÉ, et il
+   * ne doit pas être rapatrié ailleurs.
+   *
+   * Il disait « le registre consomme exactement ce qu'il consommait à deux jobs » — vrai, mais c'est
+   * un DÉTECTEUR DE CHANGEMENT, pas une garde : il rougit à chaque fois qu'on touche un `delaiMs`,
+   * y compris quand on a raison de le toucher, et il n'exprime aucune propriété qu'on veuille
+   * protéger. Le genre de test qu'on met à jour sans y penser, donc le genre qui ne protège rien.
+   *
+   * Ce que la 6.1 met à la place, dans `tests/ordonnanceur-architecture.test.ts`, est un ENCADREMENT
+   * de Σ plutôt qu'une égalité — et ⚠️ l'inégalité écrite ici dans la première version était
+   * TAUTOLOGIQUE (corrigé en revue). La vraie, celle qui contraint Σ des deux côtés, est :
+   *
+   *     BUDGET_TICK_MS − RESERVE_DECLAREE_MS  ≤  Σ + margeHorsDelais(n)  ≤  BUDGET_TICK_MS
+   *
+   * Σ est donc enfermé dans une fourchette de largeur exactement `RESERVE_DECLAREE_MS` : 2 000 ms.
+   * La borne du haut interdit au registre de déborder ; celle du bas interdit d'élargir la fourchette
+   * sans job pour le justifier.
+   *
+   * ⚠️ CE QUE ÇA AUTORISE, ET QU'IL FAUT SAVOIR : remonter la synthèse de 36 à 38 s reste vert, parce
+   * que Σ passe à 52 000 et que 52 000 + 8 000 = 60 000 tient encore. C'est ASSUMÉ — la 6.1 remplace
+   * un point par un intervalle, et un intervalle de 2 000 ms est ce qu'on a décidé de tolérer. Le pin
+   * supprimé attrapait ce cas-là, mais au prix d'un test qu'on met à jour sans y penser à chaque
+   * ajustement légitime : un détecteur de changement, pas une garde.
+   */
 
   it("le rappel a de quoi servir au moins une personne", async () => {
     const rappel = REGISTRE.find((j) => j.nom === NOM_JOB)!;
-    expect(rappel.delaiMs).toBeGreaterThan(RESERVE_PERSONNE_MS);
+    expect(rappel.delaiMs).toBeGreaterThan(RESERVE_ENVOI_MS);
     expect(LOT_PAR_TICK, "un lot borné : le fan-out est séquentiel dans huit secondes").toBeLessThanOrEqual(10);
   });
 
@@ -265,7 +282,7 @@ describe("[D5] le budget du registre après rééquilibrage", () => {
     // Mutation-cible : remonter `DELAI_ENVOI_MS` au-dessus du `delaiMs` du job.
     const rappel = REGISTRE.find((j) => j.nom === NOM_JOB)!;
     expect(DELAI_ENVOI_MS, "l'envoi est borné SOUS le budget du job").toBeLessThan(rappel.delaiMs);
-    expect(RESERVE_PERSONNE_MS, "et la réserve couvre l'envoi").toBeGreaterThan(DELAI_ENVOI_MS);
+    expect(RESERVE_ENVOI_MS, "et la réserve couvre l'envoi").toBeGreaterThan(DELAI_ENVOI_MS);
   });
 });
 

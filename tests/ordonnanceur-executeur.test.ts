@@ -21,7 +21,12 @@ interface Trace {
    * story promet — cessait d'exister.
    */
   fenetres: { job: string; fenetre: string; bail: number }[];
-  clos: { job: string; reussi: boolean; motif: string | null }[];
+  /**
+   * `jeton` depuis la 6.1a : le répartiteur doit rendre à `clore` EXACTEMENT celui que `reclamer` lui
+   * a donné. Sans cette trace, il pourrait passer une constante, ou celui d'un autre job, et la garde
+   * de propriété serait purement décorative de ce côté-ci.
+   */
+  clos: { job: string; reussi: boolean; motif: string | null; jeton: string }[];
   fenetresCloses: { job: string; fenetre: string }[];
   incidents: { type: TypeIncident; job: string; detail: string | null }[];
 }
@@ -30,6 +35,8 @@ function depotFactice(
   options: {
     reclamer?: (job: string) => boolean | Promise<boolean>;
     clore?: (reussi: boolean) => void;
+    /** 6.1a : la base répond « je n'ai rien clos » — jeton périmé, ou fenêtre déjà terminée. */
+    cloreRefusee?: boolean;
     etat?: EtatOrdonnanceur;
     environnement?: string | null;
   } = {},
@@ -42,12 +49,18 @@ function depotFactice(
     async reclamer(job, fenetre, _c, bail) {
       trace.reclames.push(job);
       trace.fenetres.push({ job, fenetre, bail });
-      return options.reclamer ? await options.reclamer(job) : true;
+      const accorde = options.reclamer ? await options.reclamer(job) : true;
+      // Un jeton FABRIQUÉ à partir du job et de la fenêtre : il rend l'assertion lisible (« c'est bien
+      // le jeton de CE job qui a servi ») là où un uuid ne dirait rien à personne.
+      return accorde ? `jeton-${job}-${fenetre}` : null;
     },
-    async clore(job, fenetre, _c, reussi, motif) {
+    async clore(job, fenetre, _c, reussi, motif, jeton) {
       options.clore?.(reussi);
-      trace.clos.push({ job, reussi, motif });
+      trace.clos.push({ job, reussi, motif, jeton });
       trace.fenetresCloses.push({ job, fenetre });
+      // `clore` rend « j'ai clos » : le refus est donc la NÉGATION de l'option. L'écrire
+      // `return options.cloreRefusee ?? true` — ce qui se lit bien — inversait le sens en silence.
+      return !(options.cloreRefusee ?? false);
     },
     async etat() {
       return options.etat ?? { naissance: null, reussites: new Map() };
@@ -57,6 +70,16 @@ function depotFactice(
     },
   };
   return { depot, trace };
+}
+
+/**
+ * Les clôtures SANS leur jeton — la forme lisible pour les assertions qui portent sur autre chose.
+ * Le jeton, lui, a sa garde à lui (« le répartiteur rend à `clore` celui que `reclamer` a donné ») :
+ * l'écrire dans chaque `toEqual` du fichier noierait la vraie assertion sous la plomberie, et une
+ * assertion qu'on ne lit plus est une assertion qu'on finit par corriger au lieu de la croire.
+ */
+function closSansJeton(trace: Trace) {
+  return trace.clos.map(({ job, reussi, motif }) => ({ job, reussi, motif }));
 }
 
 function job(
@@ -70,6 +93,12 @@ function job(
     cadence,
     toleranceHeures: 48,
     delaiMs,
+    // Story 6.1 — `reserveMs` est REQUIS sur `JobEnregistre`, et c'est ce qui a fait rougir `tsc`
+    // ici. Un `?` aurait laissé passer un job sans plancher : la garde d'anti-vacuité de
+    // `ordonnanceur-architecture.test.ts` compte les jobs COUVERTS, pas les jobs déclarés.
+    // La moitié du délai : ce faux job n'a pas d'unité de travail réelle, seule la contrainte
+    // `reserveMs <= delaiMs` compte pour que la fabrique reste utilisable partout.
+    reserveMs: Math.floor(delaiMs / 2),
     enServiceDepuis: new Date("2026-01-01T00:00:00Z"),
     executer,
   };
@@ -136,7 +165,7 @@ describe("[AC5] un job cassé ne met pas l'ordonnanceur à l'arrêt", () => {
       { nom: "suivant", issue: "execute" },
     ]);
     expect(suivantATourne).toHaveBeenCalledOnce();
-    expect(trace.clos).toEqual([
+    expect(closSansJeton(trace)).toEqual([
       { job: "casse", reussi: false, motif: "appel_echoue" },
       { job: "suivant", reussi: true, motif: null },
     ]);
@@ -159,11 +188,49 @@ describe("[AC5] un job cassé ne met pas l'ordonnanceur à l'arrêt", () => {
   it("une réclamation REFUSÉE ne clôt rien et n'alerte pas — ce n'est pas un incident", async () => {
     const { depot, trace } = depotFactice({ reclamer: () => false });
     const aTourne = vi.fn(async () => {});
+    const espion = vi.spyOn(console, "warn").mockImplementation(() => {});
     const rapport = await executerOrdonnanceur({ depot, registre: [job("deja", aTourne)] });
     expect(rapport.jobs).toEqual([{ nom: "deja", issue: "deja_fait" }]);
     expect(aTourne).not.toHaveBeenCalled();
     expect(trace.clos).toEqual([]);
     expect(trace.incidents).toEqual([]);
+    espion.mockRestore();
+  });
+
+  it("[6.1] …mais le rejeu LAISSE UNE TRACE — l'absence d'effet doit pouvoir se montrer", async () => {
+    // ⚠️ Ce chemin ne laissait RIEN, nulle part : la ligne `execution_job` est celle d'hier,
+    // `tentatives` n'est pas incrémenté, et le `deja_fait` ne vit que dans le rapport HTTP — qui part
+    // vers l'ordonnanceur externe et se perd.
+    //
+    // Ce n'est pas un détail comptable. Sur un rejeu de purge (6.8), il ne resterait ensuite aucune
+    // trace disant « la rétention a été rejouée et n'a rien refait ». Or c'est exactement la phrase
+    // qu'il faut pouvoir produire pour une obligation légale : l'absence d'effet EST le résultat
+    // attendu, et un résultat attendu qu'on ne peut pas montrer ne vaut pas mieux qu'un travail non
+    // fait.
+    //
+    // ⚠️ Test COMPORTEMENTAL, et pas seulement la garde de source de
+    // `ordonnanceur-architecture.test.ts` : celle-ci resterait verte si l'appel était déplacé sur un
+    // chemin jamais emprunté, ou placé après un `continue`. Elle prouve le câblage, celui-ci l'effet.
+    //
+    // Mutation-cible : retirer le `journaliserExploitation` de ce chemin.
+    const { depot } = depotFactice({ reclamer: () => false });
+    const espion = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await executerOrdonnanceur({ depot, registre: [job("purge-retention", async () => {})] });
+
+    const appels = espion.mock.calls.map((a) => a[1] as { motif?: string; code?: string });
+    expect(
+      appels.map((a) => a?.motif),
+      "le rejeu se dit dans les journaux d'exploitation",
+    ).toContain("ordonnanceur_deja_fait");
+    // Sous `code`, avec le NOM DU JOB — un identifiant technique, jamais une cible (NFR-022).
+    // `journaliserExploitation` ne recopie pas l'objet qu'on lui passe : il en extrait `code` et jette
+    // le reste. Un `{motif, detail}` sortirait en `code: undefined` — l'alerte existerait, vide de
+    // sens (défaut n°10 de la revue 4.8).
+    expect(
+      appels.find((a) => a?.motif === "ordonnanceur_deja_fait")?.code,
+      "et il dit LEQUEL a été rejoué",
+    ).toBe("purge-retention");
+    espion.mockRestore();
   });
 
   it("un dépôt qui tombe sur la MÉCANIQUE elle-même n'arrête pas non plus la boucle", async () => {
@@ -226,8 +293,62 @@ describe("[AC5] un job cassé ne met pas l'ordonnanceur à l'arrêt", () => {
       ],
     });
     expect(rapport.jobs).toEqual([{ nom: "vrai-echec", issue: "echoue" }]);
-    expect(trace.clos).toEqual([{ job: "vrai-echec", reussi: false, motif: "appel_echoue" }]);
+    expect(closSansJeton(trace)).toEqual([{ job: "vrai-echec", reussi: false, motif: "appel_echoue" }]);
     expect(trace.incidents).toEqual([{ type: "job_echoue", job: "vrai-echec", detail: "appel_echoue" }]);
+  });
+});
+
+describe("[6.1a/AC1] le jeton fait l'aller-retour, et un refus de clôture se DIT", () => {
+  it("[LE CŒUR] chaque `clore` reçoit le jeton que `reclamer` a rendu POUR CE JOB", async () => {
+    // La garde de propriété vit dans la SQL — mais elle ne sert à rien si le répartiteur passe un
+    // jeton constant, celui du job précédent, ou celui d'une autre fenêtre. Rien d'autre dans la suite
+    // ne relie les deux appels : `tsc` exige un `string`, pas LE BON `string`.
+    //
+    // Mutation-cible : passer `jeton` du premier job à tous les autres (une variable hissée hors de
+    // la boucle — la faute la plus facile à écrire).
+    const { depot, trace } = depotFactice();
+    await executerOrdonnanceur({
+      depot,
+      instant: new Date("2026-08-10T06:00:00Z"),
+      registre: [
+        job("un", async () => {}),
+        job("deux", async () => {
+          throw new Error("appel_echoue");
+        }),
+      ],
+    });
+
+    // Le jeton fabriqué par le dépôt factice porte le nom du job et sa fenêtre : l'assertion dit donc
+    // littéralement « c'est le jeton de CE job, pour CETTE fenêtre ».
+    const attendus = trace.fenetres.map((f) => `jeton-${f.job}-${f.fenetre}`);
+    expect(trace.clos.map((c) => c.jeton), "un aller-retour par job").toEqual(attendus);
+    expect(new Set(attendus).size, "anti-vacuité : les deux jetons sont bien DISTINCTS").toBe(2);
+  });
+
+  it("une clôture REFUSÉE ne change pas l'issue, mais elle laisse une trace", async () => {
+    // ⚠️ L'ISSUE SUIT LE TRAVAIL, JAMAIS LA COMPTABILITÉ — c'est le patron imposé par la revue 4.8, et
+    // un refus de clôture ne doit pas le renverser : le job a bel et bien tourné. Ce qu'un refus dit,
+    // c'est qu'une AUTRE exécution détient la fenêtre, parce que celle-ci a dépassé son bail sans le
+    // savoir. Sur un rejeu de purge (6.8), c'est le seul signal qui permette de distinguer « la
+    // rétention n'a rien refait » de « deux rétentions se sont marché dessus ».
+    //
+    // Mutation-cible : retirer le `journaliserExploitation` de ce chemin — le refus redeviendrait
+    // parfaitement invisible, exactement comme l'était le chemin `deja_fait` avant la 6.1.
+    const espion = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { depot } = depotFactice({ cloreRefusee: true });
+      const rapport = await executerOrdonnanceur({ depot, registre: [job("perdu", async () => {})] });
+
+      expect(rapport.jobs, "le travail a eu lieu, donc l'issue le dit").toEqual([
+        { nom: "perdu", issue: "execute" },
+      ]);
+      expect(espion).toHaveBeenCalledWith(
+        expect.stringContaining("exploitation"),
+        expect.objectContaining({ motif: "ordonnanceur_cloture_refusee", code: "perdu" }),
+      );
+    } finally {
+      espion.mockRestore();
+    }
   });
 });
 

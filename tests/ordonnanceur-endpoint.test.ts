@@ -53,6 +53,10 @@ vi.mock("@/lib/ordonnanceur/registre", () => ({
       cadence: "quotidien",
       toleranceHeures: 60,
       delaiMs: 5_000,
+      // Story 6.1 — requis sur `JobEnregistre`. ⚠️ La fabrique de `vi.mock` n'est PAS typée : `tsc`
+      // n'a rien dit ici, contrairement aux deux autres fabriques du dépôt. Un faux registre peut
+      // donc diverger du vrai type en silence — raison de plus pour le tenir à jour à la main.
+      reserveMs: 2_500,
       enServiceDepuis: new Date("2026-08-05T00:00:00Z"),
       executer: async () => {},
     },
@@ -61,6 +65,10 @@ vi.mock("@/lib/ordonnanceur/registre", () => ({
       cadence: "quotidien",
       toleranceHeures: 60,
       delaiMs: 5_000,
+      // Story 6.1 — requis sur `JobEnregistre`. ⚠️ La fabrique de `vi.mock` n'est PAS typée : `tsc`
+      // n'a rien dit ici, contrairement aux deux autres fabriques du dépôt. Un faux registre peut
+      // donc diverger du vrai type en silence — raison de plus pour le tenir à jour à la main.
+      reserveMs: 2_500,
       enServiceDepuis: new Date("2026-08-05T00:00:00Z"),
       executer: async () => {},
     },
@@ -173,7 +181,7 @@ describe("GET /api/ordonnanceur — la porte unique", () => {
   });
 
   it("[AC2] un SECOND appel dans la même fenêtre ne produit aucun second effet", async () => {
-    // C'est le rejeu que Vercel Cron peut produire de lui-même (reprise après échec réseau). Il doit être
+    // C'est le rejeu que l'ordonnanceur externe peut produire de lui-même (reprise après échec réseau). Il doit être
     // sans conséquence — et le rapport doit le DIRE (`deja_fait`), pas mentir en annonçant une exécution.
     await GET(req(`Bearer ${SECRET}`));
     const r = await GET(req(`Bearer ${SECRET}`));

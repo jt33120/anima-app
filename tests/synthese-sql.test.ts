@@ -837,11 +837,32 @@ describe("[REVUE 4.9 / T3-2] le disjoncteur — une personne ne peut plus brûle
     await supprimer(u.id);
   });
 
+  /**
+   * ⚠️ LES ERREURS SONT LEVÉES, depuis la 6.1a — et ce n'est pas de la cosmétique. Cette aide avalait
+   * silencieusement le retour des deux RPC. Quand la 6.1a a ajouté `p_jeton` à `clore_execution`,
+   * l'appel s'est mis à répondre « fonction introuvable » : les lignes n'étaient plus jamais closes en
+   * `echoue`, et les trois tests du disjoncteur mesuraient donc un monde où rien n'échouait. Ils sont
+   * tombés — ce qui est la bonne nouvelle. Ils auraient tout aussi bien pu rester verts si le
+   * disjoncteur avait été écrit à l'envers.
+   */
   async function echouer(jour: string) {
-    await admin.rpc("reclamer_execution", { p_job: JOB, p_fenetre: jour, p_cible_id: u.id, p_bail_secondes: 1 });
-    await admin.rpc("clore_execution", {
-      p_job: JOB, p_fenetre: jour, p_cible_id: u.id, p_reussi: false, p_motif: "synthese_modele_timeout",
+    const { data: jeton, error: refus } = await admin.rpc("reclamer_execution", {
+      p_job: JOB,
+      p_fenetre: jour,
+      p_cible_id: u.id,
+      p_bail_secondes: 1,
     });
+    if (refus) throw new Error(`reclamer_execution: ${refus.message}`);
+    expect(jeton, `la fenêtre ${jour} devait être réclamable`).not.toBeNull();
+    const { error } = await admin.rpc("clore_execution", {
+      p_job: JOB,
+      p_fenetre: jour,
+      p_cible_id: u.id,
+      p_reussi: false,
+      p_motif: "synthese_modele_timeout",
+      p_jeton: jeton,
+    });
+    if (error) throw new Error(`clore_execution: ${error.message}`);
   }
 
   it("[CONTRÔLE POSITIF] deux échecs ne suffisent pas — on ne renonce pas au premier hoquet", async () => {

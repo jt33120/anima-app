@@ -173,8 +173,8 @@ export async function executerSyntheseAvec(ctx: ContexteJob, deps: DepsSynthese)
 
     // LA réclamation par personne. Elle est la décision : si elle refuse, cette personne a déjà été
     // traitée aujourd'hui (ou l'est en ce moment ailleurs) et il n'y a rien à décider de plus.
-    const reclame = await ctx.depot.reclamer(NOM_JOB, jour, utilisatriceId, BAIL_PERSONNE_S);
-    if (!reclame) continue;
+    const jeton = await ctx.depot.reclamer(NOM_JOB, jour, utilisatriceId, BAIL_PERSONNE_S);
+    if (jeton === null) continue;
 
     let issue: IssuePersonne;
     let motifEchec: string | null = null;
@@ -196,7 +196,13 @@ export async function executerSyntheseAvec(ctx: ContexteJob, deps: DepsSynthese)
     // s'était produit. Le commentaire de `executer.ts` l'annonçait mot pour mot : « Sur la synthèse
     // (4.9), c'eût été une seconde synthèse et une seconde notification. »
     try {
-      await ctx.depot.clore(NOM_JOB, jour, utilisatriceId, motifEchec === null, motifEchec);
+      // Story 6.1a : le jeton reçu à la réclamation. Un refus ici veut dire qu'une autre exécution a
+      // repris cette personne sur bail expiré — donc que la synthèse qu'on vient d'écrire a peut-être
+      // une jumelle en vol. Ça se dit, ça ne se corrige pas d'ici : l'unicité `(utilisatrice_id,
+      // periode_debut)` est ce qui empêche la seconde d'exister.
+      if (!(await ctx.depot.clore(NOM_JOB, jour, utilisatriceId, motifEchec === null, motifEchec, jeton))) {
+        journaliserExploitation("synthese_cloture_refusee", { code: NOM_JOB });
+      }
     } catch (e) {
       // Et elle est PROTÉGÉE. Sans ce catch, une base indisponible au moment de clore la première
       // personne faisait sortir l'exception de la boucle : les suivantes n'étaient jamais réclamées, le

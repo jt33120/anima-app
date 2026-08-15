@@ -65,6 +65,10 @@ describe("[AC2 DUR] la trame `carte` ne peut pas transporter une signification",
   it("`analyserTrame` RECONSTRUIT la trame champ par champ — un `sens` émis par erreur n'arrive pas", () => {
     // La dernière ligne de défense, et la seule qui tienne au RUNTIME : même si le serveur émettait un
     // jour un champ de signification (refactor, zèle, accident), le client ne le laisserait pas passer.
+    //
+    // ⚠️ `puits` est une carte RETIRÉE en 5.10, et c'est délibéré : la frontière ne valide pas la clé
+    // contre le jeu courant, et elle ne doit pas — une lecture ouverte avant le changement de jeu doit
+    // continuer de se streamer. Ne pas remplacer par une carte courante.
     const trame = analyserTrame(
       JSON.stringify({ t: "carte", cle: "puits", description: "un puits de pierre", sens: "la profondeur" }),
     );
@@ -72,7 +76,7 @@ describe("[AC2 DUR] la trame `carte` ne peut pas transporter une signification",
     expect(JSON.stringify(trame)).not.toContain("profondeur");
   });
 
-  it("une trame `carte` sans description est ACCEPTÉE — 23 visuels sur 24 ne sont pas dessinés", () => {
+  it("une trame `carte` sans description est ACCEPTÉE — aucun des 21 visuels n’est dessiné", () => {
     expect(analyserTrame(JSON.stringify({ t: "carte", cle: "pont" }))).toEqual({
       t: "carte",
       cle: "pont",

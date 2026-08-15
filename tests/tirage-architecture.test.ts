@@ -191,9 +191,9 @@ describe("[AC6] une carte est un nom, et rien d'autre", () => {
     }
   });
 
-  it("24 cartes, toutes distinctes, toutes gelées", () => {
-    expect(TAILLE_JEU).toBe(24);
-    expect(new Set(CLES_JEU).size).toBe(24);
+  it("21 cartes, toutes distinctes, toutes gelées", () => {
+    expect(TAILLE_JEU).toBe(21);
+    expect(new Set(CLES_JEU).size).toBe(21);
     expect(Object.isFrozen(JEU)).toBe(true);
     expect(JEU.every((c) => Object.isFrozen(c))).toBe(true);
   });

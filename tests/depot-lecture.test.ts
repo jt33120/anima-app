@@ -21,6 +21,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const journal = vi.hoisted(() => ({ ordre: [] as string[] }));
 
+/**
+ * ⚠️ `puits` / `tailleJeu: 24` SONT DÉLIBÉRÉS DEPUIS LA 5.10 — NE PAS « CORRIGER » EN 21.
+ *
+ * `puits` est l'une des six cartes retirées du jeu. Ce fichier double le dépôt, donc il représente
+ * une ligne DÉJÀ EN BASE : une lecture ouverte avant le changement de jeu. Elle doit continuer de se
+ * relire et de se rendre exactement comme avant — c'est la raison d'être de la colonne `taille_jeu`
+ * journalisée en 0050, et la 5.10 est la première story à l'exercer pour de vrai. Remplacer ces
+ * valeurs par une carte courante ferait disparaître la seule preuve que le passé reste lisible.
+ */
 vi.mock("@/lib/data/depot-tirage", () => ({
   tirerEtDeposer: vi.fn(async () => {
     journal.ordre.push("tirage");

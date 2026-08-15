@@ -61,8 +61,8 @@ Gardé par `tests/corpus-architecture.test.ts`.
 | **Mantras du jour** (`mantra.ts`) | 60 | **0** | 5.4 |
 | **Horoscope du jour** (`horoscope.ts`) | 27 | **0** | 5.4 |
 | **Ennéagramme** (`enneagramme.ts`) | 9 | **0** | 5.5 |
-| **Sens des cartes** (`../lecture/sens-cartes.ts`) | 24 | **0** | 5.7 |
-| **Total déclaré** | **189** | **0** | |
+| **Sens des cartes** (`../lecture/sens-cartes.ts`) | 21 | **0** | 5.7, ramené de 24 à 21 en 5.10 |
+| **Total déclaré** | **186** | **0** | |
 
 Le **sens des cartes** est le seul corpus qui ne vit pas dans ce dossier, et c'est délibéré : il
 porte `import "server-only"`, que `tests/corpus-architecture.test.ts` interdit ici. Toute sa valeur
@@ -75,7 +75,7 @@ exception dans une garde saine — et une garde à exceptions finit par n'en êt
 
 | Textes | Créneaux | Écrits | Qui les écrit |
 |---|---|---|---|
-| **Descriptions des cartes** (`description-cartes.ts`) | 24 | **0** | produites **avec les visuels**, en regardant l'image |
+| **Descriptions des cartes** (`description-cartes.ts`) | 21 | **0** | produites **avec les visuels**, en regardant l'image |
 
 Une description dit ce qui est **dessiné** — *une porte entrouverte dans un mur de pierre, au
 crépuscule* —, jamais ce que ça veut dire. Ce n'est pas une interprétation, donc FR-054 ne la réserve

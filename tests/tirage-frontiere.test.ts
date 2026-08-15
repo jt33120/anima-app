@@ -156,7 +156,7 @@ describe("[AC4] le type de vue de la carte ne peut pas porter de signification",
 // 4. Le catalogue lui-même
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[AC4] 24 créneaux de sens, déclarés, aucun écrit", () => {
+describe("[AC4] 21 créneaux de sens, déclarés, aucun écrit", () => {
   it("un créneau par carte, aucun orphelin", () => {
     expect(Object.keys(CORPUS_SENS_CARTES.textes).sort()).toEqual(CLES_JEU.map(cleSens).sort());
   });
@@ -165,7 +165,7 @@ describe("[AC4] 24 créneaux de sens, déclarés, aucun écrit", () => {
     // ⚠️ Ce chiffre est VOULU. Il monte quand ANIMA écrit — jamais quand un modèle « aide »
     // (FR-047/FR-054), jamais quand nous écrivons à sa place (FR-086).
     expect(clesEcrites(CORPUS_SENS_CARTES).length).toBe(0);
-    expect(clesNonEcrites(CORPUS_SENS_CARTES).length).toBe(24);
+    expect(clesNonEcrites(CORPUS_SENS_CARTES).length).toBe(21);
   });
 
   it("un créneau non écrit ne se déguise pas en texte, et une clé inconnue JETTE", () => {

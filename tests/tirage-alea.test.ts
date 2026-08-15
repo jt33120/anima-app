@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { indiceUniforme, rejouer, csprngSysteme, type SourceAlea } from "@/lib/tirage/alea";
+// ⚠️ `TAILLE_JEU` n'est importée QUE pour le §0, qui vérifie une propriété DE la taille du jeu. Elle
+// ne doit jamais servir de borne au §1 ni au §3 : voir « LES BORNES SONT ÉCRITES EN DUR » ci-dessous.
+import { TAILLE_JEU } from "@/lib/tirage/jeu";
 
 /**
  * tirage-alea.test.ts — LES GARDES BLOQUANTES DE L'UNIFORMITÉ (Story 5.7, AC3 · FR-015, AD-11).
@@ -10,9 +13,10 @@ import { indiceUniforme, rejouer, csprngSysteme, type SourceAlea } from "@/lib/t
  * attrape une source morte, un indice figé, un décalage d'un rang. Mais il est STRUCTURELLEMENT
  * AVEUGLE au défaut le plus probable de ce code — le biais de modulo.
  *
- * `mot % 24` sur un mot uniforme de 32 bits n'est pas uniforme : `2**32 = 178 956 970 × 24 + 16`,
- * donc 16 indices sur 24 ont une chance de plus que les 8 autres. L'écart relatif vaut 1,4 · 10⁻⁸.
- * Pour le détecter par un χ², il faudrait de l'ordre de 10¹⁶ tirages — c'est-à-dire jamais.
+ * `mot % 21` sur un mot uniforme de 32 bits n'est pas uniforme : `2**32 = 204 522 252 × 21 + 4`,
+ * donc 4 indices sur 21 ont une chance de plus que les 17 autres. L'écart relatif vaut
+ * `1 / 204 522 252 ≈ 4,9 · 10⁻⁹`. Pour le détecter par un χ², il faudrait de l'ordre de 10¹⁶
+ * tirages — c'est-à-dire jamais.
  *
  * Autrement dit : si l'on s'en tenait au grand N, le mutant `%` SURVIVRAIT à la campagne, et la
  * story serait livrée avec un tirage biaisé et une suite verte. La charge de la preuve est donc
@@ -31,6 +35,21 @@ import { indiceUniforme, rejouer, csprngSysteme, type SourceAlea } from "@/lib/t
  *      à 32 cartes — une puissance de deux —, `2**32 % 32 = 0`, la zone de rejet deviendrait VIDE,
  *      et un échantillonneur biaisé serait indiscernable d'un échantillonneur correct. Le test
  *      resterait vert en ne prouvant plus rien. Les bornes sont donc 3, 24 et 40, choisies ici.
+ *
+ * ⚠️ CES BORNES N'ONT RIEN À VOIR AVEC LA TAILLE DU JEU, et le 24 qu'on lit partout ci-dessous n'est
+ * PAS un vestige des 24 cartes d'avant la 5.10. C'est une borne d'essai, choisie pour la forme de sa
+ * queue de rejet. Ne pas la « corriger » en 21 : ce serait précisément reprendre la borne au jeu,
+ * c'est-à-dire annuler la raison n° 2.
+ *
+ * ══ L'ARITHMÉTIQUE CITÉE DANS LES COMMENTAIRES EST ASSERTÉE (§0, ajouté en 5.10) ════════════════
+ *
+ * `lib/tirage/alea.ts` affirmait `2**32 = 178 956 970 × 24 + 8`, « donc les 8 premiers indices ont
+ * une chance de plus que les 16 autres ». Les deux chiffres étaient faux et le sens inversé : le
+ * reste vaut 16, et ce sont 16 indices qui sont favorisés. Personne ne l'a vu pendant un mois PARCE
+ * QUE LES COMMENTAIRES NE SONT PAS EXÉCUTÉS — et c'était le commentaire qui portait toute la
+ * justification de l'échantillonnage par rejet, dans le fichier dont c'est le seul sujet.
+ *
+ * Le §0 exécute donc les nombres cités. Un commentaire asservi à un test ne dérive plus en silence.
  */
 
 /** Une source scriptée : rend les mots dans l'ordre, puis refuse d'en inventer un de plus. */
@@ -46,6 +65,36 @@ function sourceScriptee(mots: readonly number[]): SourceAlea {
 const LIMITE_3 = 4_294_967_295; // 2**32 % 3 === 1
 const LIMITE_24 = 4_294_967_280; // 2**32 % 24 === 16
 const LIMITE_40 = 4_294_967_280; // 2**32 % 40 === 16
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// 0. LES CHIFFRES DES COMMENTAIRES — exécutés, donc plus jamais faux en silence
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[5.10] l'arithmétique qui justifie le rejet est vérifiée, pas seulement écrite", () => {
+  it("la taille RÉELLE du jeu laisse une queue de rejet non vide", () => {
+    // La propriété qui fait exister le chemin de rejet en production. Si elle tombait à zéro, tout
+    // le §1 continuerait de passer sur ses bornes choisies pendant que la production, elle, ne
+    // rejetterait plus jamais rien — et le mutant `%` deviendrait invisible pour de bon.
+    expect(2 ** 32 % TAILLE_JEU).toBe(4);
+    expect(2 ** 32 % TAILLE_JEU).toBeGreaterThan(0);
+    expect(204_522_252 * 21 + 4).toBe(2 ** 32);
+  });
+
+  it("les chiffres cités pour les bornes d'essai sont exacts", () => {
+    expect(2 ** 32 % 3).toBe(1);
+    expect(2 ** 32 % 24).toBe(16); // et NON 8, comme `alea.ts` l'a affirmé pendant un mois
+    expect(178_956_970 * 24 + 16).toBe(2 ** 32);
+    expect(2 ** 32 % 40).toBe(16);
+    expect(2 ** 32 - (2 ** 32 % 3)).toBe(LIMITE_3);
+    expect(2 ** 32 - (2 ** 32 % 24)).toBe(LIMITE_24);
+    expect(2 ** 32 - (2 ** 32 % 40)).toBe(LIMITE_40);
+  });
+
+  it("une puissance de deux n'a AUCUNE queue — la propriété que le jeu ne doit jamais avoir", () => {
+    expect(2 ** 32 % 32).toBe(0);
+    expect(2 ** 32 % 16).toBe(0);
+  });
+});
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // 1. LA GARDE PRINCIPALE — la frontière du rejet, mot par mot

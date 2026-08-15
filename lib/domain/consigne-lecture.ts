@@ -22,7 +22,7 @@ import type { MessageIa } from "@/lib/ai/port";
  *
  * ── LA COUTURE DU CATALOGUE DE SENS ───────────────────────────────────────────────────────────
  *
- * `lib/lecture/sens-cartes.ts` porte 24 créneaux, tous `non_ecrit`, et l'usage du catalogue attend
+ * `lib/lecture/sens-cartes.ts` porte 21 créneaux, tous `non_ecrit`, et l'usage du catalogue attend
  * une décision (note privée consultée APRÈS qu'elle a parlé / garde-fou de ce que la carte ne veut
  * JAMAIS dire / suppression pure).
  *

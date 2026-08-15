@@ -94,7 +94,7 @@ async function nettoyer(id: string): Promise<void> {
 async function tirer(u: Utilisatrice, carte = "barque"): Promise<string> {
   const { data, error } = await u.client
     .from("tirage")
-    .insert({ utilisatrice_id: u.id, carte, graine: "0000002a", taille_jeu: 24 })
+    .insert({ utilisatrice_id: u.id, carte, graine: "0000002a", taille_jeu: 21 })
     .select("id")
     .single();
   if (error) throw new Error(`tirer: ${error.message}`);
@@ -231,7 +231,7 @@ describe("[AC6] une lecture close est close pour toujours", () => {
   });
 
   it("clore SANS restitution est refusé — jamais l'un sans l'autre", async () => {
-    const { lectureId } = await ouvrir(alice, "corde");
+    const { lectureId } = await ouvrir(alice, "seuil");
     const { error } = await alice.client.from("lecture").update({ reponse: "je vois" }).eq("id", lectureId!);
     expect(error).not.toBeNull();
   });
@@ -263,7 +263,7 @@ describe("[§figées] `with check` ne voit pas OLD — le trigger tient ce qu'el
   it("après le refus, la lecture est TOUJOURS ouverte sur sa carte d'origine", async () => {
     const { data } = await alice.client.from("lecture").select("id, tirage(carte)").is("reponse", null).single();
     expect(data).toBeTruthy();
-    expect((data as unknown as { tirage: { carte: string } }).tirage.carte).toBe("corde");
+    expect((data as unknown as { tirage: { carte: string } }).tirage.carte).toBe("seuil");
   });
 });
 
@@ -273,7 +273,7 @@ describe("[§figées] `with check` ne voit pas OLD — le trigger tient ce qu'el
 
 describe("[AD-12] la lecture appartient à celle qui l'a vécue", () => {
   it("ouvrir POUR QUELQU'UN D'AUTRE est refusé", async () => {
-    const tirageId = await tirer(alice, "nid");
+    const tirageId = await tirer(alice, "oiseau");
     const { error } = await alice.client.from("lecture").insert({ utilisatrice_id: bob.id, tirage_id: tirageId });
     expect(error?.code).toBe("42501");
   });
@@ -325,7 +325,7 @@ describe("[AC7] les gardes art. 9, minorité et détresse", () => {
   });
 
   it("un consentement RÉVOQUÉ refuse l'ouverture", async () => {
-    const tirageId = await tirer(carole, "orage");
+    const tirageId = await tirer(carole, "fleur");
     await revoquer(carole.id);
     const { error } = await carole.client
       .from("lecture")
@@ -386,7 +386,7 @@ describe("[FR-088] la lecture est PREMIUM, et la garde vit dans la POLICY", () =
   });
 
   it("mais elle ne peut plus en OUVRIR une nouvelle", async () => {
-    const tirageId = await tirer(daphne, "corde");
+    const tirageId = await tirer(daphne, "seuil");
     const { error } = await daphne.client
       .from("lecture")
       .insert({ utilisatrice_id: daphne.id, tirage_id: tirageId });

@@ -80,9 +80,9 @@ describe("[AC4/AC5] rien de ce qui paraît ne nomme la carte ni ne dit son sens"
     expect(html).not.toContain("Porte entrouverte");
   });
 
-  it("aucune des 24 clés ne fuit, quelle que soit la carte", () => {
+  it("aucune des 21 clés ne fuit, quelle que soit la carte", () => {
     // La garde précédente sur une seule carte serait passée par chance si le composant n'affichait
-    // que certaines clés. Ici, les 24 sont montées.
+    // que certaines clés. Ici, les 21 sont montées.
     for (const cle of CLES_JEU) {
       const { unmount, container } = render(<CarteTiree carte={vue({ cle })} />);
       expect(container.innerHTML, cle).not.toContain(cle);

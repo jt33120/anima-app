@@ -43,8 +43,8 @@ import { csprngSysteme, indiceUniforme } from "./alea";
  * tirage.
  *
  * `tailleJeu` n'est PAS décoratif — c'est la pièce sans laquelle l'audit casse en silence. Le jour
- * où le jeu passe de 24 à 26 cartes, rejouer une ligne ancienne avec la taille COURANTE donne
- * `graine % 26` au lieu de `graine % 24` : une carte fausse, rendue avec assurance, sur toutes les
+ * où le jeu passe de 21 à 26 cartes, rejouer une ligne ancienne avec la taille COURANTE donne
+ * `graine % 26` au lieu de `graine % 21` : une carte fausse, rendue avec assurance, sur toutes les
  * lignes antérieures. Quatre octets journalisés rendent l'audit définitif.
  */
 export interface Tirage {

@@ -85,7 +85,7 @@ describe("[AD-1/DUR] lib/corpus est une couche PURE", () => {
     // suffit pas, il lui faut EN PLUS de ne jamais entrer dans le bundle client — garde séparée,
     // `tests/ancrage-frontiere.test.ts`. Aucune des deux ne couvre l'autre.
     expect(FICHIERS_CORPUS).toContain("lib/corpus/ancrage.ts");
-    // Story 5.7 — les 24 descriptions de cartes. ⚠️ Ce ne sont PAS des textes d'Anima : une
+    // Story 5.7 — les 21 descriptions de cartes. ⚠️ Ce ne sont PAS des textes d'Anima : une
     // description littérale n'interprète rien (FR-054 ne la lui réserve donc pas). Elles vivent ici
     // quand même, parce qu'elles doivent subir les MÊMES gardes — voix (2.8), prédiction (FR-053) —
     // et que le port `TexteCorpus` est ce qui empêche un créneau vide de se déguiser en texte.
@@ -93,7 +93,7 @@ describe("[AD-1/DUR] lib/corpus est une couche PURE", () => {
   });
 
   it("[Story 5.7] le SENS des cartes vit hors de ce dossier, et c'est une décision", () => {
-    // Le sixième corpus d'Anima — 24 créneaux — est le seul à ne pas être ici : il porte
+    // Le sixième corpus d'Anima — 21 créneaux — est le seul à ne pas être ici : il porte
     // `import "server-only"`, que la garde de pureté ci-dessous interdit dans `lib/corpus/`.
     //
     // Ce n'est pas un contournement, c'est l'inverse. Un corpus du socle est une CONSTANTE partagée

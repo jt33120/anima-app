@@ -132,7 +132,7 @@ describe("[AC3] un tirage ne se corrige jamais — il n'existe aucune policy d'U
 
     const { error, count } = await alice.client
       .from("tirage")
-      .update({ carte: "puits" }, { count: "exact" })
+      .update({ carte: "fleur" }, { count: "exact" })
       .eq("id", id);
     // Sans policy `for update`, la ligne n'est pas VISIBLE à l'écriture : zéro ligne touchée.
     expect(error).toBeNull();

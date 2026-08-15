@@ -3,7 +3,7 @@ import { corpus, lireTexte, NON_ECRIT, type Corpus, type TexteCorpus } from "@/l
 import { CLES_JEU, type CleCarteJeu } from "@/lib/tirage/jeu";
 
 /**
- * sens-cartes.ts — LE CATALOGUE DE SENS DES 24 CARTES (Story 5.7, FR-016 / FR-018 · AD-11).
+ * sens-cartes.ts — LE CATALOGUE DE SENS DES 21 CARTES (Story 5.7, FR-016 / FR-018 · AD-11).
  *
  * ── POURQUOI CE CORPUS N'EST PAS DANS `lib/corpus/` ────────────────────────────────────────────
  *
@@ -38,7 +38,7 @@ import { CLES_JEU, type CleCarteJeu } from "@/lib/tirage/jeu";
  * Ce qui est acquis dès maintenant, et ne se rediscutera pas : le catalogue ne PRÉCÈDE jamais la
  * projection, et le tireur ne le voit pas (verrou ESLint sur `lib/tirage/**`).
  *
- * ── VINGT-QUATRE CRÉNEAUX DÉCLARÉS, AUCUN ÉCRIT ────────────────────────────────────────────────
+ * ── VINGT ET UN CRÉNEAUX DÉCLARÉS, AUCUN ÉCRIT ────────────────────────────────────────────────
  *
  * Même forme et même raison que les cinq autres corpus : ces textes sont d'Anima, et de personne
  * d'autre (FR-054, FR-086). Les écrire nous-mêmes en ferait du texte générique repris — ce que
@@ -50,7 +50,7 @@ import { CLES_JEU, type CleCarteJeu } from "@/lib/tirage/jeu";
 export const cleSens = (carte: CleCarteJeu): string => `carte:${carte}`;
 
 /**
- * Les 24 créneaux, DÉRIVÉS du jeu — jamais recopiés.
+ * Les 21 créneaux, DÉRIVÉS du jeu — jamais recopiés.
  *
  * La dérivation n'est pas de la coquetterie : une liste recopiée diverge à la première carte
  * ajoutée, et le créneau manquant serait indiscernable d'un créneau non écrit. `lireSensCarte`

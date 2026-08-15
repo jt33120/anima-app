@@ -25,7 +25,7 @@ import { CLES_JEU, type CleCarteJeu } from "../tirage/jeu";
  * serait une violation de FR-018 déguisée en accessibilité, c'est-à-dire la pire espèce : celle
  * qu'on défend avec de bonnes intentions.
  *
- * ── CES 24 TEXTES NE SONT PAS D'ANIMA, ET C'EST POURQUOI ILS SONT COMPTÉS À PART ───────────────
+ * ── CES 21 TEXTES NE SONT PAS D'ANIMA, ET C'EST POURQUOI ILS SONT COMPTÉS À PART ───────────────
  *
  * FR-054 réserve à Anima les textes d'INTERPRÉTATION. Une description littérale n'en est pas une :
  * elle se rédige avec le visuel, par qui le produit, en regardant l'image. Les mêler aux 165 créneaux
@@ -39,7 +39,7 @@ import { CLES_JEU, type CleCarteJeu } from "../tirage/jeu";
 /** Clé de créneau : `"description:<clé de carte>"`. */
 export const cleDescription = (carte: CleCarteJeu): string => `description:${carte}`;
 
-/** Les 24 créneaux, DÉRIVÉS du jeu — jamais recopiés (une liste recopiée diverge à la première carte ajoutée). */
+/** Les 21 créneaux, DÉRIVÉS du jeu — jamais recopiés (une liste recopiée diverge à la première carte ajoutée). */
 export const CORPUS_DESCRIPTION_CARTES: Corpus = corpus(
   "description-cartes",
   Object.fromEntries(CLES_JEU.map((carte) => [cleDescription(carte), NON_ECRIT])),

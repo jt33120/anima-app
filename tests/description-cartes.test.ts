@@ -29,7 +29,7 @@ import { CLES_JEU } from "@/lib/tirage/jeu";
  *
  * ══ LE CORPUS EST VIDE, DONC LA MOITIÉ DES ASSERTIONS SERAIT VACUE ══════════════════════════════
  *
- * Aucune des 24 descriptions n'est écrite. « Le corpus réel passe le balayage » est donc vrai d'un
+ * Aucune des 21 descriptions n'est écrite. « Le corpus réel passe le balayage » est donc vrai d'un
  * balayage qui ne ferait rien. Chaque garde est doublée : une PREUVE SUR FAUX (le détecteur mord) et
  * un CONTRÔLE ANTI-FAUX-POSITIF (il ne mord pas sur du français descriptif légitime) — sans le
  * second, on livrerait une garde qui rend impossible d'écrire les descriptions qu'elle protège.
@@ -39,7 +39,7 @@ import { CLES_JEU } from "@/lib/tirage/jeu";
 // 1. Les créneaux
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[AC8] 24 créneaux déclarés, dérivés du jeu", () => {
+describe("[AC8] 21 créneaux déclarés, dérivés du jeu", () => {
   it("un créneau par carte, aucun orphelin", () => {
     expect(Object.keys(CORPUS_DESCRIPTION_CARTES.textes).sort()).toEqual(CLES_JEU.map(cleDescription).sort());
   });
@@ -49,11 +49,11 @@ describe("[AC8] 24 créneaux déclarés, dérivés du jeu", () => {
     // sont PAS d'Anima (une description littérale n'est pas une interprétation, FR-054), et sont donc
     // comptés à part des créneaux du socle.
     expect(clesEcrites(CORPUS_DESCRIPTION_CARTES).length).toBe(0);
-    expect(clesNonEcrites(CORPUS_DESCRIPTION_CARTES).length).toBe(24);
+    expect(clesNonEcrites(CORPUS_DESCRIPTION_CARTES).length).toBe(21);
   });
 
   it("un créneau non écrit ne se déguise pas en texte, et une clé inconnue JETTE", () => {
-    expect(lireDescriptionCarte("puits")).toEqual({ statut: "non_ecrit" });
+    expect(lireDescriptionCarte("seuil")).toEqual({ statut: "non_ecrit" });
     expect(() => lireDescriptionCarte("carte-fantome" as never)).toThrow(/non déclaré/);
   });
 
@@ -105,7 +105,7 @@ describe("[AC8] le balayage attrape ce qui signifie", () => {
 
 describe("[AC8] le balayage laisse passer les descriptions littérales", () => {
   /**
-   * Ces dix phrases sont ce que les 24 descriptions devront être. Si l'une d'elles se met un jour à
+   * Ces dix phrases sont ce que les 21 descriptions devront être. Si l'une d'elles se met un jour à
    * rougir, c'est le BALAYAGE qu'il faut corriger, pas la phrase : une garde qui rend impossible
    * d'écrire ce qu'elle protège a cessé d'être une garde.
    */

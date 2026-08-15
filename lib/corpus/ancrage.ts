@@ -18,7 +18,7 @@ import { corpus, NON_ECRIT, type Corpus } from "./port";
  * (`ancrage-1`… `ancrage-4`) : elles ne portent aucun nom, aucun thème, aucune promesse. Le titre
  * affiché est lui aussi un créneau de corpus — nommer les quatre exercices nous-mêmes reviendrait à
  * signer d'Anima quatre titres qu'elle n'a pas écrits. La question part dans
- * `POUR-ANIMA-ce-qui-attend.md` (Q6), au même titre que les 24 noms de carte de la 5.7.
+ * `POUR-ANIMA-ce-qui-attend.md` (Q6), au même titre que les 21 noms de carte du jeu.
  *
  * ── LA STRUCTURE VIT DANS LE DOMAINE, PAS ICI ──────────────────────────────────────────────────
  *

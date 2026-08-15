@@ -14,7 +14,7 @@
  *
  * ── L'ENSEMBLE EST VIDE, ET C'EST L'ÉTAT HONNÊTE DU PRODUIT ───────────────────────────────────
  *
- * Les 24 visuels propriétaires (FR-022) sont une COMMANDE D'ART qui n'a pas encore été passée. Tant
+ * Les 21 visuels propriétaires (FR-022) sont une COMMANDE D'ART qui n'a pas encore été passée. Tant
  * qu'elle ne l'est pas, chaque carte le dit — même doctrine d'absence qu'en 5.6 pour les textes
  * d'Anima. Aucun dos de carte générique, aucune silhouette d'emprunt : un substitut « en attendant »
  * serait, littéralement, un visuel non créé pour Anima affiché à la place d'un visuel d'Anima.

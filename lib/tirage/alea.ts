@@ -7,10 +7,16 @@
  * attrape une source morte, un indice figé, un décalage d'un rang. Mais il est STRUCTURELLEMENT
  * AVEUGLE à la faute la plus probable du code qu'on écrit ici — le biais de modulo.
  *
- * `mot % 24` sur un mot uniforme de 32 bits n'est pas uniforme : `2**32 = 178 956 970 × 24 + 8`, donc
- * les 8 premiers indices ont une chance de plus que les 16 autres. L'écart relatif vaut 1,4 · 10⁻⁸.
- * Pour le détecter par un χ², il faudrait de l'ordre de 10¹⁶ tirages. Autrement dit : le test qui
- * rassure ne prouve pas, et le mutant `%` survivrait à une campagne entière.
+ * `mot % 21` sur un mot uniforme de 32 bits n'est pas uniforme : `2**32 = 204 522 252 × 21 + 4`, donc
+ * les 4 premiers indices ont une chance de plus que les 17 autres. L'écart relatif vaut
+ * `1 / 204 522 252 ≈ 4,9 · 10⁻⁹`. Pour le détecter par un χ², il faudrait de l'ordre de 10¹⁶ tirages.
+ * Autrement dit : le test qui rassure ne prouve pas, et le mutant `%` survivrait à une campagne
+ * entière.
+ *
+ * ⚠️ CES CHIFFRES ONT ÉTÉ FAUX PENDANT UN MOIS — ce paragraphe annonçait un reste de 8 et une
+ * favorisation inversée, dans le fichier dont l'arithmétique est le seul sujet. Aucun test ne l'a vu
+ * parce que les commentaires ne s'exécutent pas. Le §0 de `tests/tirage-alea.test.ts` les exécute
+ * désormais : toucher un nombre ici sans le vérifier là fait rougir la suite.
  *
  * D'où l'inversion de la charge de la preuve dans `tests/tirage-alea.test.ts` :
  *
@@ -21,6 +27,9 @@
  * ⚠️ Les tests fixent leurs bornes EN DUR (3, 24, 40) et ne les empruntent jamais à `TAILLE_JEU` :
  * le jour où le jeu passerait à 32 cartes — une puissance de deux —, la zone de rejet deviendrait
  * vide et une garde paramétrée par la taille du jeu deviendrait vacue sans que rien ne rougisse.
+ * Ces trois bornes ne sont donc PAS la taille du jeu, et le 24 qu'on y lit n'est pas un vestige des
+ * 24 cartes d'avant la 5.10. Le seul endroit qui regarde la vraie taille est le §0, qui vérifie que
+ * sa queue de rejet n'est pas vide — ce que ce paragraphe ne faisait que craindre à voix haute.
  *
  * ── LA GRAINE EST LE MOT ACCEPTÉ ───────────────────────────────────────────────────────────────
  *

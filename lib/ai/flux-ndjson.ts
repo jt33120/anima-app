@@ -71,7 +71,7 @@ export type TrameClient =
    * champ `sens?: string` posé ici, même optionnel, même jamais rempli, serait la porte par laquelle
    * la signification traverserait un jour sans que rien ne rougisse.
    *
-   * `description` peut être absente : 23 des 24 visuels ne sont pas encore dessinés, et le rendu dit
+   * `description` peut être absente : aucun des 21 visuels n'est encore dessiné, et le rendu dit
    * l'absence honnêtement plutôt que de la combler.
    */
   | { t: "carte"; cle: string; description: string | null }

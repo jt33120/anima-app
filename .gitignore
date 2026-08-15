@@ -35,3 +35,6 @@ next-env.d.ts
 
 # outillage BMAD régénérable (npx bmad-method install)
 .claude/
+
+# Vercel CLI (identifiants de projet — dépôt public)
+.vercel

@@ -376,12 +376,15 @@ dans les définitions vivantes, vérifié en base). Restent trois items, gardés
   jours épouse exactement un épisode. Ce n'est pas un chiffre au sens de FR-031, mais c'est de
   l'information sur sa détresse restituée par la forme. Le correctif est un choix de design (afficher les
   périodes autrement, ou ne pas les afficher) — pas un correctif technique. [app/synthese/page.tsx]
-- **T6-19 (résiduel) — `clore_execution` n'a toujours pas de jeton de propriété.** Les états terminaux
-  sont désormais terminaux (`and statut = 'en_cours'`, migration 0035), ce qui referme le trou que la
-  migration 0027 prétendait déjà fermé. Reste le cas de deux exécutions concurrentes après expiration de
-  bail : les deux voient `en_cours`, la seconde clôture écrase la première. Le vrai correctif demande une
-  colonne de bail et un identifiant d'exécution, donc une migration qui touche tous les appelants — à
-  faire AVANT que le moteur de rétention (Epic 6) ne s'appuie dessus. [supabase/migrations/0035]
+- **~~T6-19 (résiduel) — `clore_execution` n'a toujours pas de jeton de propriété.~~ ✅ REFERMÉE le
+  15/08/2026, migration `0052` (Story 6.1a).** Le rappel de ce qu'elle disait : les états terminaux
+  étaient devenus terminaux (`and statut = 'en_cours'`, 0035), mais deux exécutions concurrentes après
+  expiration de bail voyaient toutes deux `en_cours` et la seconde clôture écrasait la première.
+  `reclamer_execution` frappe désormais un **jeton** neuf à chaque prise de main et le rend à
+  l'appelant ; `clore_execution` ne l'accepte que s'il correspond au jeton courant de la ligne, et rend
+  un booléen pour que le refus se journalise (`ordonnanceur_cloture_refusee`). Cinq appelants repris.
+  Une garde interdit que l'ancienne signature à cinq arguments survive en surcharge — le contournement
+  qu'un `create or replace` aurait livré à côté de la garde. [supabase/migrations/0052]
 - **T6-6 (résiduel) — la garde de cible tactile ne couvre que les commandes NOMMÉES.** `tests/cible-tactile.test.ts`
   attrape `button`, `summary`, `input`/`select`/`textarea` et les classes « bouton »/« champ ». Les
   commandes dont le nom ne les trahit pas (`.sortieRapide`, `.numero` de la page d'aide) portent bien les
@@ -937,3 +940,344 @@ campagne laisse derrière elle des dizaines de comptes de fixtures, et c'est leu
 basculer la contention en échec. **Conséquence pratique : `db reset` AVANT la passe de clôture, pas
 après.** Et ne jamais lire un rouge de fin de campagne comme un verdict sur le code sans avoir refait
 la passe sur une base propre.
+
+---
+
+## Ordonnanceur — ce que l'analyse du 14/08/2026 a trouvé et que la Story 6.1 NE traite PAS
+
+Vingt-trois pièges ont été relevés en préparant la 6.1 (analyse adversariale, six sondes + trois angles
+de piégeage). Douze sont devenus les tâches T1→T12 de la story. Les suivants sont réels, vérifiés, et
+**délibérément hors périmètre** — ils ne mordent que sous des conditions que la 6.1 ne crée pas.
+
+⚠️ **Tous deviennent actifs le jour où un job forge une clé de fenêtre plus fine que la journée** (ce
+que la 6.2 devra faire pour servir « 8 h locales »). À relire **avant** d'écrire la 6.2, pas après.
+
+- **Le seuil du disjoncteur est écrit DEUX FOIS et compte des LIGNES, pas des JOURS.**
+  `personnes_en_echec_repete` (`0031:108-131`) compte `count(*) >= p_seuil` sur sept jours **sans
+  dédoublonnage par jour**, et `utilisatrices_a_synthetiser` (`0033:69-73`) **recopie** la règle avec
+  un `3` en dur au lieu d'appeler la fonction. Sous plusieurs exécutions par jour, « trois échecs en
+  sept jours » devient « trois échecs en vingt minutes » : une panne fournisseur d'un quart d'heure
+  écarte une personne pour une semaine — et l'incident levé est `job_echoue`, qui **ne dégrade pas** la
+  sonde publique. Le produit cesserait de produire des synthèses pendant sept jours avec un signal
+  vert. ⚠️ Muter l'une des deux expressions laisse l'autre rattraper le résultat : c'est exactement le
+  défaut que l'en-tête de 0033 dit avoir corrigé pour le TRI, et qui subsiste sur le SEUIL.
+  [supabase/migrations/0031, 0033]
+
+- **Le rappel d'échéance ne rattrape rien avec des ticks supplémentaires.** `rappels_echeance_dus`
+  (`0036:625-641`) n'a aucune clause excluant les personnes déjà notifiées aujourd'hui, et sa rotation
+  d'équité (`order by md5(… || la date du jour)`) est **invariante sur la journée**. Avec 25 échéances
+  dues et `LOT_PAR_TICK = 10`, le tick 2 resélectionne exactement les mêmes dix, `reserverNotification`
+  les refuse une à une, et les quinze autres ne sont **jamais** lues. Aggravant : `rappel_lot_sature`
+  serait journalisé à chaque tick, transformant le seul signal d'alerte en bruit permanent.
+  [supabase/migrations/0036, lib/ordonnanceur/jobs/rappel-echeance.ts:51]
+
+- **`environnementDeclare` a un repli sur l'ERREUR, aucun sur le SILENCE.** `depot:37-41` rend `null`
+  sur `error` — d'où `base_muette` et un 409 propre. Mais si l'appel **pend**, la lambda meurt avant le
+  premier job : aucune ligne écrite, aucun incident, et l'homme mort ne parlera qu'au bout de 48 h.
+  **La T10 de la 6.1 borne cet appel**, ce qui referme le cas ; ce paragraphe reste pour mémoire du
+  raisonnement. [lib/data/depot-ordonnanceur.ts:37-41]
+
+- **L'ordre du registre n'est garanti qu'à l'intérieur d'une invocation.** `executer.ts` est une boucle
+  séquentielle **sans aucun verrou au niveau du registre** — la seule protection est par job. Deux
+  invocations qui se chevauchent peuvent donc exécuter le job N+1 de l'une pendant le job N de l'autre,
+  et l'arbitrage du plafond par famille (« la synthèse passe avant le rappel, **toujours**, pas
+  parfois ») devient une course. La T7 de la 6.1 rend le chevauchement **impossible par construction**
+  (`intervalle >= BUDGET_TICK_MS + marge`) ; si cette assertion venait à être relâchée, le défaut
+  redevient actif et il faudrait une réclamation de niveau registre. [lib/ordonnanceur/executer.ts:59-125]
+
+### Une observation de méthode, qui vaut au-delà de l'ordonnanceur
+
+Le défaut le plus coûteux du lot n'était pas un bug mais une **garde ancrée sur une migration morte** :
+`tests/ordonnanceur-architecture.test.ts:210-213` vérifie la couture registre ↔ SQL en lisant
+`0028_sante_homme_mort.sql`, alors que **trois** migrations définissent `sante_ordonnanceur_publique`
+et que c'est `0031` qui gagne. Les migrations étant immuables et forward-only, 0028 contiendra la
+chaîne attendue **pour toujours** : la garde ne peut plus rougir, quoi qu'on fasse à la fonction
+vivante.
+
+**La leçon est générale et n'est pas encore appliquée partout : toute garde qui lit une migration par
+son NUMÉRO est périssable.** Elle doit viser la définition courante — parcourir les migrations, retenir
+celles qui définissent l'objet, prendre la plus haute. La T6 de la 6.1 le fait pour la sonde de santé.
+
+**Le dépôt compte 16 endroits qui lisent une migration par son numéro** (relevé le 14/08/2026,
+`tests/*.test.ts`) :
+
+```
+arc-architecture:79 (0012) · annonce-socle-sql:279,284 (0040, 0045) · branche-cycle-sql:113,247 (0025, 0026)
+branche-correctifs:372 (0023) · enneagramme-sql:389 (0049) · gardes-dans-la-policy:441 (0041)
+ordonnanceur-architecture:210 (0028) ⚠️ · pipeline-securite-architecture:84,85 (0010, 0011)
+ordonnanceur-sql:400 (0027) · resiliation-remboursement-sql:205 (0038) · synthese-domaine:249 (0029)
+theme-natal-sql:629 (0039) · tirage-sql:149 (0050)
+```
+
+⚠️ **Tous ne sont pas des défauts, et il ne faut pas les « corriger » en masse.** Lire une migration
+par son numéro est légitime quand la garde atteste d'un **fait historique** (« la 0041 a bien posé la
+clause dans la policy »). Le défaut naît quand la garde prétend vérifier une **propriété vivante** et
+lit une définition depuis remplacée — le cas de `ordonnanceur-architecture:210`. Chaque site demande
+donc le même examen : *l'objet lu a-t-il été redéfini par une migration ultérieure ?* Non audité.
+
+---
+
+## Le jeu est passé de 24 à 21 cartes — LIVRÉ (Story 5.10, 15/08/2026)
+
+*Consigné le 14/08 après le brief `ANIMA-A57H`, arbitré à 23 le 15/08 au matin, **rectifié à 21 et
+livré le 15/08 au soir**. Cette section garde les trois états parce que la rectification est la
+partie utile.*
+
+**Ce qui est en place.** Six cartes retirées sur sa demande explicite (`puits`, `corde`, `fontaine`,
+`nid`, `metier-a-tisser`, `orage`) ; trois ajoutées : `fleur` (son emblème), `oiseau` (sa coche
+« un oiseau, un vol » — rien ne volait dans le jeu), `seuil` (**de notre main**, à lui faire
+arbitrer). Aucune migration SQL : vérifié deux fois, aucune migration ne nomme une clé de carte.
+
+**LA FAUTE, ET POURQUOI ELLE VAUT D'ÊTRE GARDÉE ÉCRITE.** L'arbitrage du matin ajoutait quatre
+cartes — `une porte`, `un seuil`, `un chemin`, `un oiseau` — décrites comme « les images qu'elle a
+elle-même nommées dans le brief ». Le JSON brut du brief dit autre chose :
+
+```
+question  visuel-symboles-oui   type: "multi"     (dix options)
+options[3]  value "seuil"   label "Une porte, un seuil, un chemin"
+options[5]  value "oiseau"  label "Un oiseau, un vol"
+réponse : { "value": ["seuil", "oiseau"], "by": "sanela" }
+```
+
+Deux coches. « Une porte, un seuil, un chemin » est **le libellé d'une case, écrit par le
+questionnaire** — trois quasi-synonymes offerts ensemble pour qu'une seule coche désigne la famille.
+Le lire comme trois propositions, c'est faire dire à une réponse le contenu de la question.
+
+Et le jeu contenait déjà `porte-entrouverte` et `sentier`. On allait livrer **deux portes et deux
+chemins**, 8 cartes sur 23 sur le seul thème du passage, et deux visuels quasi identiques dans une
+commande d'art de 69 objets. **Aucun test du dépôt ne l'aurait vu.**
+
+**Règle à en tirer, plus large que le jeu :** quand une décision produit cite « ses mots », aller
+lire la forme BRUTE de la réponse. Un rendu markdown aplatit un QCM en une phrase, et une phrase
+aplatie se relit comme une liste.
+
+**Ce que la story a construit en réponse** (`tests/jeu-proprietaire.test.ts`) :
+
+- **détecteur mécanique** — les mots d'une clé ne peuvent pas être tous contenus dans une autre
+  (`porte` ⊆ `porte entrouverte`). Comparaison par MOTS, jamais par sous-chaîne brute : `or` est une
+  sous-chaîne de `horizon`, et un détecteur qui mordrait là finirait désactivé ;
+- **détecteur déclaré** — 13 familles de synonymes qu'aucune paire de cartes ne peut toucher
+  ensemble. `chemin`/`sentier` n'est pas mécaniquement détectable. La table est **incomplète par
+  construction** : elle enregistre les rapprochements réellement rencontrés, et grandit à chaque
+  quasi-collision ;
+- **garde d'orphelin** — la garde INVERSE du manifeste : chaque fichier de `public/jeu/` doit être
+  une carte du jeu. Sans elle, `puits.webp` serait resté servi publiquement pour une carte retirée.
+  Il vit désormais dans `images/reference-jeu/`, hors de `public/`, comme unique référence de style.
+
+**Ce qui N'A PAS bougé, et ne doit pas être « réparé » :**
+
+- les bornes **3, 24 et 40** de `tests/tirage-alea.test.ts` — ce sont des bornes d'essai CHOISIES, et
+  le fichier documente qu'emprunter la borne à `TAILLE_JEU` rendrait la garde otage du jeu ;
+- `TAILLE_JEU`, dérivé de `JEU.length` : la story a changé la taille du jeu **sans toucher une seule
+  ligne de production hors de `jeu.ts`** ;
+- les lignes de `tirage` déjà en base portant une carte retirée. Elles restent valides et rejouables
+  — `taille_jeu` est journalisée par ligne (0050), et la 5.10 est **la première story à exercer pour
+  de vrai** la raison d'être de cette colonne. `tests/depot-lecture.test.ts` et
+  `tests/lecture-frontiere.test.ts` gardent délibérément `puits` / `tailleJeu: 24` pour ça.
+
+**Résidu assumé.** Un doublon de tirage passe d'une fois sur 24 à une fois sur 21. C'est le seul
+argument de la 5.7 qui s'affaiblit. L'unicité de `lecture.tirage_id` et l'index partiel de 0051
+continuent d'empêcher de tirer dix fois pour choisir la carte qui plaît.
+
+**Arbitrage restant pour Anima :** garde-t-on `seuil` ? Si non, 20 cartes et rien d'autre ne bouge.
+
+## Deux commentaires portaient une arithmétique FAUSSE dans le fichier dont c'est le seul sujet
+
+*Trouvé pendant la Story 5.10.*
+
+`lib/tirage/alea.ts` affirmait `2**32 = 178 956 970 × 24 + 8`, « donc les 8 premiers indices ont une
+chance de plus que les 16 autres ». Les deux chiffres étaient faux et le sens inversé : le reste vaut
+**16**, et ce sont 16 indices qui sont favorisés. L'écart relatif annoncé (`1,4 · 10⁻⁸`) était faux
+dans les deux fichiers : il vaut `1 / 178 956 970 ≈ 5,6 · 10⁻⁹`.
+
+C'était le commentaire qui porte **toute la justification de l'échantillonnage par rejet**, et
+personne ne l'a vu pendant un mois **parce que les commentaires ne s'exécutent pas**.
+
+Correctif : un §0 dans `tests/tirage-alea.test.ts` qui **exécute les nombres cités**
+(`2**32 % 21 === 4`, `2**32 % 24 === 16`, `2**32 % 32 === 0`, et les trois limites de rejet). Un
+commentaire asservi à un test ne dérive plus en silence. **Patron réutilisable** partout où un
+commentaire porte un calcul load-bearing.
+
+## LE HARNAIS DE MUTATION MENT DANS LES DEUX SENS — deuxième leçon, symétrique de la 6.1a
+
+*Trouvé pendant la Story 5.10.*
+
+En 6.1a, le harnais SQL comptait **tout rouge pour un mort** : sept mutants avaient été déclarés tués
+par des `502` de redémarrage de conteneurs. La 5.10 a trouvé l'erreur miroir, plus perfide.
+
+Un mutant qui **ne compile pas** fait imprimer à vitest :
+
+```
+Error: Transform failed with 1 error
+ Test Files  5 failed | 1 passed (6)
+      Tests  38 passed (38)
+```
+
+Il n'y a **aucune** ligne `Tests N failed` — il n'y a pas de test en échec, il y a des fichiers qui
+n'ont pas pu être chargés. Un harnais qui lit la ligne `Tests` seule conclut **SURVIT**, c'est-à-dire
+**accuse la garde alors que le mutant n'a jamais tourné**. C'est pire qu'un faux mort : un faux mort
+rassure à tort, un faux survivant envoie réécrire une garde qui allait bien.
+
+Le mutant en question (`M13`, une 22ᵉ carte) était en fait **tué par quatre fichiers nommés** — la
+vérification isolée l'a montré.
+
+**Deux règles pour tout harnais de mutation de ce dépôt :**
+
+1. **Trois issues, jamais deux.** `TUÉ` exige une ligne `Tests N failed`. `SURVIT` exige une ligne
+   `Test Files` SANS `failed`. Tout le reste est un **NON-VERDICT** et doit se dire comme tel.
+2. **Le heredoc ajoute un saut de ligne final** au texte de remplacement. Quand le motif n'est pas en
+   fin de ligne, ce saut atterrit au milieu d'une expression et rend le mutant incompilable — c'est
+   exactement ce qui a produit le faux survivant. `apres = a[1].rstrip("\n")`.
+
+Un troisième mutant (`M12`) était **mal posé** et a été gardé comme tel dans le décompte : retirer
+une assertion d'un test ne peut être attrapé par aucune autre — les assertions ne se contrôlent pas
+entre elles. Le mutant bien posé pour une assertion porte sur son SUJET, pas sur elle.
+
+## L'outil d'écriture du corpus existe déjà — ne pas en construire un second
+
+Anima a répondu, sur la forme de livraison des 189 textes : *« Une seule à la fois, comme ce
+questionnaire. »* Le questionnaire en question est celui qui a produit `anima-brief-ANIMA-A57H` —
+elle y a répondu 42 fois, sans accompagnement. **C'est la spécification, et l'implémentation est
+déjà debout.** Toute fiche `corpus-*-a-ecrire.md` en tableau ou en document long va contre sa
+réponse explicite.
+
+Deux propriétés du questionnaire à reprendre, parce qu'elles ont visiblement marché : chaque question
+porte un `help` (comment répondre) **et** un `why` (à quoi la réponse sert dans le produit), et rien
+n'est obligatoire — elle a laissé 32 questions sans réponse sans que ça bloque quoi que ce soit.
+
+## Mutant équivalent documenté — la borne du jour-de-semaine du parseur cron (Story 6.1)
+
+*Relevé le 15/08/2026, campagne de mutation de la 6.1.*
+
+Dans `tests/ordonnanceur-architecture.test.ts`, `champsCron` borne le champ jour-de-semaine à
+`[0, 7]` — sémantique Vixie, où dimanche s'écrit `0` **ou** `7`. **Ramener cette borne à 6 ne fait
+rougir aucun test.**
+
+Ce n'est pas une garde manquante, c'est une **équivalence** : `max` ne sert qu'à l'expansion de `*` et
+de `*/n`. Un littéral explicite (`* * * * 7`) fixe `debut = fin = Number("7")` et ne consulte jamais la
+borne ; et pour `*`, la normalisation `7 → 0` replie la valeur, donc les deux bornes rendent le même
+ensemble. Il n'existe donc aucune expression cron que les deux versions traitent différemment.
+
+**Ce qui porte réellement la propriété, et qui est bien gardé :** la normalisation `i === 4 && v === 7
+? 0 : v`. La retirer tue le test `intervalleMinimalDuCron("30 3 * * 7") === 604_800`, vérifié.
+
+Conservé à 7 pour dire honnêtement ce que le champ accepte — pas parce qu'une garde en dépend. À ne
+pas « corriger » : il n'y a rien à corriger, et écrire un test qui distinguerait les deux versions
+exigerait d'inventer une expression que le parseur ne rencontrera jamais.
+
+## Mutant équivalent documenté — `=` vs `is not distinct from` sur le jeton (Story 6.1a)
+
+*Relevé le 15/08/2026, campagne de mutation de la 6.1a.*
+
+Dans `supabase/migrations/0052`, `clore_execution` compare le jeton avec `and jeton = p_jeton`.
+**Remplacer `=` par `is not distinct from` ne fait rougir aucun test.**
+
+C'est une **équivalence**, et elle a une cause précise : la colonne `jeton` est `not null`. Les deux
+opérateurs ne divergent que si les deux côtés sont `null` — or le côté ligne ne peut pas l'être, et le
+côté appelant (`p_jeton is null`) donne `false` dans les deux écritures. Il n'existe donc aucun appel
+que les deux versions traitent différemment.
+
+**Ce qui porte réellement la propriété, et qui est bien gardé :** le `not null` de la colonne. Le
+retirer tue le test `[ÉCHOUER FERMÉ]` (l'insertion directe d'un jeton vide doit être refusée),
+vérifié — parce qu'à partir de là, une ligne à jeton vide s'accorderait avec un appelant sans jeton.
+
+⚠️ **À ne pas confondre avec le vrai danger**, qui n'est ni l'un ni l'autre : c'est le raccourci de
+compatibilité `and (p_jeton is null or jeton = p_jeton)` qu'on écrit sans y penser le jour où un
+appelant n'a pas de jeton. Celui-là ouvre une porte exactement de la taille de la garde, et il est
+**muté et tué** (mutant S2). L'écriture `=` est conservée parce qu'elle échoue fermé par construction
+— la règle du dépôt — et non parce qu'un test la distingue de sa jumelle.
+
+## Le socle quotidien sert au plus vingt personnes par heure (Story 6.2)
+
+*Relevé le 15/08/2026, en livrant la 6.2. Assumé, mesuré, journalisé — pas une lacune cachée.*
+
+`LOT_PAR_TICK = 20` dans `lib/ordonnanceur/jobs/socle-quotidien.ts`, et le socle n'a qu'un tick par
+heure une fois le palier passé à `pro`. **Le produit peut donc servir au plus vingt personnes à huit
+heures du matin** — et huit heures est l'heure par défaut, donc celle que la plupart garderont.
+
+Ce n'est pas un problème aujourd'hui (zéro utilisatrice) et c'en sera un tôt. Deux choses évitent que
+ça se dégrade en silence :
+
+- le lot saturé est journalisé (`socle_lot_sature`) — c'est le seul signal disponible AVANT que ça
+  fasse mal ;
+- la sélection **tourne** : `socle_quotidien_du` ordonne par `md5(uuid ‖ jour)`, donc l'ordre change
+  chaque jour. Au-delà du lot, ce ne sont pas toujours les mêmes qui sont laissées de côté —
+  contrairement à l'`order by utilisatrice_id` que la revue 4.10 avait qualifié d'*injustice stable*.
+
+⚠️ **Le remède n'est PAS de monter ce nombre.** Le budget du tick ne suit pas : à quatre jobs, la chaîne
+`Σ + margeHorsDelais(4) ≤ BUDGET_TICK_MS` ne laisse que 1 600 ms de mou. Le vrai remède est de pousser
+par **lots** (une requête HTTP par service de poussée plutôt que par appareil), et c'est une story.
+
+## La poussée sans charge utile a une date de péremption, et elle est gardée (Story 6.2)
+
+*Relevé le 15/08/2026. Ce n'est pas une dette au sens ordinaire : c'est une décision qui expire, et la
+CI le dira.*
+
+Décision D1 de la 6.2 : le POST vers le service de poussée fait **zéro octet**. Tant que
+`MOTIFS_POUSSEE` n'a qu'un membre, le service worker sait quoi afficher sans qu'on le lui dise.
+
+Au **deuxième** motif — Story 6.3, « Anam rare et spécifique » — il ne le saura plus, et la notification
+d'Anam afficherait silencieusement le texte du socle. Personne ne s'en apercevrait : les deux sont
+plausibles sur un écran verrouillé.
+
+`tests/poussee-architecture.test.ts` rougit à l'instant où un second motif apparaît. **Le remède n'est
+pas de supprimer ce test**, c'est l'un des deux :
+
+1. chiffrer une charge utile minimale (RFC 8291 : ECDH P-256, HKDF, AES-128-GCM) portant le **motif** et
+   rien d'autre — `p256dh` et `auth` sont déjà stockés pour ça, et c'est la seule raison de les stocker ;
+2. ou faire lire au service worker, à la réception, un motif servi par une route de session.
+
+Dans les deux cas la propriété structurelle tient : aucun paramètre de texte libre nulle part.
+
+## Trois vérifications de la 6.2 qu'aucun test ne peut faire
+
+*Relevé le 15/08/2026. À faire sur un vrai appareil, avant publication.*
+
+1. **Le privacy-cover arrive-t-il avant la photo ?** jsdom ne peint pas. Le test prouve que l'attribut
+   est posé de façon **synchrone** — la seule chose qui rende la course gagnable — mais la course
+   elle-même se constate sur un iPhone, en passant l'app en arrière-plan.
+2. **Une vraie poussée arrive-t-elle ?** Aucune clé VAPID n'existe encore, et la fabrique refuse de
+   construire l'adaptateur réel sous Vitest. Le JWT est vérifié cryptographiquement contre sa propre clé
+   publique ; le reste demande un appareil et trois variables d'environnement
+   (`VAPID_CLE_PUBLIQUE`, `VAPID_CLE_PRIVEE`, `VAPID_SUJET`).
+3. **Le manifeste s'installe-t-il sur iOS ?** Les icônes existent et sont référencées (192, 512,
+   apple-touch 180). L'installation elle-même se constate — et sans elle, iOS ne pousse rien du tout.
+
+## Mutant survivant documenté — le `WITH CHECK` de l'UPDATE sur `preference_socle` (Story 6.2)
+
+*Relevé le 15/08/2026, campagne de mutation de la 6.2 (mutant S7). **Survivant**, pas équivalent — et la
+distinction est le sujet.*
+
+Dans `supabase/migrations/0053`, la policy `preference_socle_proprietaire_maj` porte
+`with check (auth.uid() = utilisatrice_id)`. **La remplacer par `with check (true)` ne fait rougir aucun
+test**, et la propriété visée — « elle ne peut pas réattribuer sa préférence à quelqu'un d'autre » — reste
+pourtant vraie.
+
+**Ce qui porte réellement le refus aujourd'hui**, établi par trois sondes successives :
+
+| Policy de SELECT | `WITH CHECK` de l'UPDATE | La ligne change-t-elle de propriétaire ? |
+|---|---|---|
+| `auth.uid() = utilisatrice_id` | `auth.uid() = utilisatrice_id` | non — `42501` |
+| `auth.uid() = utilisatrice_id` | `true` | **non — `42501`** |
+| `auth.uid() = utilisatrice_id` | `true`, + INSERT à `true` | non — `42501` |
+| `true` | `true` | **OUI, la ligne passe à l'autre** |
+
+C'est donc la **policy de SELECT, appliquée à la NOUVELLE ligne**, qui refuse : la ligne relue après
+écriture appartiendrait à quelqu'un d'autre, donc l'appelante ne la voit pas, donc Postgres annule.
+
+C'est **le piège des défenses redondantes** du dépôt, à l'état pur : deux gardes couvrent le même
+scénario, donc muter l'une laisse l'autre tenir, donc le mutant survit. La règle du dépôt dit de muter
+chacune séparément — et la mutation de la policy de SELECT, elle, est bien tuée (par les tests de lecture
+cloisonnée).
+
+⚠️ **Le `with check` est CONSERVÉ malgré sa redondance apparente**, et ce n'est pas de la
+ceinture-bretelles décorative. Sans lui, la propriété reposerait sur le fait que **le client relit la
+ligne après écriture** — un comportement de bibliothèque, pas une garantie de la base. Un appelant qui
+écrirait sans relire (`Prefer: return=minimal`, un `UPDATE` en SQL direct, un futur adaptateur) ferait
+disparaître la seule garde restante sans qu'un seul test bouge.
+
+⚠️ **Et un second enseignement, sur l'outillage :** ce mutant a d'abord été compté TUÉ par mon script de
+rejeu, parce que ce script acceptait *n'importe quel* rouge comme un verdict de test. C'est exactement la
+faute des sept faux morts de la 6.1a, retournée : là-bas un vrai mutant passait pour mort à cause d'un
+502 ; ici un survivant passait pour mort à cause d'un rouge transitoire. **Un mutant n'est tué que par un
+test NOMMÉ** — le rejeu isolé, qui affiche quel test échoue, a rendu le bon verdict.

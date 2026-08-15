@@ -89,13 +89,15 @@ development_status:
   5-6-accueil-bibliotheque-en-cartes: review # livrée le 2026-08-14 ; aucune migration ; 15 mutants, 15 tués ; détecteur FR-023 réparé (le substantif « soin » était libre) ; l'accueil rend VISIBLES les 165 créneaux de corpus vides — porte pré-lancement
   5-7-tirage-isole-jeu-proprietaire: review # livrée le 2026-08-14 ; migration 0050 ; 28 mutants, 28 tués (dont 4 faux kills du harnais SQL détectés et repris) ; le tirage a une arité NULLE et un verrou ESLint ; +24 créneaux de sens (Anima) +24 descriptions +24 visuels à produire → 189 créneaux d'Anima au total
   5-8-rituel-lecture-restitution-ecrite: review # livrée le 2026-08-14 ; migration 0051 ; 24 mutants, 24 tués (dont 5 non-verdicts du harnais SQL repris, et la garde PREMIUM absente de la policy trouvée à la relecture de 0037) ; ferme les deux résidus 5.7 ET le survivant assumé de la 5.5 ; les 23 visuels manquants deviennent visibles à l'écran → porte avant publication
-  5-9-ancrage-exercice-guide-premium: review # livrée le 2026-08-14 ; AUCUNE migration (rien à persister) ; la garde n'est pas une policy mais une frontière de dépendance (server-only + test de frontière) ; l'ancrage n'entre PAS dans la bibliothèque (refus de conception D1, FR-080) ; écart assumé à l'epic sur AD-3 (aucun appel modèle) ; 26 mutants, 26 tués ; +24 créneaux chez Anima (213 au total, 0 écrit) → ferme l'Epic 5
+  5-9-ancrage-exercice-guide-premium: review # livrée le 2026-08-14 ; AUCUNE migration (rien à persister) ; la garde n'est pas une policy mais une frontière de dépendance (server-only + test de frontière) ; l'ancrage n'entre PAS dans la bibliothèque (refus de conception D1, FR-080) ; écart assumé à l'epic sur AD-3 (aucun appel modèle) ; 26 mutants, 26 tués ; +24 créneaux chez Anima (210 au total, 0 écrit) → ferme l'Epic 5
+  5-10-le-jeu-passe-a-21-cartes: review # livrée le 2026-08-15 ; ZÉRO migration ; 14 mutants, 13 tués (M12 mal posé) ; rectifie l'arbitrage du 15/08 au matin (23 → 21) après relecture du JSON brut du brief ; deux gardes nouvelles (anti-doublon de cartes, orphelin de public/jeu) ; corpus d'Anima : 210 créneaux déclarés, 0 écrit ; commande d'art : 63 objets
   epic-5-retrospective: optional
 
   # ── Epic 6 : Les deux rythmes & tes données ───────────────────────────────────
-  epic-6: backlog
-  6-1-rythmes-retention-ordonnanceur-unique: backlog
-  6-2-socle-quotidien-impersonnel-notifications-discretes: backlog
+  epic-6: in-progress
+  6-1-rythmes-retention-ordonnanceur-unique: review # contextée le 2026-08-14 ; RESSERRÉE à la mesure seule (zéro migration) après validation adversariale : 34 constats, dont 15 critiques
+  6-1a-sql-ordonnanceur-jeton-alarme: review # AJOUTÉE le 2026-08-14 — extraite de la 6.1 : toute la SQL (migration 0052, jeton T6-19, homme mort 48h→60h, boucle de fermeture de l'alarme, idempotence prouvée sur un effet compté). À faire APRÈS la 6.1, bloque la 6.8
+  6-2-socle-quotidien-impersonnel-notifications-discretes: review # livrée le 2026-08-15 ; migration 0053 ; fondation web push complète (manifeste, service worker sans cache, VAPID sans dépendance) + /reglages + privacy-cover. INERTE sur le palier hobby (1 cron/jour ne peut honorer une heure choisie) : le job REFUSE d'émettre, et l'écran le dit. Porte ajoutée en §2 des portes ; 7 corps d'aperçu à faire relire par Anima
   6-3-anam-rare-et-specifique: backlog
   6-4-geste-de-pause: backlog
   6-5-ce-quanam-retient-consulter-corriger-supprimer: backlog

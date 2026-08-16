@@ -1,6 +1,7 @@
 "use client";
 
 import type { BibliothequeVue, CarteVue } from "./types";
+import CarteAnam from "./CarteAnam";
 import s from "./accueil.module.css";
 
 /**
@@ -37,7 +38,7 @@ export interface ProprietesBibliotheque {
 }
 
 export default function Bibliotheque({ bibliotheque }: ProprietesBibliotheque) {
-  const { cartes, enAvant, jour } = bibliotheque;
+  const { cartes, enAvant, jour, anam } = bibliotheque;
   const date = `${jour.j} ${MOIS[jour.m - 1]}`;
 
   return (
@@ -50,6 +51,17 @@ export default function Bibliotheque({ bibliotheque }: ProprietesBibliotheque) {
           </li>
         ))}
       </ul>
+
+      {/* ── LA CARTE D'ANAM, HORS DE LA GRILLE (Story 6.3, D8) ─────────────────────────────────
+          Hors de la `<ul>` parce qu'elle n'est pas du catalogue : elle n'entre pas dans la
+          rotation du jour, et la mise en avant reste « la première de la grille ». La mettre
+          dedans obligerait à l'exclure du tri, donc à écrire une règle dans le rendu — ce que
+          ce fichier n'a pas le droit de faire (AD-7).
+
+          ⚠️ ELLE COMPTE QUAND MÊME DANS UX-DR-30. Cinq cartes de catalogue plus celle-ci font
+          SIX objets rendus, soit exactement le plafond : une sixième carte de catalogue en
+          livrerait sept. La garde compte les objets rendus, pas les entrées du catalogue. */}
+      <CarteAnam carte={anam} />
     </div>
   );
 }

@@ -20,6 +20,7 @@ import {
   validerSortieSynthese,
 } from "@/lib/domain/synthese";
 import { consigneSynthese, messagesSynthese } from "@/lib/domain/consigne-synthese";
+import { creneauDiurneOuvert } from "@/lib/domain/regime-anam";
 import { creerDepotSynthese, type DepotSynthese } from "@/lib/data/depot-synthese";
 import { creerAiPort } from "@/lib/ai/fabrique";
 import { envoyerSousEgressArt9Ordonnanceur } from "@/lib/ai/egress-guard";
@@ -113,7 +114,19 @@ export async function executerSyntheseAvec(ctx: ContexteJob, deps: DepsSynthese)
   // ⚠️ SANS CANAL, ON NE LIT MÊME PAS (revue 4.10) : interroger la base pour cinq annonces qui sortiront
   // toutes immédiatement de `notifier` est du budget dépensé pour rien. Le job de rappel applique déjà
   // cet ordre et documente pourquoi ; celui-ci ne l'avait pas suivi.
-  if (deps.courriel.estConfigure()) {
+  //
+  // ── ET HORS CRÉNEAU NON PLUS (Story 6.3, D6) ────────────────────────────────────────────────────────
+  //
+  // Même raisonnement, même place : le soir, ces cinq annonces sortiraient toutes de `notifier` sans
+  // rien envoyer. Aujourd'hui le cron est quotidien à 07 h/08 h et cette lecture n'arriverait jamais le
+  // soir ; sous le cron horaire du palier `pro` (porte de publication), elle arriverait quinze fois par
+  // nuit.
+  //
+  // ⚠️ CETTE CONDITION NE REMPLACE PAS LA GARDE DE `notifier`, ET NE PEUT PAS LA REMPLACER. Elle ne
+  // couvre QUE le chemin de rattrapage. Le chemin de PRODUCTION (`produirePour` → `notifier`) n'y passe
+  // pas : retirer la garde de `notifier` en croyant celle-ci suffisante ferait partir les annonces des
+  // synthèses écrites le soir. Chacune a son test nommé, et chacune tue son propre mutant.
+  if (deps.courriel.estConfigure() && creneauDiurneOuvert(ctx.instant)) {
     for (const attente of await deps.depot.syntheseesNonAnnoncees(LOT_RATTRAPAGE_ANNONCE, RATTRAPAGE_ANNONCE_JOURS)) {
       // Le rattrapage rend la main PENDANT qu'il reste de quoi produire — pas au moment où il n'en reste
       // plus. Sa réserve est STRICTEMENT au-dessus de celle du fan-out (voir `RESERVE_RATTRAPAGE_MS`) ;
@@ -125,7 +138,7 @@ export async function executerSyntheseAvec(ctx: ContexteJob, deps: DepsSynthese)
       // Bornée : une réserve ne réserve rien si l'opération qu'elle protège n'a pas de plafond.
       // `notifier` avale déjà ses propres erreurs ; le délai ne peut donc pas faire échouer le job.
       await avecDelai(
-        notifier(deps, attente.utilisatriceId, attente.syntheseId),
+        notifier(deps, attente.utilisatriceId, attente.syntheseId, ctx.instant),
         DELAI_ANNONCE_MS,
         "synthese_rattrapage_timeout",
       ).catch((e) => journaliserExploitation("synthese_rattrapage", { code: codeDErreur(e) }));
@@ -179,7 +192,7 @@ export async function executerSyntheseAvec(ctx: ContexteJob, deps: DepsSynthese)
     let issue: IssuePersonne;
     let motifEchec: string | null = null;
     try {
-      issue = await produirePour(deps, utilisatriceId);
+      issue = await produirePour(deps, utilisatriceId, ctx.instant);
     } catch (e) {
       issue = "echec";
       echecs += 1;
@@ -250,7 +263,11 @@ type IssuePersonne = "produite" | "rien_a_dire" | "bloquee" | "echec";
  * DEHORS : tant que la clôture était mêlée aux `continue` du corps, elle ne pouvait pas être hoistée, et
  * c'est ce qui l'avait ramenée dans le `try`.
  */
-async function produirePour(deps: DepsSynthese, utilisatriceId: string): Promise<IssuePersonne> {
+async function produirePour(
+  deps: DepsSynthese,
+  utilisatriceId: string,
+  instant: Date,
+): Promise<IssuePersonne> {
   const materiau = await deps.depot.materiau(utilisatriceId, PLAFOND_ENTREES, PLAFOND_OCTETS);
 
   // D3 / FR-034 : rien à dire, donc rien. C'est une RÉUSSITE — le job a fait son travail, qui était de
@@ -309,22 +326,43 @@ async function produirePour(deps: DepsSynthese, utilisatriceId: string): Promise
   // `null` : la tranche existait déjà, ou l'éligibilité a changé pendant la production. Rien de neuf n'a
   // été produit, donc rien à annoncer. L'identifiant rendu est la clé d'idempotence de l'annonce : une
   // synthèse, une annonce, et le lien entre les deux est la ligne elle-même.
-  if (syntheseId) await notifier(deps, utilisatriceId, syntheseId);
+  if (syntheseId) await notifier(deps, utilisatriceId, syntheseId, instant);
 
   return "produite";
 }
 
 /**
- * L'annonce (AC4). Trois refus possibles, tous silencieux et tous sûrs : le canal n'est pas configuré,
- * l'adresse est introuvable, ou le plafond a mordu. Dans les trois cas la synthèse existe et se lit dans
- * l'app — le plafond borne le CANAL, jamais le CONTENU.
+ * L'annonce (4.9 AC4). Quatre refus possibles, tous silencieux et tous sûrs : on est hors du créneau
+ * diurne, le canal n'est pas configuré, l'adresse est introuvable, ou le plafond a mordu. Dans les quatre
+ * cas la synthèse existe et se lit dans l'app — le plafond borne le CANAL, jamais le CONTENU.
  *
- * `estConfigure()` est interrogé AVANT la réservation, et l'ordre compte : réserver puis découvrir qu'on
- * ne peut pas envoyer consommerait le droit d'envoyer sans avoir envoyé, et le plafond de 72 h bloquerait
- * alors une notification qui n'est jamais partie.
+ * Tout ce qui peut empêcher l'envoi est connu AVANT la réservation, et l'ordre compte : réserver puis
+ * découvrir qu'on ne peut pas envoyer consommerait le droit d'envoyer sans avoir envoyé, et le plafond de
+ * 72 h bloquerait alors une notification qui n'est jamais partie.
+ *
+ * ── POURQUOI LA GARDE DU SOIR EST ICI, ET PAS DANS LE JOB (Story 6.3, D6) ──────────────────────────────
+ *
+ * Parce qu'il y a DEUX chemins d'annonce dans une seule fonction de job : le rattrapage (avant le
+ * fan-out) et la production (dans `produirePour`). Un `return` posé dans le bloc de rattrapage sort du
+ * JOB ENTIER — il ne repousserait pas l'annonce du soir, il supprimerait la PRODUCTION des synthèses du
+ * soir. La garde vit donc au seul point par lequel les deux chemins passent, et la signature gagne
+ * l'instant plutôt que de lire l'horloge : un job se teste à l'heure qu'on lui donne.
+ *
+ * ⚠️ L'ASYMÉTRIE EST VOULUE, ET IL FAUT LA LIRE AVANT DE « RÉPARER » QUOI QUE CE SOIT. Une synthèse
+ * refusée ici est RATTRAPÉE : elle reste dans `syntheses_non_annoncees(_, 3)` et le rattrapage du
+ * lendemain matin la reprendra. Le rappel d'échéance, lui, est PERDU — voir `rappel-echeance.ts`. Le jour
+ * où quelqu'un voudra « ne rien perdre » en ajoutant une file d'attente, il livrera un reproche daté.
  */
-async function notifier(deps: DepsSynthese, utilisatriceId: string, syntheseId: string): Promise<void> {
+async function notifier(
+  deps: DepsSynthese,
+  utilisatriceId: string,
+  syntheseId: string,
+  instant: Date,
+): Promise<void> {
   try {
+    // FAIL-CLOSED, et en premier : c'est le seul refus qui ne coûte aucun aller-retour.
+    if (!creneauDiurneOuvert(instant)) return;
+
     if (!deps.courriel.estConfigure()) return;
 
     const adresse = await deps.depot.adresse(utilisatriceId);

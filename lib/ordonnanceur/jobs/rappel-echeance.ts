@@ -3,6 +3,7 @@ import { codeDErreur } from "@/lib/domain/code-erreur";
 import { avecDelai } from "@/lib/domain/delai";
 import { journaliserExploitation } from "@/lib/safety/rpc-repli";
 import { PLAFOND_NOTIFICATION_HEURES } from "@/lib/domain/synthese";
+import { creneauDiurneOuvert } from "@/lib/domain/regime-anam";
 import { creerDepotCanalCourriel, type DepotCanalCourriel } from "@/lib/data/depot-canal-courriel";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
 import { creerPortCourriel } from "@/lib/courriel/fabrique";
@@ -21,18 +22,23 @@ import type { ContexteJob } from "@/lib/ordonnanceur/registre";
  *
  * ── OÙ VIVENT LES GARDES ─────────────────────────────────────────────────────────────────────────────
  *
- * Toutes en SQL, dans `rappels_echeance_dus` (0036), et l'AC3 l'exige littéralement :
+ * Toutes celles qui portent sur la PERSONNE sont en SQL, dans `rappels_echeance_dus` (0036), et l'AC3
+ * de la 4.10 l'exige littéralement :
  *   • AD-17 — aucun rappel pendant un épisode de détresse ni dans les 72 h ;
  *   • premium (FR-081), consentement art. 9 vivant, aucune barrière de minorité ;
  *   • `echeance = AUJOURD'HUI` et jamais `<=`.
  * Un filtre écrit ici en TypeScript s'oublierait au premier appelant suivant ; une clause dans la
  * fonction qui SÉLECTIONNE ne se contourne pas — ce job n'a aucun autre chemin de lecture.
  *
+ * UNE SEULE garde vit en TypeScript, et elle ne porte sur personne : le CRÉNEAU DIURNE (6.3), qui ne
+ * dépend que de l'horloge. Elle n'a rien à faire dans une clause `where` — il n'y a rien à sélectionner
+ * quand l'heure elle-même refuse.
+ *
  * ── CE QUI N'EST PAS RATTRAPÉ, DÉLIBÉRÉMENT ──────────────────────────────────────────────────────────
  *
- * Une échéance passée pendant un épisode de détresse n'est PAS reprise ensuite. Un rappel qui arrive
- * avec trois jours de retard est un reproche daté. Et ce choix est STRUCTUREL, pas disciplinaire : il
- * n'existe aucune file où le retard s'accumulerait.
+ * Une échéance passée pendant un épisode de détresse n'est PAS reprise ensuite — ni celle qu'un refus
+ * du soir a écartée. Un rappel qui arrive avec trois jours de retard est un reproche daté. Et ce choix
+ * est STRUCTUREL, pas disciplinaire : il n'existe aucune file où le retard s'accumulerait.
  *
  * ── UN COURRIEL PAR PERSONNE ET PAR JOUR ─────────────────────────────────────────────────────────────
  *
@@ -82,6 +88,22 @@ export interface DepsRappel {
 
 /** Le cœur, testable : toutes les dépendances entrent par la porte (AD-10). */
 export async function executerRappelEcheanceAvec(ctx: ContexteJob, deps: DepsRappel): Promise<void> {
+  // ── LE CRÉNEAU DIURNE, AVANT TOUT (Story 6.3, D6 / AC2) ──────────────────────────────────────────────
+  //
+  // Fail-closed, et posé avant la lecture comme avant la réservation : refuser ne doit RIEN consommer.
+  //
+  // ⚠️ CE REFUS-CI PERD LE RAPPEL, ET C'EST VOULU. Contrairement à la synthèse — que
+  // `syntheses_non_annoncees(_, 3)` reprend pendant trois jours —, une échéance n'est due que le jour
+  // même (`echeance = aujourd'hui`, jamais `<=`, voir `rappels_echeance_dus`) : refusée le soir, elle
+  // n'est plus jamais due. Il n'existe aucune file où le retard s'accumulerait, et c'est structurel.
+  // Un rappel délivré à 22 h n'est plus un rappel — c'est un reproche à l'heure du coucher, sur un
+  // objectif qu'elle s'était fixé le matin. Le jour où quelqu'un voudra « ne rien perdre » en ajoutant
+  // une file d'attente, il livrera exactement ça.
+  //
+  // Le cron quotidien tire à 07 h/08 h Paris ; ce refus ne mord donc aujourd'hui que si quelqu'un relance
+  // le job à la main. Il mordra pour de bon sous le cron horaire du palier `pro`.
+  if (!creneauDiurneOuvert(ctx.instant)) return;
+
   // `estConfigure()` AVANT toute lecture, et l'ordre compte : sans canal, il n'y a rien à faire, et
   // surtout rien à RÉSERVER — consommer le droit d'envoyer sans envoyer bloquerait le plafond de 72 h
   // sur un courriel qui n'est jamais parti.

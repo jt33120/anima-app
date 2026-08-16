@@ -38,3 +38,6 @@ next-env.d.ts
 
 # Vercel CLI (identifiants de projet — dépôt public)
 .vercel
+
+# Le zip du rapport QA : doublon de son dossier extrait, 1,5 Mo de binaire pour rien.
+QA_testing/*.zip

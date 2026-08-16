@@ -163,3 +163,19 @@ export type OuvertureData =
   /** Story 5.5 (AC2) — Anam a une hypothèse de type. Une phrase qui ne nomme AUCUN numéro, et
    *  l'identifiant de la ligne : le rendu n'a pas de quoi asséner quoi que ce soit. */
   | { readonly type: "hypothese-enneagramme"; readonly phrase: string; readonly hypotheseId: string };
+
+/**
+ * UN TOUR RETROUVÉ AU RECHARGEMENT (QA tour 1, T3).
+ *
+ * ⚠️ REDÉCLARÉ ICI, jamais importé de `lib/data` : `render/` n'a pas le droit de connaître les
+ * couches serveur (AD-7/AD-10, vérifié par `tests/arc-architecture.test.ts`). Même patron que
+ * `BibliothequeVue` et que `OuvertureData`.
+ *
+ * TROIS CHAMPS, ET PAS UN DE PLUS. Ni date, ni compteur, ni « non lu » : le fil se lit, il ne se
+ * mesure pas (FR-031). L'ordre de la liste EST l'ordre de lecture — le rendu ne trie rien.
+ */
+export interface TourHistorique {
+  readonly id: string;
+  readonly role: "utilisatrice" | "anam";
+  readonly texte: string;
+}

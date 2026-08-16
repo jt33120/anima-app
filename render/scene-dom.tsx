@@ -36,6 +36,7 @@ import Conversation from "./conversation/Conversation";
 import EchangeSource from "./conversation/EchangeSource";
 import Bibliotheque from "./accueil/Bibliotheque";
 import type { BibliothequeVue } from "./accueil/types";
+import type { TourHistorique } from "./conversation/types";
 import type { OuvertureData } from "./conversation/types";
 import type { ResultatGeste } from "./arbre/FicheBranche";
 import s from "./monde.module.css";
@@ -71,6 +72,8 @@ export interface ProprietesSceneRendue {
    * parmi quatre, et une panne de socle ne doit fermer ni la conversation ni l'arbre.
    */
   bibliotheque?: BibliothequeVue | null;
+  /** QA tour 1 (T3) — le fil déjà écrit, pour que le rechargement ne l\u2019efface plus. */
+  historique?: readonly TourHistorique[];
 }
 
 /* Étoiles générées côté client APRÈS montage → aucun décalage d'hydratation. */
@@ -130,6 +133,7 @@ export default function SceneDom({
   onSocleAnnonce,
   onHypotheseDite,
   bibliotheque,
+  historique,
 }: ProprietesSceneRendue) {
   const [etat, dispatch] = useReducer(reducteurVue, etatInitial);
   const region = etat.regionCourante;
@@ -338,6 +342,7 @@ export default function SceneDom({
                   <Conversation
                     onPreparation={setAnamPrepare}
                     ouverture={ouverture}
+                    historique={historique}
                     onAllerVersBranche={allerVersBranche}
                     onAllerVersHypothese={allerVersHypothese}
                     onHypotheseDite={onHypotheseDite}

@@ -1351,3 +1351,77 @@ fichier pour que personne ne lui cherche un test.
 
 Les deux ont maintenant leur fichier. C'est la même leçon que la 4.10 : **les gardes de chaque couche
 peuvent toutes être vertes pendant que le passage de l'une à l'autre est cassé.**
+
+---
+
+## Tour de QA du 2026-08-15 — ce qui reste après les correctifs
+
+### Corrigé, vérifié, commité
+
+| | |
+|---|---|
+| **T6** courriels d'auth en anglais | copie rapatriée dans `lib/courriel/gabarits-auth.ts`, poussée et **relue conforme** |
+| **T29 / T5** lexique jamais appliqué à la voix vivante | `lib/domain/controle-sortie.ts`, 10/10 mutants |
+| **T12** 404 anglaise | `app/not-found.tsx` |
+| **T15** `/reglages` et `/abonnement` hors garde | gardés — `revoque` délibérément épargné |
+| **T20** « Deux façons » suivi de trois options | le nombre dérive de la liste |
+| **T8** `/lectures` envoyait vers un geste inexistant | phrase corrigée |
+| **T3** conversation perdue au rechargement | `lib/data/depot-fil.ts` + amorce du fil |
+
+### ⚠️ T11 — MON DIAGNOSTIC ÉTAIT FAUX, ET IL FAUT LE SAVOIR
+
+J'ai annoncé que le service worker silencieux venait de variables VAPID absentes sur Vercel. **C'est
+faux, vérifié :** `VAPID_CLE_PUBLIQUE` (87 caractères), `VAPID_CLE_PRIVEE` (43) et `VAPID_SUJET` sont
+présentes en production et **identiques au local** ; `/sw.js` et `/manifest.webmanifest` répondent
+200 avec le bon type MIME.
+
+La cause la plus probable est l'**outillage du tour de QA** : les clics réels étaient impossibles
+pendant la phase DevTools (« interactions faites en JavaScript »), et `Notification.requestPermission()`
+exige une **activation utilisateur**. Sans elle, Chrome résout en `default` **sans afficher d'invite** —
+ce que le rapport a mesuré mot pour mot (« `Notification.permission` reste `default` »).
+
+**Ça se tranche en dix secondes** : ouvrir `/reglages` dans un vrai navigateur et cliquer pour de
+bon. Tant que ce n'est pas fait, la PWA, le hors-ligne et l'installation restent **non statués**.
+
+### Un défaut réel trouvé en creusant T11
+
+`activer()` rend l'état `refuse` dès que `permission !== "granted"`. Or `default` veut dire « elle n'a
+pas répondu » (invite fermée d'un clic à côté), pas « elle a refusé ». Lui dire qu'elle a refusé lui
+apprend qu'il n'y a rien à faire, alors qu'un second clic marcherait. Petit, et faux.
+
+### T2 — le chemin d'abonnement, et pourquoi ce n'est PAS `/abonnement`
+
+Le seul bouton de souscription du produit vit sur `CarteAbonnement`, **dans la conversation**, et il
+n'apparaît qu'au moment d'un paywall. Or **T24 (« aucune branche jamais proposée ») n'est pas un
+défaut** : Story 3.3 D2-A ferme la proposition sur un compte gratuit, pour ne pas lui faire composer
+le nom d'une prise de conscience que la policy refusera d'écrire. Les comptes de QA étaient gratuits.
+
+La cascade est réelle : **sans branche, pas de paywall, donc aucun chemin.** `/abonnement` est une
+page d'ÉTAT, elle n'a jamais eu vocation à vendre — mais elle est le cul-de-sac où `/ancrages` envoie.
+Il manque donc une page d'offre, ou un bouton sur `/abonnement`. **C'est une story, pas un
+correctif** : prix, contenu de l'offre, mentions de reconduction (art. L215-1) et garantie de
+remboursement s'y décident ensemble.
+
+### Ce que je n'ai pas corrigé, et pourquoi
+
+- **T7 — la mention IA sur un écran sur six.** Elle demande une décision : la surimpression est
+  aujourd'hui portée par la scène (Story 1.8). L'étendre aux pages hors-scène est une story de mise
+  en page, pas un ajout de ligne.
+- **T4 — les faux positifs de détresse.** Le pipeline classe trop large. Toucher au seuil sans une
+  campagne de mesure serait remplacer un défaut par un autre, dans le seul endroit du produit où
+  l'erreur coûte le plus cher.
+- **T22 (déconnexion), T23 (mentions légales, confidentialité), T1 (CGU provisoires).** Trois
+  absences, pas trois bugs — et T1 comme T23 attendent un juriste.
+- **T17 — l'heure de naissance irréversible.** Décision de la 5.3. La QA a raison de relever la
+  contradiction avec « tu peux corriger à tout moment » : à arbitrer, pas à corriger seul.
+- **T13 — 7,4 s sans le moindre signe de vie.** Le vrai problème de perception du produit, et le
+  correctif est un indicateur d'attente, pas une optimisation de latence.
+- **T26 — au moment de la détresse, la conversation sort du champ.** Le fil ne fait que 307 px de
+  haut dans une fenêtre de 742. C'est un défaut de mise en page, au pire endroit possible.
+
+### Une amélioration à faire un jour sur le fil retrouvé
+
+Aucun **repère de temps** ne sépare ce qui a été écrit il y a vingt heures de ce qui vient de
+l'être : les deux se lisent comme une seule conversation. Un séparateur (« plus tôt ») réglerait
+ça. Écarté ici pour ne pas fabriquer un marqueur de temps là où FR-031 refuse déjà les compteurs —
+c'est une décision de copie, à prendre avec Anima.

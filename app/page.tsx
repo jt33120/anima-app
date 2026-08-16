@@ -4,6 +4,7 @@ import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { chargerOuverture } from "@/lib/safety/ouverture-branche";
 import { chargerProjectionArbre } from "@/lib/safety/projection-arbre";
 import { lireBibliotheque } from "@/lib/data/lire-bibliotheque";
+import { lireFilRecent } from "@/lib/data/depot-fil";
 import { lireThemeNatal } from "@/lib/data/depot-theme-natal";
 import { estPremiumCourante } from "@/lib/data/lire-abonnement";
 import { ephemerideAstronomyEngine } from "@/lib/astro/adapters/astronomy-engine";
@@ -66,19 +67,27 @@ export default async function Page() {
   // RÉELLE de l'arbre. Story 5.6 : la bibliothèque du socle. Les trois sous JWT, en parallèle ;
   // jamais un 500 qui bloquerait l'ouverture de la scène — chacune a son repli sûr.
   const maintenant = new Date();
-  const [ouverture, projection, bibliotheque] = await Promise.all([
+  const [ouverture, projection, bibliotheque, historique] = await Promise.all([
     chargerOuverture(supabase, user.id),
     chargerProjectionArbre(supabase, user.id, theme),
     // La bibliothèque n'est pas un chemin critique : une panne rend `null`, et la scène s'ouvre
     // quand même (AC7). L'accueil est une région parmi quatre — la conversation et l'arbre ne
     // doivent pas tomber avec elle.
     lireBibliotheque(supabase, user.id, maintenant, premium, ephemeride, theme).catch(() => null),
+    // QA tour 1 (T3) — LE FIL DÉJÀ ÉCRIT. Il était en base depuis la 4.1 et n'était jamais relu :
+    // un rechargement laissait l'écran vide, alors que l'écran de consentement promet « ce que tu
+    // lui confies est CONSERVÉ ». La garde d'état est DÉJÀ POSÉE plus haut (`etapeOnboardingPour`) :
+    // un compte révoqué ou barré n'arrive jamais ici, donc ce verbatim art. 9 ne lui est pas servi.
+    // Repli sûr → fil vide : mieux vaut un fil qu'on retrouvera au prochain chargement qu'une scène
+    // qui ne s'ouvre pas.
+    lireFilRecent(supabase, maintenant).catch(() => []),
   ]);
   return (
     <SceneDom
       projection={projection}
       ouverture={ouverture}
       bibliotheque={bibliotheque}
+      historique={historique}
       onSocleAnnonce={marquerAnnonceSocleDite}
       onHypotheseDite={marquerHypotheseDite}
     />

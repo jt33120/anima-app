@@ -8,7 +8,7 @@ import { useFluxAnam, type MessageEnvoi } from "./useFluxAnam";
 import { insererTour } from "./fil-ops";
 import { LIGNE_QUOTA_EPUISEE } from "./ligne-quota";
 import { REPONSE_REFUS, CONFIRME_NAISSANCE, ECHEC_NAISSANCE } from "./copie-proposition";
-import type { Tour, OuvertureData } from "./types";
+import type { Tour, OuvertureData, TourHistorique } from "./types";
 import s from "./conversation.module.css";
 
 /**
@@ -57,6 +57,29 @@ function cleDOuverture(o?: OuvertureData | null): string | null {
   }
 }
 
+/**
+ * LE FIL RETROUVÉ (QA tour 1, T3) — les tours déjà écrits, remis dans le fil au montage.
+ *
+ * ⚠️ CE COMPOSANT NE CHARGEAIT RIEN. Le fil vivait entièrement dans l'état local : le journal était
+ * bien écrit (4.1) et jamais relu, donc un rechargement laissait un écran vide. Et l'écran de
+ * consentement promet l'inverse, dans un texte à portée juridique : « Ce que tu lui confies est
+ * CONSERVÉ, pour qu'elle se souvienne d'une fois sur l'autre. »
+ *
+ * Les tours d'Anam reviennent en `complet` : ils SONT complets — ils ont été écrits, streamés et
+ * gravés. Les rendre en `flux` afficherait un curseur qui n'attend rien.
+ *
+ * Rien d'autre ne revient : ni beat d'arc, ni bilan, ni carte, ni paywall. Ce sont des ÉVÉNEMENTS de
+ * séance, pas du journal — les rejouer ferait réapparaître une carte d'abonnement à chaque
+ * rechargement, ce qui est très exactement la relance que FR-034 interdit.
+ */
+function toursDHistorique(historique?: readonly TourHistorique[]): Tour[] {
+  return (historique ?? []).map((t) =>
+    t.role === "anam"
+      ? ({ id: t.id, role: "anam", texte: t.texte, etat: "complet" } as const)
+      : ({ id: t.id, role: "utilisatrice", texte: t.texte } as const),
+  );
+}
+
 /** Le ou les tours à ajouter au fil pour cette ouverture. Vide s'il n'y a rien à ouvrir. */
 function toursDOuverture(o?: OuvertureData | null): Tour[] {
   if (!o) return [];
@@ -93,6 +116,7 @@ function toursDOuverture(o?: OuvertureData | null): Tour[] {
 export default function Conversation({
   onPreparation,
   ouverture,
+  historique,
   onAllerVersBranche,
   onAllerVersHypothese,
   onHypotheseDite,
@@ -106,6 +130,12 @@ export default function Conversation({
    * (AC5 [DUR]) : le rendu ne peut pas afficher un chiffre qu'il n'a pas reçu.
    */
   ouverture?: OuvertureData | null;
+  /**
+   * QA tour 1 (T3) — les tours déjà écrits, lus par le serveur sous JWT. Le fil s'amorce avec eux,
+   * AVANT l'ouverture du jour : l'ordre de lecture est chronologique, et ce qu'Anam ouvre
+   * aujourd'hui vient après ce qui s'est dit hier.
+   */
+  historique?: readonly TourHistorique[];
   /** L'invitation doit MENER quelque part, sinon c'est un reproche : ceci ouvre la fiche de la branche visée. */
   onAllerVersBranche?: (brancheId: string) => void;
   /** Story 5.5 (AC2) — l'hypothèse mène à la halte `/enneagramme`. */
@@ -143,7 +173,7 @@ export default function Conversation({
   // l'identité de l'objet : deux rafraîchissements qui rendent la même proposition ne doivent pas
   // l'empiler deux fois dans le fil.
   const cle = cleDOuverture(ouverture);
-  const [tours, setTours] = useState<Tour[]>(() => toursDOuverture(ouverture));
+  const [tours, setTours] = useState<Tour[]>(() => [...toursDHistorique(historique), ...toursDOuverture(ouverture)]);
   const [clePrec, setClePrec] = useState(cle);
 
   // ── B3 : LA MENTION SE DÉPENSE QUAND ELLE EST LUE, PAS QUAND ELLE EST RENDUE ──────────────────

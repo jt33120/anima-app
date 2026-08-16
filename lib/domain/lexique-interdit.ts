@@ -5,15 +5,25 @@ import { decoderEntites, normaliserTexte, UN_MOT_INTERCALE } from "./normalisati
  * `anam-voice.md` §11 + `EXPERIENCE.md` §Lexique. C'est la matière première du contrôle bloquant
  * transversal (T5, `tests/lexique-voix.test.ts`).
  *
- * ⚠️ IL NE BORNE PAS CE QU'ANAM DIT EN DIRECT — et cet en-tête laissait croire le contraire (revue
- * du 2026-08-12). Il se disait « la référence de la consigne de voix (T3) ». Vérifié :
- * `chercherInterdits` n'a AUCUN appelant en production — cinq consommateurs, tous des tests — et
- * `consigne-voix.ts` n'importe pas ce module : ses interdits y sont RECOPIÉS en prose.
+ * ⚠️ IL BORNE MAINTENANT CE QU'ANAM DIT EN DIRECT — ET CE N'ÉTAIT PAS LE CAS (QA tour 1, T29/T5).
  *
- * À savoir avant d'ajouter un terme ici : cela ne changera RIEN à ce que le modèle produit. Ce
- * lexique garde le contenu STATIQUE (libellés, corpus d'Anima) ; la voix vivante est bornée par la
- * consigne, et le seul lien entre les deux est la vigilance humaine. `tests/lexique-voix.test.ts`
- * atteste au moins qu'aucune FAMILLE ne disparaît de la consigne — c'est grossier, et c'est dit.
+ * Cet en-tête a porté successivement deux affirmations, et la seconde était la bonne :
+ *
+ *   • jusqu'au 2026-08-12, il se disait « la référence de la consigne de voix (T3) » — faux ;
+ *   • depuis, il disait « `chercherInterdits` n'a AUCUN appelant en production — cinq consommateurs,
+ *     tous des tests », et « à savoir avant d'ajouter un terme ici : cela ne changera RIEN à ce que
+ *     le modèle produit ». C'était exact, et c'était un trou grand ouvert.
+ *
+ * Le tour de QA du 2026-08-15 en a rapporté la preuve : « **Prends soin de toi.** » — une phrase qui
+ * figure MOT POUR MOT dans le contrôle positif de `lexique-interdit.test.ts`. La fonction l'attrapait
+ * parfaitement. Personne ne l'appelait.
+ *
+ * `lib/domain/controle-sortie.ts` la branche désormais sur le flux, phrase par phrase, avant que quoi
+ * que ce soit n'atteigne l'écran. Ajouter un terme ici CHANGE donc ce qui sort — avec les deux
+ * conséquences : un mot en trop coupe une vraie réponse, un mot en moins la laisse passer.
+ *
+ * Ce module garde toujours le contenu STATIQUE (libellés, corpus d'Anima) par le même
+ * `chercherInterdits` ; ce sont les deux usages d'une seule liste.
  *
  * ⚠️ PROVISOIRE — porte pré-lancement produit/clinique. On code la MÉCANIQUE de détection ; la liste
  * éditoriale exacte reste à valider (produit ; juriste/pro pour ce qui borde la détresse).
@@ -184,9 +194,39 @@ const MOTIFS_LEXICAUX: Array<{ famille: FamilleInterdit; motif: RegExp }> = [
   // ── Revendications d'affect (FR-087) — l'attention (« je suis là ») reste AUTORISÉE ────────────
   { famille: "affect", motif: /\bje ressens\b/g },
   { famille: "affect", motif: /\bca me touche\b/g },
-  { famille: "affect", motif: /\bje suis fiere\b/g },
   { famille: "affect", motif: /\bje m'inquiete\b/g },
   { famille: "affect", motif: /\bj'ai ete triste\b/g },
+
+  // ── L'ÉTAT INTÉRIEUR ATTRIBUÉ, ET PAS SEULEMENT « FIÈRE » (QA tour 1, T5) ─────────────────────
+  //
+  // La liste ne portait qu'UN adjectif, codé en dur : `je suis fiere`. Le tour de QA a reçu
+  // « **Je suis contente de l'entendre.** » — mesuré vert. C'est très exactement le défaut que la
+  // 5.5 avait corrigé côté médical : le substantif était banni, l'adjectif attribut ne l'était pas,
+  // et l'adjectif attribut est la formulation la plus naturelle.
+  //
+  // Et c'est le manquement qui coûte le plus cher de tout le rapport : il arrive DEUX ÉCRANS après
+  // avoir fait cocher « elle n'a ni conscience ni intuition ». Sur un produit qui en fait une case
+  // à cocher séparée, la contradiction annule la promesse.
+  //
+  // ⚠️ « JE SUIS LÀ » RESTE AUTORISÉ, et c'est la frontière de toute cette famille : l'ATTENTION est
+  // permise (« je suis là », « j'ai lu », « je note »), la REVENDICATION D'ÉTAT ne l'est pas. La
+  // liste d'adjectifs est donc énumérée, jamais ouverte — `\bje suis \w+\b` bannirait « je suis là »
+  // et la moitié de ce qu'Anam a le droit de dire.
+  //
+  // Les intensifs sont couverts (« je suis vraiment contente ») parce qu'ils sont le premier
+  // contournement involontaire du modèle, et le seul qui ne demande aucune imagination.
+  {
+    famille: "affect",
+    motif: new RegExp(
+      "\\b(?:je suis|je me sens|ca me rend)(?: (?:tres|vraiment|si|bien|un peu|plutot|tellement|sincerement))? " +
+        "(?:fiere?|contente?|heureu(?:x|se)|ravie?|enchantee?|triste|desolee?|peinee?|emue?|touchee?|" +
+        "bouleversee?|inquiete?|soulagee?|contrariee?|impressionnee?|admirative?|amusee?|surprise?)\\b",
+      "g",
+    ),
+  },
+  // Le pendant impersonnel, qui dit la même chose sans le « je » : « ça me fait plaisir ».
+  { famille: "affect", motif: /\bca me fait (?:tres |vraiment |si )?plaisir\b/g },
+  { famille: "affect", motif: /\bje me rejouis\b/g },
   // ⚠️ JUSQU'À TROIS MOTS INTERCALÉS ICI, et pas un — délibéré (revue du 2026-08-12).
   //
   // Le fragment partagé `UN_MOT_INTERCALE` en autorise UN, parce qu'il sépare un pronom d'un verbe :

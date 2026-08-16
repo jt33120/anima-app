@@ -47,6 +47,13 @@ import { estPremiumCourante } from "@/lib/data/lire-abonnement";
 import { compterToursResiduelsDuMois } from "@/lib/data/lire-allocation";
 import { limiteAllocationResiduelle } from "@/lib/ai/allocation-config";
 import { absorberDelta, etatTroncatureInitial } from "@/lib/domain/voix-anam";
+import {
+  absorberSousControle,
+  terminerControle,
+  etatControleInitial,
+  codeManquement,
+  type ModeControle,
+} from "@/lib/domain/controle-sortie";
 import type { AiPort, CapaciteIa, MessageIa, NiveauSecurite, RequeteIa, TierIa } from "@/lib/ai/port";
 
 /**
@@ -724,6 +731,21 @@ export async function POST(request: NextRequest) {
       const tronquerVoix = niveauSecurite === 0;
       let voixEtat = etatTroncatureInitial(); // cœur pur de troncature sur flux (texte accumulé jamais loggé)
       let voixTronquee = false; // vrai dès la coupe → on n'émet plus, on draine
+
+      // ── CONTRÔLE DE SORTIE : le lexique interdit, appliqué à ce qu'Anam dit VRAIMENT ────────────
+      //
+      // Il vient AVANT la troncature, et l'ordre n'est pas décoratif : le contrôle n'émet que des
+      // phrases entières et relues, donc la troncature voit exactement ce qu'elle voyait avant lui
+      // (un préfixe aligné sur les phrases). L'inverse — tronquer puis relire — laisserait passer une
+      // phrase fautive tant qu'elle tient dans les trois premières.
+      //
+      // ⚠️ MÊME GATE DE SÉCURITÉ QUE LA TRONCATURE, ET POUR UNE RAISON PLUS FORTE. En détresse on
+      // OBSERVE sans couper : la phrase fautive peut précéder l'orientation vers le 3114, et amputer
+      // une orientation est pire que n'importe quel manquement de vocabulaire. Le manquement est
+      // quand même constaté, et journalisé.
+      const modeControle: ModeControle = niveauSecurite === 0 ? "coupe" : "observe";
+      let controleEtat = etatControleInitial();
+      const manquementsVoix = new Set<string>();
       try {
         for await (const ev of flux) {
           if (request.signal.aborted) break; // l'utilisatrice a quitté : on cesse de consommer
@@ -735,12 +757,20 @@ export async function POST(request: NextRequest) {
               premierDelta = false;
             }
             etat.charsSortie += ev.texte.length; // repli honnête : compte TOUT le texte généré, même coupé
+            // 1) LE CONTRÔLE DE SORTIE, toujours — en `coupe` hors détresse, en `observe` sinon.
+            const c = absorberSousControle(controleEtat, ev.texte, modeControle);
+            controleEtat = c.etat;
+            for (const f of c.manquements) manquementsVoix.add(f);
+
+            if (!c.aEmettre) continue;
+
+            // 2) LA TRONCATURE, sur ce que le contrôle a laissé passer.
             if (!tronquerVoix) {
-              emettre({ t: "delta", c: ev.texte }); // détresse : jamais de coupe
+              emettre({ t: "delta", c: c.aEmettre }); // détresse : jamais de coupe de voix
             } else {
               // Cœur pur : accumule, localise la coupe, n'émet que le texte autorisé. Une fois `termine`,
               // n'émet plus rien mais la boucle poursuit le drain jusqu'à `fin` (métrage honnête).
-              const r = absorberDelta(voixEtat, ev.texte);
+              const r = absorberDelta(voixEtat, c.aEmettre);
               voixEtat = r.etat;
               if (r.aEmettre) emettre({ t: "delta", c: r.aEmettre });
               if (r.tronque) voixTronquee = true;
@@ -751,6 +781,29 @@ export async function POST(request: NextRequest) {
           }
         }
         if (!request.signal.aborted) {
+          // ⚠️ LA FERMETURE DU CONTRÔLE, ET ELLE N'EST PAS FACULTATIVE. La queue non ponctuée n'est
+          // pas encore une phrase, donc pas encore vérifiable, donc retenue. Sans ce `terminer`,
+          // toute réponse qui ne finit pas par une ponctuation — et un modèle coupé par une limite
+          // de jetons finit rarement par un point — perdrait sa dernière phrase, en silence.
+          const fin = terminerControle(controleEtat, modeControle);
+          controleEtat = fin.etat;
+          for (const f of fin.manquements) manquementsVoix.add(f);
+          if (fin.aEmettre) {
+            if (!tronquerVoix) {
+              emettre({ t: "delta", c: fin.aEmettre });
+            } else {
+              const r = absorberDelta(voixEtat, fin.aEmettre);
+              voixEtat = r.etat;
+              if (r.aEmettre) emettre({ t: "delta", c: r.aEmettre });
+              if (r.tronque) voixTronquee = true;
+            }
+          }
+          // Le manquement de VOIX se dit — une FAMILLE, jamais le terme, jamais la phrase (NFR-022).
+          // Le terme serait déjà une citation de ce qu'Anam a dit à quelqu'un ; la phrase serait de
+          // l'art. 9 par contamination.
+          for (const f of manquementsVoix) {
+            console.warn(`anam/message : ${codeManquement(f as never)} (manquement de voix, mode=${modeControle})`);
+          }
           // FR-084 : « au-delà de trois phrases, c'est un défaut de génération » → manquement journalisé
           // (serveur uniquement, aucun art. 9 ni verbatim — patron du log d'erreur qui ne porte que `e.name`).
           if (voixTronquee) console.warn("anam/message : voix tronquée à 3 phrases (manquement de voix, FR-084)");

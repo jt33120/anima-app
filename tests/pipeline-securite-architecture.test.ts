@@ -321,6 +321,45 @@ describe("Story 2.8 — voix + troncature : câblage serveur (FR-083/084, AD-1/A
     expect(src, "le gate conditionne bien la coupe").toMatch(/if\s*\(\s*!?tronquerVoix\b/);
   });
 
+  it("[QA T29/T5] le CONTRÔLE DE SORTIE est câblé, et il vient AVANT la troncature", () => {
+    // ⚠️ CE TEST EXISTE PARCE QUE LE CONTRÔLE PEUT ÊTRE PARFAIT ET NE JAMAIS TOURNER. C'est
+    // exactement l'état d'avant : `chercherInterdits` était éprouvé par cinq fichiers de tests et
+    // n'avait AUCUN appelant en production — le fichier le disait lui-même, et personne ne l'a lu.
+    const src = lire(ROUTE);
+    expect(src, "le contrôle n'est pas importé").toMatch(/@\/lib\/domain\/controle-sortie/);
+    expect(src, "le contrôle ne tourne pas sur le flux").toMatch(/absorberSousControle\s*\(/);
+    expect(src, "la queue non ponctuée est perdue sans lui").toMatch(/terminerControle\s*\(/);
+
+    // L'ORDRE : le contrôle alimente la troncature, jamais l'inverse. Tronquer d'abord laisserait
+    // passer une phrase fautive tant qu'elle tient dans les trois premières.
+    expect(src.indexOf("absorberSousControle("), "le contrôle doit précéder la troncature").toBeLessThan(
+      src.indexOf("absorberDelta(voixEtat, c.aEmettre)"),
+    );
+    expect(src, "la troncature doit lire la sortie du contrôle").toMatch(/absorberDelta\(voixEtat,\s*c\.aEmettre\)/);
+  });
+
+  it("[QA T29/T5 · AD-17] en détresse le contrôle OBSERVE — il ne coupe jamais", () => {
+    // La garde de sécurité du module : la phrase fautive peut PRÉCÉDER l'orientation vers le 3114.
+    // Couper là retirerait le numéro. Mutation-cible : passer `"coupe"` inconditionnellement.
+    const src = lire(ROUTE);
+    expect(src, "le mode doit dériver du niveau de sécurité").toMatch(
+      /modeControle[^=]*=\s*niveauSecurite\s*===\s*0\s*\?\s*"coupe"\s*:\s*"observe"/,
+    );
+  });
+
+  it("[QA T29/T5 · NFR-022] le manquement de voix journalise une FAMILLE, jamais le verbatim", () => {
+    // Le terme matché serait déjà une citation de ce qu'Anam a dit à quelqu'un ; la phrase serait de
+    // l'art. 9 par contamination. Une famille appartient à un ensemble fermé de cinq valeurs.
+    const src = lire(ROUTE);
+    expect(src, "le code de journalisation passe par la fonction dédiée").toMatch(/codeManquement\s*\(/);
+    expect(src, "jamais de fuite du manquement de voix au client").not.toMatch(
+      /emettre\([^)]*(?:manquement|controleEtat|codeManquement)/i,
+    );
+    expect(src, "le texte accumulé ne sort jamais dans un journal").not.toMatch(
+      /console\.\w+\([^)]*controleEtat\.texte/,
+    );
+  });
+
   it("no-leak : le manquement de troncature est journalisé SERVEUR, jamais émis en trame", () => {
     const src = lire(ROUTE);
     expect(src, "le manquement est journalisé côté serveur (aucun art. 9)").toMatch(/console\.\w+\([^)]*tronqu/i);

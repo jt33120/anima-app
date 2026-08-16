@@ -42,9 +42,13 @@ const VOIX = [
   // ⚠️ CLAUSE AJOUTÉE PAR LA REVUE DU 2026-08-12 — l'axe MÉDICAL manquait entièrement.
   //
   // Le lexique interdit (T1) banni toute une famille « medical » : thérapie, diagnostic, soigner,
-  // guérir, « prendre en charge », « ton trouble », « tu iras mieux », « ça va passer ». Mais ce
-  // lexique ne borne que le contenu STATIQUE — `chercherInterdits` n'a aucun appelant en
-  // production. La voix VIVANTE n'avait, sur tout cet axe, que les deux mots « jamais clinique ».
+  // guérir, « prendre en charge », « ton trouble », « tu iras mieux », « ça va passer ». La voix
+  // VIVANTE n'avait, sur tout cet axe, que les deux mots « jamais clinique ».
+  //
+  // ⚠️ MISE À JOUR (QA tour 1) : ce commentaire disait « `chercherInterdits` n'a aucun appelant en
+  // production ». Ce n'est plus vrai — `controle-sortie.ts` le branche sur le flux. Mais LA CONSIGNE
+  // RESTE LA PREMIÈRE LIGNE, et de loin la meilleure : le contrôle de sortie COUPE, ce qui laisse
+  // une réponse amputée. Une consigne qui évite la faute vaut mieux qu'un filet qui la rattrape.
   //
   // C'est-à-dire que la seule surface où la faute arriverait réellement — quelqu'un en détresse qui
   // demande « est-ce que ça va passer ? » — était la seule sans instruction. FR-023 : Anam n'est

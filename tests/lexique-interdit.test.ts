@@ -68,6 +68,23 @@ describe("Story 2.8 — lexique interdit : CONTRÔLE POSITIF (attrape le connu-m
     ["Bravo, quelle avancée.", "formulation"],
     ["Tu as tout à fait raison.", "formulation"],
     ["Je suis fière de toi.", "affect"],
+
+    // ── QA tour 1, T5 — L'ÉTAT INTÉRIEUR ATTRIBUÉ ────────────────────────────────────────────
+    //
+    // La liste ne portait qu'UN adjectif, codé en dur : « fière ». Mesuré le 2026-08-15 sur une
+    // vraie session : « Je suis contente de l'entendre. » → VERT. Même défaut exactement que
+    // l'adjectif clinique corrigé en 5.5 — le substantif banni, l'attribut oublié.
+    ["Je suis contente de l'entendre.", "affect"],
+    ["Je suis vraiment contente pour toi.", "affect"],
+    ["Je suis heureuse de te lire.", "affect"],
+    ["Je suis ravie que tu sois revenue.", "affect"],
+    ["Je suis désolée que ça se passe comme ça.", "affect"],
+    ["Je suis touchée par ce que tu écris.", "affect"],
+    ["Je suis inquiète pour toi.", "affect"],
+    ["Je me sens triste en te lisant.", "affect"],
+    ["Ça me rend heureuse.", "affect"],
+    ["Ça me fait vraiment plaisir.", "affect"],
+    ["Je me réjouis pour toi.", "affect"],
     ["Je ressens ta peine.", "affect"],
     ["Ça me touche vraiment.", "affect"],
     ["Je comprends ce que tu vis.", "affect"],
@@ -93,6 +110,22 @@ describe("Story 2.8 — lexique interdit : CONTRÔLE NÉGATIF (épargne le légi
     "Le traitement de tes données est suspendu.", // traitement (RGPD) ≠ traiter
     "Fil Santé Jeunes", // santé (nom d'organisme) ≠ santé mentale
     "Anam n'est pas une professionnelle de santé.", // santé seul, légitime
+
+    // ── LA FRONTIÈRE DE LA FAMILLE `affect` (QA tour 1, T5) ───────────────────────────────────
+    //
+    // L'ATTENTION est permise, la REVENDICATION D'ÉTAT ne l'est pas. C'est la seule ligne qui
+    // sépare ce qu'Anam a le droit de dire de ce qui contredit « elle n'a ni conscience ni
+    // intuition » — et c'est pour ça que la liste d'adjectifs est ÉNUMÉRÉE : un `je suis \\w+`
+    // bannirait « je suis là » et la moitié de la voix.
+    "Je suis là.", // l'attention, autorisée
+    "Je suis là si tu veux écrire encore.",
+    "Je suis attentive à ce que tu écris.", // attention, pas affect
+    "J'ai lu jusqu'au bout.",
+    "Je note ce que tu me dis.",
+    "Tu es contente de ce choix ?", // c'est ELLE qui ressent, pas Anam
+    "Tu sembles heureuse quand tu en parles.",
+    "Une part de toi est triste, et une autre non.",
+    "Ce qui te rend heureuse mérite d'être nommé.", // « te », pas « me »
     "Ça me trouble un peu, cette histoire.", // trouble (courant, sans déterminant) ≠ clinique
     "Je suis là.", // attention autorisée
     "Je lis ce que tu écris.", // attention autorisée

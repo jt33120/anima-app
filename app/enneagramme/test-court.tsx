@@ -139,10 +139,17 @@ export default function TestCourt({
   // faux, parfaitement déterministe, donc invisible à tout test de reproductibilité. Elle sait.
   if (etat.statut === "indecis") {
     return (
-      <section className={`${s.bloc} fondu-texte`} aria-label="Deux lectures à égalité">
+      <section className={`${s.bloc} fondu-texte`} aria-label="Des lectures à égalité">
+        {/* ⚠️ « DEUX » ÉTAIT ÉCRIT EN DUR, ET L'ÉGALITÉ PEUT PORTER SUR TROIS (QA tour 1, T20).
+            Mesuré le 2026-08-15 : « Deux façons de te lire arrivent à égalité » suivi de TROIS
+            boutons — Le type 5, Le type 7, Le type 9. Sur un écran qui refuse de trancher à sa
+            place, se tromper en comptant ses propres options est le pire endroit possible : c'est
+            précisément celui où elle doit pouvoir se fier à ce qu'on lui montre.
+
+            Le nombre DÉRIVE désormais de la liste rendue — il ne peut plus diverger d'elle. */}
         <p className="t-corps">
-          Deux façons de te lire arrivent à égalité. Je ne choisis pas à ta place — laquelle te parle
-          le plus&nbsp;?
+          {etat.exaequo.length === 2 ? "Deux" : "Plusieurs"} façons de te lire arrivent à égalité. Je
+          ne choisis pas à ta place — laquelle te parle le plus&nbsp;?
         </p>
         <ul className={s.reponses}>
           {etat.exaequo.map((t) => (

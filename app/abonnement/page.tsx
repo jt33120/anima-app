@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
+import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { lireAbonnement, eligibleAuRemboursement } from "@/lib/data/depot-resiliation";
 import * as c from "@/render/abonnement/copie-abonnement";
 import s from "./abonnement.module.css";
@@ -44,6 +45,26 @@ export default async function PageAbonnement({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrer");
+  // ── LA GARDE D'ONBOARDING, QUI MANQUAIT (QA tour 1, T15) ─────────────────────────────────────
+  //
+  // Mesuré le 2026-08-15 : un compte neuf, qui n'avait rempli NI sa date de naissance NI le
+  // consentement art. 9, atteignait cette page en tapant son adresse. Tout le reste redirigeait
+  // correctement ; ces deux pages-ci passaient au travers. Une personne qui n'a consenti à rien
+  // pouvait donc voir la page commerciale et les réglages.
+  //
+  // ⚠️ `revoque` N'EST PAS REDIRIGÉ, ET C'EST UNE DÉCISION. Quelqu'un qui a retiré son consentement
+  // garde un abonnement à résilier et des droits à exercer ; l'enfermer sur l'écran de révocation
+  // ferait de la sortie une impasse — soit exactement ce que FR-089 et la 3.5 refusent. Le
+  // traitement art. 9 est suspendu par la base, pas par une redirection.
+  const etape = await etapeOnboardingPour(supabase, user.id);
+  if (etape === "barre") redirect("/barriere");
+  if (etape === "mineur") {
+    await supabase.auth.signOut();
+    redirect("/entrer?refus=age");
+  }
+  if (etape === "naissance") redirect("/naissance");
+  if (etape === "consentement") redirect("/consentement");
+
 
   let abonnement;
   let eligible = false;

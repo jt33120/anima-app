@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { listerLectures, type Lecture } from "@/lib/data/depot-lecture";
@@ -101,7 +100,15 @@ export default async function Page() {
       {!indisponible && lectures.length === 0 && (
         // La copie exacte de l'UX, et un LIEN — jamais un déclencheur.
         <p className="t-corps">
-          Aucune lecture pour l’instant. Tu peux en demander une à <Link href="/">Anam</Link>.
+          {/* ⚠️ CETTE PHRASE ENVOYAIT VERS UNE FONCTION QUI N'EXISTE PAS (QA tour 1, T8).
+              Mesuré : la page disait « Tu peux en demander une à Anam », et Anam répondait « Je ne
+              tire pas de cartes. » Une application qui donne une consigne que son propre personnage
+              refuse fait douter la lectrice d'elle-même avant de la faire douter du produit —
+              exactement ce que la 4.9 avait déjà corrigé sur « dans le menu de compte ».
+
+              Le tirage ne se demande pas en conversation : il s'ouvre depuis ici. Tant que le geste
+              n'est pas posé, la page dit ce qui est, sans envoyer nulle part. */}
+          Aucune lecture pour l’instant.
         </p>
       )}
 

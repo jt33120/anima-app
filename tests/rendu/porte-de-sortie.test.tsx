@@ -27,6 +27,7 @@ import { render, screen } from "@testing-library/react";
 const getUser = vi.fn();
 const lireAbonnement = vi.fn();
 const eligible = vi.fn();
+const etapeOnboarding = vi.fn();
 
 vi.mock("next/navigation", () => ({
   redirect: (chemin: string) => {
@@ -39,6 +40,14 @@ vi.mock("@/lib/data/supabase/server", () => ({
 vi.mock("@/lib/data/depot-resiliation", () => ({
   lireAbonnement: () => lireAbonnement(),
   eligibleAuRemboursement: () => eligible(),
+}));
+/**
+ * La garde d'onboarding, ajoutée par la QA tour 1 (T15) : la page était atteignable par un compte
+ * qui n'avait consenti à rien. Ce mock la neutralise pour les scénarios de sortie — sa VALEUR est
+ * éprouvée juste en dessous, par le bloc dédié.
+ */
+vi.mock("@/app/(auth)/etat-onboarding", () => ({
+  etapeOnboardingPour: () => etapeOnboarding(),
 }));
 
 const { default: PageAbonnement } = await import("@/app/abonnement/page");
@@ -73,6 +82,37 @@ beforeEach(() => {
   eligible.mockReset();
   getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
   eligible.mockResolvedValue(false);
+  etapeOnboarding.mockReset();
+  etapeOnboarding.mockResolvedValue("suite");
+});
+
+describe("[QA tour 1, T15] la page commerciale est GARDÉE — sauf pour qui doit encore en sortir", () => {
+  /**
+   * Mesuré le 2026-08-15 : un compte neuf, sans date de naissance ni consentement art. 9, atteignait
+   * `/abonnement` et `/reglages` en tapant l'adresse. Tout le reste redirigeait ; ces deux-là
+   * passaient au travers.
+   */
+  for (const [etape, cible] of [
+    ["naissance", "/naissance"],
+    ["consentement", "/consentement"],
+    ["barre", "/barriere"],
+  ] as const) {
+    it(`« ${etape} » renvoie sur ${cible}`, async () => {
+      etapeOnboarding.mockResolvedValue(etape);
+      await expect(monter({})).rejects.toThrow(`redirect:${cible}`);
+    });
+  }
+
+  it("[LE TEST QUI COMPTE] « revoque » N'EST PAS redirigé — la sortie ne doit pas être une impasse", async () => {
+    // ⚠️ LE RÉFLEXE D'HARMONISATION EST LE PIÈGE ICI. Toutes les autres pages renvoient `revoque`
+    // sur l'écran de révocation ; celle-ci ne le peut pas. Quelqu'un qui a retiré son consentement
+    // garde un abonnement à résilier — l'enfermer ferait de la porte de sortie une impasse, soit
+    // exactement ce que la 3.5 et FR-089 existent pour empêcher. Le traitement art. 9 est suspendu
+    // par la base, pas par une redirection.
+    etapeOnboarding.mockResolvedValue("revoque");
+    await monter({ abonnement: abonnement({ etat: "actif" }) });
+    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

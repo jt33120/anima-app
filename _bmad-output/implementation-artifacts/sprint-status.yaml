@@ -116,7 +116,21 @@ development_status:
   # D2 : la halte NE redirige PAS `revoque` (on ne peut pas supprimer ce qu'on ne voit pas) — corriger
   # est refusé, supprimer ne l'est jamais. D3 : l'annulation RE-DÉPOSE (le tombstone a vidé le contenu,
   # rien ne permet de rembobiner) ; D4 : la suppression est écrite immédiatement, jamais différée
-  6-6-export-complet: backlog
+  6-6-export-complet: review # livrée le 2026-08-16 ; migration 0057 déployée cloud (parité 57/57/57) ;
+  # 19 mutants, 19 tués (18 au premier passage ; M14 survivait parce que le test datait l'export à
+  # 23 h 30 UTC — Paris et la machine de test tombaient le MÊME jour, donc le nom de fichier était
+  # identique avec ou sans fuseau). ⚠️ LA ROUTE DE LA 1.9 A ÉTÉ ÉLARGIE, PAS DOUBLÉE : /api/export
+  # servait 4 couches sur 29 et /barriere pointait dessus — une adolescente barrée serait repartie
+  # avec quatre morceaux. Une garde interdit désormais qu'une 2e route serve un fichier.
+  # D1 : RPC `security definer` assumée — 11 des 29 tables sont deny-by-default et rendraient zéro
+  # ligne SANS erreur sous le seul JWT (export vert, muet sur 11 couches). Le prix est payé par un
+  # test à 2 utilisatrices semées dans les 29 tables. D2 : un seul fichier HTML portant le JSON
+  # complet (art. 15 + art. 20 sans poser de question de format). D3 : servi en octet-stream, jamais
+  # text/html — le corps est fait de son texte à elle. D4 : 2 capacités retirées (clés de poussée,
+  # jeton de désabonnement) et DÉCLARÉES dans le document. D6 : `revoque` n'est pas redirigé.
+  # ⚠️ L'INVENTAIRE (lib/domain/inventaire-export.ts) DONNE UN VERDICT AUX 35 TABLES et le corpus de
+  # migrations le garde : une table créée sans verdict casse le build. À NE PAS FUSIONNER avec
+  # l'inventaire d'effacement de 6.7 — `execution_job` est hors export et devra pourtant être effacée.
   6-7-effacement-total-exhaustif: backlog
   6-8-moteur-retention-automatique: backlog
   epic-6-retrospective: optional

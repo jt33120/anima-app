@@ -35,6 +35,13 @@ function fichiersSource(dir: string): string[] {
 const racineEntrees = ["proxy.ts", "instrumentation.ts"].map((f) => resolve(racine, f)).filter((p) => existsSync(p));
 
 const DEPOT_RAPPEL = resolve(racine, "lib/data/depot-rappel.ts");
+/**
+ * (Story 6.6) L'INVENTAIRE D'EXPORT — même exclusion, même preuve qu'en `faits-architecture.test.ts`.
+ * Il NOMME les 35 tables pour leur donner un verdict d'export ; il vit dans `lib/domain/`, où tout
+ * import runtime d'infra est déjà interdit (AD-1, `arc-architecture.test.ts`), et l'assertion
+ * ci-dessous re-mesure ici qu'il ne sait pas parler à une base.
+ */
+const INVENTAIRE = resolve(racine, "lib/domain/inventaire-export.ts");
 const tousSource = [
   ...fichiersSource("app"),
   ...fichiersSource("lib"),
@@ -53,7 +60,7 @@ describe("resume_glissant — accès confiné à son dépôt possédé (T5/AC4)"
 
   it("le nom de table `resume_glissant` n'apparaît QUE dans lib/data/depot-rappel.ts", () => {
     for (const f of tousSource) {
-      if (f === DEPOT_RAPPEL) continue;
+      if (f === DEPOT_RAPPEL || f === INVENTAIRE) continue;
       expect(lire(f), `accès à la table resume_glissant hors depot-rappel : ${f}`).not.toMatch(TABLE_LITERAL);
     }
     // Contrôle positif : le dépôt de rappel y accède bien → la garde n'est pas vide.
@@ -63,5 +70,13 @@ describe("resume_glissant — accès confiné à son dépôt possédé (T5/AC4)"
     expect("supabase.from(`resume_glissant`)").toMatch(TABLE_LITERAL);
     expect("`select contenu from resume_glissant where id=${x}`").toMatch(TABLE_LITERAL); // (revue 4.3, F)
     expect('"public.resume_glissant"').toMatch(TABLE_LITERAL); // (revue 4.3, F)
+  });
+
+  it("(Story 6.6) L'EXCLUSION SE PROUVE : l'inventaire NOMME la table, il ne peut pas y accéder", () => {
+    const src = lire(INVENTAIRE);
+    expect(src, "l'inventaire cite bien la table — sinon l'exclusion ne sert à rien").toMatch(TABLE_LITERAL);
+    expect(src, "l'inventaire a gagné un accès base").not.toMatch(
+      /@supabase|@\/lib\/data|createClient|\.from\(|\.rpc\(|SupabaseClient/,
+    );
   });
 });

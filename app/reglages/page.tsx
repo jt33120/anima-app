@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { HEURE_PAR_DEFAUT, palierHonoreLHeure } from "@/lib/domain/socle-quotidien";
 import * as copie from "@/lib/domain/copie-reglages";
+import * as copieDonnees from "@/lib/domain/copie-mes-donnees";
 import Reglages from "@/render/reglages/Reglages";
 import s from "@/render/reglages/reglages.module.css";
 import { abonnerAppareil, choisirHeure, desabonnerAppareil } from "./actions";
@@ -108,6 +109,13 @@ export default async function PageReglages() {
         desabonner={desabonnerAppareil}
         choisirHeure={choisirHeure}
       />
+
+      {/* Story 6.6 — le seul chemin cliquable vers « Mes données » tant que le menu de compte
+          n'existe pas. `/reglages` est ce qui s'en approche le plus ; la dette du menu reste
+          inscrite, commune aux sept haltes. */}
+      <a className={s.lienHalte} href="/mes-donnees">
+        {copieDonnees.TITRE_HALTE}
+      </a>
     </main>
   );
 }

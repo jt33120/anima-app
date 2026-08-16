@@ -54,6 +54,16 @@ const DEPOT = resolve(racine, "lib/data/depot-faits.ts");
 const DEPOT_RAPPEL = resolve(racine, "lib/data/depot-rappel.ts");
 // (Story 6.5) la LECTURE possédée de l'ÉCRAN « ce qu'Anam retient » — confinée à son dépôt, elle aussi.
 const DEPOT_MEMOIRE = resolve(racine, "lib/data/lire-memoire.ts");
+/**
+ * (Story 6.6) L'INVENTAIRE D'EXPORT — la seule exclusion de cette garde, et elle se PROUVE.
+ *
+ * Il NOMME les 35 tables du schéma pour leur attribuer un verdict d'export ; c'est sa raison d'être
+ * (`tests/export-inventaire.test.ts` : toute table sans verdict casse le build). Il n'en ACCÈDE
+ * aucune, et il ne le peut pas : il vit dans `lib/domain/`, où `arc-architecture.test.ts` interdit
+ * déjà tout import runtime de `@supabase` et de `@/lib/data` (AD-1). Le test ci-dessous re-mesure
+ * cette impossibilité ICI plutôt que de faire confiance à l'exclusion.
+ */
+const INVENTAIRE = resolve(racine, "lib/domain/inventaire-export.ts");
 const tousSource = [
   ...fichiersSource("app"),
   ...fichiersSource("lib"),
@@ -89,6 +99,7 @@ describe("fait_extrait — un seul chemin d'écriture possédé (T5/AC4)", () =>
 
   it("le nom de table `fait_extrait` n'apparaît nulle part dans le périmètre (tout accès passe par une RPC possédée)", () => {
     for (const f of tousSource) {
+      if (f === INVENTAIRE) continue; // voir l'exclusion prouvée ci-dessous
       expect(lire(f), `accès direct à la table fait_extrait (contourne le merge/la lecture) : ${f}`).not.toMatch(TABLE_LITERAL);
     }
     // Contrôles positifs : le regex DOIT matcher toutes les formes d'accès (nu, backtick, SQL brut, qualifié).
@@ -100,6 +111,17 @@ describe("fait_extrait — un seul chemin d'écriture possédé (T5/AC4)", () =>
     expect('rpc("fusionner_fait_extrait")').not.toMatch(TABLE_LITERAL);
     expect('rpc("charger_faits_actifs")').not.toMatch(TABLE_LITERAL);
     expect("p_extrait_source").not.toMatch(TABLE_LITERAL);
+  });
+
+  it("(Story 6.6) L'EXCLUSION SE PROUVE : l'inventaire NOMME la table, il ne peut pas y accéder", () => {
+    // Une exclusion non prouvée est un trou. Celle-ci est mesurée à chaque exécution : le fichier
+    // n'importe rien qui sache parler à une base, et il n'écrit aucun verbe d'accès. Le jour où
+    // quelqu'un y ajoutera un client Supabase, c'est cette assertion qui rougira — pas le silence.
+    const src = lire(INVENTAIRE);
+    expect(src, "l'inventaire cite bien les tables — sinon l'exclusion ne sert à rien").toMatch(TABLE_LITERAL);
+    expect(src, "l'inventaire a gagné un accès base").not.toMatch(
+      /@supabase|@\/lib\/data|createClient|\.from\(|\.rpc\(|SupabaseClient/,
+    );
   });
 
   it("(Story 6.5) la RPC de lecture `charger_faits_retenus` n'est référencée QUE dans lib/data/lire-memoire.ts", () => {

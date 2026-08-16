@@ -1,0 +1,58 @@
+/* La halte « Mes données » (Story 6.6). Même sobriété que `/reglages` et `/memoire`, et pour la même
+   raison : c'est un écran de contrôle, pas une région du monde. Rien n'y attire l'œil sauf le lien —
+   un écran d'exercice de droit ne doit pas être un endroit où l'on hésite. */
+
+.halte {
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.titreHalte {
+  font-family: var(--pile-anam);
+  font-size: 1.75rem;
+  font-weight: 400;
+  color: var(--texte);
+  margin: 0;
+}
+
+.introduction,
+.precision {
+  margin: 0;
+  color: var(--texte-doux);
+  line-height: 1.6;
+}
+
+/* Le seul élément saillant de la page. `align-self: start` pour qu'il ne s'étire pas sur toute la
+   largeur : un bouton pleine largeur se lit comme une action lourde, or celle-ci ne coûte rien. */
+.telecharger {
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  font: inherit;
+  font-size: 0.98rem;
+  color: var(--texte);
+  text-decoration: none;
+  background: transparent;
+  border: 1px solid var(--texte);
+  border-radius: 999px;
+  /* La cible tactile passe par le JETON, jamais par un littéral : `tests/cible-tactile.test.ts` lit
+     les feuilles de style et refuse une commande qui la redéclare à la main. */
+  min-height: var(--cible-tactile);
+  padding: 0 1.4rem;
+  cursor: pointer;
+}
+
+.telecharger:focus-visible {
+  outline: 2px solid var(--texte);
+  outline-offset: 2px;
+}
+
+.echec {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--texte-doux);
+}

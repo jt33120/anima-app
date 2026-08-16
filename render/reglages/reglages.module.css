@@ -106,3 +106,19 @@
   color: #1b1836;
   background: #ffffff;
 }
+
+/* Story 6.6 — le lien vers la halte « Mes données ». Discret : c'est une porte, pas une invitation. */
+.lienHalte {
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.94rem;
+  color: var(--texte-doux);
+  text-decoration: underline;
+  min-height: var(--cible-tactile);
+}
+
+.lienHalte:focus-visible {
+  outline: 2px solid var(--texte);
+  outline-offset: 2px;
+}

@@ -15,16 +15,17 @@ import s from "./reglages.module.css";
  * bannière insistante ») et c'est aussi la seule façon dont les navigateurs l'acceptent encore sans
  * pénaliser le site.
  *
- * Le corollaire est que le refus est DÉFINITIF côté navigateur : on ne peut plus redemander. La copie
+ * Le corollaire est que le REFUS est définitif côté navigateur : on ne peut plus redemander. La copie
  * le dit et n'en reparle plus — insister serait de toute façon impossible.
  *
- * ── LES TROIS ÉTATS QUI NE SONT PAS DES ERREURS ────────────────────────────────────────────────────
+ * ── LES QUATRE ÉTATS QUI NE SONT PAS DES ERREURS ───────────────────────────────────────────────────
  *
  *   • le navigateur ne sait pas pousser (Safari iOS hors écran d'accueil) ;
- *   • elle a refusé ;
+ *   • elle a refusé — définitif ;
+ *   • elle n'a pas répondu (`default`) — PAS définitif, et c'est toute la différence ;
  *   • le palier ne met pas encore le mécanisme en service.
  *
- * Aucun des trois n'est une panne, et aucun n'empêche quoi que ce soit : le socle vit dans
+ * Aucun des quatre n'est une panne, et aucun n'empêche quoi que ce soit : le socle vit dans
  * l'application, et c'est là qu'il a toujours vécu (AC4, dégradation propre).
  *
  * ── LA COPIE ENTRE PAR LA PORTE ────────────────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ export interface CopieReglages {
   readonly etatActif: string;
   readonly etatInactif: string;
   readonly permissionRefusee: string;
+  readonly permissionSansReponse: string;
   readonly indisponible: string;
   readonly echec: string;
   readonly pasEncoreActif: string;
@@ -62,7 +64,7 @@ export interface ProprietesReglages {
   readonly choisirHeure: (heure: number) => Promise<{ statut: string }>;
 }
 
-type Etat = "pret" | "indisponible" | "refuse" | "echec";
+type Etat = "pret" | "indisponible" | "refuse" | "sansReponse" | "echec";
 
 export default function Reglages(p: ProprietesReglages) {
   const [abonne, setAbonne] = useState(p.abonneIci);
@@ -84,6 +86,15 @@ export default function Reglages(p: ProprietesReglages) {
       return;
     }
     const permission = await Notification.requestPermission();
+    // ⚠️ `default` VEUT DIRE « ELLE N'A PAS RÉPONDU », PAS « ELLE A REFUSÉ » (QA tour 1, en creusant
+    // T11). La boîte de dialogue fermée d'un clic à côté rend `default` — et le code rendait alors le
+    // texte du refus, qui renvoie aux réglages du navigateur. On lui apprenait qu'il n'y avait plus
+    // rien à faire, là où un second appui sur le même bouton aurait marché. Les deux états divergent
+    // donc ici, et pas seulement dans la copie : `denied` est définitif, `default` ne l'est pas.
+    if (permission === "default") {
+      setEtat("sansReponse");
+      return;
+    }
     if (permission !== "granted") {
       setEtat("refuse");
       return;
@@ -179,6 +190,7 @@ export default function Reglages(p: ProprietesReglages) {
       <p className={s.message} role="status" data-testid="message-reglages">
         {etat === "indisponible" && p.copie.indisponible}
         {etat === "refuse" && p.copie.permissionRefusee}
+        {etat === "sansReponse" && p.copie.permissionSansReponse}
         {etat === "echec" && p.copie.echec}
         {etat === "pret" && !p.enService && p.copie.pasEncoreActif}
       </p>

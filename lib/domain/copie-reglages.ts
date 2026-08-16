@@ -42,6 +42,21 @@ export const PERMISSION_REFUSEE =
   "réglages du navigateur, pas ici.";
 
 /**
+ * ⚠️ « ELLE N'A PAS RÉPONDU » N'EST PAS « ELLE A REFUSÉ » (QA tour 1, en creusant T11).
+ *
+ * `Notification.requestPermission()` rend `default` quand la boîte de dialogue est fermée sans choix —
+ * un clic à côté, une touche Échap, un onglet qui perd le focus. Le code rendait alors le texte du
+ * REFUS, qui dit « ça se règle dans les réglages du navigateur, pas ici » : on lui apprenait qu'il n'y
+ * avait plus rien à faire, alors qu'un second appui sur le même bouton aurait marché.
+ *
+ * Ce texte-ci dit donc exactement l'inverse — et sans insister : le bouton est là, il ne se rappelle
+ * pas à elle.
+ */
+export const PERMISSION_SANS_REPONSE =
+  "Le navigateur a posé sa question et elle est restée sans réponse — rien n'a été refusé. " +
+  "Le bouton la repose si tu veux ; sinon tout fonctionne pareil.";
+
+/**
  * La dégradation propre de l'AC4, dans les mots de l'utilisatrice. Safari iOS ne sait pousser que
  * depuis une application ajoutée à l'écran d'accueil — c'est un fait de plateforme, pas une panne, et
  * ça se dit comme tel.

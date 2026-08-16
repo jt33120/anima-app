@@ -12,6 +12,7 @@ import {
   LABEL_HEURE,
   PAS_ENCORE_ACTIF,
   PERMISSION_REFUSEE,
+  PERMISSION_SANS_REPONSE,
   SECTION_SOCLE,
 } from "@/lib/domain/copie-reglages";
 
@@ -37,6 +38,7 @@ function proprietes(sur: Partial<ProprietesReglages> = {}): ProprietesReglages {
       etatActif: ETAT_ACTIF,
       etatInactif: ETAT_INACTIF,
       permissionRefusee: PERMISSION_REFUSEE,
+      permissionSansReponse: PERMISSION_SANS_REPONSE,
       indisponible: INDISPONIBLE,
       echec: ECHEC,
       pasEncoreActif: PAS_ENCORE_ACTIF,
@@ -126,6 +128,41 @@ describe("[6.2/AC4] la permission ne se demande QUE sur un clic", () => {
     await waitFor(() => expect(screen.getByTestId("message-reglages").textContent).toBe(PERMISSION_REFUSEE));
     expect(p.abonner, "on a enregistré un appareil qui n'a pas la permission").not.toHaveBeenCalled();
     expect(demande).toHaveBeenCalledTimes(1);
+  });
+
+  it("[LE CŒUR] une question SANS RÉPONSE n'est pas un refus — et elle peut être reposée", async () => {
+    // ⚠️ Mutation-cible : replier `default` sur `refuse` (c'est-à-dire le code d'avant, où la seule
+    // condition était `permission !== "granted"`). Le défaut ne casse rien mécaniquement — il MENT.
+    // `default` veut dire que la boîte de dialogue s'est fermée sans choix : un clic à côté, une
+    // touche Échap, un onglet qui perd le focus. Lui servir le texte du refus, qui la renvoie aux
+    // réglages du navigateur, lui apprend qu'il n'y a plus rien à faire là où un second appui sur le
+    // même bouton aurait marché. C'est le pire des deux mondes : une porte ouverte, annoncée fermée.
+    const { demande } = navigateurCapable({ permission: "default" });
+    const p = proprietes();
+    render(<Reglages {...p} />);
+    screen.getByRole("button", { name: ACTIVER }).click();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("message-reglages").textContent).toBe(PERMISSION_SANS_REPONSE),
+    );
+    expect(
+      screen.getByTestId("message-reglages").textContent,
+      "on lui a dit qu'elle avait refusé alors qu'elle n'a rien répondu",
+    ).not.toBe(PERMISSION_REFUSEE);
+    expect(p.abonner, "on a enregistré un appareil sans permission").not.toHaveBeenCalled();
+
+    // …et le geste reste disponible : le bouton n'a pas changé de rôle, il repose la question.
+    const bouton = screen.getByRole("button", { name: ACTIVER });
+    await waitFor(() => expect((bouton as HTMLButtonElement).disabled).toBe(false));
+    bouton.click();
+    await waitFor(() => expect(demande).toHaveBeenCalledTimes(2));
+  });
+
+  it("[ANTI-VACUITÉ] les deux textes ne sont pas le même — sans quoi la garde ci-dessus est vide", () => {
+    // Une distinction d'état qui rendrait la MÊME phrase serait une distinction pour rien : le test
+    // ci-dessus passerait, et l'utilisatrice lirait toujours qu'elle a refusé.
+    expect(PERMISSION_SANS_REPONSE).not.toBe(PERMISSION_REFUSEE);
+    expect(PERMISSION_SANS_REPONSE.length).toBeGreaterThan(20);
   });
 
   it("[LE CŒUR] un navigateur incapable ne voit MÊME PAS la boîte de dialogue", async () => {

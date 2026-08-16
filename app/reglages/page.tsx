@@ -84,6 +84,7 @@ export default async function PageReglages() {
           etatActif: copie.ETAT_ACTIF,
           etatInactif: copie.ETAT_INACTIF,
           permissionRefusee: copie.PERMISSION_REFUSEE,
+          permissionSansReponse: copie.PERMISSION_SANS_REPONSE,
           indisponible: copie.INDISPONIBLE,
           echec: copie.ECHEC,
           pasEncoreActif: copie.PAS_ENCORE_ACTIF,

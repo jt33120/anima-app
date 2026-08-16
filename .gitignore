@@ -41,3 +41,6 @@ next-env.d.ts
 
 # Le zip du rapport QA : doublon de son dossier extrait, 1,5 Mo de binaire pour rien.
 QA_testing/*.zip
+
+# Sortie transitoire de scripts/appliquer-gabarits-auth.mjs
+.gabarits-auth.mjs

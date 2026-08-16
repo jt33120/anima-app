@@ -54,6 +54,10 @@ function cleDOuverture(o?: OuvertureData | null): string | null {
       // La clé porte l'identifiant du germe : deux hypothèses successives (refus puis test) ne
       // doivent pas partager une clé, sinon la seconde ne serait jamais servie.
       return `h:${o.hypotheseId}`;
+    case "pause":
+      // Story 6.4 — au plus une par fenêtre d'apaisement (0055) : la clé n'a rien à distinguer, et
+      // sa constance est exactement ce qui empêche un rafraîchissement de rejouer le tour.
+      return "r:pause";
   }
 }
 
@@ -110,6 +114,15 @@ function toursDOuverture(o?: OuvertureData | null): Tour[] {
       return [
         { id: nouvelId(), role: "hypothese-enneagramme", phrase: o.phrase, hypotheseId: o.hypotheseId },
       ];
+    case "pause":
+      // Story 6.4 (AC1/AC2) — un TOUR D'ANAM ORDINAIRE, comme `socle-complete`, et pour une raison
+      // qui est ici l'essentiel de la story : il n'y a RIEN à faire de cette phrase. Lui fabriquer
+      // une carte, un bouton « d'accord », un bandeau ou un minuteur en ferait un DISPOSITIF — et
+      // un dispositif, aussi doux soit-il, impose la pause au lieu de la proposer (AC2 : « aucun
+      // verrouillage, aucune minuterie, aucun écran "tu as assez utilisé l'app" »).
+      //
+      // Elle se lit, et elle s'en va avec le fil. Le composeur, lui, n'est jamais touché.
+      return [{ id: nouvelId(), role: "anam", texte: o.phrase, etat: "complet" }];
   }
 }
 

@@ -80,7 +80,18 @@ export type Ouverture =
    * `hypotheseId` est un identifiant, pas une donnée : il sert à marquer la parole « dite » quand
    * elle a réellement atteint l'écran, et à ouvrir la bonne ligne à la halte.
    */
-  | { readonly type: "hypothese-enneagramme"; readonly phrase: string; readonly hypotheseId: string };
+  | { readonly type: "hypothese-enneagramme"; readonly phrase: string; readonly hypotheseId: string }
+  /**
+   * Story 6.4 (AC1) — LE GESTE DE PAUSE. Comme `socle-complete`, elle ne porte QUE sa phrase : rien
+   * à ouvrir, rien à répondre, rien à consommer.
+   *
+   * ⚠️ ET SURTOUT AUCUN NOMBRE, alors que c'est la seule ouverture du produit qui NAÎT d'un compte.
+   * Les deux compteurs (séances, minutes) sont lus en base, ils choisissent une branche du `if`, et
+   * ils meurent côté serveur — la ligne de `pause_rythme` les garde pour la revue produit, et
+   * personne ne peut lire cette table. « Tu as eu 7 séances cette semaine » serait statistiquement
+   * vrai, produirait une preuve, et transformerait une proposition en bulletin (FR-031).
+   */
+  | { readonly type: "pause"; readonly phrase: string };
 
 /**
  * La voix de l'invitation — CONSTANTE, déterministe, jamais un modèle (patron `phraseProposition`).

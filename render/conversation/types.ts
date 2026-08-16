@@ -162,7 +162,11 @@ export type OuvertureData =
   | { readonly type: "socle-complete"; readonly phrase: string }
   /** Story 5.5 (AC2) — Anam a une hypothèse de type. Une phrase qui ne nomme AUCUN numéro, et
    *  l'identifiant de la ligne : le rendu n'a pas de quoi asséner quoi que ce soit. */
-  | { readonly type: "hypothese-enneagramme"; readonly phrase: string; readonly hypotheseId: string };
+  | { readonly type: "hypothese-enneagramme"; readonly phrase: string; readonly hypotheseId: string }
+  /** Story 6.4 (AC1) — le geste de pause. Une phrase, rien d'autre — et surtout AUCUN nombre, alors
+   *  que c'est la seule ouverture qui naît d'un compte : les deux compteurs meurent côté serveur,
+   *  et le rendu ne peut donc pas afficher « 7 séances cette semaine » (FR-031). */
+  | { readonly type: "pause"; readonly phrase: string };
 
 /**
  * UN TOUR RETROUVÉ AU RECHARGEMENT (QA tour 1, T3).

@@ -22,6 +22,13 @@ vi.mock("@/lib/data/depot-arbitrage", () => ({
   creerDepotArbitrage: vi.fn(() => ({ faits, reserverParole, annonceSocleDue })),
 }));
 
+/** Story 6.4 — la mesure de rythme, mockée comme les dépôts ci-dessus. Par défaut : rythme CALME. */
+const mesurerRythmeDepot = vi.fn();
+const reserverPause = vi.fn();
+vi.mock("@/lib/data/depot-rythme", () => ({
+  creerDepotRythme: vi.fn(() => ({ mesurer: mesurerRythmeDepot, reserver: reserverPause })),
+}));
+
 /** Story 5.5 — la lecture du germe d'hypothèse, mockée comme les deux dépôts ci-dessus. */
 const lireHypothese = vi.fn();
 vi.mock("@/lib/data/lire-enneagramme", () => ({
@@ -31,6 +38,7 @@ vi.mock("@/lib/data/lire-enneagramme", () => ({
 import { chargerOuverture } from "@/lib/safety/ouverture-branche";
 import { SEUIL_BRANCHES_OUVERTES, PHRASE_INVITATION } from "@/lib/domain/arbitrage-ouverture";
 import { PHRASE_OUVERTURE_HYPOTHESE } from "@/lib/domain/enneagramme-hypothese";
+import { PHRASE_PAUSE } from "@/lib/domain/rythme-pause";
 
 /**
  * Story 3.3 — le client factice répond désormais à `est_premium_courante` : depuis D2-A, l'ouverture
@@ -60,6 +68,72 @@ beforeEach(() => {
   // Par défaut : aucune hypothèse — tout ce fichier continue d'éprouver l'arbitrage 4.10 et rien
   // d'autre. Le comportement de l'hypothèse a son propre bloc en bas.
   lireHypothese.mockResolvedValue({ statut: "indisponible", raison: "aucune" });
+  mesurerRythmeDepot.mockReset();
+  reserverPause.mockReset();
+  // Par défaut : rythme CALME. Tout ce fichier continue donc d'éprouver l'arbitrage 4.10 sans que la
+  // pause n'entre jamais en scène — elle a son propre bloc en bas.
+  mesurerRythmeDepot.mockResolvedValue({ seances: 1, minutes: 3 });
+  reserverPause.mockResolvedValue(false);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// Story 6.4 (D4) — LE GESTE DE PAUSE PASSE AVANT TOUT LE RESTE
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[6.4/D4] la pause préempte, et elle préempte SANS RIEN DÉPENSER", () => {
+  const RYTHME_INTENSE = { seances: 9, minutes: 140 };
+
+  it("[LE CŒUR] seuil franchi + parole réservée ⇒ `pause`, et RIEN D'AUTRE N'A ÉTÉ LU", async () => {
+    // ⚠️ C'EST LE TEST QUI JUSTIFIE LA POSITION DU BLOC, et il ne suffit pas de vérifier le type
+    // rendu. La mention de complétion du socle et l'hypothèse d'ennéagramme se CONSOMMENT : placée
+    // en dernier, la pause les préempterait APRÈS coup, et l'une des deux serait perdue pour
+    // toujours. C'est le défaut trouvé en revue 4.10 — une écriture irréversible déclenchée par un
+    // rendu — et la seule protection est que rien d'autre ne soit même interrogé.
+    mesurerRythmeDepot.mockResolvedValue(RYTHME_INTENSE);
+    reserverPause.mockResolvedValue(true);
+    annonceSocleDue.mockResolvedValue(true);
+    lireHypothese.mockResolvedValue({ statut: "a_annoncer", hypotheseId: "h-1" });
+    chargerProposition.mockResolvedValue(SIGNAL_HIER);
+
+    expect(await chargerOuverture(supa, UID, MAINTENANT)).toEqual({
+      type: "pause",
+      phrase: PHRASE_PAUSE,
+    });
+
+    expect(annonceSocleDue, "la mention du socle a été interrogée, donc risquée").not.toHaveBeenCalled();
+    expect(lireHypothese, "le germe d'hypothèse a été lu").not.toHaveBeenCalled();
+    expect(chargerProposition, "le signal a été lu").not.toHaveBeenCalled();
+  });
+
+  it("[LE CŒUR] rythme calme ⇒ la parole n'est même pas DEMANDÉE", async () => {
+    // ⚠️ Mutation-cible : réserver d'abord et n'éprouver le seuil qu'ensuite. La réservation ÉCRIT :
+    // le produit inscrirait une ligne de revue produit — donc un « franchissement » — pour quelqu'un
+    // qui vient trois fois par semaine, et se tairait ensuite pendant un mois. La contre-métrique
+    // mesurerait alors exactement le contraire de ce qu'elle prétend mesurer.
+    chargerProposition.mockResolvedValue(null);
+    await chargerOuverture(supa, UID, MAINTENANT);
+    expect(reserverPause, "on a réservé sur un rythme calme").not.toHaveBeenCalled();
+  });
+
+  it("parole REFUSÉE (fenêtre d'apaisement, ou détresse) ⇒ le reste se déroule normalement", async () => {
+    // La pause qui se tait ne doit rien empêcher : elle s'efface, elle ne bloque pas.
+    mesurerRythmeDepot.mockResolvedValue(RYTHME_INTENSE);
+    reserverPause.mockResolvedValue(false);
+    annonceSocleDue.mockResolvedValue(true);
+
+    expect(await chargerOuverture(supa, UID, MAINTENANT)).toMatchObject({ type: "socle-complete" });
+  });
+
+  it("[REPLI SÛR] une panne de la mesure ne fait taire AUCUNE autre ouverture", async () => {
+    // ⚠️ Sans son propre `try`, une lecture cassée d'`entree_journal` ferait tomber tout
+    // `chargerOuverture` dans le `catch` global — et une contre-métrique en panne rendrait alors
+    // muettes la proposition de branche, la mention du socle et l'hypothèse. Le bonus le moins
+    // important du produit ne doit pas pouvoir éteindre les autres.
+    mesurerRythmeDepot.mockRejectedValue(new Error("entree_journal indisponible"));
+    annonceSocleDue.mockResolvedValue(true);
+
+    expect(await chargerOuverture(supa, UID, MAINTENANT)).toMatchObject({ type: "socle-complete" });
+  });
 });
 
 describe("aucun moment mûr → rien du tout", () => {

@@ -2,6 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { creerDepotSignalReconcept } from "@/lib/data/depot-reconceptualisation";
 import { creerDepotArbitrage } from "@/lib/data/depot-arbitrage";
+import { creerDepotRythme } from "@/lib/data/depot-rythme";
+import { PHRASE_PAUSE, seuilFranchi } from "@/lib/domain/rythme-pause";
 import { phraseProposition } from "@/lib/domain/branche";
 import {
   FENETRE_INVITATION_HEURES,
@@ -72,6 +74,43 @@ export async function chargerOuverture(
   maintenant: Date = new Date(),
 ): Promise<Ouverture | null> {
   try {
+
+    // ══════════════════════════════════════════════════════════════════════════════════════════
+    // Story 6.4 (AC1) — LE GESTE DE PAUSE, ET POURQUOI IL PASSE *AVANT TOUT LE RESTE*
+    // ══════════════════════════════════════════════════════════════════════════════════════════
+    //
+    // Deux raisons, et la seconde est mécanique.
+    //
+    // 1. TOUTES LES AUTRES OUVERTURES INVITENT À FAIRE PLUS — une branche à ouvrir, une intégration
+    //    à mener, une hypothèse à explorer. La pause est la seule dont l'objet est de faire MOINS.
+    //    Proposer une branche à quelqu'un qui vient de franchir le seuil de rythme est très
+    //    exactement le geste inverse de celui que FR-036 demande.
+    //
+    // 2. ⚠️ PLACÉE EN PREMIER, RIEN D'AUTRE N'A ENCORE ÉTÉ LU, DONC RIEN NE PEUT ÊTRE DÉPENSÉ. La
+    //    mention de complétion du socle et l'hypothèse d'ennéagramme se CONSOMMENT. Placée en
+    //    dernier, la pause les préempterait après coup et l'une des deux serait perdue pour
+    //    toujours — c'est le défaut trouvé en revue 4.10, et il ne se rejoue pas ici.
+    //
+    // Son propre `try`, comme les blocs suivants : une panne de la mesure de rythme ne doit pas
+    // faire taire les quatre autres ouvertures, qui n'ont besoin de rien de tout ça. Direction du
+    // doute : ON SE TAIT — se taire à tort reporte la pause d'un chargement, tandis que parler à
+    // tort insérerait une ligne de revue produit qui ne correspond à aucune parole dite.
+    //
+    // La garde AD-17 n'est PAS ici : elle vit dans `reserver_pause_rythme` (0055), en SQL, et elle
+    // y est évaluée AVANT l'insertion — sinon un épisode de détresse ne différerait pas la pause,
+    // il la supprimerait pour un mois.
+    try {
+      const rythme = creerDepotRythme(supabase, maintenant);
+      const mesure = await rythme.mesurer();
+      // ⚠️ `seuilFranchi` est la SEULE lecture de la mesure qui existe. Il n'y a pas de branche
+      // « et si elle vient peu ? » — l'AC4 dit qu'aucune absence n'est constatée, jamais, et
+      // l'absence de la fonction inverse EST cette garantie (voir `rythme-pause.ts`).
+      if (seuilFranchi(mesure) && (await rythme.reserver(mesure))) {
+        return { type: "pause", phrase: PHRASE_PAUSE };
+      }
+    } catch (e) {
+      journaliserIncidentSecurite("ouverture_pause_rythme", e);
+    }
 
     // ══════════════════════════════════════════════════════════════════════════════════════════
     // Story 5.3 (AC4) — LA MENTION DE COMPLÉTION DU SOCLE, ET POURQUOI ELLE EST *AVANT* LE GATE

@@ -19,7 +19,7 @@
 # prod. Ce qui manque, c'est leur revue. C'est une dette réelle, pas un artefact de comptabilité.
 
 generated: 2026-08-07
-last_updated: 2026-08-14
+last_updated: 2026-08-16
 project: Anam
 project_key: ANAM
 tracking_system: file-system
@@ -99,7 +99,14 @@ development_status:
   6-1a-sql-ordonnanceur-jeton-alarme: review # AJOUTÉE le 2026-08-14 — extraite de la 6.1 : toute la SQL (migration 0052, jeton T6-19, homme mort 48h→60h, boucle de fermeture de l'alarme, idempotence prouvée sur un effet compté). À faire APRÈS la 6.1, bloque la 6.8
   6-2-socle-quotidien-impersonnel-notifications-discretes: review # livrée le 2026-08-15 ; migration 0053 ; fondation web push complète (manifeste, service worker sans cache, VAPID sans dépendance) + /reglages + privacy-cover. INERTE sur le palier hobby (1 cron/jour ne peut honorer une heure choisie) : le job REFUSE d'émettre, et l'écran le dit. Porte ajoutée en §2 des portes ; 7 corps d'aperçu à faire relire par Anima
   6-3-anam-rare-et-specifique: review # livrée le 2026-08-15 ; migration 0054 ; N'ÉMET RIEN DE NOUVEAU (MOTIFS_POUSSEE=1, MotifCourriel=2, reserver_notification intouchée) : elle DÉCLARE l'ensemble fermé des 3 motifs en un seul endroit, pose le créneau diurne 6h-21h Paris AVANT toute réservation dans notifier() (signature + 2 appelants) et dans le job de rappel, et livre la carte « Anam » de l'accueil dont l'annonce et l'affichage dérivent de la MÊME source (AC8 prouvé par égalité). AD-17 porté en SQL. 44 mutants, 43 tués. ⚠️ L'accueil rend désormais 6 objets = plafond UX-DR-30 : toute carte de catalogue ajoutée fera rougir
-  6-4-geste-de-pause: backlog
+  6-4-geste-de-pause: review # livrée le 2026-08-16 ; migration 0055 déployée cloud (parité 55/55/55) ;
+  # 15 mutants, 15 tués. La mesure vient d'`entree_journal` (colonne `cree_le` SEULE, jamais `usage_ia`
+  # qui compterait les jobs de fond) ; une séance = une grappe séparée par > 30 min de silence ; seuil
+  # STRICT (> 5 séances OU > 60 min sur 7 j glissants) ; fenêtre d'apaisement de 30 jours SANS condition
+  # de réarmement (vérifier si elle a ralenti = vérifier si elle a obéi). La phrase est une CONSTANTE,
+  # la pause passe EN PREMIER dans `chargerOuverture` (rien d'autre n'est lu, donc rien n'est dépensé),
+  # et la garde AD-17 est évaluée AVANT l'insert (sinon un épisode supprimerait la pause au lieu de la
+  # différer). AUCUN canal ajouté : la pause vit uniquement en conversation (AC5)
   6-5-ce-quanam-retient-consulter-corriger-supprimer: backlog
   6-6-export-complet: backlog
   6-7-effacement-total-exhaustif: backlog

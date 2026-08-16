@@ -349,12 +349,32 @@ describe("[AC9] utilisatrice : les entrées astronomiques sont write-once, pas i
     expect(error, "impossible d'ajouter son heure — la Story 5.3 serait morte-née").toBeNull();
   });
 
-  it("valeur → AUTRE valeur : refusé (le socle ne bouge pas, FR-051)", async () => {
+  /**
+   * ⚠️ CETTE ASSERTION A ÉTÉ RETOURNÉE PAR LA STORY 6.5b, ET C'EST DÉLIBÉRÉ.
+   *
+   * Elle exigeait un REFUS : « valeur → autre valeur : refusé (le socle ne bouge pas, FR-051) ».
+   * Le tour de QA (T17) a montré ce que ce refus coûtait : quelqu'un qui tape 14:30 au lieu de
+   * 04:30 a un ascendant faux POUR TOUJOURS — et l'art. 16 du RGPD donne un droit inconditionnel
+   * à la rectification d'une donnée inexacte. La migration 0060 ouvre donc la porte, en la
+   * gardant : consentement art. 9 exigé, effacement toujours refusé, correction comptée et datée
+   * par le serveur.
+   *
+   * Ce qui protège FR-051 n'est plus le refus, c'est l'aperçu : `/memoire` montre l'ascendant
+   * gagné et l'ascendant perdu AVANT d'écrire. Voir `tests/correction-naissance-sql.test.ts`.
+   */
+  it("valeur → AUTRE valeur : ACCEPTÉ depuis la 6.5b (art. 16), et compté", async () => {
     const { error } = await u.client
       .from("utilisatrice")
       .update({ heure_naissance: "08:00:00" })
       .eq("id", u.id);
-    expect(error).not.toBeNull();
+    expect(error, "la correction de la 6.5b est refermée").toBeNull();
+    const { data } = await admin
+      .from("utilisatrice")
+      .select("heure_naissance, naissance_corrections")
+      .eq("id", u.id)
+      .single<{ heure_naissance: string; naissance_corrections: number }>();
+    expect(data!.heure_naissance).toBe("08:00:00");
+    expect(data!.naissance_corrections).toBe(1);
   });
 
   it("valeur → null : refusé aussi — sinon l'aller-retour rouvrirait la réécriture", async () => {

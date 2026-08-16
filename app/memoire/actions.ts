@@ -1,9 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { creerDepotFaits } from "@/lib/data/depot-faits";
+import {
+  apercuDeCorrection,
+  ecrireHeureCorrigee,
+  lireNaissance,
+} from "@/lib/data/corriger-naissance";
 import { validerCorrection } from "@/lib/domain/memoire-retenue";
+import { normaliserHeure } from "@/lib/domain/correction-naissance";
 import * as copie from "@/lib/domain/copie-memoire";
+import * as copieNaissance from "@/lib/domain/copie-naissance";
 
 /**
  * actions.ts — CORRIGER, SUPPRIMER, ANNULER (Story 6.5, T4 ; AC2/AC3).
@@ -100,4 +108,81 @@ export async function annulerSuppression(cle: string, contenu: string): Promise<
   // On passe par le même chemin que la correction — et donc par la même validation : une annulation
   // qui reposerait une phrase vide recréerait exactement la ligne que 0056 interdit.
   return corrigerFait(cle, contenu, "");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Story 6.5b — L'HEURE DE NAISSANCE : APERCEVOIR, PUIS CORRIGER
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+//
+// DEUX ACTIONS, ET LA PREMIÈRE N'ÉCRIT RIEN. C'est toute la story : la correction n'est pas
+// plafonnée (art. 16 ne s'épuise pas au premier usage), donc ce qui la rend sûre est qu'elle ne
+// soit jamais aveugle. `apercevoirCorrection` calcule le thème que produirait la nouvelle heure
+// sans rien graver — `calculerThemeNatal` est pur, c'est ce qui rend l'aperçu possible.
+//
+// ⚠️ AUCUNE DES DEUX N'EST LA GARDE. `authenticated` détient l'UPDATE sur `heure_naissance`
+// (grant colonne de 0041) : ce qui refuse une correction sans consentement est le trigger
+// `naissance_corrigible` (0060), et rien d'autre. Ici vivent les MOTS d'un refus, pas le refus.
+
+export type EtatApercu =
+  | { readonly statut: "apercu"; readonly heure: string; readonly phrases: readonly string[] }
+  | { readonly statut: "erreur"; readonly message: string };
+
+async function identite() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user ? { supabase, id: user.id } : null;
+}
+
+export async function apercevoirCorrection(brut: string): Promise<EtatApercu> {
+  const session = await identite();
+  if (!session) return { statut: "erreur", message: copieNaissance.messageDeRefus("format") };
+
+  const etat = await lireNaissance(session.supabase, session.id);
+  const saisie = normaliserHeure(brut, etat?.heure ?? null);
+  if (!saisie.ok) {
+    return { statut: "erreur", message: copieNaissance.messageDeRefus(saisie.refus) };
+  }
+
+  const apercu = await apercuDeCorrection(session.supabase, session.id, saisie.heure);
+  // Pas de comparaison possible (aucune heure gravée, ou aucune date de naissance). L'écran ne
+  // devrait même pas avoir proposé le champ ; on ne fabrique pas un aperçu vide pour autant.
+  if (!apercu) return { statut: "erreur", message: copieNaissance.HEURE_ABSENTE };
+
+  return {
+    statut: "apercu",
+    heure: saisie.heure,
+    phrases: copieNaissance.phrasesApercu(apercu),
+  };
+}
+
+/**
+ * L'écriture. `heure` vient de l'aperçu que le client vient d'afficher — mais elle est RE-VALIDÉE
+ * ici : un client qui posterait autre chose obtiendrait au pire d'écrire une heure valide qu'il n'a
+ * pas regardée, ce qui reste sa propre donnée. Ce qu'on refuse est une chaîne malformée qui ferait
+ * remonter une erreur Postgres brute à l'écran.
+ */
+export async function corrigerHeureNaissance(heure: string): Promise<EtatMemoire> {
+  const session = await identite();
+  if (!session) return REFUS_GENERIQUE;
+
+  const etat = await lireNaissance(session.supabase, session.id);
+  const saisie = normaliserHeure(heure, etat?.heure ?? null);
+  if (!saisie.ok) {
+    return { statut: "erreur", message: copieNaissance.messageDeRefus(saisie.refus) };
+  }
+
+  const issue = await ecrireHeureCorrigee(session.supabase, session.id, saisie.heure);
+  if (issue === "consentement_absent") {
+    return { statut: "erreur", message: copieNaissance.CORRECTION_APRES_REVOCATION };
+  }
+  if (issue === "refusee") return REFUS_GENERIQUE;
+
+  // ⚠️ On ne recalcule RIEN ici (décision D5 de la 5.3, tenue) : `lireThemeNatal` regrave tout seul
+  // à la lecture suivante, parce que l'empreinte des entrées a changé. On invalide simplement les
+  // écrans qui affichent le socle, pour que « la prochaine ouverture » soit vraiment la prochaine.
+  revalidatePath("/memoire");
+  revalidatePath("/");
+  return { statut: "ok" };
 }

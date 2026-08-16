@@ -283,6 +283,11 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
      *     et le passe à ses deux consommateurs (`chargerProjectionArbre` et la bibliothèque), qui
      *     vivent dans le même `Promise.all`. Sans cela, le premier chargement d'un compte lançait
      *     deux calculs concurrents et deux écritures en course.
+     *   • `lib/data/corriger-naissance.ts` — compose l'éphéméride pour l'APERÇU de correction
+     *     (6.5b). C'est le seul point du produit qui calcule un thème SANS L'ÉCRIRE : montrer
+     *     l'ascendant qu'une heure ferait gagner ou perdre avant de graver quoi que ce soit. Il
+     *     l'injecte par le même paramètre par défaut que `depot-theme-natal.ts`, pour la même
+     *     raison — un test doit pouvoir doubler le port.
      *
      * Aucun de ces fichiers ne dépend du CONTENU de son adaptateur : tous ne manipulent que
      * les types du port.
@@ -300,6 +305,7 @@ describe("[AC5/DUR] `astronomy-engine` n'existe que dans lib/astro/adapters/", (
     expect(referents.sort()).toEqual([
       "app/heure-naissance/actions.ts",
       "app/page.tsx",
+      "lib/data/corriger-naissance.ts",
       "lib/data/depot-theme-natal.ts",
       "lib/data/lire-bibliotheque.ts",
       "lib/data/lire-quotidien.ts",

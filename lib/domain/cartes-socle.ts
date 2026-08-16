@@ -43,7 +43,13 @@ import type { CarteBibliotheque, LigneFait } from "./bibliotheque";
 // Les libellés — première et seule mise en mots du socle dans tout le produit
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-const SIGNE_LIBELLE: Readonly<Record<Signe, string>> = Object.freeze({
+/**
+ * ⚠️ EXPORTÉ depuis la Story 6.5b, et l'en-tête ci-dessus dit pourquoi il ne doit pas être copié :
+ * c'est la SEULE mise en mots des signes du produit. L'aperçu de correction (`/memoire`) en a besoin
+ * pour nommer l'ascendant qu'une correction fait gagner ou perdre ; le dupliquer là-bas créerait
+ * deux sources pour un même mot, dont l'une dériverait un jour sans que rien ne rougisse.
+ */
+export const SIGNE_LIBELLE: Readonly<Record<Signe, string>> = Object.freeze({
   belier: "Bélier",
   taureau: "Taureau",
   gemeaux: "Gémeaux",

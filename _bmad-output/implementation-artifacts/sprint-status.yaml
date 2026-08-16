@@ -189,6 +189,26 @@ development_status:
   # CONTRÔLE AVANT VOL EN PROD : 97 comptes, 0 échéance, 0 effacement au premier tick.
   # ⚠️ MON HARNAIS DE MUTATION ARCHIVAIT PAR NOM DE BASE et a écrasé lib/domain/retention.ts par
   # lib/ordonnanceur/jobs/retention.ts ; détecté, réparé, harnais corrigé (chemin relatif entier).
+  6-5b-heure-naissance-corrigeable: review # livrée le 2026-08-16 ; migration 0060 déployée cloud ;
+  # 31 mutants, 31 tués (24 au premier passage). ⚠️ LA NOTE DE SUIVI SE TROMPAIT : 0039 n'a JAMAIS
+  # gravé « une seule fois » — son trigger autorise le recalcul (version+1 + empreinte différente) et
+  # la 5.3 l'emprunte déjà. La regravure est PARESSEUSE (`lireThemeNatal` compare les empreintes à
+  # chaque lecture). Cette story n'écrit AUCUN recalculateur : la seule serrure était le write-once
+  # de `utilisatrice`. D1 : la correction n'est PAS PLAFONNÉE — l'art. 16 ne s'épuise pas au premier
+  # usage, et un plafond condamnerait quiconque se trompe DANS sa correction. Ce qui remplace le
+  # plafond est D2 : l'APERÇU (le thème que produirait la nouvelle heure, calculé sans rien graver)
+  # — et il doit savoir annoncer un APPAUVRISSEMENT, pas seulement des gains.
+  # D3 : le LIEU reste write-once, et pas par manque de temps — 4 colonnes solidaires qu'un trigger
+  # ne peut pas vérifier ensemble ; la RPC qui le débloquerait est nommée en dette.
+  # D6 : la trace est montrée en DATE, jamais en nombre (FR-031, arbitrage de la 6.5).
+  # ⚠️ PROPRIÉTÉ NON PRÉVUE, MESURÉE, CONSERVÉE : la garde de consentement s'appuie sur `auth.uid()`,
+  # donc AUCUN CHEMIN SYSTÈME NE PEUT CORRIGER une entrée de naissance. Une correction est toujours
+  # SON geste, jamais un geste fait sur elle.
+  # ⚠️ DEUX MESSAGES DE LA 5.3 ÉTAIENT DEVENUS FAUX (« ne pourra plus être modifié ») et sont
+  # réparés : un écran qui affirme une impossibilité levée fait renoncer à un droit.
+  # ⚠️ HARNAIS : après la campagne de mutation, la suite est passée de 87 s à 746 s avec 36 fichiers
+  # SQL en expiration. `db reset` n'y change RIEN ; `supabase stop && start` remet à zéro. La 6.8
+  # avait vu la première marche de cette pente — on connaît maintenant le remède.
   epic-6-retrospective: optional
 
 # Portes PRÉ-LANCEMENT — humaines, hors code, aucune story ne les débloque toute seule.
@@ -385,7 +405,11 @@ action_items:
       ouvrir une porte nommée, jamais contourner la garde.
       Elle appartient au MÊME ÉCRAN que la 6.5 (`/memoire`), en seconde section.
     owner: "Julian"
-    status: open
+    status: done # 2026-08-16 — Story 6.5b livrée, migration 0060. ⚠️ LE DIAGNOSTIC CI-DESSUS ÉTAIT
+    # FAUX sur son point central : 0039 autorise le recalcul depuis toujours, et la regravure est
+    # paresseuse. Aucune porte n'a eu à être ouverte côté thème natal ; la seule serrure était le
+    # write-once de `utilisatrice`. Reste ouverte, en dette nommée : la correction du LIEU (4 colonnes
+    # solidaires, exige une RPC qui les pose ensemble depuis un code INSEE).
   - epic: 6
     action: >
       DÉFAUT MESURÉ ET CORRIGÉ le 2026-08-16 (QA T11-quater), noté ici parce qu'il touche une

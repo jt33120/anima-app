@@ -143,7 +143,10 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
           </label>
         </>
       ) : (
-        <p className="t-meta">Ton heure de naissance est déjà enregistrée.</p>
+        <p className="t-meta">
+          Ton heure de naissance est déjà enregistrée. Tu peux la corriger depuis « Ce qu'Anam
+          retient » : <a href="/memoire">/memoire</a>.
+        </p>
       )}
 
       {demanderLieu ? (
@@ -197,8 +200,14 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
         <p className="t-meta">Ta commune de naissance est déjà enregistrée : {deja.lieu}.</p>
       )}
 
-      {/* AC8 — l'irréversibilité, dite AVANT le geste. Le patron est celui de la confirmation
-          solennelle du rayonnement (Story 4.7) : on ne découvre pas après coup qu'on s'est engagé. */}
+      {/* AC8 — le poids du geste, dit AVANT. Le patron est celui de la confirmation solennelle du
+          rayonnement (Story 4.7) : on ne découvre pas après coup qu'on s'est engagé.
+
+          ⚠️ LA PHRASE A CHANGÉ AVEC LA 6.5b. Elle disait « ne pourra plus être modifié » — c'était
+          vrai jusqu'à la migration 0060, qui a ouvert la correction de l'heure (art. 16). Faire
+          cocher une case qui affirme une impossibilité levée n'est pas une formalité inoffensive :
+          c'est faire renoncer d'avance à un droit. Le LIEU, lui, reste write-once, et c'est
+          exactement ce que la phrase dit maintenant — ni plus, ni moins. */}
       <label htmlFor="confirmation" className={s.case}>
         <input
           id="confirmation"
@@ -209,8 +218,8 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
           className={s.checkbox}
         />
         <span className="t-corps">
-          J'ai vérifié : ce que j'enregistre ici s'enregistre une seule fois et ne pourra plus être
-          modifié.
+          J'ai vérifié. Ma commune de naissance ne pourra plus être changée ; mon heure, elle, restera
+          corrigeable depuis « Ce qu'Anam retient ».
         </span>
       </label>
 

@@ -115,10 +115,17 @@ export async function enregistrerHeureEtLieu(
   const heureDejaGravee = existant?.heure_naissance != null;
   const lieuDejaGrave = existant?.lieu_naissance != null;
 
+  // ⚠️ CE MESSAGE A CHANGÉ AVEC LA STORY 6.5b, ET IL LE FALLAIT. Il disait « elle ne se modifie
+  // pas » : c'était vrai jusqu'à la migration 0060, et c'est devenu un mensonge le jour où elle a
+  // ouvert la correction (art. 16). Un écran qui affirme une impossibilité levée est pire qu'un
+  // écran muet — il fait renoncer quelqu'un à un droit qu'il a.
+  //
+  // Ce formulaire-ci reste celui de l'AJOUT : la correction vit sur `/memoire`, avec son aperçu.
   if (heureDejaGravee && heure) {
     return {
       statut: "erreur",
-      message: "Ton heure de naissance est déjà enregistrée — elle ne se modifie pas.",
+      message:
+        "Ton heure de naissance est déjà enregistrée. Pour la corriger, va sur « Ce qu'Anam retient » (/memoire) : tu y verras ce que le changement modifie avant de valider.",
     };
   }
 

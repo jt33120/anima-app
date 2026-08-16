@@ -2,10 +2,19 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { lireFaitsRetenus } from "@/lib/data/lire-memoire";
+import { lireNaissance } from "@/lib/data/corriger-naissance";
 import * as copie from "@/lib/domain/copie-memoire";
+import * as copieNaissance from "@/lib/domain/copie-naissance";
 import Memoire from "@/render/memoire/Memoire";
+import CorrectionNaissance from "@/render/memoire/CorrectionNaissance";
 import s from "@/render/memoire/memoire.module.css";
-import { annulerSuppression, corrigerFait, supprimerFait } from "./actions";
+import {
+  annulerSuppression,
+  apercevoirCorrection,
+  corrigerFait,
+  corrigerHeureNaissance,
+  supprimerFait,
+} from "./actions";
 
 // NFR-015 / identité de route — « Anam » partout, jamais un titre qui dit l'intimité de la page.
 export const metadata = { title: "Anam" };
@@ -60,6 +69,9 @@ export default async function PageMemoire() {
   // `revoque` passe. Voir l'encadré ci-dessus — c'est une décision, pas une omission.
 
   const faits = await lireFaitsRetenus(supabase);
+  // Story 6.5b — la seconde section. Lue ici plutôt que dans le composant : `render/` est muet, et
+  // la page est le seul endroit qui a le droit de toucher à la fois `lib/data` et `lib/domain`.
+  const naissance = await lireNaissance(supabase, user.id);
 
   return (
     <main className={s.halte}>
@@ -95,6 +107,35 @@ export default async function PageMemoire() {
         corriger={corrigerFait}
         supprimer={supprimerFait}
         annuler={annulerSuppression}
+      />
+      {/* Story 6.5b — l'heure de naissance, dans la MÊME halte : c'est le même geste (rectifier une
+          donnée qui me concerne, art. 16), et lui donner un écran à part obligerait à découvrir une
+          seconde URL pour exercer le même droit. */}
+      <CorrectionNaissance
+        copie={{
+          titre: copieNaissance.TITRE_SECTION,
+          introduction: copieNaissance.INTRODUCTION,
+          heureAbsente: copieNaissance.HEURE_ABSENTE,
+          lienAjouter: copieNaissance.LIEN_AJOUTER,
+          etiquette: copieNaissance.ETIQUETTE_NOUVELLE_HEURE,
+          aide: copieNaissance.AIDE_NOUVELLE_HEURE,
+          voir: copieNaissance.ACTION_VOIR,
+          confirmer: copieNaissance.ACTION_CONFIRMER,
+          renoncer: copieNaissance.ACTION_RENONCER,
+          corrige: copieNaissance.CORRIGE,
+          dejaCorrigee: naissance?.corrigeeLe
+            ? copieNaissance.dejaCorrigeeLe(naissance.corrigeeLe)
+            : null,
+          // Le refus est ANNONCÉ D'AVANCE, comme pour les faits (D2 de la 6.5) : corriger ferait
+          // regraver le thème natal, et le trigger de 0060 le refuse sans consentement valide.
+          refusRevocation:
+            etape === "revoque" ? copieNaissance.CORRECTION_APRES_REVOCATION : null,
+        }}
+        // `HH:MM:SS` en base, `HH:MM` à l'écran : les secondes d'une heure de naissance n'existent
+        // sur aucun acte d'état civil, et les afficher suggérerait une précision qui n'est pas là.
+        heureActuelle={naissance?.heure ? naissance.heure.slice(0, 5) : null}
+        apercevoir={apercevoirCorrection}
+        confirmer={corrigerHeureNaissance}
       />
     </main>
   );

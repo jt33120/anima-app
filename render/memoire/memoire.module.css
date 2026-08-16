@@ -124,6 +124,45 @@
   white-space: pre-wrap;
 }
 
+/* ── La seconde section : « Ton heure de naissance » (Story 6.5b) ─────────────────────────────
+   Aucune couleur, aucune bordure d'accent : c'est la MÊME halte, pas un encadré d'alerte. Ce qui
+   la sépare de la liste est un filet horizontal, comme entre deux faits. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--texte-doux) 30%, transparent);
+}
+
+.titreSection {
+  font-family: var(--pile-anam);
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--texte);
+  margin: 0;
+}
+
+.etiquette {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* L'aperçu : ce que la correction changerait, avant qu'elle parte. Un filet à gauche, comme la
+   citation de source — c'est du texte RAPPORTÉ (calculé), pas une affirmation de l'écran. */
+.apercu {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 0.9rem;
+  border-left: 2px solid color-mix(in srgb, var(--texte-doux) 40%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  line-height: 1.6;
+}
+
 /* Réservé même vide : sans hauteur minimale, l'apparition d'un refus pousse le contenu sous le doigt
    qui vient de cliquer. */
 .refus {

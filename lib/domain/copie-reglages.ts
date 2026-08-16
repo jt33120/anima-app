@@ -32,6 +32,24 @@ export const ETAT_ACTIF = "Cet appareil reçoit le rythme quotidien.";
 export const ETAT_INACTIF = "Cet appareil ne reçoit rien.";
 
 /**
+ * ⚠️ QUAND LA BASE ET LE NAVIGATEUR NE DISENT PAS LA MÊME CHOSE (QA tour 1, T11-quater).
+ *
+ * Mesuré au clic réel le 2026-08-16 : après avoir réinitialisé l'autorisation dans Chrome, la page
+ * continuait d'afficher « Cet appareil reçoit le rythme quotidien. » — y compris après rechargement
+ * complet. L'écran se fiait à la ligne d'abonnement en base et ne consultait jamais l'état réel de la
+ * permission.
+ *
+ * Le pire n'était pas la phrase fausse, c'était le seul bouton proposé : « Ne plus rien recevoir sur
+ * cet appareil ». Il fallait le cliquer — donc demander à ne rien recevoir — pour revenir à un état
+ * qui permette de se réabonner.
+ *
+ * Ce texte ne dit pas où réparer : le bouton juste en dessous propose de redonner l'autorisation, et
+ * s'il se heurte à un refus définitif, `PERMISSION_REFUSEE` prend le relais avec le bon chemin.
+ */
+export const AUTORISATION_RETIREE =
+  "Cet appareil ne reçoit plus rien : l'autorisation n'est plus accordée dans ton navigateur.";
+
+/**
  * ⚠️ LE REFUS DE PERMISSION NE SE REPROPOSE PAS, et ce texte est ce qui le rend acceptable. Une fois
  * la permission refusée au niveau du navigateur, l'application ne peut plus la redemander — insister
  * serait de toute façon impossible. On explique donc où ça se répare, et on n'en reparle plus (AC4).

@@ -52,6 +52,8 @@ const racineEntrees = ["proxy.ts", "instrumentation.ts"].map((f) => resolve(raci
 
 const DEPOT = resolve(racine, "lib/data/depot-faits.ts");
 const DEPOT_RAPPEL = resolve(racine, "lib/data/depot-rappel.ts");
+// (Story 6.5) la LECTURE possédée de l'ÉCRAN « ce qu'Anam retient » — confinée à son dépôt, elle aussi.
+const DEPOT_MEMOIRE = resolve(racine, "lib/data/lire-memoire.ts");
 const tousSource = [
   ...fichiersSource("app"),
   ...fichiersSource("lib"),
@@ -63,6 +65,9 @@ const tousSource = [
 const RPC = /fusionner_fait_extrait/;
 // (Story 4.3) la LECTURE possédée des faits actifs — confinée à son dépôt, comme la RPC d'écriture.
 const RPC_LECTURE = /charger_faits_actifs/;
+// (Story 6.5) `charger_faits_retenus` : `faits` y est précédé de `_`, donc pas de frontière avant
+// `fait` — le littéral de table ne la confond pas avec un accès direct.
+const RPC_MEMOIRE = /charger_faits_retenus/;
 // (revue 4.3, F) FRONTIÈRE DE MOT : attrape le nom nu ("fait_extrait"), le SQL brut (from fait_extrait),
 // le qualifié ("public.fait_extrait") — mais PAS `fusionner_fait_extrait`/`charger_faits_actifs` (précédés
 // de `_`, donc pas de frontière avant `fait`/`faits`) ni `p_extrait_source`.
@@ -95,6 +100,21 @@ describe("fait_extrait — un seul chemin d'écriture possédé (T5/AC4)", () =>
     expect('rpc("fusionner_fait_extrait")').not.toMatch(TABLE_LITERAL);
     expect('rpc("charger_faits_actifs")').not.toMatch(TABLE_LITERAL);
     expect("p_extrait_source").not.toMatch(TABLE_LITERAL);
+  });
+
+  it("(Story 6.5) la RPC de lecture `charger_faits_retenus` n'est référencée QUE dans lib/data/lire-memoire.ts", () => {
+    // ⚠️ CETTE GARDE A ROUGI PENDANT L'ÉCRITURE DE LA 6.5, et elle avait raison. La première version
+    // de `lire-memoire.ts` écrivait `.from("fait_extrait")` : c'eût été le TROISIÈME chemin d'accès à
+    // une table art. 9, et le premier hors de tout contrôle. Sur une table pareille, ce que la
+    // fonction possédée achète est concret — la FORME de ce qui sort est décidée en un seul endroit
+    // auditable, et aucun appelant ne peut écrire `select("*")`.
+    for (const f of tousSource) {
+      if (f === DEPOT_MEMOIRE) continue;
+      expect(lire(f), `réf. à charger_faits_retenus hors lire-memoire : ${f}`).not.toMatch(RPC_MEMOIRE);
+    }
+    expect(lire(DEPOT_MEMOIRE), "le dépôt de l'écran ne l'appelle plus").toMatch(RPC_MEMOIRE);
+    // Et la frontière de mot tient : la RPC n'est pas lue comme un accès direct à la table.
+    expect('rpc("charger_faits_retenus")').not.toMatch(TABLE_LITERAL);
   });
 
   it("(Story 4.3) la RPC de lecture `charger_faits_actifs` n'est référencée QUE dans lib/data/depot-rappel.ts", () => {

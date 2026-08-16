@@ -107,7 +107,15 @@ development_status:
   # la pause passe EN PREMIER dans `chargerOuverture` (rien d'autre n'est lu, donc rien n'est dépensé),
   # et la garde AD-17 est évaluée AVANT l'insert (sinon un épisode supprimerait la pause au lieu de la
   # différer). AUCUN canal ajouté : la pause vit uniquement en conversation (AC5)
-  6-5-ce-quanam-retient-consulter-corriger-supprimer: backlog
+  6-5-ce-quanam-retient-consulter-corriger-supprimer: review # livrée le 2026-08-16 ; migration 0056
+  # déployée cloud (parité 56/56/56) ; 15 mutants, 15 tués (13 au premier passage, les 2 survivants
+  # étaient de vrais trous : rien n'exerçait les actions serveur ni la lecture). La base de 4.2 tenait
+  # déjà tout (tombstone, trigger anti-résurrection, fusion possédée) : ce qui manquait était l'écran.
+  # ⚠️ TROU RÉEL FERMÉ dans la machine à états de 4.2 : une correction VIDE était acceptée et produisait
+  # une ligne ni affichable ni tombstone — contrainte de TABLE `(statut='supprime') = (contenu='')`.
+  # D2 : la halte NE redirige PAS `revoque` (on ne peut pas supprimer ce qu'on ne voit pas) — corriger
+  # est refusé, supprimer ne l'est jamais. D3 : l'annulation RE-DÉPOSE (le tombstone a vidé le contenu,
+  # rien ne permet de rembobiner) ; D4 : la suppression est écrite immédiatement, jamais différée
   6-6-export-complet: backlog
   6-7-effacement-total-exhaustif: backlog
   6-8-moteur-retention-automatique: backlog
@@ -283,6 +291,28 @@ action_items:
       champ). Les découper en trois correctifs isolés ferait trois passages sur les mêmes fichiers.
     owner: "Julian"
     status: open
+  - epic: 6
+    action: >
+      STORY 6.5b — L'HEURE DE NAISSANCE CORRIGEABLE (tour de QA, T17). Écartée de la 6.5 en
+      l'implémentant : son AC6 borne la story à la couche des faits extraits, et l'heure de naissance
+      vit dans `entree_naissance` / `theme_natal`.
+      ⚠️ CE N'EST PAS UN CHAMP À ROUVRIR : corriger l'heure invalide le thème natal GRAVÉ (5.1), donc
+      l'ascendant, les maisons, et tout ce que l'horoscope du jour en dérive (5.4). Il faut recalculer
+      et REGRAVER, alors que le write-gate art. 9 de 0039 grave « une seule fois » — la story devra
+      ouvrir une porte nommée, jamais contourner la garde.
+      Elle appartient au MÊME ÉCRAN que la 6.5 (`/memoire`), en seconde section.
+    owner: "Julian"
+    status: open
+  - epic: 6
+    action: >
+      DÉFAUT MESURÉ ET CORRIGÉ le 2026-08-16 (QA T11-quater), noté ici parce qu'il touche une
+      hypothèse de conception : l'écran de réglages se fiait à la ligne d'abonnement en base et ne
+      consultait jamais l'état réel de la permission du navigateur. Après une réinitialisation dans
+      Chrome, il continuait d'afficher « Cet appareil reçoit le rythme quotidien. » — et le seul
+      bouton proposé était « Ne plus rien recevoir ». Corrigé : rapprochement des deux sources au
+      montage, en LECTURE SEULE (lire `Notification.permission` ne demande rien).
+    owner: "Julian"
+    status: done
   - epic: 2
     action: >
       À ARBITRER — les faux positifs de détresse (tour de QA, T4). Le pipeline classe trop large.

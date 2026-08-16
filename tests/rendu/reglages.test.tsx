@@ -13,6 +13,7 @@ import {
   PAS_ENCORE_ACTIF,
   PERMISSION_REFUSEE,
   PERMISSION_SANS_REPONSE,
+  AUTORISATION_RETIREE,
   SECTION_SOCLE,
 } from "@/lib/domain/copie-reglages";
 
@@ -39,6 +40,7 @@ function proprietes(sur: Partial<ProprietesReglages> = {}): ProprietesReglages {
       etatInactif: ETAT_INACTIF,
       permissionRefusee: PERMISSION_REFUSEE,
       permissionSansReponse: PERMISSION_SANS_REPONSE,
+      autorisationRetiree: AUTORISATION_RETIREE,
       indisponible: INDISPONIBLE,
       echec: ECHEC,
       pasEncoreActif: PAS_ENCORE_ACTIF,
@@ -65,8 +67,14 @@ function navigateurCapable(o: { permission?: NotificationPermission } = {}) {
     }),
     unsubscribe: desabonner,
   };
-  const demande = vi.fn(async () => o.permission ?? ("granted" as NotificationPermission));
-  vi.stubGlobal("Notification", { requestPermission: demande, permission: "default" });
+  const permission = o.permission ?? ("granted" as NotificationPermission);
+  const demande = vi.fn(async () => permission);
+  // ⚠️ L'ÉTAT AMBIANT SUIT CE QUE LA DEMANDE REND, et cette mise en scène a été corrigée le
+  // 2026-08-16. Elle posait `permission: "default"` en dur pendant que `requestPermission()`
+  // résolvait `granted` — un navigateur qui ne peut pas exister. Deux tests d'abonnement passaient
+  // donc sur une doublure incohérente, et c'est le correctif de T11-quater qui l'a révélé : la
+  // vérification de divergence, elle, lit l'état ambiant, et elle a eu raison de rougir.
+  vi.stubGlobal("Notification", { requestPermission: demande, permission });
   vi.stubGlobal("PushManager", class {});
   Object.defineProperty(navigator, "serviceWorker", {
     configurable: true,
@@ -190,6 +198,62 @@ describe("[6.2/AC4] la permission ne se demande QUE sur un clic", () => {
     screen.getByRole("button", { name: ACTIVER }).click();
     await waitFor(() => expect(desabonner).toHaveBeenCalledTimes(1));
     expect(screen.getByTestId("etat-abonnement").textContent).toBe(ETAT_INACTIF);
+  });
+});
+
+describe("[QA T11-quater] quand la base et le navigateur ne disent pas la même chose", () => {
+  it("[LE CŒUR] autorisation retirée dans le navigateur ⇒ l'écran cesse de PROMETTRE", async () => {
+    // ⚠️ Mesuré au clic réel le 2026-08-16 : après une réinitialisation de l'autorisation dans
+    // Chrome, la page continuait d'afficher « Cet appareil reçoit le rythme quotidien. », y compris
+    // après rechargement complet. Elle se fiait à la ligne d'abonnement en base et ne consultait
+    // jamais l'état réel de la permission.
+    //
+    // Le pire n'était pas la phrase fausse, c'était le seul bouton proposé : « Ne plus rien recevoir
+    // sur cet appareil ». Il fallait le cliquer — donc DEMANDER À NE RIEN RECEVOIR — pour revenir à
+    // un état qui permette de se réabonner.
+    navigateurCapable();
+    vi.stubGlobal("Notification", { requestPermission: vi.fn(), permission: "default" });
+    render(<Reglages {...proprietes({ abonneIci: true })} />);
+
+    await waitFor(() => expect(screen.getByTestId("etat-abonnement").textContent).toBe(ETAT_INACTIF));
+    expect(screen.getByTestId("message-reglages").textContent).toBe(AUTORISATION_RETIREE);
+    // Et le bouton REPROPOSE de s'abonner, au lieu de proposer de se désabonner.
+    expect(screen.getByRole("button", { name: ACTIVER })).toBeDefined();
+  });
+
+  it("[LE CŒUR] l'abonnement du navigateur DISPARU compte aussi comme une divergence", async () => {
+    // Données de site effacées : la permission est encore accordée, mais il n'y a plus d'abonnement.
+    // La base pousserait vers un point mort, et l'écran promettrait quelque chose qui n'arrive pas.
+    vi.stubGlobal("Notification", { requestPermission: vi.fn(), permission: "granted" });
+    vi.stubGlobal("PushManager", class {});
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: { getRegistration: async () => ({ pushManager: { getSubscription: async () => null } }) },
+    });
+    render(<Reglages {...proprietes({ abonneIci: true })} />);
+    await waitFor(() => expect(screen.getByTestId("etat-abonnement").textContent).toBe(ETAT_INACTIF));
+  });
+
+  it("[ANTI-VACUITÉ] tout en ordre ⇒ l'écran dit bien qu'il reçoit, et ne se plaint de rien", async () => {
+    // Sans ce contrôle, les deux gardes ci-dessus passeraient aussi avec un écran qui n'annonce
+    // JAMAIS l'abonnement — c'est-à-dire un défaut symétrique et tout aussi faux.
+    navigateurCapable();
+    vi.stubGlobal("Notification", { requestPermission: vi.fn(), permission: "granted" });
+    render(<Reglages {...proprietes({ abonneIci: true })} />);
+    await waitFor(() => expect(screen.getByTestId("etat-abonnement").textContent).toBe(ETAT_ACTIF));
+    expect(screen.getByTestId("message-reglages").textContent).toBe("");
+    expect(screen.getByRole("button", { name: DESACTIVER })).toBeDefined();
+  });
+
+  it("[LE CŒUR] la vérification ne DEMANDE rien — lire n'est pas demander", async () => {
+    // ⚠️ La garde la plus importante de ce bloc. Le correctif ajoute un `useEffect` au montage, et
+    // c'est très exactement l'endroit où l'AC4 de la 6.2 interdit d'appeler `requestPermission()`.
+    // `Notification.permission` et `getSubscription()` se lisent sans invite et sans activation ;
+    // `requestPermission()` non. La distinction tient toute la 6.2.
+    const { demande } = navigateurCapable();
+    render(<Reglages {...proprietes({ abonneIci: true })} />);
+    await waitFor(() => expect(screen.getByTestId("etat-abonnement")).toBeDefined());
+    expect(demande, "la vérification a demandé la permission au montage").not.toHaveBeenCalled();
   });
 });
 

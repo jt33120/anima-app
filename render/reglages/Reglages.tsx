@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { debase64url } from "@/lib/poussee/base64url";
 import s from "./reglages.module.css";
 
@@ -47,6 +47,7 @@ export interface CopieReglages {
   readonly etatInactif: string;
   readonly permissionRefusee: string;
   readonly permissionSansReponse: string;
+  readonly autorisationRetiree: string;
   readonly indisponible: string;
   readonly echec: string;
   readonly pasEncoreActif: string;
@@ -71,6 +72,52 @@ export default function Reglages(p: ProprietesReglages) {
   const [heure, setHeure] = useState(p.heure);
   const [etat, setEtat] = useState<Etat>("pret");
   const [enCours, demarrer] = useTransition();
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // LA DIVERGENCE ENTRE LA BASE ET LE NAVIGATEUR (QA tour 1, T11-quater)
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // `abonneIci` vient de la BASE : elle dit ce que le produit ENVERRA. Le navigateur, lui, dit ce
+  // qu'il AFFICHERA — et les deux peuvent diverger sans que rien ne le signale, parce qu'on peut
+  // retirer l'autorisation depuis les réglages du navigateur, hors de portée de l'application.
+  //
+  // Mesuré au clic réel : l'écran continuait d'afficher « Cet appareil reçoit le rythme quotidien. »
+  // après une réinitialisation dans Chrome, y compris après rechargement complet. Et le seul bouton
+  // proposé était « Ne plus rien recevoir » : il fallait DEMANDER À NE RIEN RECEVOIR pour retrouver
+  // un état permettant de se réabonner.
+  //
+  // ⚠️ LECTURE SEULE, ET C'EST TOUT L'ART. `Notification.permission` et `getSubscription()` ne
+  // demandent RIEN et n'exigent aucune activation utilisateur — seul `requestPermission()` en exige
+  // une, et il reste strictement derrière le clic (AC4 de la 6.2, gardé par un test nommé). Lire
+  // n'est pas demander.
+  const [divergence, setDivergence] = useState(false);
+  useEffect(() => {
+    if (!abonne) return;
+    let vivant = true;
+    void (async () => {
+      if (typeof window === "undefined" || !("Notification" in window)) return;
+      if (Notification.permission !== "granted") {
+        if (vivant) setDivergence(true);
+        return;
+      }
+      try {
+        const enregistrement = await navigator.serviceWorker?.getRegistration();
+        const abonnement = await enregistrement?.pushManager.getSubscription();
+        // L'abonnement du navigateur a pu disparaître seul (données de site effacées) : la base
+        // pousserait alors vers un point mort, et l'écran promettrait quelque chose qui n'arrive pas.
+        if (!abonnement && vivant) setDivergence(true);
+      } catch {
+        // On ne conclut RIEN d'une panne de lecture : annoncer une divergence qu'on n'a pas
+        // constatée ferait douter quelqu'un dont tout marche.
+      }
+    })();
+    return () => {
+      vivant = false;
+    };
+  }, [abonne]);
+
+  /** Ce que cet appareil reçoit VRAIMENT — l'accord des deux sources, jamais la base seule. */
+  const recoit = abonne && !divergence;
 
   async function activer() {
     // Le test de capacité AVANT la demande de permission : demander une permission qu'on ne pourra pas
@@ -123,6 +170,7 @@ export default function Reglages(p: ProprietesReglages) {
         return;
       }
       setAbonne(true);
+      setDivergence(false);
       setEtat("pret");
     } catch {
       setEtat("echec");
@@ -152,7 +200,7 @@ export default function Reglages(p: ProprietesReglages) {
       <p className={s.description}>{p.copie.description}</p>
 
       <p className={s.etat} data-testid="etat-abonnement">
-        {abonne ? p.copie.etatActif : p.copie.etatInactif}
+        {recoit ? p.copie.etatActif : p.copie.etatInactif}
       </p>
 
       <div className={s.actions}>
@@ -160,9 +208,9 @@ export default function Reglages(p: ProprietesReglages) {
           type="button"
           className={s.bouton}
           disabled={enCours}
-          onClick={() => demarrer(() => void (abonne ? retirer() : activer()))}
+          onClick={() => demarrer(() => void (recoit ? retirer() : activer()))}
         >
-          {abonne ? p.copie.desactiver : p.copie.activer}
+          {recoit ? p.copie.desactiver : p.copie.activer}
         </button>
       </div>
 
@@ -191,6 +239,7 @@ export default function Reglages(p: ProprietesReglages) {
         {etat === "indisponible" && p.copie.indisponible}
         {etat === "refuse" && p.copie.permissionRefusee}
         {etat === "sansReponse" && p.copie.permissionSansReponse}
+        {etat === "pret" && divergence && p.copie.autorisationRetiree}
         {etat === "echec" && p.copie.echec}
         {etat === "pret" && !p.enService && p.copie.pasEncoreActif}
       </p>

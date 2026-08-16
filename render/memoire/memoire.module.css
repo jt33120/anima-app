@@ -1,0 +1,134 @@
+/* La halte « Ce qu'Anam retient » (Story 6.5). Même sobriété que les réglages, et pour la même
+   raison : c'est un écran de contrôle, pas une région du monde. On y montre une base de données à
+   quelqu'un — l'habiller d'imagerie de séance ferait passer un registre d'intimité sur un écran dont
+   l'objet est l'exercice d'un droit. */
+
+.halte {
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.titreHalte {
+  font-family: var(--pile-anam);
+  font-size: 1.75rem;
+  font-weight: 400;
+  color: var(--texte);
+  margin: 0;
+}
+
+.introduction,
+.vide {
+  margin: 0;
+  color: var(--texte-doux);
+  line-height: 1.6;
+}
+
+.liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.fait {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--texte-doux) 30%, transparent);
+}
+
+.phrase {
+  margin: 0;
+  color: var(--texte);
+  line-height: 1.6;
+}
+
+.meta {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--texte-doux);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.bouton {
+  font: inherit;
+  font-size: 0.94rem;
+  color: var(--texte);
+  background: transparent;
+  border: 1px solid var(--texte-doux);
+  border-radius: 999px;
+  /* La cible tactile passe par le JETON, jamais par un littéral : `tests/cible-tactile.test.ts` lit
+     les feuilles de style et refuse une commande qui la redéclare à la main. */
+  min-height: var(--cible-tactile);
+  padding: 0 1.2rem;
+  cursor: pointer;
+}
+
+.bouton:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.bouton:focus-visible,
+.champ:focus-visible,
+.source > summary:focus-visible {
+  outline: 2px solid var(--texte);
+  outline-offset: 2px;
+}
+
+.champ {
+  font: inherit;
+  color: var(--texte);
+  background: transparent;
+  border: 1px solid var(--texte-doux);
+  border-radius: 0.5rem;
+  padding: 0.6rem;
+  /* Le JETON NU, jamais un `calc` : `tests/cible-tactile.test.ts` exige la forme exacte, et il a
+     raison — une expression peut dériver sous les 44 px sans que personne ne le voie. La hauteur
+     visuelle du champ vient de `rows`, pas d'ici. */
+  min-height: var(--cible-tactile);
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.source {
+  font-size: 0.88rem;
+  color: var(--texte-doux);
+}
+
+.source > summary {
+  cursor: pointer;
+  min-height: var(--cible-tactile);
+  display: flex;
+  align-items: center;
+}
+
+.sourceTexte {
+  margin: 0.4rem 0 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid color-mix(in srgb, var(--texte-doux) 40%, transparent);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Réservé même vide : sans hauteur minimale, l'apparition d'un refus pousse le contenu sous le doigt
+   qui vient de cliquer. */
+.refus {
+  margin: 0;
+  min-height: 1.6em;
+  font-size: 0.9rem;
+  color: var(--texte-doux);
+}

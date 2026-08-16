@@ -25,11 +25,18 @@ export const revalidate = 0;
  *
  * ── CE QUE LE SERVEUR DÉCIDE ET CE QUE LE CLIENT NE PEUT PAS SAVOIR ────────────────────────────────
  *
- * `abonneIci` est lu en base, pas dans le navigateur, et les deux peuvent diverger — un abonnement
- * révoqué depuis les réglages du système laisse la ligne en base. C'est assumé : la base est la
- * source de vérité de ce que le PRODUIT enverra, le navigateur celle de ce qu'il AFFICHERA. Le
- * bouton « ne plus rien recevoir » défait les deux ; c'est le seul geste qui les réaligne, et il est
- * toujours disponible.
+ * `abonneIci` est lu en base, pas dans le navigateur : la base est la source de vérité de ce que le
+ * PRODUIT enverra, le navigateur celle de ce qu'il AFFICHERA.
+ *
+ * ⚠️ CE COMMENTAIRE DISAIT QUE LA DIVERGENCE ÉTAIT « ASSUMÉE ». Elle ne l'est plus, et la QA a eu
+ * raison de le relever (tour 1, T11-quater) : après une réinitialisation de l'autorisation dans
+ * Chrome, l'écran continuait d'afficher « Cet appareil reçoit le rythme quotidien. » — y compris
+ * après rechargement. Pire, le seul bouton proposé était « Ne plus rien recevoir » : il fallait
+ * DEMANDER À NE RIEN RECEVOIR pour retrouver un état permettant de se réabonner.
+ *
+ * L'îlot client rapproche désormais les deux sources au montage, en LECTURE SEULE — lire
+ * `Notification.permission` ne demande rien et n'exige aucune activation. Ce que la page envoie
+ * reste donc la vérité de la base ; ce que l'écran affiche est l'accord des deux.
  *
  * `enService` est le palier (`palierHonoreLHeure`). Sur `hobby`, l'écran le DIT plutôt que d'accepter
  * en silence un réglage qui ne produira rien — lui promettre une notification qui n'arrivera pas
@@ -85,6 +92,7 @@ export default async function PageReglages() {
           etatInactif: copie.ETAT_INACTIF,
           permissionRefusee: copie.PERMISSION_REFUSEE,
           permissionSansReponse: copie.PERMISSION_SANS_REPONSE,
+          autorisationRetiree: copie.AUTORISATION_RETIREE,
           indisponible: copie.INDISPONIBLE,
           echec: copie.ECHEC,
           pasEncoreActif: copie.PAS_ENCORE_ACTIF,

@@ -195,7 +195,13 @@ describe("[AD-18] les tombstones ne reviennent pas dans le matériau", () => {
     await graver(u.id, `${t}-f`, "une phrase quelconque");
     await poserFait(u.id, `cle-actif-${t}`, "elle a repris le dessin", "actif");
     await poserFait(u.id, `cle-corrige-${t}`, "CE QU'ELLE A CORRIGÉ", "corrige");
-    await poserFait(u.id, `cle-supprime-${t}`, "CE QU'ELLE A SUPPRIMÉ", "supprime");
+    // ⚠️ LE TOMBSTONE EST VIDE, ET IL NE PEUT PLUS ÊTRE AUTRE CHOSE. Cette ligne posait
+    // « CE QU'ELLE A SUPPRIMÉ » jusqu'au 2026-08-16 ; la migration 0056 (Story 6.5) a posé
+    // l'équivalence `statut='supprime' ⇔ contenu=''`, et la base refuse désormais cet état.
+    // Ce n'est pas la garde qui faiblit : le vecteur de fuite qu'elle surveillait — un tombstone
+    // qui aurait gardé son art. 9 — n'existe plus au niveau du SCHÉMA, ce qui est plus fort qu'un
+    // test. La ligne reste éprouvée ci-dessous par sa PRÉSENCE, pas par son texte.
+    await poserFait(u.id, `cle-supprime-${t}`, "", "supprime");
   });
   afterAll(async () => supprimer(u.id));
 
@@ -204,8 +210,10 @@ describe("[AD-18] les tombstones ne reviennent pas dans le matériau", () => {
     // sa propre mémoire ; le voir revenir dans une synthèse une semaine plus tard n'est pas un bogue
     // d'affichage, c'est le démenti de la promesse.
     const m = await materiau(u.id);
+    // L'égalité EXACTE porte les deux exclusions : le `corrige` par son texte, le `supprime` par le
+    // fait qu'aucune troisième entrée n'apparaît (son contenu, lui, est vide par construction).
     expect(m.faits).toEqual(["elle a repris le dessin"]);
-    expect(JSON.stringify(m.faits)).not.toMatch(/CORRIGÉ|SUPPRIMÉ/);
+    expect(JSON.stringify(m.faits)).not.toMatch(/CORRIGÉ/);
   });
 });
 

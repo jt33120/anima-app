@@ -16,7 +16,13 @@
  */
 
 import Link from "next/link";
-import { URL_AIDE, URL_ABONNEMENT, type Surimpression } from "@/lib/scene";
+import {
+  URL_AIDE,
+  URL_ABONNEMENT,
+  MENTION_IA,
+  URL_TRANSPARENCE,
+  type Surimpression,
+} from "@/lib/scene";
 import s from "./monde.module.css";
 
 /**
@@ -55,8 +61,8 @@ export default function Surimpression({
       {modele.signeAnam && <SigneAnam prepare={prepare} />}
 
       {modele.mentionIA && (
-        <Link className={s.mentionIa} href={`${URL_AIDE}#transparence`}>
-          <span className="t-meta">Anam est une IA</span>
+        <Link className={s.mentionIa} href={URL_TRANSPARENCE}>
+          <span className="t-meta">{MENTION_IA}</span>
         </Link>
       )}
 

@@ -33,6 +33,13 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia;
 }
 
+// jsdom n'implémente pas `scrollIntoView` : sans lui, le fil jette au montage dès qu'un bloc de
+// ressources de détresse y paraît (Story 6.9, T26 — le filet est amené dans le champ). On pose une
+// fonction INERTE, jamais un espion : un test qui veut mesurer l'appel pose le sien.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function () {};
+}
+
 // jsdom n'implémente pas la capture de pointeur (utilisée pour qu'un glisser survive à la sortie du cadre).
 if (!Element.prototype.setPointerCapture) {
   const captures = new WeakMap<Element, Set<number>>();

@@ -1,0 +1,38 @@
+/* Le pied d'une halte (Story 6.9, QA T7). Deux liens, rien d'autre.
+
+   AUCUN FOND, AUCUNE BARRE, AUCUNE BORDURE PLEINE : un filet fin au-dessus suffit à dire « fin du
+   document ». Une bande colorée en bas de chaque halte ferait exactement ce que la scène refuse
+   depuis la 1.8 — poser un chrome d'application par-dessus un monde continu. */
+
+.pied {
+  margin-top: var(--esp-6);
+  padding-top: var(--esp-4);
+  border-top: 1px solid color-mix(in srgb, var(--texte-doux) 30%, transparent);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-4);
+}
+
+/* Soulignés : la mention IA a un enjeu légal, elle ne peut pas dépendre de la couleur seule pour se
+   signaler comme lien (WCAG 1.4.1). La porte de secours suit, par cohérence — et parce qu'elle est
+   ce qu'on cherche des yeux quand on ne va pas bien. */
+.lien {
+  /* La cible tactile passe par le JETON, jamais par un littéral : `tests/cible-tactile.test.ts` lit
+     les feuilles de style et refuse une commande qui la redéclare à la main. */
+  min-height: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  color: var(--texte-doux);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.lien:hover {
+  color: var(--texte);
+}
+
+.lien:focus-visible {
+  outline: 2px solid var(--texte);
+  outline-offset: 2px;
+}

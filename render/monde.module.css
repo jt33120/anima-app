@@ -147,6 +147,20 @@
 .regionConversation {
   align-items: center;
   overflow: hidden;
+  /* ── Story 6.9 (QA T26) — LA HAUTEUR RENDUE AU FIL ────────────────────────────────────────────
+     `.region` réserve `--cible-tactile + --esp-6` en haut ET en bas, soit 2 × 76 px = 152 px pris
+     sur la hauteur utile. Cette réserve existe pour une raison précise, écrite plus haut : en
+     DÉBORDEMENT (zoom 200 %, paysage court), une région qui défile pourrait faire passer son entête
+     focalisé sous la surimpression.
+
+     ⚠️ CETTE RÉGION-CI NE DÉFILE PAS (`overflow: hidden` juste au-dessus) : c'est le FIL qui défile,
+     à l'intérieur. Son entête ne peut donc pas glisser sous quoi que ce soit, et les 32 px d'air
+     supplémentaires ne protègent rien — ils rétrécissent le fil, mesuré par la QA à 307 px dans une
+     fenêtre de 742, au moment précis où le bloc de ressources de détresse doit y tenir.
+
+     On garde la hauteur de la surimpression et celle de la nav ; on rend l'air. */
+  padding-top: var(--cible-tactile);
+  padding-bottom: var(--cible-tactile);
   /* Fond OPAQUE (aplat --fond) sous la conversation : le texte du fil ne se pose JAMAIS sur
      l'imagerie de la scène (l'arbre clair au centre, la lune) — AC5/UX-DR-39, contraste WCAG AA
      garanti. La story autorise explicitement « un aplat fond comme fond de fil ». Le fondu de

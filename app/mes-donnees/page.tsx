@@ -5,6 +5,8 @@ import * as copie from "@/lib/domain/copie-mes-donnees";
 import { fenetreDepuisTexte } from "@/lib/domain/effacement";
 import s from "@/render/mes-donnees/mes-donnees.module.css";
 import { effacerTout } from "./actions";
+import PiedHalte from "@/render/PiedHalte";
+import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
 
 // NFR-015 / identité de route — « Anam » partout, jamais un titre qui dit l'intimité de la page.
 export const metadata = { title: "Anam" };
@@ -120,6 +122,14 @@ export default async function PageMesDonnees({
           </p>
         )}
       </section>
+      {/* Story 6.9 (QA T7) — la porte de secours (FR-077) et, là où elle est due, la mention
+          IA (art. 50). Le MODÈLE décide ; ce composant dessine. */}
+      <PiedHalte
+        mentionIA={piedPour("mes-donnees").mentionIA}
+        texteMention={MENTION_IA}
+        urlTransparence={URL_TRANSPARENCE}
+        urlAide={URL_AIDE}
+      />
     </main>
   );
 }

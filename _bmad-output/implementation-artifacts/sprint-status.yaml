@@ -209,6 +209,42 @@ development_status:
   # ⚠️ HARNAIS : après la campagne de mutation, la suite est passée de 87 s à 746 s avec 36 fichiers
   # SQL en expiration. `db reset` n'y change RIEN ; `supabase stop && start` remet à zéro. La 6.8
   # avait vu la première marche de cette pente — on connaît maintenant le remède.
+  6-9-finition-interface: review # livrée le 2026-08-16 ; AUCUNE migration ; regroupe les trois
+  # constats de finition de la QA (T7, T13, T26) parce qu'ils touchent les mêmes fichiers de rendu.
+  # ⚠️ T7 ÉTAIT PLUS GRAVE QUE LE CONSTAT : la QA disait « la mention IA n'existe que sur la scène ».
+  # En ouvrant le dépôt, AUCUNE page hors scène ne menait à `/aide` — sauf `/barriere` et `/aide`
+  # elle-même. La porte de secours (FR-077, « toujours là, indépendante de toute détection ») était
+  # garantie AU TYPE sur la scène et absente partout ailleurs. `lib/domain/pied-halte.ts` donne un
+  # verdict aux 9 haltes ET aux 10 pages exclues ; `tests/pied-halte.test.ts` exige que
+  # `app/**/page.tsx` soit exactement l'union des deux — une page ajoutée sans verdict casse la CI.
+  # La mention IA, elle, n'est PAS mise partout : elle est due là où un modèle a ÉCRIT (memoire,
+  # synthese, enneagramme, lectures, ancrages) — la coller sur un écran de cases à cocher la
+  # transformerait en décor de bas de page. Texte et cible HISSÉS dans `lib/scene/surimpression.ts`
+  # (source unique : deux littéraux d'une mention art. 50 divergent au premier ajustement).
+  # T13 : le signe de vie EXISTAIT (le trait d'Anam s'épaissit, 2.2) mais il fait 20 px et il est EN
+  # HAUT — elle vient d'appuyer sur « Envoyer », elle regarde le BAS. Le même signe, non cyclique,
+  # paraît maintenant en fin de fil. L'annonce a11y passe par la région `aria-live` UNIQUE qui
+  # existe déjà (une seconde région se doublerait sur NVDA).
+  # T26 : ⚠️ LA MESURE (« 307 px dans une fenêtre de 742 ») EST INVÉRIFIABLE ICI — jsdom n'a pas de
+  # moteur de mise en page, et elle ne se re-mesure que dans un navigateur réel. Ce qui est livré est
+  # le MÉCANISME : le bloc de ressources est AMENÉ dans le champ à son insertion (seule exception au
+  # suivi non captif de 2.2 — AD-9/AD-15 veulent que le filet ATTEIGNE), et la région de conversation
+  # rend les 64 px de réserve anti-débordement qu'elle payait sans défiler.
+  3-6-page-offre: review # livrée le 2026-08-16 ; AUCUNE migration ; ferme la QA T2. Le seul bouton
+  # de souscription vivait sur la carte du fil, qui ne paraît qu'à un paywall — or aucune branche
+  # n'est proposée à un compte gratuit (3.3/D2-A), donc AUCUN chemin. ⚠️ ELLE N'INVENTE RIEN : les
+  # quatre décisions que la note disait « pas un choix de développeur » étaient déjà prises (prix
+  # couplé au prix FACTURÉ par test, périmètres, garantie FR-089 en 3.2 ; reconduction en 3.5).
+  # La copie est IMPORTÉE, jamais recopiée. SEULE la phrase de reconduction est neuve, et c'était un
+  # manque LÉGAL : on demandait 69 € sans dire nulle part que ce serait 69 € l'an prochain (L215-1).
+  # ⚠️ ELLE REMPLIT LA COUTURE DE LA 2.9 : `MontagePaywall` attendait « une future surface paywall
+  # rendue SERVEUR » depuis deux epics. Un test de la 2.9 qui interdisait tout prix dans ce fichier a
+  # donc été RETOURNÉ — il gardait une inertie que le fichier présentait lui-même comme provisoire.
+  # ⚠️ LA DISTINCTION CENTRALE : `/abonnement` porte maintenant deux régimes opposés. La SORTIE n'est
+  # jamais gardée (garder = empêcher quelqu'un en crise de résilier) ; l'OFFRE l'est toujours
+  # (FR-043). `tests/offre-gardee.test.ts` mesure les deux, sinon la dérogation « sortie » de
+  # `garde-commerciale` deviendrait un trou. ⚠️ CONSÉQUENCE HORS CODE : la porte Stripe passe
+  # BLOQUANTE (clés de TEST en production, et le chemin vers Checkout vient de s'ouvrir à tous).
   epic-6-retrospective: optional
 
 # Portes PRÉ-LANCEMENT — humaines, hors code, aucune story ne les débloque toute seule.
@@ -224,12 +260,28 @@ pre_launch_gates:
   - gate: "sous-traitant-transcription — aucun prestataire de transcription n'est lié ; en lier un exige un DPA art. 28 + ZDR ET un verdict de propagation d'effacement"
     concerne: "Epic 6 (6.7), NFR-003/NFR-004"
     status: open
+  # ⚠️ REQUALIFIÉE LE 2026-08-16 PAR MESURE. L'API de l'hébergeur rend `pitr_enabled: false` sur
+  # zlhlzoalmszohrxrnsmo : le PITR n'est pas « à régler », il est ÉTEINT. Ce qui existe est
+  # `walg_enabled: true`, dont la rétention n'est écrite nulle part de notre côté. Les 7 jours
+  # annoncés dans chaque trace d'effacement et sur `/mes-donnees` ne mesurent donc RIEN. Deux issues
+  # acceptables, une seule à choisir : activer le PITR sur la durée annoncée, OU constater la
+  # rétention réelle des sauvegardes et annoncer celle-là.
   - gate: "Fenêtre PITR du projet hébergé effectivement réglée sur la durée annoncée par EFFACEMENT_FENETRE_PITR_JOURS (7 j par défaut) — réglage d'infrastructure, pas de code"
     concerne: "Epic 6 (6.7), AD-14"
     status: open
   - gate: "Validation du protocole de détresse par un professionnel de santé mentale"
     concerne: "Epic 2 (2.4 → 2.6)"
     status: open
+    # 2026-08-16 — ELLE A DÉSORMAIS UN BANC D'ESSAI (QA T4). `lib/safety/corpus-detresse.ts` porte
+    # 22 tours INVENTÉS et annotés, majoritairement ORDINAIRES (c'est la question de la T4 : le
+    # pipeline classe trop large, et un faux positif retire une partie du produit pendant 72 h).
+    # `scripts/mesurer-detresse.mjs` passe le corpus au vrai détecteur À LA MAIN — jamais en CI :
+    # un appel au modèle fort par cas, non déterministe, sous DPA.
+    # ⚠️ AUCUN SEUIL N'A BOUGÉ, et un test l'exige (la table niveau → décision est gardée à
+    # l'identique). Le banc mesure la RÉGRESSION, la CONSTANCE et le TAUX DE FAUX POSITIFS ; il ne
+    # dit PAS si le seuil est le bon — ses annotations sont l'intention produit du PRD §5, écrites
+    # par un développeur. Ce qu'il produit est un CHIFFRE à porter au professionnel, pas une
+    # autorisation de toucher au seuil.
   - gate: "DPA + zéro-rétention signés avec le fournisseur de modèle (NFR-019)"
     concerne: "Epic 2 (2.1), transverse"
     status: open
@@ -308,6 +360,13 @@ pre_launch_gates:
   - gate: "Politique de confidentialité publiée"
     concerne: "transverse, art. 9"
     status: open
+  # ⚠️ PASSÉE BLOQUANTE LE 2026-08-16, ET LA RAISON N'EST PAS DANS STRIPE. `NEXT_PUBLIC_STRIPE_
+  # PUBLISHABLE_KEY` vaut `pk_test_…` en PRODUCTION (mesuré). Ce n'était pas grave tant qu'aucun
+  # compte gratuit ne pouvait atteindre Checkout — pas de branche proposée (3.3/D2-A), donc pas de
+  # paywall, donc aucun chemin. LA STORY 3.6 VIENT D'OUVRIR CE CHEMIN À TOUT LE MONDE : quelqu'un
+  # peut parcourir une souscription complète en production et ne rien payer. Le code est juste ;
+  # c'est le compte qui est en test. `tests/offre-gardee.test.ts` exige que cette porte reste
+  # inscrite BLOQUANTE dans PORTES-AVANT-PUBLICATION.md.
   - gate: "Compte Stripe RÉEL configuré (clés de production, libellé de relevé, et surtout le DÉLAI d'émission d'`invoice.upcoming`)"
     concerne: "Epic 3 (3.1 à 3.5)"
     status: open
@@ -372,7 +431,14 @@ action_items:
       tacite (art. L215-1) et la garantie de remboursement (FR-089) se décident ensemble, et aucun
       des quatre n'est un choix de développeur.
     owner: "Julian"
-    status: open
+    status: done # 2026-08-16 — Story 3.6. ⚠️ L'AVERTISSEMENT CI-DESSUS ÉTAIT JUSTE ET N'A PAS
+    # BLOQUÉ : les quatre décisions étaient DÉJÀ prises ailleurs (3.2 pour le prix couplé au prix
+    # facturé, les périmètres et la garantie ; 3.5 pour tout le mécanisme de reconduction). La page
+    # les IMPORTE plutôt que de les recopier. Seule la phrase de reconduction était neuve — et
+    # c'était un manque LÉGAL, pas un choix : aucune surface de vente ne disait que l'abonnement se
+    # reconduit (art. L215-1). Anima et un juriste doivent la relire (porte §6/§7).
+    # ⚠️ EFFET DE BORD À NE PAS MANQUER : la porte Stripe passe BLOQUANTE. Les clés de production
+    # sont en mode TEST, et ce chemin-ci vient d'ouvrir Checkout à tous les comptes gratuits.
   - epic: 6
     action: >
       À FAIRE PAR JULIAN, DIX SECONDES — ouvrir `/reglages` dans un VRAI navigateur et cliquer pour
@@ -393,7 +459,9 @@ action_items:
       de la détresse le fil ne fait que 307 px dans une fenêtre de 742, donc l'orientation sort du
       champ). Les découper en trois correctifs isolés ferait trois passages sur les mêmes fichiers.
     owner: "Julian"
-    status: open
+    status: done # 2026-08-16 — Story 6.9. ⚠️ T7 était plus grave que le constat : AUCUNE page hors
+    # scène ne menait à /aide. ⚠️ T26 RESTE À RE-MESURER DANS UN VRAI NAVIGATEUR : jsdom n'a pas de
+    # moteur de mise en page, aucun test ne peut statuer sur 307 px. Le mécanisme est livré.
   - epic: 6
     action: >
       STORY 6.5b — L'HEURE DE NAISSANCE CORRIGEABLE (tour de QA, T17). Écartée de la 6.5 en
@@ -426,5 +494,16 @@ action_items:
       Toucher au seuil sans campagne de mesure remplacerait un défaut par un autre, au seul endroit
       du produit où l'erreur coûte le plus cher. Le préalable est un corpus de tours annotés.
     owner: "Julian"
-    status: open
+    status: open # 2026-08-16 — LE PRÉALABLE EST LIVRÉ, L'ARBITRAGE RESTE OUVERT (et il le doit).
+    # `lib/safety/corpus-detresse.ts` : 22 tours INVENTÉS et annotés — aucun repris d'un journal,
+    # d'un support ou d'un test utilisateur (un corpus de détresse fait de phrases réelles serait un
+    # fichier art. 9 versionné dans un dépôt PUBLIC ; une garde le vérifie).
+    # MAJORITAIREMENT ORDINAIRES, et c'est délibéré : la T4 porte sur les faux positifs, et un corpus
+    # équilibré 50/50 mesurerait un produit qui n'existe pas.
+    # `scripts/mesurer-detresse.mjs` passe le corpus au VRAI détecteur, à la main — jamais en CI
+    # (un appel au modèle fort par cas, non déterministe, sous DPA : la garde clignoterait).
+    # ⚠️ AUCUN SEUIL N'A BOUGÉ, et un test l'exige explicitement. Ce que le banc mesure : la
+    # RÉGRESSION, la CONSTANCE, et le TAUX DE FAUX POSITIFS. Ce qu'il ne mesure PAS : si le seuil est
+    # le bon — ses annotations sont l'intention produit du PRD §5, écrites par un développeur.
+    # Le chiffre se porte au professionnel de la porte pré-lancement ; il n'autorise rien tout seul.
 

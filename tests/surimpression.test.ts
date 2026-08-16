@@ -183,7 +183,14 @@ describe("Surimpression — le composant porte les bons éléments dans le bon o
   it("les deux liens visent la page d'aide (source unique URL_AIDE)", () => {
     expect(composant).toMatch(/URL_AIDE/);
     expect(composant).toMatch(/Aide/);
-    expect(composant).toMatch(/Anam est une IA/);
+    // ⚠️ ASSERTION RETOURNÉE PAR LA STORY 6.9. Elle exigeait le littéral « Anam est une IA » DANS
+    // le composant ; il a été hissé dans `lib/scene/surimpression.ts` parce que le pied de halte
+    // (`render/PiedHalte.tsx`) doit porter EXACTEMENT la même mention. Deux littéraux d'une mention
+    // à enjeu légal (art. 50) divergent au premier ajustement de copie, et l'un des deux devient
+    // faux. Ce qui est gardé maintenant est plus fort : la source unique, et son absence ici.
+    expect(composant).toMatch(/MENTION_IA/);
+    expect(composant, "le texte est redevenu un littéral").not.toMatch(/Anam est une IA/);
+    expect(composant).toMatch(/URL_TRANSPARENCE/);
   });
 
   it("le signe d'Anam est décoratif (aria-hidden) — la transparence passe par la mention texte", () => {

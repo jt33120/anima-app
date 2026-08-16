@@ -38,6 +38,28 @@ export const TITRE_CARTE = "Continuer avec Anam";
 export const GARANTIE_REMBOURSEMENT =
   "Si aucune branche n'a été posée au bout de trois mois, remboursement sur simple demande.";
 
+/**
+ * ── LA RECONDUCTION, DITE AU MOMENT OÙ ON DEMANDE L'ARGENT (Story 3.6, art. L215-1) ────────────
+ *
+ * ⚠️ CETTE PHRASE MANQUAIT, ET C'EST UN MANQUE LÉGAL, PAS UNE OMISSION DE CONFORT.
+ *
+ * La 3.5 a construit tout le nécessaire pour l'information AVANT reconduction (courriel, réservation
+ * idempotente, `information_reconduction`) — c'est-à-dire l'obligation qui court PENDANT le contrat.
+ * Mais aucune surface de VENTE ne disait que l'abonnement se reconduit. On demandait 69 € sans dire
+ * que ce serait 69 € l'an prochain aussi.
+ *
+ * Elle est posée ICI, dans la source unique de la copie d'offre, donc elle paraît sur les DEUX
+ * surfaces où l'on vend : la carte du fil (3.2) et la page d'offre (3.6). Une phrase à enjeu légal
+ * ne se recopie pas — deux exemplaires divergent, et l'un des deux devient faux.
+ *
+ * Elle nomme les trois choses vraies, et rien d'autre : la durée, la reconduction, et la sortie.
+ * L'avis par courriel est mentionné parce qu'il EXISTE (3.5) — jamais une promesse sans code
+ * derrière elle.
+ */
+export const RECONDUCTION =
+  "L'abonnement dure un an, puis se reconduit chaque année. Tu es prévenue par courriel avant " +
+  "chaque reconduction, et tu peux l'arrêter à tout moment, en trois clics.";
+
 /** Ce qui reste gratuit, pour toujours (FR-055) — sur la même surface (AC4). */
 export const PERIMETRE_GRATUIT_TITRE = "Gratuit, pour toujours";
 export const PERIMETRE_GRATUIT: readonly string[] = [

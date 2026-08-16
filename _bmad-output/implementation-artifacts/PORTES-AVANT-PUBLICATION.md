@@ -13,7 +13,68 @@ Ce n'est pas un détail de vocabulaire : **l'URL de production est publique et i
 (`https://anima-app-swart.vercel.app`, plan Hobby — Vercel ne sait pas protéger un domaine de
 production en dessous de Pro). « Phase de test » décrit notre intention, pas l'accessibilité réelle.
 
-Dernière revue : **2026-08-14**.
+Dernière revue : **2026-08-16** (audit MESURÉ, voir ci-dessous).
+
+---
+
+## Audit du 2026-08-16 — ce qui a été MESURÉ, pas relu
+
+Les portes ci-dessous étaient tenues à jour par relecture. Cet audit les a interrogées **là où elles
+vivent** — l'API de l'hébergeur de base, les variables d'environnement de production, le corpus.
+Quatre constats, dont deux qui changent une couleur.
+
+### ⚠️ A1 — La fenêtre PITR n'est adossée à RIEN (porte §7, requalifiée)
+
+`GET /v1/projects/zlhlzoalmszohrxrnsmo/database/backups` rend **`pitr_enabled: false`**.
+
+La Story 6.7 écrit dans chaque trace d'effacement `fenetre_pitr_jours = 7` et une date de survivance
+à +7 jours, et l'écran « Mes données » l'annonce à l'utilisatrice. **Ce 7 ne mesure rien.** Le
+point-in-time recovery est désactivé ; ce qui existe est `walg_enabled: true`, c'est-à-dire des
+sauvegardes physiques dont la rétention n'est écrite nulle part de notre côté.
+
+La porte n'est donc PAS « régler le PITR sur 7 jours ». Elle est :
+
+> **Mesurer la rétention RÉELLE des sauvegardes du projet hébergé, puis faire correspondre
+> `EFFACEMENT_FENETRE_PITR_JOURS`.** Deux issues acceptables : activer le PITR et le régler sur la
+> durée annoncée, ou constater la rétention des sauvegardes existantes et annoncer CELLE-LÀ.
+
+⚠️ Le sens de l'erreur actuelle est le moins mauvais — on annonce peut-être une survivance plus
+longue que la réalité — mais une déclaration RGPD juste par chance reste une déclaration fausse.
+
+### 🔴 A2 — Stripe est en mode TEST **en production**, et la Story 3.6 vient d'aggraver l'enjeu
+
+`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` vaut `pk_test_51TVGUr…` dans l'environnement **Production**.
+
+Ce n'était pas grave tant que personne ne pouvait atteindre le paiement : aucune branche n'est
+proposée à un compte gratuit (3.3, D2-A), donc aucun paywall, donc aucun chemin vers Checkout.
+**La Story 3.6 vient d'ouvrir ce chemin à tout le monde**, depuis `/abonnement`.
+
+Conséquence exacte : quelqu'un peut désormais parcourir une souscription complète en production, ne
+rien payer, et — selon ce que Stripe renvoie en test — se retrouver avec un abonnement projeté en
+base. La porte §4 passe de 🟠 à **🔴 BLOQUANTE**, et elle l'est maintenant *au sens strict* : ne pas
+la franchir avant d'ouvrir le produit, c'est encaisser zéro en croyant encaisser.
+
+### 🔴 A3 — Le domaine est toujours celui de Vercel (porte §3, confirmée)
+
+`ANIMA_SITE_URL = https://anima-app-swart.vercel.app`. C'est l'origine qui part dans **chaque lien de
+courriel** (reconduction, avis d'inactivité, désabonnement). Elle bloque toujours les quatre portes
+qui en dépendent — SPF/DKIM/DMARC, DPA Resend, domaine d'authentification, mentions légales.
+
+### 🔴 A4 — Le corpus d'Anima est à ZÉRO, mesuré
+
+Aucun module de `lib/corpus/` ne contient un seul `statut: "ecrit"`. Les tables sont vides et les
+fonctions rendent `non_ecrit` pour tout. Ce n'est pas « en cours » : c'est **rien d'écrit**, et
+l'accueil, les lectures, l'ennéagramme, l'horoscope et le mantra le rendent visible à l'écran.
+
+### Ce que l'audit a trouvé SAIN
+
+- `MISTRAL_DPA_SIGNED=true`, `MISTRAL_ZDR_CONFIRMED=true`, `MISTRAL_PLAN=scale` sont bien posées en
+  production — et `egress-guard.ts` REFUSE l'envoi sans elles, donc la porte §1 est adossée à du
+  code, pas à une déclaration.
+- Le projet de base est en `eu-west-1`, `ACTIVE_HEALTHY`.
+- Les deux portes référencées par `lib/domain/sous-traitants.ts` (`conservation-comptable`,
+  `sous-traitant-transcription`) sont bien inscrites au suivi de sprint, et `tests/sous-traitants.test.ts`
+  le vérifie : renommer une clé fait rougir la CI.
 
 ---
 
@@ -209,7 +270,20 @@ dans `app/`, `lib/`, `render/`.
 
 ---
 
-## 4. Stripe · 🟠 non bloquante tant qu'on ne vend pas
+## 4. Stripe · 🔴 BLOQUANTE depuis le 2026-08-16 (Story 3.6)
+
+> ⚠️ **CETTE PORTE A CHANGÉ DE COULEUR, ET LA RAISON N'EST PAS DANS STRIPE.** Elle était 🟠 « non
+> bloquante tant qu'on ne vend pas », et c'était exact : aucun compte gratuit ne pouvait atteindre
+> Checkout, faute de paywall (3.3, D2-A — aucune branche n'est proposée à un compte gratuit, donc
+> aucun paywall, donc aucun chemin). **La Story 3.6 a ouvert ce chemin à tout le monde** en posant
+> l'offre sur `/abonnement`.
+>
+> Le produit peut donc désormais mener quelqu'un jusqu'au bout d'une souscription **en production,
+> avec des clés de test** (`pk_test_51TVGUr…`, mesuré le 16/08). Il n'encaisserait rien, et
+> — selon ce que le mode test renvoie — pourrait projeter un abonnement actif en base. C'est le seul
+> endroit du produit où « ça a l'air de marcher » coûte de l'argent réel.
+>
+> **Rien à corriger dans le code : il est juste. C'est le compte qui est en test.**
 
 Le mode test est **entièrement câblé et vérifié** en production (13/08) : clé secrète, endpoint webhook
 `we_1U3vAf…` abonné aux six événements que le code sait lire, secret de signature vérifié par mutation
@@ -361,6 +435,16 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
 - **`noindex` ou protection de l'URL publique** tant que le produit n'est pas prêt à être trouvé.
   Décision du 12/08 : laissée telle quelle, à revoir.
 - **Licence des éphémérides** — choix déféré depuis l'architecture, à trancher avant lancement.
+- 🔴 **La fenêtre de survivance annoncée ne mesure rien** (mesuré le 16/08 — voir A1 en tête). Le PITR
+  du projet hébergé est **désactivé** (`pitr_enabled: false`) ; `EFFACEMENT_FENETRE_PITR_JOURS` vaut
+  7 jours et cette valeur part dans chaque trace d'effacement et sur l'écran « Mes données ». Deux
+  issues, une seule à choisir : **activer le PITR** et le régler sur la durée annoncée, ou **constater
+  la rétention réelle des sauvegardes** (`walg_enabled: true`) et annoncer celle-là. Une déclaration
+  RGPD juste par hasard reste une déclaration fausse.
+- 🟡 **Anima doit relire la phrase de reconduction** posée par la Story 3.6
+  (`render/conversation/offre-abonnement.ts`, `RECONDUCTION`). Elle paraît sur les DEUX surfaces de
+  vente et elle est due au titre de l'art. L215-1 — un juriste doit la valider en même temps que les
+  CGU (porte §6), et Anima doit en valider le registre.
 
 ---
 

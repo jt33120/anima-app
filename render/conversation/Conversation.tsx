@@ -32,6 +32,15 @@ const nouvelId = () => `t${++compteur}`;
 const MESSAGE_ECHEC = "Je n’ai pas pu répondre. Ton message est gardé.";
 
 /**
+ * L'attente, dite aux lecteurs d'écran (Story 6.9, QA T13).
+ *
+ * ⚠️ AU PRÉSENT, ET SANS PROMESSE DE DURÉE. « Anam répond dans un instant » serait un engagement que
+ * le code ne peut pas tenir — le modèle met parfois sept secondes, parfois vingt, et parfois échoue.
+ * On énonce un fait : quelque chose est en cours. C'est exactement ce que le signe visuel dit.
+ */
+const ANNONCE_ATTENTE = "Anam prépare sa réponse.";
+
+/**
  * La CLÉ STABLE d'une ouverture — ce qui permet de distinguer « une nouvelle chose à dire » de « la même
  * chose, re-servie par un rafraîchissement ». L'identité de l'objet ne suffirait pas : chaque round-trip
  * RSC en fabrique un neuf.
@@ -250,8 +259,18 @@ export default function Conversation({
   const abonnementRefuse = useRef(false);
 
   // Remonte « Anam prépare » au SceneDom (→ signe épaissi). Effet, pas de setState pendant le rendu.
+  //
+  // ⚠️ STORY 6.9 (QA T13) — L'ATTENTE S'ANNONCE AUSSI AUX LECTEURS D'ÉCRAN, et par la région QUI
+  // EXISTE DÉJÀ. Le signe ajouté en bas du fil est purement visuel (`aria-hidden`) : quelqu'un qui
+  // n'a pas d'écran vivait exactement le même silence de 7 secondes, sans même le glyphe. Ouvrir une
+  // SECONDE région `aria-live` aurait été la faute évidente — le fil en a une, unique et atomique
+  // (voir l'en-tête de `Fil.tsx`), et deux régions vivantes se doublent l'une l'autre sur NVDA.
+  //
+  // `aria-atomic` fait relire la région entière : l'annonce d'attente est donc REMPLACÉE par le
+  // message complet à la fin, jamais empilée avec lui.
   useEffect(() => {
     onPreparation?.(prepare);
+    if (prepare) setAnnonce(ANNONCE_ATTENTE);
   }, [prepare, onPreparation]);
 
   // Clavier virtuel mobile (AC8) : `dvh` seul ne suffit pas (Chromium ne rétrécit pas les unités
@@ -522,6 +541,7 @@ export default function Conversation({
       <Fil
         tours={tours}
         annonce={annonce}
+        prepare={prepare}
         onReessayer={reessayer}
         onRefuserAbonnement={refuserAbonnement}
         onRepondreProposition={repondreProposition}

@@ -8,6 +8,8 @@ import * as copieNaissance from "@/lib/domain/copie-naissance";
 import Memoire from "@/render/memoire/Memoire";
 import CorrectionNaissance from "@/render/memoire/CorrectionNaissance";
 import s from "@/render/memoire/memoire.module.css";
+import PiedHalte from "@/render/PiedHalte";
+import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
 import {
   annulerSuppression,
   apercevoirCorrection,
@@ -136,6 +138,14 @@ export default async function PageMemoire() {
         heureActuelle={naissance?.heure ? naissance.heure.slice(0, 5) : null}
         apercevoir={apercevoirCorrection}
         confirmer={corrigerHeureNaissance}
+      />
+      {/* Story 6.9 (QA T7) — la porte de secours (FR-077) et, là où elle est due, la mention
+          IA (art. 50). Le MODÈLE décide ; ce composant dessine. */}
+      <PiedHalte
+        mentionIA={piedPour("memoire").mentionIA}
+        texteMention={MENTION_IA}
+        urlTransparence={URL_TRANSPARENCE}
+        urlAide={URL_AIDE}
       />
     </main>
   );

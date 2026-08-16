@@ -30,6 +30,29 @@
   scroll-behavior: auto;
 }
 
+/* ── Le signe d'attente (Story 6.9, QA T13) : Anam prépare, là où l'œil se trouve ──────────────
+      Le glyphe de la surimpression, à taille lisible, aligné comme un tour d'Anam. Il PARAÎT (fondu
+      d'opacité, neutralisé en reduced-motion par `.fondu-texte`) et ne bouge plus.
+
+      ⚠️ AUCUNE ANIMATION CYCLIQUE — pas de `@keyframes`, pas de pulsation, pas de points. C'est la
+      décision de la Story 2.2, et elle vaut d'autant plus ici : un indicateur nerveux à l'endroit
+      exact où une réponse intime va paraître dirait « la machine calcule », juste avant qu'Anam
+      parle. Le trait épais est le MÊME état que celui de la surimpression, à la bonne échelle. */
+.attente {
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: var(--cible-tactile);
+}
+.attenteSigne {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: var(--arbre-branche);
+  stroke-width: 2.75;
+  stroke-linecap: round;
+}
+
 /* Voix d'Anam — Fraunces (t-anam), SANS fond / bulle / bordure. */
 .tourAnam {
   max-width: var(--mesure);

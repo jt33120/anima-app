@@ -16,6 +16,17 @@ import { REGION_CONVERSATION, type IdRegion } from "./regions";
 export const URL_AIDE = "/aide";
 
 /**
+ * ⚠️ HISSÉS DEPUIS `render/surimpression.tsx` PAR LA STORY 6.9, et ce n'est pas cosmétique.
+ *
+ * Ces deux valeurs étaient des littéraux dans le JSX. Le pied de halte (`lib/domain/pied-halte.ts`)
+ * doit porter EXACTEMENT la même mention et le même lien : deux littéraux auraient divergé au
+ * premier ajustement de copie, et on se serait retrouvé avec deux formulations d'une mention à
+ * enjeu légal (FR-013 / AI Act art. 50) dans le même produit.
+ */
+export const MENTION_IA = "Anam est une IA";
+export const URL_TRANSPARENCE = `${URL_AIDE}#transparence`;
+
+/**
  * Story 3.5 — la page « L'abonnement ». Source unique, jamais écrite en dur ailleurs.
  *
  * ⚠️ NE PAS CONFONDRE AVEC `/desabonnement`, qui est le retrait du CANAL COURRIEL (Story 4.9, art. 21).

@@ -263,17 +263,47 @@ describe("[Story 3.3 / AD-9] la phrase sobre de l'arbre vide est du COMMERCE, et
   });
 });
 
-describe("Story 2.9 — point de montage gardé du paywall (placement, PAS la carte)", () => {
+describe("Story 3.6 — la couture de la 2.9, enfin remplie (l'offre rendue SERVEUR)", () => {
   const MONTAGE = resolve(racine, "app/_commerce/MontagePaywall.tsx");
   const src = sansCommentaires(readFileSync(MONTAGE, "utf-8"));
 
-  it("le point de montage EXISTE et enveloppe son contenu dans <GardeCommerciale utilisatriceId> (AD-9)", () => {
+  /**
+   * ⚠️ UN TEST A ÉTÉ RETOURNÉ ICI, ET IL FAUT SAVOIR POURQUOI.
+   *
+   * La 2.9 exigeait que ce fichier NE contienne « ni prix, ni Stripe, ni bouton d'abonnement » : à
+   * l'époque il ne posait que le PLACEMENT, et la carte relevait de l'Epic 3. Son propre en-tête
+   * annonçait pourtant la suite — « RESTE la couture gardée pour une future surface paywall RENDUE
+   * SERVEUR (menu de compte, 3.3+) — inerte tant que cette surface n'existe pas ».
+   *
+   * **La Story 3.6 est cette surface.** L'assertion qui interdisait le prix gardait une inertie que
+   * le fichier lui-même présentait comme provisoire ; la garder aurait obligé à ouvrir un SECOND
+   * point de montage commercial — c'est-à-dire un second endroit où oublier la garde.
+   *
+   * Ce qui la remplace garde ce qui compte vraiment : que la surface soit enveloppée, et que le prix
+   * vienne de la SOURCE UNIQUE plutôt que d'un littéral.
+   */
+  it("le point de montage enveloppe son contenu dans <GardeCommerciale utilisatriceId> (AD-9)", () => {
     expect(src).toMatch(/<GardeCommerciale\s+utilisatriceId=/);
   });
 
-  it("2.9 pose le PLACEMENT, jamais la carte : aucun prix / Stripe / bouton d'abonnement (= Epic 3)", () => {
-    // Périmètre dur : la carte (prix 69 €, « M'abonner », Stripe Checkout, garantie) relève de la 3.2.
-    expect(src, "le tarif est Epic 3").not.toMatch(/69|abonner|stripe|checkout|€/i);
+  it("[LE CŒUR] le prix n'est JAMAIS un littéral : il vient de la source couplée au prix facturé", () => {
+    // `offre-abonnement.ts` est couplé au centime près à `PRIX_ABONNEMENT_ANNUEL_CENTIMES` par
+    // `tests/offre-abonnement.test.ts`. Un « 69 € » écrit à la main ici afficherait un prix que
+    // personne ne compare plus à celui que Stripe encaisse.
+    expect(src).toMatch(/@\/render\/conversation\/offre-abonnement/);
+    expect(src, "un prix en dur dans la surface d'offre").not.toMatch(/\b69\b|€/);
+  });
+
+  it("[LE CŒUR] la garantie ET la reconduction paraissent là où l'argent est demandé", () => {
+    // FR-089 d'un côté, art. L215-1 de l'autre. Aucune des deux n'est reléguée aux CGU.
+    expect(src).toMatch(/GARANTIE_REMBOURSEMENT/);
+    expect(src).toMatch(/RECONDUCTION/);
+  });
+
+  it("[FR-061] le périmètre GRATUIT est écrit AVANT le premium", () => {
+    // Ce qu'elle garde en repartant, avant ce qu'elle gagnerait. L'ordre inverse ferait du gratuit
+    // le repoussoir du premium.
+    expect(src.indexOf("PERIMETRE_GRATUIT_TITRE")).toBeLessThan(src.indexOf("PERIMETRE_PREMIUM_TITRE"));
   });
 
   it("le montage vit dans app/ (composition), jamais dans render/ (muet) — server-only", () => {

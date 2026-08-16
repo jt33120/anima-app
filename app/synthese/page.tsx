@@ -4,6 +4,8 @@ import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { periodeLisible } from "@/lib/domain/synthese";
 import FicheSynthese from "@/render/synthese/FicheSynthese";
 import s from "@/render/synthese/synthese.module.css";
+import PiedHalte from "@/render/PiedHalte";
+import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
 
 /** Combien de synthèses passées la halte transporte. Voir la note sur `<details>` plus bas. */
 const PRECEDENTES_MAX = 12;
@@ -111,6 +113,14 @@ export default async function Page() {
           ))}
         </section>
       )}
+      {/* Story 6.9 (QA T7) — la porte de secours (FR-077) et, là où elle est due, la mention
+          IA (art. 50). Le MODÈLE décide ; ce composant dessine. */}
+      <PiedHalte
+        mentionIA={piedPour("synthese").mentionIA}
+        texteMention={MENTION_IA}
+        urlTransparence={URL_TRANSPARENCE}
+        urlAide={URL_AIDE}
+      />
     </main>
   );
 }

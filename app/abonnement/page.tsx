@@ -3,7 +3,10 @@ import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { lireAbonnement, eligibleAuRemboursement } from "@/lib/data/depot-resiliation";
 import * as c from "@/render/abonnement/copie-abonnement";
+import { MontagePaywall } from "@/app/_commerce/MontagePaywall";
 import s from "./abonnement.module.css";
+import PiedHalte from "@/render/PiedHalte";
+import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
 
 // NFR-015 — « Anam » partout, y compris ici : le titre paraît dans un onglet, potentiellement partagé.
 export const metadata = { title: "Anam" };
@@ -126,7 +129,13 @@ export default async function PageAbonnement({
 
       {/* ── L'ÉTAT ─────────────────────────────────────────────────────────────────────────────────── */}
       {!abonnement || (!actif && !resiliationDemandee) ? (
-        <p className="t-corps">{c.ETAT_TERMINE}</p>
+        // ⚠️ STORY 3.6 (QA T2) — DEUX SITUATIONS QUI ÉTAIENT CONFONDUES.
+        //
+        // « Jamais abonnée » et « abonnement terminé » tombaient dans la même branche, et lisaient la
+        // même phrase. Un compte gratuit envoyé ici par `/ancrages` lisait donc « Ton abonnement
+        // n'est plus actif » à propos d'un abonnement qui n'a jamais existé — un état inventé, sur
+        // la page qui parle d'argent.
+        <p className="t-corps">{abonnement ? c.ETAT_TERMINE : c.ETAT_JAMAIS_ABONNEE}</p>
       ) : resiliationDemandee ? (
         <>
           <p className="t-corps">{c.ETAT_RESILIE}</p>
@@ -166,6 +175,23 @@ export default async function PageAbonnement({
         )
       ) : null}
 
+      {/* ── L'OFFRE (Story 3.6, QA T2) — LE SEUL CHEMIN D'ABONNEMENT D'UN COMPTE GRATUIT ──────────
+          Le seul bouton de souscription du produit vivait sur la carte du fil, qui ne paraît qu'à un
+          paywall. Or aucune branche n'est proposée à un compte gratuit (3.3, D2-A) : sans branche,
+          pas de paywall, donc AUCUN chemin. Cette page était le cul-de-sac où `/ancrages` envoyait.
+
+          ⚠️ ELLE EST GARDÉE, ET LE RESTE DE LA PAGE NE L'EST PAS — c'est la distinction centrale de
+          la story. `/abonnement` refuse toute garde AD-9 parce que la SORTIE doit rester atteignable
+          même en détresse (« enfermer quelqu'un en crise dans un abonnement »). Mais l'OFFRE est du
+          commerce, et le commerce n'atteint pas quelqu'un en détresse (FR-043). Sortir n'est pas
+          vendre : les deux gestes vivent sur la même page et n'ont pas le même régime. */}
+      {(!abonnement || (!actif && !resiliationDemandee)) && (
+        // `MontagePaywall` est la couture gardée POSÉE PAR LA 2.9 pour « une future surface paywall
+        // rendue serveur » et restée inerte deux epics. C'est elle, ici. La garde AD-9 vit à
+        // l'intérieur : la page ne décide rien, elle place.
+        <MontagePaywall utilisatriceId={user.id} titre={c.TITRE_OFFRE} />
+      )}
+
       {/* ── LA GARANTIE (FR-089) — proposée SEULEMENT quand elle y a droit ─────────────────────────── */}
       {eligible && retour !== "rembourse" && (
         <section className={s.garantie}>
@@ -177,6 +203,14 @@ export default async function PageAbonnement({
           </form>
         </section>
       )}
+      {/* Story 6.9 (QA T7) — la porte de secours (FR-077) et, là où elle est due, la mention
+          IA (art. 50). Le MODÈLE décide ; ce composant dessine. */}
+      <PiedHalte
+        mentionIA={piedPour("abonnement").mentionIA}
+        texteMention={MENTION_IA}
+        urlTransparence={URL_TRANSPARENCE}
+        urlAide={URL_AIDE}
+      />
     </main>
   );
 }

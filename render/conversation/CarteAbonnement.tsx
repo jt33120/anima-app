@@ -4,6 +4,7 @@ import {
   CADENCE_ABONNEMENT,
   TITRE_CARTE,
   GARANTIE_REMBOURSEMENT,
+  RECONDUCTION,
   PERIMETRE_GRATUIT_TITRE,
   PERIMETRE_GRATUIT,
   PERIMETRE_PREMIUM_TITRE,
@@ -43,6 +44,9 @@ export default function CarteAbonnement({ onRefuser }: { onRefuser: () => void }
         <span className="t-meta">{CADENCE_ABONNEMENT}</span>
       </p>
       <p className={`${s.carteGarantie} t-meta`}>{GARANTIE_REMBOURSEMENT}</p>
+      {/* Story 3.6 — la reconduction est dite là où l'argent est demandé (art. L215-1). Même registre
+          que la garantie : `t-meta`, sur la carte, jamais reléguée aux CGU. */}
+      <p className={`${s.carteGarantie} t-meta`}>{RECONDUCTION}</p>
 
       {/* Périmètre gratuit + premium sur la MÊME surface, registre système (AC4). */}
       <div className={s.cartePerimetres}>

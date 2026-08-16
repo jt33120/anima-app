@@ -49,6 +49,21 @@ vi.mock("@/lib/data/depot-resiliation", () => ({
 vi.mock("@/app/(auth)/etat-onboarding", () => ({
   etapeOnboardingPour: () => etapeOnboarding(),
 }));
+/**
+ * ⚠️ L'OFFRE EST DOUBLÉE, ET C'EST LA BONNE FRONTIÈRE (Story 3.6).
+ *
+ * Depuis la 3.6, la page monte `<MontagePaywall>` quand il n'y a pas de contrat actif — c'est-à-dire
+ * exactement dans le scénario `etat = expire` que ce fichier existe pour éprouver. C'est un composant
+ * SERVEUR async qui lit `lib/safety` : le rendre ici ferait de ce test une épreuve de la garde AD-9,
+ * qu'il n'a pas à porter, et il échouerait sur une base absente plutôt que sur un défaut de sortie.
+ *
+ * La garde de l'offre — qu'elle refuse de se monter en détresse, et que la SORTIE, elle, ne se ferme
+ * jamais — vit dans `tests/offre-gardee.test.ts`. Ce fichier-ci mesure une seule chose : que la porte
+ * reste là quel que soit l'état d'accès.
+ */
+vi.mock("@/app/_commerce/MontagePaywall", () => ({
+  MontagePaywall: () => null,
+}));
 
 const { default: PageAbonnement } = await import("@/app/abonnement/page");
 

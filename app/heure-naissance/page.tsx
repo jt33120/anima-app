@@ -4,6 +4,8 @@ import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { OU_TROUVER_SON_HEURE } from "@/lib/domain/message-sans-heure";
 import FormulaireHeure from "./formulaire-heure";
 import s from "./heure-naissance.module.css";
+import PiedHalte from "@/render/PiedHalte";
+import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
 
 // NFR-015 / identité de route — « Anam » partout, jamais un titre qui dit l'intimité de la page.
 export const metadata = { title: "Anam" };
@@ -62,6 +64,14 @@ export default async function Page() {
       {/* La même phrase que la fiche du tronc, depuis la même source : un second texte divergerait. */}
       <p className="t-corps">{OU_TROUVER_SON_HEURE}</p>
       <FormulaireHeure deja={{ heure: deja?.heure_naissance ?? null, lieu: deja?.lieu_naissance ?? null }} />
+      {/* Story 6.9 (QA T7) — la porte de secours (FR-077) et, là où elle est due, la mention
+          IA (art. 50). Le MODÈLE décide ; ce composant dessine. */}
+      <PiedHalte
+        mentionIA={piedPour("heure-naissance").mentionIA}
+        texteMention={MENTION_IA}
+        urlTransparence={URL_TRANSPARENCE}
+        urlAide={URL_AIDE}
+      />
     </main>
   );
 }

@@ -1,0 +1,64 @@
+/* L'offre d'abonnement rendue SERVEUR (Story 3.6, QA T2).
+
+   Aucune mise en avant, aucun cadre coloré, aucun « le plus populaire » : c'est un document qui
+   expose un prix et deux périmètres. Les deux périmètres ont EXACTEMENT le même traitement — le
+   gratuit n'est pas le repoussoir du premium (FR-061). */
+
+.offre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  padding: var(--esp-5) 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--texte-doux) 30%, transparent);
+}
+
+.tarif {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--esp-2);
+  color: var(--texte);
+}
+
+.perimetres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-5);
+}
+
+/* `1 1 16rem` : les deux colonnes ont la MÊME base et la même souplesse. Une largeur différente
+   ferait de l'une l'offre et de l'autre la note de bas de page. */
+.perimetre {
+  flex: 1 1 16rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  color: var(--texte-doux);
+}
+
+.abonner {
+  align-self: flex-start;
+  /* La cible tactile passe par le JETON, jamais par un littéral : `tests/cible-tactile.test.ts` lit
+     les feuilles de style et refuse une commande qui la redéclare à la main. */
+  min-height: var(--cible-tactile);
+  padding: 0 var(--esp-5);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--rayon);
+  color: var(--fond);
+  cursor: pointer;
+}
+
+.abonner:focus-visible {
+  outline: 2px solid var(--texte);
+  outline-offset: 2px;
+}

@@ -8,6 +8,8 @@ import CarteTiree from "@/render/lecture/CarteTiree";
 import Restitution from "@/render/lecture/Restitution";
 import LienEchangeSource from "@/render/lecture/LienEchangeSource";
 import s from "@/render/lecture/lecture.module.css";
+import PiedHalte from "@/render/PiedHalte";
+import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
 
 /** Combien de lectures la halte transporte. Même raison qu'en 4.9 : un document art. 9 pèse. */
 const LECTURES_MAX = 30;
@@ -128,6 +130,14 @@ export default async function Page() {
           />
         );
       })}
+      {/* Story 6.9 (QA T7) — la porte de secours (FR-077) et, là où elle est due, la mention
+          IA (art. 50). Le MODÈLE décide ; ce composant dessine. */}
+      <PiedHalte
+        mentionIA={piedPour("lectures").mentionIA}
+        texteMention={MENTION_IA}
+        urlTransparence={URL_TRANSPARENCE}
+        urlAide={URL_AIDE}
+      />
     </main>
   );
 }

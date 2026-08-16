@@ -15,6 +15,8 @@ import {
 } from "@/lib/domain/copie-ancrage";
 import Ancrage from "@/render/ancrage/Ancrage";
 import s from "@/render/ancrage/ancrage.module.css";
+import PiedHalte from "@/render/PiedHalte";
+import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
 
 // NFR-015 / identité de route — « Anam » partout, jamais un titre qui dit l'intimité de la page.
 export const metadata = { title: "Anam" };
@@ -122,6 +124,14 @@ export default async function Page() {
           mots={{ avancer: AVANCER, terminer: TERMINER, traverse: TRAVERSE }}
         />
       ))}
+      {/* Story 6.9 (QA T7) — la porte de secours (FR-077) et, là où elle est due, la mention
+          IA (art. 50). Le MODÈLE décide ; ce composant dessine. */}
+      <PiedHalte
+        mentionIA={piedPour("ancrages").mentionIA}
+        texteMention={MENTION_IA}
+        urlTransparence={URL_TRANSPARENCE}
+        urlAide={URL_AIDE}
+      />
     </main>
   );
 }

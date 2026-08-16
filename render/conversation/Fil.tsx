@@ -27,9 +27,41 @@ import s from "./conversation.module.css";
  * PAS sur `aria-busy` (cassé sur NVDA, bug #1682063) : le texte qui « tape » vit hors de cette
  * région (dans le fil visuel), et seule la fin y écrit.
  */
+/**
+ * LE SIGNE DE VIE PENDANT L'ATTENTE (Story 6.9, QA T13).
+ *
+ * ── LE DÉFAUT MESURÉ ───────────────────────────────────────────────────────────────────────────
+ *
+ * Le tour de QA a relevé « 7,4 s sans le moindre signe de vie ». Ce n'était pas tout à fait vrai :
+ * un signe existe depuis la 2.2 — le glyphe d'Anam ÉPAISSIT son trait dans la surimpression. Mais
+ * il fait 20 px, il passe de 1,5 à 2,75 px d'épaisseur, et il est EN HAUT DE L'ÉCRAN. Elle vient
+ * d'appuyer sur « Envoyer » : elle regarde le bas.
+ *
+ * Le signal était donc au bon endroit pour le produit, et au mauvais endroit pour elle.
+ *
+ * ── CE QUI N'A PAS CHANGÉ, ET NE DOIT PAS ──────────────────────────────────────────────────────
+ *
+ * ⚠️ AUCUNE ANIMATION CYCLIQUE. « Jamais trois points qui rebondissent » est une décision de la
+ * Story 2.2, pas un détail de style : un indicateur nerveux dit « la machine calcule ». Ici on
+ * répète le MÊME geste (le trait s'épaissit, une fois) à l'endroit où l'oeil se trouve. Le glyphe
+ * PARAÎT — et le fait qu'il soit apparu EST le signe.
+ */
+function AnamPrepare() {
+  return (
+    <div className={`${s.attente} fondu-texte`} aria-hidden>
+      <svg className={s.attenteSigne} viewBox="0 0 24 24" focusable="false">
+        <path d="M12 22 V7" />
+        <path d="M12 12.5 L7 8.5" />
+        <path d="M12 14.5 L17 9.5" />
+      </svg>
+    </div>
+  );
+}
+
 export default function Fil({
   tours,
   annonce,
+  prepare = false,
   onReessayer,
   onRefuserAbonnement,
   onRepondreProposition,
@@ -41,6 +73,8 @@ export default function Fil({
 }: {
   tours: Tour[];
   annonce: string;
+  /** Story 6.9 (QA T13) — Anam prépare : le signe paraît EN BAS DU FIL, là où elle regarde. */
+  prepare?: boolean;
   onReessayer?: (idAnam: string) => void;
   onRefuserAbonnement?: (id: string) => void;
   /** Story 4.5 — Oui/Non sur une proposition de branche, et le nommage (le nom donné par elle). */
@@ -70,9 +104,39 @@ export default function Fil({
 
   // À chaque nouveau contenu : recoller au bas UNIQUEMENT si on y était (défilement instantané,
   // jamais « smooth » → cohérent reduced-motion, et non captif).
+  //
+  // ⚠️ `prepare` EST DANS LES DÉPENDANCES (Story 6.9) : le signe d'attente s'insère en fin de fil et
+  // ajoute de la hauteur. Sans ce recalage, il naîtrait juste sous le bord visible — c'est-à-dire
+  // invisible, exactement le défaut qu'il vient corriger.
   useEffect(() => {
     const el = conteneur.current;
     if (el && etaitEnBas.current) el.scrollTop = el.scrollHeight;
+  }, [tours, prepare]);
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // LE FILET DE DÉTRESSE VIENT À ELLE — LA SEULE EXCEPTION AU SUIVI NON CAPTIF (6.9, QA T26)
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // Le suivi du bas est NON CAPTIF depuis la 2.2 (AC3) : si elle a remonté le fil, on ne la ramène
+  // pas. C'est une bonne règle, et elle a exactement UN cas où elle nuit.
+  //
+  // Le tour de QA a mesuré qu'au moment de la détresse, le fil ne fait que 307 px dans une fenêtre
+  // de 742 : le bloc de ressources — trois numéros et leurs descriptions — ne tient pas dedans. S'il
+  // s'insère alors qu'elle n'est pas ancrée en bas, il paraît HORS DU CHAMP. Le filet est là, et
+  // personne ne le voit.
+  //
+  // AD-9/AD-15 tranchent : le filet doit ATTEINDRE. On amène donc le bloc de ressources dans le
+  // champ, quoi qu'il arrive — et rien d'autre. Ce n'est pas un assouplissement de la règle, c'est
+  // son unique exception, nommée.
+  const ressourceRef = useRef<HTMLDivElement>(null);
+  const derniereRessource = useRef<string | null>(null);
+  useEffect(() => {
+    const dernier = [...tours].reverse().find((t) => t.role === "ressource");
+    if (!dernier || dernier.id === derniereRessource.current) return;
+    derniereRessource.current = dernier.id;
+    // `block: "nearest"` : on l'amène dans le champ SANS recentrer la page — elle n'est pas
+    // déplacée plus que nécessaire. Jamais « smooth » : cohérent reduced-motion, comme tout le fil.
+    ressourceRef.current?.scrollIntoView({ block: "nearest" });
   }, [tours]);
 
   return (
@@ -88,7 +152,10 @@ export default function Fil({
             }
           />
         ) : t.role === "ressource" ? (
-          <BlocRessources key={t.id} ressources={t.ressources} verifieLe={t.verifieLe} />
+          // L'ancre du filet : `scrollIntoView` la vise à l'insertion (voir l'encadré T26 ci-dessus).
+          <div key={t.id} ref={ressourceRef}>
+            <BlocRessources ressources={t.ressources} verifieLe={t.verifieLe} />
+          </div>
         ) : t.role === "bilan" ? (
           <BlocDocument key={t.id} titre={t.titre} points={t.points} />
         ) : t.role === "paywall" ? (
@@ -133,6 +200,8 @@ export default function Fil({
           <TourUtilisatrice key={t.id} texte={t.texte} />
         ),
       )}
+      {/* Story 6.9 (QA T13) — EN DERNIER, après tous les tours : c'est là que la réponse va naître. */}
+      {prepare && <AnamPrepare />}
       {/* Région d'annonce a11y — hors flux visuel, remplie UNE fois à la fin (message complet). */}
       <p className={s.annonce} aria-live="polite" aria-atomic="true">
         {annonce}

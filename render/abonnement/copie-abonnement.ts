@@ -33,6 +33,23 @@ export const ETAT_ACTIF_JUSQU_AU = (date: string) => `Il se renouvellera le ${da
 export const ETAT_RESILIE = "Ton abonnement est résilié.";
 export const ETAT_RESILIE_JUSQU_AU = (date: string) => `Tu y as accès jusqu'au ${date}.`;
 export const ETAT_TERMINE = "Ton abonnement n'est plus actif.";
+
+/**
+ * ── STORY 3.6 (QA T2) — CE QU'ON DIT À QUELQU'UN QUI N'A JAMAIS EU D'ABONNEMENT ────────────────
+ *
+ * ⚠️ CETTE PHRASE MANQUAIT, ET SON ABSENCE PRODUISAIT UN MENSONGE. La page traitait « jamais
+ * abonnée » et « abonnement terminé » dans la MÊME branche : un compte gratuit qui arrivait ici —
+ * envoyé par `/ancrages`, par exemple — lisait « Ton abonnement n'est plus actif », à propos d'un
+ * abonnement qui n'a jamais existé. Un état inventé, sur la page qui parle d'argent.
+ *
+ * Elle est FACTUELLE et sans reproche : ni « tu n'as pas encore souscrit » (qui suppose une
+ * intention), ni « passe au premium » (qui vend dans une phrase d'état). Ce qui vend est l'offre
+ * en dessous, et elle est nommée comme telle.
+ */
+export const ETAT_JAMAIS_ABONNEE = "Tu n'as pas d'abonnement.";
+
+/** Le titre de l'offre. Le MÊME que celui de la carte du fil : une seule offre, un seul nom. */
+export const TITRE_OFFRE = "Continuer avec Anam";
 /** Panne de lecture : ne jamais dire « tu n'as pas d'abonnement » à quelqu'un qui en a un (patron 4.6). */
 export const ETAT_INDISPONIBLE = "Je n'arrive pas à afficher ton abonnement pour l'instant.";
 export const ETAT_INDISPONIBLE_CORPS = "Il est là. Réessaie dans un moment.";

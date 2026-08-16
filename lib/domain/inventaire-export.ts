@@ -129,6 +129,14 @@ export const INVENTAIRE_EXPORT: readonly EntreeInventaire[] = [
     motif: "registre d'idempotence Stripe, clé sur l'identifiant d'évènement du prestataire — aucune colonne d'utilisatrice",
   },
   { table: "incident_systeme", verdict: "exclu", motif: "incidents d'exploitation, sans art. 9 et sans rattachement à une personne" },
+  {
+    table: "effacement",
+    verdict: "exclu",
+    motif:
+      "la trace d'un effacement (Story 6.7). Elle ne porte aucune donnée d'elle — seulement une " +
+      "empreinte qui ne se remonte plus une fois l'identifiant disparu — et par construction elle " +
+      "n'existe qu'APRÈS qu'il n'y a plus rien à exporter.",
+  },
 ];
 
 /** Les tables qui doivent apparaître dans le document, dans l'ordre. */

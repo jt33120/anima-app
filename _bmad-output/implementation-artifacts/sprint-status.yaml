@@ -131,13 +131,42 @@ development_status:
   # ⚠️ L'INVENTAIRE (lib/domain/inventaire-export.ts) DONNE UN VERDICT AUX 35 TABLES et le corpus de
   # migrations le garde : une table créée sans verdict casse le build. À NE PAS FUSIONNER avec
   # l'inventaire d'effacement de 6.7 — `execution_job` est hors export et devra pourtant être effacée.
-  6-7-effacement-total-exhaustif: backlog
+  6-7-effacement-total-exhaustif: review # livrée le 2026-08-16 ; migration 0058 déployée cloud
+  # (parité 58/58/58) ; 24 mutants, 24 tués (21 au premier passage). ⚠️ TROUVAILLE STRUCTURANTE : la
+  # trace d'un effacement NE PEUT PAS vivre dans `audit_securite` — sa clé cascade, donc la trace
+  # aurait été effacée par l'effacement. Table `effacement` SANS aucune clé étrangère, portant une
+  # EMPREINTE sha256 et pas l'identifiant. D2 : le moteur retire les BRANCHES en premier — seule clé
+  # `on delete restrict` du schéma ; sans ce retrait, l'effacement dépendrait de l'ordre de cascade,
+  # c'est-à-dire du hasard des migrations. ⚠️ CETTE LIGNE EST INVÉRIFIABLE PAR UN TEST QUI EFFACE
+  # (mesuré : la retirer laisse effacement-sql.test.ts VERT) — seule la garde structurelle la tue.
+  # D3 : l'identité `auth.users` part aussi ; vérifié que `postgres` a DELETE dessus SUR LE CLOUD.
+  # D4 : registre `sous-traitants.ts` — chaque verdict DÉSIGNE ce qui le rend vrai (fichier de garde
+  # ou porte pré-lancement inscrite ici même), et l'écran DÉRIVE de lui ce qui ne peut pas partir.
+  # D5 : fenêtre PITR = argument lu à l'exécution, borne = CHECK de table (lie aussi service_role) ;
+  # une valeur illisible retombe sur le défaut, elle ne REFUSE PAS d'effacer.
+  # ⚠️ INVENTAIRE D'EFFACEMENT DISTINCT de celui de l'export, et gardé comme tel : `execution_job`
+  # est hors export (ne lui apprend rien) mais effacée (son `cible_id` la nomme).
+  # DETTE NOMMÉE : le crypto-shredding n'est pas construit (AD-14 autorise les deux branches ; on
+  # tient la fenêtre bornée).
   6-8-moteur-retention-automatique: backlog
   epic-6-retrospective: optional
 
 # Portes PRÉ-LANCEMENT — humaines, hors code, aucune story ne les débloque toute seule.
 # Elles ne bloquent pas le développement ; elles bloquent la MISE EN LIGNE.
 pre_launch_gates:
+  # ⚠️ LES DEUX PORTES CI-DESSOUS SONT RÉFÉRENCÉES PAR DU CODE. `lib/domain/sous-traitants.ts` y
+  # adosse un verdict de propagation d'effacement, et `tests/sous-traitants.test.ts` vérifie qu'elles
+  # sont bien inscrites ici. Renommer une clé `porte:` fait rougir la CI — c'est voulu : un verdict
+  # dont la garde humaine a disparu du suivi est un verdict qui ne repose plus sur rien.
+  - gate: "conservation-comptable — confirmer la durée de conservation des pièces chez le prestataire de paiement, et que l'effacement d'un compte ne les touche pas (obligation légale)"
+    concerne: "Epic 6 (6.7), Epic 3 (Stripe)"
+    status: open
+  - gate: "sous-traitant-transcription — aucun prestataire de transcription n'est lié ; en lier un exige un DPA art. 28 + ZDR ET un verdict de propagation d'effacement"
+    concerne: "Epic 6 (6.7), NFR-003/NFR-004"
+    status: open
+  - gate: "Fenêtre PITR du projet hébergé effectivement réglée sur la durée annoncée par EFFACEMENT_FENETRE_PITR_JOURS (7 j par défaut) — réglage d'infrastructure, pas de code"
+    concerne: "Epic 6 (6.7), AD-14"
+    status: open
   - gate: "Validation du protocole de détresse par un professionnel de santé mentale"
     concerne: "Epic 2 (2.4 → 2.6)"
     status: open

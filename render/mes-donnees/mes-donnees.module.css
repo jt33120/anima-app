@@ -56,3 +56,64 @@
   font-size: 0.92rem;
   color: var(--texte-doux);
 }
+
+/* ── L'effacement total (Story 6.7) ────────────────────────────────────────────────────────────
+   Séparé de l'export par un filet, et RIEN de plus : pas de rouge, pas d'encadré d'alerte, pas de
+   pictogramme de danger. Un écran qui dramatise l'exercice d'un droit est une forme de retenue. */
+
+.effacement {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid color-mix(in srgb, var(--texte-doux) 30%, transparent);
+}
+
+.titreSection {
+  font-family: var(--pile-anam);
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: var(--texte);
+  margin: 0;
+}
+
+.formulaire {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.confirmation {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--texte-doux);
+  line-height: 1.5;
+  min-height: var(--cible-tactile);
+  cursor: pointer;
+  /* ⚠️ AUCUNE RÈGLE PROPRE À LA CASE, ET C'EST `tests/cible-tactile.test.ts` QUI L'A IMPOSÉ.
+     Une case dimensionnée à la main fait une cible de 18 px ; ici c'est le LABEL qui porte la
+     cible (44 px de haut, toute la largeur de la ligne), et cliquer le label coche la case —
+     comportement natif. `accent-color` s'hérite, donc la couleur descend sans règle dédiée. */
+  accent-color: var(--texte);
+}
+
+.effacer {
+  align-self: start;
+  font: inherit;
+  font-size: 0.98rem;
+  color: var(--texte);
+  background: transparent;
+  border: 1px solid var(--texte-doux);
+  border-radius: 999px;
+  min-height: var(--cible-tactile);
+  padding: 0 1.4rem;
+  cursor: pointer;
+}
+
+.effacer:focus-visible {
+  outline: 2px solid var(--texte);
+  outline-offset: 2px;
+}

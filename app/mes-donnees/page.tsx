@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import * as copie from "@/lib/domain/copie-mes-donnees";
+import { fenetreDepuisTexte } from "@/lib/domain/effacement";
 import s from "@/render/mes-donnees/mes-donnees.module.css";
+import { effacerTout } from "./actions";
 
 // NFR-015 / identité de route — « Anam » partout, jamais un titre qui dit l'intimité de la page.
 export const metadata = { title: "Anam" };
@@ -39,6 +41,9 @@ export default async function PageMesDonnees({
   searchParams: Promise<{ echec?: string }>;
 }) {
   const { echec } = await searchParams;
+  // AD-14 : l'échéance est lue à l'exécution, jamais codée en dur — et ce qu'on lui annonce est
+  // exactement ce que le moteur inscrira sur la trace.
+  const fenetre = fenetreDepuisTexte(process.env.EFFACEMENT_FENETRE_PITR_JOURS);
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -69,11 +74,52 @@ export default async function PageMesDonnees({
       <p className={s.precision}>{copie.RIEN_NE_CHANGE}</p>
 
       {/* La route renvoie ici quand la fabrication a échoué : elle ne sert JAMAIS un fichier vide. */}
-      {echec && (
+      {echec === "1" && (
         <p className={s.echec} role="status">
           {copie.ECHEC}
         </p>
       )}
+
+      {/* ══ L'EFFACEMENT TOTAL (Story 6.7) ═══════════════════════════════════════════════════════
+          ⚠️ IL VIENT APRÈS L'EXPORT, ET CE N'EST PAS UNE QUESTION DE MISE EN PAGE. L'AC3 exige
+          qu'« un export soit proposé avant la suppression » : le lien est au-dessus, et la copie
+          y renvoie. Une garde de test vérifie cet ordre dans la source — c'est la seule façon
+          qu'un remaniement ne le retourne pas sans qu'on le voie. */}
+      <section className={s.effacement}>
+        <h2 className={s.titreSection}>{copie.SECTION_EFFACEMENT}</h2>
+        <p className={s.precision}>{copie.EFFACEMENT_CE_QUI_PART}</p>
+
+        {/* Ce qui ne peut pas partir, DÉRIVÉ du registre des sous-traitants : le jour où la liste
+            change, l'écran change avec elle. Le taire serait le mensonge le plus facile de la page.
+            ⚠️ AUCUNE CONDITION ICI — un mutant a montré qu'une condition dans le JSX se neutralise
+            sans faire rougir personne. La phrase est fabriquée dans `lib/domain`, où elle s'éprouve. */}
+        <p className={s.precision}>{copie.phraseCeQuiReste()}</p>
+
+        <p className={s.precision}>{copie.effacementFenetre(fenetre)}</p>
+        <p className={s.precision}>{copie.EFFACEMENT_EXPORT_DABORD}</p>
+
+        {/* UNE seule confirmation, dans le MÊME formulaire : aucun écran ne s'interpose (AC3). */}
+        <form className={s.formulaire} action={effacerTout}>
+          <label className={s.confirmation}>
+            <input type="checkbox" name="compris" value="oui" required />
+            <span>{copie.EFFACEMENT_CONFIRMATION}</span>
+          </label>
+          <button type="submit" className={s.effacer}>
+            {copie.ACTION_EFFACER}
+          </button>
+        </form>
+
+        {echec === "effacement" && (
+          <p className={s.echec} role="status">
+            {copie.EFFACEMENT_ECHEC}
+          </p>
+        )}
+        {echec === "confirmation" && (
+          <p className={s.echec} role="status">
+            {copie.EFFACEMENT_SANS_CONFIRMATION}
+          </p>
+        )}
+      </section>
     </main>
   );
 }

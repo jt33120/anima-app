@@ -63,7 +63,9 @@ const DEPOT_MEMOIRE = resolve(racine, "lib/data/lire-memoire.ts");
  * déjà tout import runtime de `@supabase` et de `@/lib/data` (AD-1). Le test ci-dessous re-mesure
  * cette impossibilité ICI plutôt que de faire confiance à l'exclusion.
  */
-const INVENTAIRE = resolve(racine, "lib/domain/inventaire-export.ts");
+const INVENTAIRES = ["inventaire-export.ts", "inventaire-effacement.ts"].map((f) =>
+  resolve(racine, "lib/domain", f),
+);
 const tousSource = [
   ...fichiersSource("app"),
   ...fichiersSource("lib"),
@@ -99,7 +101,7 @@ describe("fait_extrait — un seul chemin d'écriture possédé (T5/AC4)", () =>
 
   it("le nom de table `fait_extrait` n'apparaît nulle part dans le périmètre (tout accès passe par une RPC possédée)", () => {
     for (const f of tousSource) {
-      if (f === INVENTAIRE) continue; // voir l'exclusion prouvée ci-dessous
+      if (INVENTAIRES.includes(f)) continue; // voir l'exclusion prouvée ci-dessous
       expect(lire(f), `accès direct à la table fait_extrait (contourne le merge/la lecture) : ${f}`).not.toMatch(TABLE_LITERAL);
     }
     // Contrôles positifs : le regex DOIT matcher toutes les formes d'accès (nu, backtick, SQL brut, qualifié).
@@ -113,15 +115,17 @@ describe("fait_extrait — un seul chemin d'écriture possédé (T5/AC4)", () =>
     expect("p_extrait_source").not.toMatch(TABLE_LITERAL);
   });
 
-  it("(Story 6.6) L'EXCLUSION SE PROUVE : l'inventaire NOMME la table, il ne peut pas y accéder", () => {
+  it("(Stories 6.6/6.7) LES EXCLUSIONS SE PROUVENT : les inventaires NOMMENT les tables, sans pouvoir y accéder", () => {
     // Une exclusion non prouvée est un trou. Celle-ci est mesurée à chaque exécution : le fichier
     // n'importe rien qui sache parler à une base, et il n'écrit aucun verbe d'accès. Le jour où
     // quelqu'un y ajoutera un client Supabase, c'est cette assertion qui rougira — pas le silence.
-    const src = lire(INVENTAIRE);
-    expect(src, "l'inventaire cite bien les tables — sinon l'exclusion ne sert à rien").toMatch(TABLE_LITERAL);
-    expect(src, "l'inventaire a gagné un accès base").not.toMatch(
-      /@supabase|@\/lib\/data|createClient|\.from\(|\.rpc\(|SupabaseClient/,
-    );
+    for (const inventaire of INVENTAIRES) {
+      const src = lire(inventaire);
+      expect(src, `${inventaire} ne cite plus les tables — l'exclusion ne sert à rien`).toMatch(TABLE_LITERAL);
+      expect(src, `${inventaire} a gagné un accès base`).not.toMatch(
+        /@supabase|@\/lib\/data|createClient|\.from\(|\.rpc\(|SupabaseClient/,
+      );
+    }
   });
 
   it("(Story 6.5) la RPC de lecture `charger_faits_retenus` n'est référencée QUE dans lib/data/lire-memoire.ts", () => {

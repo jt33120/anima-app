@@ -1,3 +1,5 @@
+import { RETENUS_PAR_LA_LOI } from "./sous-traitants";
+
 /**
  * copie-mes-donnees.ts — LES MOTS DE LA HALTE « MES DONNÉES » ET DU DOCUMENT (Story 6.6).
  *
@@ -51,3 +53,54 @@ export const DOCUMENT_ANNEXE =
 
 /** Le nom du fichier téléchargé. Sobre : il finira dans un dossier de téléchargements partagé. */
 export const NOM_FICHIER_PREFIXE = "anam-mes-donnees";
+
+// ── L'effacement total (Story 6.7) ──────────────────────────────────────────────────────────────
+//
+// ⚠️ AUCUNE DE CES PHRASES NE RETIENT, NE DEMANDE POURQUOI, NI NE PROPOSE AUTRE CHOSE. L'AC3
+// interdit l'écran de rétention, l'offre et le « es-tu sûre ? » à étages. Une seule confirmation,
+// sur le même écran, et elle porte sur ce qui se passe — pas sur ce qu'elle perdrait.
+
+export const SECTION_EFFACEMENT = "Tout effacer";
+
+export const EFFACEMENT_CE_QUI_PART =
+  "Tes conversations, tes branches, ce qu'Anam retient, ton thème natal, ton compte : tout part " +
+  "d'un coup, et rien ne revient.";
+
+/** Ce que l'effacement ne peut pas retirer. Le sujet est DÉRIVÉ de `sous-traitants.ts`. */
+export const EFFACEMENT_CE_QUI_RESTE_PREFIXE = "Une seule chose ne peut pas partir :";
+
+/**
+ * La phrase qui dit ce qui SURVIT à l'effacement, fabriquée depuis le registre des sous-traitants.
+ *
+ * ⚠️ C'EST UNE FONCTION, ET UN MUTANT SURVIVANT L'A IMPOSÉ. La phrase vivait dans le JSX, derrière
+ * un `RETENUS_PAR_LA_LOI.length > 0 &&`. Remplacer cette condition par `false` — donc taire ce qui
+ * reste — ne faisait rougir aucun test : le nom du registre était toujours dans le fichier, et la
+ * garde ne regardait que ça. Sortie de la page, la phrase devient une valeur qu'on peut éprouver.
+ *
+ * Rend `""` si rien n'est retenu — React n'affiche alors rien, et la page n'a besoin d'AUCUNE
+ * condition, donc d'aucune condition qu'on puisse neutraliser en silence.
+ */
+export function phraseCeQuiReste(): string {
+  if (RETENUS_PAR_LA_LOI.length === 0) return "";
+  return `${EFFACEMENT_CE_QUI_RESTE_PREFIXE} ${RETENUS_PAR_LA_LOI.map((t) => t.motif).join(" ")}`;
+}
+
+export function effacementFenetre(jours: number): string {
+  if (jours <= 0) return "Aucune copie de sauvegarde ne subsiste.";
+  return `Les copies de sauvegarde s'effacent d'elles-mêmes sous ${jours} jours.`;
+}
+
+export const EFFACEMENT_EXPORT_DABORD =
+  "Si tu veux garder une trace, télécharge d'abord — le bouton est juste au-dessus.";
+
+export const EFFACEMENT_CONFIRMATION = "J'ai compris que tout disparaît et que rien ne revient.";
+
+export const ACTION_EFFACER = "Tout effacer";
+
+export const EFFACEMENT_ECHEC =
+  "L'effacement n'a pas abouti. Rien n'a été touché — tu peux recommencer.";
+
+export const EFFACEMENT_SANS_CONFIRMATION = "Coche la case pour que l'effacement puisse partir.";
+
+/** Sur `/entrer`, après l'effacement. Registre PRODUIT — jamais la voix d'Anam. */
+export const ADIEU = "Tout a été effacé. Il ne reste rien de toi ici.";

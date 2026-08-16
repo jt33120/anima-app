@@ -96,7 +96,27 @@ development_status:
   # ── Epic 6 : Les deux rythmes & tes données ───────────────────────────────────
   epic-6: in-progress
   6-1-rythmes-retention-ordonnanceur-unique: review # contextée le 2026-08-14 ; RESSERRÉE à la mesure seule (zéro migration) après validation adversariale : 34 constats, dont 15 critiques
-  6-1a-sql-ordonnanceur-jeton-alarme: review # AJOUTÉE le 2026-08-14 — extraite de la 6.1 : toute la SQL (migration 0052, jeton T6-19, homme mort 48h→60h, boucle de fermeture de l'alarme, idempotence prouvée sur un effet compté). À faire APRÈS la 6.1, bloque la 6.8
+  6-1a-sql-ordonnanceur-jeton-alarme: done # AJOUTÉE le 2026-08-14 — extraite de la 6.1 : toute la SQL
+  # (migration 0052, jeton T6-19, homme mort 48h→60h, boucle de fermeture de l'alarme, idempotence
+  # prouvée sur un effet compté).
+  # ── REVUE DE CODE 2026-08-16 (locale, mono-modèle — PAS une revue multi-agents indépendante) ──
+  # AUCUNE trouvaille bloquante. Le jeton ferme bien T6-19 (`=` et non `is not distinct from` : sur le
+  # jeton, `null` est une ignorance, pas une valeur métier) ; l'ancienne signature à 5 arguments est
+  # DROPée et non surchargée ; le vocabulaire fermé est doublé d'une CONTRAINTE DE TABLE, donc
+  # opposable à service_role ; l'alarme s'éteint par une réussite postérieure et une réussite PAR
+  # PERSONNE ne l'éteint pas ; 60 h est gardé par un test qui lit la valeur DANS la définition SQL.
+  # DEUX PISTES POURSUIVIES ET RÉFUTÉES : le vocabulaire SQL rejetterait les codes du TypeScript
+  # (non — `x_timeout` et `rpc: CODE` passent les deux formes) ; `incident_systeme.jour` serait en UTC
+  # face à une sonde en heure de Paris (non — le défaut EST `Europe/Paris`, vérifié en base).
+  # ⚠️ DEUX TROUVAILLES REPORTÉES SUR LA 6.8, qui est « le seul propriétaire des durées » (son AC6) :
+  #   R1 — AUCUNE rétention sur `execution_job` ni `incident_systeme`. `purger_notifications_envoyees`
+  #        existe pour les notifications ; rien pour les tables de l'ordonnanceur, alors que
+  #        `socle-quotidien` et `rappel-echeance` y écrivent UNE LIGNE PAR PERSONNE PAR JOUR. La table
+  #        qui tracera le moteur de rétention n'a pas de rétention.
+  #   R2 — le job de SANTÉ peut rendre la main avant d'avoir levé le moindre incident (garde de
+  #        réserve) ; il est alors clos `reussi`, l'homme mort voit une réussite, /api/health dit `ok`
+  #        et AUCUN `job_en_retard` n'est levé — pour aucun job. Le code le documente, mais la seule
+  #        trace est un `console.warn` qui ne survit pas au redéploiement.
   6-2-socle-quotidien-impersonnel-notifications-discretes: review # livrée le 2026-08-15 ; migration 0053 ; fondation web push complète (manifeste, service worker sans cache, VAPID sans dépendance) + /reglages + privacy-cover. INERTE sur le palier hobby (1 cron/jour ne peut honorer une heure choisie) : le job REFUSE d'émettre, et l'écran le dit. Porte ajoutée en §2 des portes ; 7 corps d'aperçu à faire relire par Anima
   6-3-anam-rare-et-specifique: review # livrée le 2026-08-15 ; migration 0054 ; N'ÉMET RIEN DE NOUVEAU (MOTIFS_POUSSEE=1, MotifCourriel=2, reserver_notification intouchée) : elle DÉCLARE l'ensemble fermé des 3 motifs en un seul endroit, pose le créneau diurne 6h-21h Paris AVANT toute réservation dans notifier() (signature + 2 appelants) et dans le job de rappel, et livre la carte « Anam » de l'accueil dont l'annonce et l'affichage dérivent de la MÊME source (AC8 prouvé par égalité). AD-17 porté en SQL. 44 mutants, 43 tués. ⚠️ L'accueil rend désormais 6 objets = plafond UX-DR-30 : toute carte de catalogue ajoutée fera rougir
   6-4-geste-de-pause: review # livrée le 2026-08-16 ; migration 0055 déployée cloud (parité 55/55/55) ;

@@ -4,7 +4,7 @@ baseline_commit: a227d87bf72bc2e9e14d1d6f9f80b305ae787664
 
 # Story 6.1a : La SQL de l'ordonnanceur — le jeton, l'alarme, et la preuve par l'effet
 
-Status: review
+Status: done
 
 ## Story
 
@@ -346,3 +346,62 @@ n'a jamais tourné). État antérieur à cette story, pas une régression.
 | Date | Quoi |
 |---|---|
 | 2026-08-15 | Story implémentée. Migration `0052`. D3 contestée et retirée ; D4 et D5 ajoutées. |
+
+
+---
+
+## Revue de code — 2026-08-16
+
+**Portée :** migration `0052` ligne à ligne ; `lib/data/depot-ordonnanceur.ts`,
+`lib/ordonnanceur/executer.ts`, `lib/ordonnanceur/jobs/sante.ts`, `lib/domain/code-erreur.ts`,
+`lib/domain/delai.ts` ; ossature des quatre fichiers de test (2 966 lignes).
+
+**Nature :** revue locale, **mono-modèle** — le même modèle que celui qui a écrit le code. Ce n'est
+pas une revue adversariale indépendante, et c'est une limite qu'il faut lire comme telle.
+
+**Verdict : aucune trouvaille bloquante.**
+
+### Ce que la revue confirme
+
+| | |
+|---|---|
+| Le jeton | ferme T6-19 pour de bon. `=` et non `is not distinct from` : sur `cible_id`, `null` est une valeur métier (« job global ») ; sur le jeton, ce ne serait qu'une ignorance, et `is not distinct from` la ferait s'accorder avec elle-même. Échoue fermé. |
+| La surcharge | l'ancienne signature à cinq arguments est `drop`ée, pas remplacée — sinon le contournement de la garde serait resté publié sur PostgREST à côté d'elle. Un test le vérifie. |
+| Le vocabulaire fermé | doublé d'une **contrainte de table**, donc opposable à `service_role` — qui est justement le rôle sous lequel le moteur de rétention écrira. |
+| L'alarme | s'éteint par une réussite **postérieure**, et une réussite **par personne** ne l'éteint pas. Les deux sont testés nommément. |
+| 60 h | gardé par un test qui lit la valeur **dans la définition SQL**, jamais recopiée en TypeScript, et vérifie `2 × intervalle + dérive ≤ fenêtre`. |
+| L'idempotence | prouvée sur un **effet compté**, dépôt réel et vrai Postgres — pas sur un dépôt factice qui simule son propre refus. |
+
+### Deux pistes poursuivies, et réfutées
+
+Elles étaient les plus prometteuses ; les écrire est le seul moyen qu'une prochaine revue ne les
+repaie pas.
+
+1. **Le vocabulaire SQL rejetterait les codes produits par le TypeScript.** Non : `avecDelai` rejette
+   avec `synthese_timeout` (forme interne, deux segments) et le dépôt avec `reclamer_execution: 42501`
+   (forme RPC). Les deux formes passent, dans les deux sens, et les deux régex sont identiques de part
+   et d'autre.
+2. **`incident_systeme.jour` serait daté en UTC face à une sonde qui compare en heure de Paris.**
+   Vérifié en base : le défaut est `((now() at time zone 'Europe/Paris'))::date`.
+
+### Deux trouvailles, reportées sur la 6.8
+
+Elles ne sont pas des défauts de cette story : ce sont des manques que la 6.8 est la seule story
+légitime à combler, puisqu'elle est « le seul propriétaire des durées » (son AC6).
+
+**R1 — Les tables de l'ordonnanceur n'ont aucune rétention.** `purger_notifications_envoyees` existe
+pour `notification_envoyee` ; **rien** pour `execution_job` ni `incident_systeme`. Or `socle-quotidien`
+et `rappel-echeance` y écrivent une ligne **par personne et par jour**. La table qui tracera le moteur
+de rétention est la seule à ne pas en avoir.
+
+**R2 — Le job de santé peut rendre la main avant d'avoir levé le moindre incident.** Sa garde de
+réserve le fait sortir de sa boucle ; il est alors clos `reussi`, l'homme mort voit une réussite,
+`/api/health` répond `ok` — et **aucun `job_en_retard` n'est levé, pour aucun job**. Le code le
+documente en toutes lettres et journalise `sante_lot_incomplet`, mais un `console.warn` ne survit pas
+à un redéploiement : la seule alarme du produit peut s'éteindre sans laisser de trace durable.
+
+### Résidu mineur, sans action
+
+`clore_execution: echec` — le message construit quand la réponse PostgREST n'a pas de code — ne
+correspond à aucune des deux formes reconnues, et finit donc en `erreur_non_identifiee` dans le
+journal. La perte est d'un mot, sur un chemin où la base vient de refuser une écriture.

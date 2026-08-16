@@ -14,6 +14,12 @@ import {
   DELAI_JOB_SOCLE_MS,
   RESERVE_PERSONNE_POUSSEE_MS,
 } from "@/lib/ordonnanceur/jobs/socle-quotidien";
+import {
+  executerRetention,
+  NOM_JOB as NOM_RETENTION,
+  DELAI_JOB_RETENTION_MS,
+  RESERVE_RETENTION_MS,
+} from "@/lib/ordonnanceur/jobs/retention";
 import { RESERVE_PERSONNE_MS } from "@/lib/domain/synthese";
 
 /**
@@ -130,7 +136,12 @@ export const REGISTRE: readonly JobEnregistre[] = [
     // C'est exactement ce que la 6.1 avait construit : le budget est une ressource PARTAGÉE, et un
     // job qui entre peut renchérir le coût d'un autre sans le toucher. Un plafond acheté « pour être
     // tranquille » aurait avalé le signal.
-    delaiMs: 8_000,
+    //
+    // 9 s depuis la 6.8. Le moteur de rétention est le CINQUIÈME job : le plancher de celui-ci passe
+    // à `1 200 + 1 200 × 6 = 8 400`, au-dessus des 8 000 qu'il avait. La prédiction écrite dans
+    // `jobs/sante.ts` (« cette formule rendra rouge la garde au premier job ajouté ») s'est réalisée
+    // telle quelle, et c'est `tests/sante-job.test.ts` qui l'a dit — pas une relecture.
+    delaiMs: 9_000,
     // Son unité de travail est UN incident levé. Le plancher complet de ce job est plus exigeant que
     // cette seule valeur — il croît avec le registre — et vit dans `tests/sante-job.test.ts`
     // (`COUT_ETAT_MS + RESERVE_INCIDENT_MS × (n + 1)`), parce qu'il dépend de quelque chose que le
@@ -215,5 +226,30 @@ export const REGISTRE: readonly JobEnregistre[] = [
     reserveMs: RESERVE_PERSONNE_POUSSEE_MS,
     enServiceDepuis: new Date("2026-08-15T00:00:00Z"),
     executer: executerSocleQuotidien,
+  },
+  {
+    // Story 6.8 (NFR-021, AD-14). LE MOTEUR DE RÉTENTION — le seul propriétaire des durées, et le
+    // seul chemin par lequel une suppression périodique peut avoir lieu (AC6).
+    //
+    // QUOTIDIEN, et sans rattrapage particulier : une échéance ne se périme pas. Ce qui n'a pas été
+    // tranché aujourd'hui reste dû demain, et ressort de la même sélection.
+    nom: NOM_RETENTION,
+    cadence: "quotidien",
+    // 60 h, pour la même raison que les quatre autres : jamais pile sur un multiple de la cadence.
+    toleranceHeures: 60,
+    // 12 s. Trois phases bornées : trancher les échéances dues (un aller-retour par personne),
+    // prévenir les inactifs (deux à trois), purger le journal de l'ordonnanceur (un).
+    //
+    // La chaîne gardée, à CINQ jobs :
+    //     Σ      = 9 000 + 36 000 + 8 000 + 10 000 + 12 000 = 75 000
+    //     marge  = margeHorsDelais(5) = 800 + 5 × 2 400 = 12 800
+    //     Σ+marge= 87 800 ≤ BUDGET_TICK_MS = 89 000 ≤ PLAFOND_DUREE_MS.hobby = 300 000
+    //     mou    = 1 200 ≤ RESERVE_DECLAREE_MS = 2 000
+    // `maxDuration` de `app/api/ordonnanceur/route.ts` passe à 89 DANS LE MÊME COMMIT.
+    delaiMs: DELAI_JOB_RETENTION_MS,
+    // Son unité de travail est UNE personne : une échéance tranchée, ou un avis posté.
+    reserveMs: RESERVE_RETENTION_MS,
+    enServiceDepuis: new Date("2026-08-16T00:00:00Z"),
+    executer: executerRetention,
   },
 ];

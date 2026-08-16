@@ -166,7 +166,7 @@ export function margeHorsDelais(nombreDeJobs: number): number {
  * la plateforme retombe sur son défaut). Deux assertions distinctes gardent cette couture, et aucune
  * ne remplace l'autre.
  */
-export const BUDGET_TICK_MS = 74_000;
+export const BUDGET_TICK_MS = 89_000;
 
 /**
  * Le mou toléré entre ce que le registre promet et ce qu'on s'accorde.

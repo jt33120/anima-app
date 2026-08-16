@@ -66,7 +66,17 @@ export type MotifCourriel = "synthese_prete" | "echeance_intention";
  * `envoyerInformationLegale` n'accepte pas un `MotifCourriel`. Aucun des deux chemins ne peut emprunter
  * les gardes de l'autre, ni s'en dispenser.
  */
-export type MotifLegal = "reconduction_a_venir";
+/**
+ * Story 6.8 — `inactivite_avant_suppression` entre ICI, et pas dans `MotifCourriel`, pour EXACTEMENT
+ * la raison écrite ci-dessus. Un avis annonçant qu'un compte sera supprimé dans trois mois hérite du
+ * même régime qu'une information avant reconduction : il est DÛ.
+ *
+ * Le mettre dans `MotifCourriel` l'aurait soumis au refus de canal (`preference_courriel.refuse_le`)
+ * et au plafond par famille (0036). Autrement dit : un clic dans un pied de courriel, deux ans plus
+ * tôt, aurait dispensé de prévenir quelqu'un avant d'effacer tout ce qu'il a écrit. Le droit
+ * d'opposition porte sur les notifications produit — pas sur l'annonce d'une suppression.
+ */
+export type MotifLegal = "reconduction_a_venir" | "inactivite_avant_suppression";
 
 
 export interface PortCourriel {

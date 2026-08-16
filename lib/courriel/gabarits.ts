@@ -160,6 +160,42 @@ export function gabaritLegalPour(motif: MotifLegal, origine: Origine): Gabarit |
       lienUnClic: `${origine}/abonnement`,
     };
   }
+
+  /**
+   * Story 6.8 (AC2) — L'AVIS D'INACTIVITÉ.
+   *
+   * ⚠️ IL N'EST PAS SIGNÉ « — Anam », ET C'EST LA SEULE DIFFÉRENCE VISIBLE AVEC LE GABARIT
+   * CI-DESSUS. L'AC2 le demande mot pour mot : « une notification est émise par le produit, jamais
+   * signée d'Anam ». Anam est une présence à qui l'on parle ; lui faire annoncer qu'elle va effacer
+   * ce qu'on lui a confié, c'est lui faire jouer le rôle de l'huissier. Le nom d'expéditeur reste
+   * « Anam » — c'est l'identité de la route, pas une voix (NFR-015).
+   *
+   * ⚠️ ET IL NE DEMANDE PAS DE REVENIR. « Jamais un rappel de connexion » (EXPERIENCE.md) tient même
+   * ici : le texte dit ce qui va se passer et où aller pour l'empêcher ou pour tout emporter. Il ne
+   * dit ni « tu nous manques », ni « reconnecte-toi ».
+   *
+   * L'export est nommé AVANT la suppression, comme l'exige AD-14 : prévenir quelqu'un d'un
+   * effacement sans lui dire où récupérer ses données serait le respect de la lettre contre l'esprit.
+   */
+  if (motif === "inactivite_avant_suppression") {
+    return {
+      objet: "Ton compte va être supprimé",
+      texte: [
+        "Bonjour,",
+        "",
+        "Ce compte n'a pas servi depuis longtemps. Sans usage d'ici trois mois, il sera supprimé,",
+        "avec tout ce qu'il contient — et rien n'en reviendra.",
+        "",
+        "Se servir du compte annule la suppression. Tout est aussi téléchargeable, à tout moment :",
+        "",
+        `${origine}/mes-donnees`,
+      ].join("\n"),
+      // Comme pour l'information légale : le champ existe pour satisfaire `Gabarit`, mais l'adaptateur
+      // ne pose PAS l'en-tête sur ce chemin — il n'y a rien à désabonner d'une suppression annoncée.
+      lienUnClic: `${origine}/mes-donnees`,
+    };
+  }
+
   return null;
 }
 

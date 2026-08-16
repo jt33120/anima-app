@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 //
 // Ce 60 n'a jamais été un plafond de plateforme — le palier `hobby` en autorise 300. Le monter sans
 // job pour le justifier reconstruirait le mou dans lequel les gardes cessent de mordre (Story 6.1).
-export const maxDuration = 74;
+export const maxDuration = 89;
 
 /**
  * Comparaison à temps constant. On HACHE avant de comparer plutôt que de comparer les chaînes : `===`

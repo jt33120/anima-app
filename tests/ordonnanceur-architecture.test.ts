@@ -5,6 +5,7 @@ import { REGISTRE } from "@/lib/ordonnanceur/registre";
 import { RESERVE_PERSONNE_MS } from "@/lib/domain/synthese";
 import { RESERVE_INCIDENT_MS } from "@/lib/ordonnanceur/jobs/sante";
 import { NOM_JOB as NOM_RAPPEL, RESERVE_ENVOI_MS } from "@/lib/ordonnanceur/jobs/rappel-echeance";
+import { NOM_JOB as NOM_RETENTION, RESERVE_RETENTION_MS } from "@/lib/ordonnanceur/jobs/retention";
 import {
   NOM_JOB as NOM_SOCLE,
   RESERVE_PERSONNE_POUSSEE_MS,
@@ -1379,6 +1380,9 @@ describe("[T3-3] chaque job garde de quoi faire son travail", () => {
       // une fois la collision de noms entre le plancher de la synthèse (31 000 ms) et celui du rappel
       // (5 500 ms). Le socle a été nommé pour ne pas la reproduire une troisième fois.
       [NOM_SOCLE]: RESERVE_PERSONNE_POUSSEE_MS,
+      // Story 6.8 — son unité de travail est UNE personne : une échéance tranchée (un aller-retour)
+      // ou un avis posté (adresse, courriel, trace, échéance).
+      [NOM_RETENTION]: RESERVE_RETENTION_MS,
     };
     for (const job of REGISTRE) {
       expect(ancres[job.nom], `${job.nom} : aucun plancher de référence déclaré dans ce test`).toBeDefined();

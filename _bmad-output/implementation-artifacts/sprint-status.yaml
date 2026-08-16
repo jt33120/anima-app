@@ -168,7 +168,27 @@ development_status:
   # est hors export (ne lui apprend rien) mais effacée (son `cible_id` la nomme).
   # DETTE NOMMÉE : le crypto-shredding n'est pas construit (AD-14 autorise les deux branches ; on
   # tient la fenêtre bornée).
-  6-8-moteur-retention-automatique: backlog
+  6-8-moteur-retention-automatique: review # livrée le 2026-08-16 ; migration 0059 déployée cloud
+  # (parité 59/59/59) ; 29 mutants, 29 tués (23 au premier passage). ELLE N'ÉCRIT AUCUN EFFACEUR :
+  # le corps de 6.7 devient `effacer_utilisatrice(id, motif, fenêtre)` réservée au rôle système, et
+  # `effacer_toutes_mes_donnees` n'est plus qu'une enveloppe. Une garde exige qu'il n'existe QU'UN
+  # SEUL `delete from public.utilisatrice` dans les DÉFINITIONS COURANTES (pas dans le corpus : les
+  # migrations sont forward-only, le corps de 0058 y reste textuellement).
+  # ⚠️ D2 : UN COMPTE DONT L'ABONNEMENT EST ACTIF N'EST JAMAIS EFFACÉ POUR INACTIVITÉ — on peut payer
+  # douze mois sans ouvrir l'app, et seuls les webhooks écrivent alors. La minorité, elle, efface quoi
+  # qu'il arrive. D3 : la grâce se RECALCULE au moment de trancher (revenir suffit, personne n'a à
+  # nettoyer un drapeau). D4 : « dernière activité » exclut usage_ia/synthese/notification/abonnement
+  # — les compter rendrait un compte abandonné éternellement vivant à cause de nos propres jobs.
+  # D5 : l'avis part AVANT que l'échéance ne soit posée ; aucune échéance sans avis parti.
+  # D6 : l'avis est un MotifLegal (hors plafond et hors refus de canal) et n'est PAS signé d'Anam.
+  # D7 : aucune réclamation par personne — la ligne porterait un cible_id en cascade, donc elle serait
+  # effacée par l'effacement qu'elle garde.
+  # PRIX DU 5e JOB payé dans le même commit : sante 8s→9s, BUDGET_TICK_MS 74s→89s, maxDuration 74→89.
+  # R1 de la revue 6.1a FERMÉE (purge du journal, seulement ce qui est TERMINÉ) ; R2 maintenue en
+  # dette, avec son raisonnement (le remède est pire que le mal).
+  # CONTRÔLE AVANT VOL EN PROD : 97 comptes, 0 échéance, 0 effacement au premier tick.
+  # ⚠️ MON HARNAIS DE MUTATION ARCHIVAIT PAR NOM DE BASE et a écrasé lib/domain/retention.ts par
+  # lib/ordonnanceur/jobs/retention.ts ; détecté, réparé, harnais corrigé (chemin relatif entier).
   epic-6-retrospective: optional
 
 # Portes PRÉ-LANCEMENT — humaines, hors code, aucune story ne les débloque toute seule.

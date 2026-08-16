@@ -118,8 +118,9 @@ un `comment on table`.
 
 ### Vérification
 
-- **269 fichiers / 4586 tests** verts ; `tsc --noEmit`, `eslint .`, `next build` propres
+- **269 fichiers / 4575 tests** verts ; `tsc --noEmit`, `eslint .`, `next build` propres
 - Aucune migration
+- **32 mutants, 32 tués** (campagne commune 6.9 / 3.6 / T4)
 
 ### Dette laissée
 

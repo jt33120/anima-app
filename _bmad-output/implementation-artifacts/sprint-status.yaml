@@ -209,7 +209,13 @@ development_status:
   # ⚠️ HARNAIS : après la campagne de mutation, la suite est passée de 87 s à 746 s avec 36 fichiers
   # SQL en expiration. `db reset` n'y change RIEN ; `supabase stop && start` remet à zéro. La 6.8
   # avait vu la première marche de cette pente — on connaît maintenant le remède.
-  6-9-finition-interface: review # livrée le 2026-08-16 ; AUCUNE migration ; regroupe les trois
+  6-9-finition-interface: review # livrée le 2026-08-16 ; AUCUNE migration ; 32 mutants, 32 tués.
+  # ⚠️ LEÇON DE MÉTHODE DE LA CAMPAGNE : sur 6 survivants au premier passage, 4 formaient UNE SEULE
+  # famille — mes gardes vérifiaient qu'un nom APPARAÎT dans un fichier, pas qu'il SERT. Une ligne
+  # d'import suffisait à les satisfaire pendant que le rendu était muet (dont la reconduction
+  # L215-1, donc une infraction verte). Même patron qu'en 6.7 — et il s'est reproduit DANS le test
+  # qui venait de le corriger. Les 2 autres étaient des mutants équivalents, donc mes fautes.
+  # Regroupe les trois
   # constats de finition de la QA (T7, T13, T26) parce qu'ils touchent les mêmes fichiers de rendu.
   # ⚠️ T7 ÉTAIT PLUS GRAVE QUE LE CONSTAT : la QA disait « la mention IA n'existe que sur la scène ».
   # En ouvrant le dépôt, AUCUNE page hors scène ne menait à `/aide` — sauf `/barriere` et `/aide`
@@ -230,7 +236,8 @@ development_status:
   # le MÉCANISME : le bloc de ressources est AMENÉ dans le champ à son insertion (seule exception au
   # suivi non captif de 2.2 — AD-9/AD-15 veulent que le filet ATTEIGNE), et la région de conversation
   # rend les 64 px de réserve anti-débordement qu'elle payait sans défiler.
-  3-6-page-offre: review # livrée le 2026-08-16 ; AUCUNE migration ; ferme la QA T2. Le seul bouton
+  3-6-page-offre: review # livrée le 2026-08-16 ; AUCUNE migration ; 32 mutants, 32 tués
+  # (campagne commune 6.9/3.6/T4, en trois passages) ; ferme la QA T2. Le seul bouton
   # de souscription vivait sur la carte du fil, qui ne paraît qu'à un paywall — or aucune branche
   # n'est proposée à un compte gratuit (3.3/D2-A), donc AUCUN chemin. ⚠️ ELLE N'INVENTE RIEN : les
   # quatre décisions que la note disait « pas un choix de développeur » étaient déjà prises (prix

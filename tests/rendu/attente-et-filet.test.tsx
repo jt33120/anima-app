@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { render, screen, cleanup } from "@testing-library/react";
+import { sansCommentaires } from "../_absence";
 import Fil from "@/render/conversation/Fil";
 import PiedHalte from "@/render/PiedHalte";
 import { MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
@@ -69,6 +70,32 @@ describe("[6.9/T13] Anam prépare : un signe EN BAS DU FIL", () => {
     );
     const bloc = css.slice(css.indexOf(".attente"), css.indexOf(".attente") + 600);
     expect(bloc).not.toMatch(/animation|@keyframes/);
+  });
+
+  it("[LE CŒUR] l'attente EST annoncée — par la région qui existe déjà", () => {
+    // ⚠️ NÉ D'UN MUTANT SURVIVANT (M14) : rien n'exerçait cette ligne. Le signe visuel est
+    // `aria-hidden` ; quelqu'un sans écran vivait donc le même silence de sept secondes, sans même
+    // le glyphe. Retirer l'annonce ne faisait rougir personne.
+    //
+    // La garde est de FORME et pas de comportement, et c'est assumé : monter `Conversation` exigerait
+    // le flux, le composeur, le palier et la moitié de la scène pour mesurer une ligne. Ce qu'on
+    // garde est ce qui compte — que l'attente écrive dans la région UNIQUE, et pas dans une seconde.
+    const src = readFileSync(
+      resolve(__dirname, "../../render/conversation/Conversation.tsx"),
+      "utf-8",
+    );
+    expect(src, "l'attente ne s'annonce plus").toMatch(
+      /if \(prepare\) setAnnonce\(ANNONCE_ATTENTE\);/,
+    );
+    expect(src).toMatch(/const ANNONCE_ATTENTE = "[^"]+";/);
+    // …et elle est passée à la région existante, jamais à une nouvelle.
+    // ⚠️ `sansCommentaires` : ce fichier EXPLIQUE en prose pourquoi il n'ouvre pas de seconde région
+    // `aria-live`, en la nommant. Sans dépouillement, le test comptait l'explication comme une
+    // infraction — le même piège que celui qu'il vient de fermer ailleurs, à un cran de distance.
+    expect(
+      (sansCommentaires(src).match(/aria-live/g) ?? []).length,
+      "une seconde région vivante est apparue",
+    ).toBe(0);
   });
 
   it("il est DÉCORATIF : il ne parle pas aux lecteurs d'écran", () => {

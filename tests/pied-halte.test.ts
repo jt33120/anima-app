@@ -88,19 +88,45 @@ describe("[6.9/T7] L'inventaire des haltes est EXHAUSTIF", () => {
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("[6.9/FR-077] La porte de secours est sur TOUTES les haltes", () => {
-  it("[LE CŒUR] le modèle la rend `true` pour chacune — le type l'exige déjà, le test le mesure", () => {
+  it("[LE CŒUR] le modèle la rend `true` pour chacune", () => {
     for (const h of HALTES) {
       expect(piedPour(h).porteSecours, `${h} sans porte de secours`).toBe(true);
     }
   });
 
-  it("[LE CŒUR] chaque page de halte MONTE le pied", () => {
-    // La garde qui compte : le modèle peut dire ce qu'il veut, si la page ne le rend pas.
+  it("[GARDE DE FORME] le type est un LITTÉRAL `true`, pas un `boolean`", () => {
+    // ⚠️ NÉ D'UN MUTANT SURVIVANT (M1), ET LE SURVIVANT AVAIT RAISON : élargir le type en `boolean`
+    // ne change RIEN au comportement d'aujourd'hui — `piedPour` rend toujours `true`. Le test
+    // ci-dessus reste donc vert.
+    //
+    // Ce que le type littéral achète n'est pas une valeur, c'est une IMPOSSIBILITÉ : avec `true`
+    // littéral, écrire `porteSecours: false` quelque part NE COMPILE PAS. Aucune assertion de
+    // comportement ne peut mesurer une chose qui n'existe pas encore ; on garde donc la forme, comme
+    // `lib/scene/surimpression.ts` le fait déjà pour la scène. C'est plus faible qu'une mesure, et
+    // c'est dit.
+    const source = lire("lib/domain/pied-halte.ts");
+    expect(source, "le type de la porte de secours s'est élargi").toMatch(
+      /readonly porteSecours:\s*true;/,
+    );
+    // Et la scène garde le sien, qui est l'original de cette garantie.
+    expect(lire("lib/scene/surimpression.ts")).toMatch(/readonly porteSecours:\s*true;/);
+  });
+
+  it("[LE CŒUR] chaque page de halte MONTE le pied, et le CÂBLE au modèle", () => {
+    // ⚠️ CETTE ASSERTION A ÉTÉ RESSERRÉE APRÈS UN MUTANT SURVIVANT (M2). Elle demandait que
+    // `<PiedHalte` ET `piedPour("memoire")` apparaissent dans le fichier — deux présences, que
+    // `mentionIA={false && piedPour("memoire").mentionIA}` satisfait parfaitement tout en éteignant
+    // la mention. On mesurait qu'un nom EXISTE, jamais qu'il SERT.
+    //
+    // La forme exacte est donc exigée. C'est plus rigide, et c'est le prix : la seule autre façon de
+    // le prouver serait de monter la page, qui est un composant serveur lisant la base.
     for (const h of HALTES) {
       const src = lire(`app/${h}/page.tsx`);
       expect(src, `app/${h}/page.tsx ne monte pas <PiedHalte>`).toMatch(/<PiedHalte/);
-      expect(src, `app/${h}/page.tsx ne consulte pas le modèle`).toMatch(
-        new RegExp(`piedPour\\("${h.replace(/[-/]/g, "\\$&")}"\\)`),
+      const attendu = `mentionIA={piedPour("${h}").mentionIA}`;
+      expect(src.includes(attendu), `app/${h}/page.tsx : câblage attendu « ${attendu} »`).toBe(true);
+      expect(src, `app/${h}/page.tsx ne passe pas la porte de secours`).toMatch(
+        /urlAide=\{URL_AIDE\}/,
       );
     }
   });

@@ -294,16 +294,31 @@ describe("Story 3.6 — la couture de la 2.9, enfin remplie (l'offre rendue SERV
     expect(src, "un prix en dur dans la surface d'offre").not.toMatch(/\b69\b|€/);
   });
 
-  it("[LE CŒUR] la garantie ET la reconduction paraissent là où l'argent est demandé", () => {
+  it("[LE CŒUR] la garantie ET la reconduction sont RENDUES là où l'argent est demandé", () => {
     // FR-089 d'un côté, art. L215-1 de l'autre. Aucune des deux n'est reléguée aux CGU.
-    expect(src).toMatch(/GARANTIE_REMBOURSEMENT/);
-    expect(src).toMatch(/RECONDUCTION/);
+    //
+    // ⚠️ RESSERRÉE APRÈS UN MUTANT SURVIVANT (M22). Elle demandait que « RECONDUCTION » apparaisse
+    // dans le fichier — ce que la ligne d'IMPORT satisfait à elle seule. Supprimer le `<p>` qui la
+    // rend laissait donc le test vert sur une surface de vente devenue muette sur la reconduction,
+    // c'est-à-dire en infraction. On exige l'INTERPOLATION, pas le nom.
+    expect(src).toMatch(/\{GARANTIE_REMBOURSEMENT\}/);
+    expect(src, "la reconduction n'est plus RENDUE (seulement importée)").toMatch(/\{RECONDUCTION\}/);
   });
 
   it("[FR-061] le périmètre GRATUIT est écrit AVANT le premium", () => {
     // Ce qu'elle garde en repartant, avant ce qu'elle gagnerait. L'ordre inverse ferait du gratuit
     // le repoussoir du premium.
-    expect(src.indexOf("PERIMETRE_GRATUIT_TITRE")).toBeLessThan(src.indexOf("PERIMETRE_PREMIUM_TITRE"));
+    //
+    // ⚠️ RESSERRÉE APRÈS UN MUTANT SURVIVANT (M23). Elle comparait deux `indexOf` sur tout le
+    // fichier — et les deux noms apparaissent d'abord dans la LISTE D'IMPORT, dans le bon ordre.
+    // Le test mesurait donc l'ordre des imports pendant que le rendu affichait deux fois le premium.
+    const jsx = src.slice(src.indexOf("<div className={s.perimetres}>"));
+    expect(jsx.length, "le bloc des périmètres a disparu du rendu").toBeGreaterThan(100);
+    expect(jsx.indexOf("{PERIMETRE_GRATUIT_TITRE}")).toBeGreaterThan(-1);
+    expect(jsx.indexOf("{PERIMETRE_PREMIUM_TITRE}")).toBeGreaterThan(-1);
+    expect(jsx.indexOf("{PERIMETRE_GRATUIT_TITRE}")).toBeLessThan(
+      jsx.indexOf("{PERIMETRE_PREMIUM_TITRE}"),
+    );
   });
 
   it("le montage vit dans app/ (composition), jamais dans render/ (muet) — server-only", () => {

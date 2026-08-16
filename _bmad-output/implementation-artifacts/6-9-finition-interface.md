@@ -122,8 +122,35 @@ d'air supplémentaires ne protégeaient rien et rétrécissaient le fil.
 
 ### Vérification
 
-- **269 fichiers / 4586 tests** verts ; `tsc --noEmit`, `eslint .`, `next build` propres
+- **269 fichiers / 4575 tests** verts ; `tsc --noEmit`, `eslint .`, `next build` propres
 - Aucune migration : cette story ne touche pas la base
+- **32 mutants, 32 tués** (campagne commune 6.9 / 3.6 / T4), en trois passages
+
+### Ce que la campagne de mutation a trouvé, et c'est une leçon de méthode
+
+Six survivants au premier passage. **Deux étaient des mutants équivalents — donc deux fautes à moi**
+(élargir `porteSecours: true` en `true as const` ne change rien ; `>` en `>=` non plus, la branche
+d'égalité étant traitée avant). Les quatre autres formaient **une seule famille**, et c'est ce qui
+mérite d'être retenu :
+
+> **Mes gardes vérifiaient qu'un nom APPARAÎT dans un fichier, pas qu'il SERT.**
+
+- `mentionIA={false && piedPour("memoire").mentionIA}` éteignait la mention **en gardant les deux
+  chaînes** que le test cherchait ;
+- supprimer `<p>{RECONDUCTION}</p>` laissait le mot `RECONDUCTION` dans la **ligne d'import**, donc
+  le test restait vert sur une surface de vente devenue muette sur la reconduction — c'est-à-dire
+  en infraction à l'art. L215-1 ;
+- comparer deux `indexOf` sur tout le fichier mesurait l'ordre des **imports** pendant que le rendu
+  affichait deux fois le premium ;
+- l'annonce d'attente aux lecteurs d'écran n'était **exercée par personne**.
+
+C'est le même patron qu'en 6.7 (le `on delete restrict` compté dans un `comment on table`) et il
+s'est reproduit **dans le test qui venait de le corriger** : ma garde « pas de seconde région
+`aria-live` » comptait le commentaire qui explique pourquoi il n'y en a pas.
+
+Deux gardes ont dû rester **de forme**, et le disent : le type littéral `porteSecours: true` (aucun
+comportement ne peut mesurer une impossibilité) et le câblage exact du pied dans chaque page (la
+seule alternative serait de monter des composants serveur qui lisent la base).
 
 ### Dette laissée
 

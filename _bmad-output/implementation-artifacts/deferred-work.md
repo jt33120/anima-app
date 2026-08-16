@@ -1425,3 +1425,48 @@ Aucun **repère de temps** ne sépare ce qui a été écrit il y a vingt heures 
 l'être : les deux se lisent comme une seule conversation. Un séparateur (« plus tôt ») réglerait
 ça. Écarté ici pour ne pas fabriquer un marqueur de temps là où FR-031 refuse déjà les compteurs —
 c'est une décision de copie, à prendre avec Anima.
+
+---
+
+## Arbitrage du 2026-08-16 — ce que je tranche seul, et ce qui reste à Julian
+
+Julian : « suis tes recommandations pour chaque décision, les décisions qui peuvent être différées
+doivent être différées ». Voici où chacune atterrit, pour qu'aucune ne se perde entre deux stories.
+
+### Tranché et fait
+
+- **Le sous-défaut de T11** — `activer()` annonçait « refusé » quand la permission valait `default`.
+  Corrigé (`58581d4`), état et copie séparés, mutant tué par un test nommé.
+
+### Absorbé par une story déjà prévue — donc PAS une story de plus
+
+- **T17, l'heure de naissance irréversible.** Le bon endroit existe déjà et il s'appelle **Story 6.5,
+  « Ce qu'Anam retient — consulter, corriger, supprimer »**. C'est l'écran où l'on regarde ce que le
+  produit sait de soi et où l'on corrige ; l'heure de naissance est précisément un fait de ce
+  registre, et la 5.3 l'avait figée faute d'un écran où la reprendre.
+  ⚠️ **Ce n'est pas gratuit, et c'est la vraie décision** : corriger l'heure invalide le thème natal
+  calculé (5.1), donc l'ascendant, les maisons, et tout ce que l'horoscope du jour en dérive (5.4).
+  Il faudra **recalculer et regraver**, pas seulement mettre à jour un champ — et le write-gate art. 9
+  de 0039 grave « une seule fois ». La 6.5 devra donc ouvrir une porte nommée, pas contourner la garde.
+  À traiter DANS la 6.5, pas avant.
+
+### Différé — la décision existe, elle n'est simplement pas mûre
+
+- **T2, le chemin d'abonnement d'un compte gratuit.** Reste une story à part entière : le prix, le
+  contenu de l'offre, la mention de reconduction (art. L215-1) et la garantie de remboursement se
+  décident ensemble, et aucun des quatre n'est un choix de développeur. **Porte produit, pas dette de
+  code.** Inscrite en `action_items` de `sprint-status.yaml`.
+- **T7 (mention IA hors scène), T13 (7,4 s sans signe de vie), T26 (le fil sort du champ en
+  détresse).** Trois défauts de mise en page et de perception, aucun lié à Epic 6. Ils forment **une
+  seule story de finition d'interface**, à prendre après l'Epic 6 — les découper en trois correctifs
+  isolés ferait trois passages sur les mêmes fichiers de rendu.
+- **T4, les faux positifs de détresse.** Inchangé : toucher au seuil sans campagne de mesure
+  remplacerait un défaut par un autre, au seul endroit du produit où l'erreur coûte le plus cher. Le
+  préalable est un corpus de tours annotés, pas une ligne de code.
+- **Le repère de temps dans le fil retrouvé.** Décision de copie, à prendre avec Anima.
+
+### Ce que personne d'autre que Julian ne peut faire
+
+- **T11 lui-même** : ouvrir `/reglages` dans un vrai navigateur et cliquer pour de bon. Dix secondes.
+  Tant que ce n'est pas fait, la PWA, le hors-ligne et l'installation restent **non statués** — et
+  aucun test ne peut les statuer à sa place, puisque le navigateur exige une activation utilisateur.

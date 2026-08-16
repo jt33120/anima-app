@@ -242,4 +242,45 @@ action_items:
     action: "Déployer la migration 0038 sur zlhlzoalmszohrxrnsmo (résiliation/remboursement)"
     owner: "Julian"
     status: done # 2026-08-07 — déployée et vérifiée (parité fichiers 38 / local 38 / cloud 38)
+  - epic: 3
+    action: >
+      STORY MANQUANTE — le chemin d'abonnement d'un compte GRATUIT (tour de QA du 2026-08-15, T2).
+      Le seul bouton de souscription du produit vit sur `CarteAbonnement`, dans la conversation, et
+      n'apparaît qu'au moment d'un paywall. Or aucune branche n'est jamais proposée à un compte
+      gratuit (Story 3.3, décision D2-A) : sans branche, pas de paywall, donc AUCUN chemin. La page
+      `/abonnement` est une page d'ÉTAT, elle n'a jamais eu vocation à vendre — et c'est pourtant le
+      cul-de-sac où `/ancrages` envoie. Il manque une page d'offre.
+      ⚠️ CE N'EST PAS UN CORRECTIF : le prix, le contenu de l'offre, la mention de reconduction
+      tacite (art. L215-1) et la garantie de remboursement (FR-089) se décident ensemble, et aucun
+      des quatre n'est un choix de développeur.
+    owner: "Julian"
+    status: open
+  - epic: 6
+    action: >
+      À FAIRE PAR JULIAN, DIX SECONDES — ouvrir `/reglages` dans un VRAI navigateur et cliquer pour
+      de bon sur « Recevoir le rythme quotidien ». Le tour de QA a mesuré un service worker
+      silencieux ; le diagnostic « variables VAPID absentes » était FAUX (vérifié : les trois sont
+      présentes en production et identiques au local, `/sw.js` et `/manifest.webmanifest` répondent
+      200). La cause probable est l'outillage de QA : `Notification.requestPermission()` exige une
+      activation utilisateur, et sans elle Chrome résout en `default` sans afficher d'invite.
+      Aucun test ne peut statuer à sa place. Tant que ce n'est pas fait, la PWA, le hors-ligne et
+      l'installation restent NON STATUÉS.
+    owner: "Julian"
+    status: open
+  - epic: 6
+    action: >
+      STORY DE FINITION D'INTERFACE, à prendre APRÈS l'Epic 6 — regroupe trois constats du tour de QA
+      qui touchent les mêmes fichiers de rendu : T7 (la mention IA n'existe que sur la scène, pas sur
+      les cinq haltes), T13 (7,4 s sans le moindre signe de vie pendant une réponse), T26 (au moment
+      de la détresse le fil ne fait que 307 px dans une fenêtre de 742, donc l'orientation sort du
+      champ). Les découper en trois correctifs isolés ferait trois passages sur les mêmes fichiers.
+    owner: "Julian"
+    status: open
+  - epic: 2
+    action: >
+      À ARBITRER — les faux positifs de détresse (tour de QA, T4). Le pipeline classe trop large.
+      Toucher au seuil sans campagne de mesure remplacerait un défaut par un autre, au seul endroit
+      du produit où l'erreur coûte le plus cher. Le préalable est un corpus de tours annotés.
+    owner: "Julian"
+    status: open
 

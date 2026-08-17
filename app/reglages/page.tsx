@@ -6,7 +6,7 @@ import * as copie from "@/lib/domain/copie-reglages";
 import * as copieDonnees from "@/lib/domain/copie-mes-donnees";
 import Reglages from "@/render/reglages/Reglages";
 import s from "@/render/reglages/reglages.module.css";
-import { abonnerAppareil, choisirHeure, desabonnerAppareil } from "./actions";
+import { abonnerAppareil, choisirHeure, desabonnerAppareil, reglerCourriels } from "./actions";
 import PiedHalte from "@/render/PiedHalte";
 import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
 
@@ -74,10 +74,19 @@ export default async function PageReglages() {
 
   // Deux lectures sous le JWT de l'utilisatrice, jamais `service_role` (AD-12). Les policies de 0053
   // ne lui montrent que ses propres lignes — c'est la base qui le garantit, pas ce fichier.
-  const [{ data: preference }, { count }] = await Promise.all([
+  const [{ data: preference }, { count }, { data: courriel }] = await Promise.all([
     supabase.from("preference_socle").select("heure").eq("utilisatrice_id", user.id).maybeSingle(),
     supabase.from("abonnement_poussee").select("id", { count: "exact", head: true }),
+    // Revue Epic 6 (R7) : la policy de lecture propriétaire de 0034 suffit — pas de RPC pour LIRE.
+    // La ligne peut ne pas exister (création paresseuse au premier envoi) : `maybeSingle` le dit sans
+    // lever, et l'absence VEUT DIRE « elle reçoit », comme `refuse_le is null`.
+    supabase
+      .from("preference_courriel")
+      .select("refuse_le")
+      .eq("utilisatrice_id", user.id)
+      .maybeSingle(),
   ]);
+  const courrielsArretes = Boolean(courriel?.refuse_le);
 
   return (
     <main className={s.halte}>
@@ -114,6 +123,35 @@ export default async function PageReglages() {
         desabonner={desabonnerAppareil}
         choisirHeure={choisirHeure}
       />
+
+      {/* ── LES COURRIELS D'ANAM (revue Epic 6, R7 · art. 21) ─────────────────────────────────
+          Il n'existait AUCUN chemin dans l'application : le désabonnement (4.9) ne vivait que dans le
+          lien d'un courriel déjà reçu. Sur un écran nommé « Réglages », dont le seul geste d'arrêt dit
+          « Ne plus rien recevoir sur cet appareil », on laissait croire que tout s'arrêtait.
+
+          FORMULAIRE NU, sans îlot client : il n'y a rien à charger pour exercer l'article 21, et un
+          état client de plus serait un endroit de plus où l'écran peut mentir (leçon T11-quater).
+          Aucune garde — ni art. 9, ni détresse : voir `reglerCourriels`. */}
+      <section className={s.section} aria-labelledby="titre-courriels">
+        <h2 id="titre-courriels" className={s.titre}>
+          {copie.SECTION_COURRIELS}
+        </h2>
+        <p className={s.description}>{copie.DESCRIPTION_COURRIELS}</p>
+        <p className={s.etat} data-testid="etat-courriels">
+          {courrielsArretes ? copie.ETAT_COURRIELS_ARRETES : copie.ETAT_COURRIELS_RECUS}
+        </p>
+        <form
+          action={async () => {
+            "use server";
+            await reglerCourriels(!courrielsArretes);
+          }}
+        >
+          <button type="submit" className={s.bouton}>
+            {courrielsArretes ? copie.REPRENDRE_COURRIELS : copie.ARRETER_COURRIELS}
+          </button>
+        </form>
+        <p className={s.description}>{copie.COURRIELS_QUI_RESTENT}</p>
+      </section>
 
       {/* Story 6.6 — le seul chemin cliquable vers « Mes données » tant que le menu de compte
           n'existe pas. `/reglages` est ce qui s'en approche le plus ; la dette du menu reste

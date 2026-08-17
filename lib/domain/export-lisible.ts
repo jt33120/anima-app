@@ -187,7 +187,22 @@ function rendreSection(table: string, section: unknown): string {
   return (
     `<section id="s-${echapper(table)}">` +
     `<h2>${echapper(titre)}</h2>` +
-    `<p class="compte">${rows.length} ${rows.length > 1 ? "éléments" : "élément"} · <code>${echapper(table)}</code></p>` +
+    // ⚠️ IL Y AVAIT UN COMPTE ICI, ET C'ÉTAIT LE SEUL ENDROIT DU PRODUIT QUI LUI EN MONTRAIT UN
+    // (revue Epic 6, R4 · FR-031).
+    //
+    // La ligne disait « 12 éléments · episode_detresse », et le sommaire « Les moments où le produit
+    // s'est inquiété (12) ». Le décompte de ses propres effondrements, dans le document censé
+    // incarner le soin porté à ses données.
+    //
+    // Le dépôt a tranché quatre fois dans l'autre sens — `arbitrage-frontiere`,
+    // `bibliotheque-frontiere`, `ancrage-frontiere`, `arbre-rendu` portent tous une garde « le compte
+    // ne traverse pas la frontière ». L'export y avait échappé parce que le compte n'y est pas un
+    // champ typé mais un `rows.length` calculé au rendu : invisible aux détecteurs, qui lisent des
+    // chaînes statiques.
+    //
+    // Le nom TECHNIQUE de la table reste : il sert à quelqu'un qui exerce l'article 20 et veut
+    // recouper le document lisible avec l'annexe JSON. Il ne dit rien d'elle.
+    `<p class="compte"><code>${echapper(table)}</code></p>` +
     corps +
     `</section>`
   );
@@ -252,12 +267,9 @@ export function rendreExportLisible(doc: DocumentExport): string {
   const sections = ordonnerSections(doc);
   const genere = instantLisible(doc.genere_le) ?? doc.genere_le;
 
+  // Le sommaire porte les TITRES, jamais les comptes (revue Epic 6, R4 · FR-031).
   const sommaire = sections
-    .map(
-      (t) =>
-        `<li><a href="#s-${echapper(t)}">${echapper(titreDeSection(t))}</a> ` +
-        `<span class="compte">(${lignes(doc[t]).length})</span></li>`,
-    )
+    .map((t) => `<li><a href="#s-${echapper(t)}">${echapper(titreDeSection(t))}</a></li>`)
     .join("");
 
   const retraits = (doc.retraits ?? [])

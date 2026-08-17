@@ -185,3 +185,68 @@ describe("[6.6/AC1] Les deux droits tiennent dans le même fichier", () => {
     expect(html).toContain("une capacité, pas une donnée");
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// [R4 · FR-031] AUCUN COMPTE NE TRAVERSE LA FRONTIÈRE — PAS MÊME DANS L'EXPORT
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ IL Y EN AVAIT DEUX, ET ILS ÉTAIENT LE SEUL ENDROIT DU PRODUIT QUI LUI MONTRAIT UN NOMBRE.
+//
+// Le sommaire disait « Les moments où le produit s'est inquiété (12) » ; chaque section portait
+// « 12 éléments · episode_detresse ». Le décompte de ses propres effondrements, dans le document
+// censé incarner le soin porté à ses données sensibles.
+//
+// Le dépôt a pourtant tranché quatre fois dans l'autre sens : `arbitrage-frontiere`,
+// `bibliotheque-frontiere`, `ancrage-frontiere` et `arbre-rendu` portent tous une garde « le compte
+// ne traverse pas la frontière ». L'export y avait échappé pour une raison précise et instructive :
+// le compte n'y était pas un CHAMP TYPÉ mais un `rows.length` calculé au moment du rendu. Les
+// détecteurs FR-031 du dépôt lisent des chaînes statiques dans les fichiers de copie — ils ne
+// pouvaient pas le voir.
+//
+// D'où une garde qui mesure la SORTIE plutôt que la source : on rend un document dont on connaît le
+// nombre de lignes, et on exige que ce nombre n'apparaisse nulle part.
+describe("[6.6 · R4 · FR-031] Le document rendu ne compte jamais rien", () => {
+  /** Sept lignes sans le moindre chiffre : tout chiffre trouvé dans la sortie vient donc de nous. */
+  const SEPT = Array.from({ length: 7 }, (_, i) => ({
+    contenu: `souvenir ${"abcdefg"[i]}`,
+    cree_le: "2026-08-16T10:00:00+00:00",
+  }));
+
+  it("[LE CŒUR] le nombre de lignes d'une section n'apparaît NULLE PART", () => {
+    const html = rendreExportLisible(doc({ episode_detresse: SEPT }));
+
+    // On isole ce que le document dit AUTOUR du titre de la section et dans le sommaire — la date de
+    // génération, elle, porte légitimement des chiffres.
+    expect(html, "« 7 éléments » est de retour").not.toMatch(/\b7\s*élément/);
+    expect(html, "le sommaire porte un compte entre parenthèses").not.toMatch(/\(\s*7\s*\)/);
+    expect(html, "le mot « éléments » n'a plus de raison d'être ici").not.toMatch(/élément/);
+  });
+
+  it("[LE CŒUR] l'HABILLAGE ne change pas avec le nombre de lignes", () => {
+    // La formulation la plus dure du même interdit, et celle qui survivra à une reformulation : ce qui
+    // ENTOURE le contenu ne doit rien savoir de sa quantité. Les deux endroits où un compte a vécu
+    // sont précisément là — le sommaire (avant la première section) et l'en-tête de chaque section.
+    const habillage = (n: number) => {
+      const html = rendreExportLisible(doc({ episode_detresse: SEPT.slice(0, n) }));
+      const sommaire = html.slice(0, html.indexOf("<section"));
+      const entetes = [...html.matchAll(/<section[\s\S]*?<\/h2>|<p class="compte">[\s\S]*?<\/p>/g)].map(
+        (m) => m[0],
+      );
+      return sommaire + "\n" + entetes.join("\n");
+    };
+
+    expect(
+      habillage(2),
+      "l'habillage du document change avec le nombre de lignes : un compte a fuité",
+    ).toBe(habillage(7));
+  });
+
+  it("[ANTI-VACUITÉ] la section est bien RENDUE — sinon les deux gardes ci-dessus sont creuses", () => {
+    const html = rendreExportLisible(doc({ episode_detresse: SEPT }));
+    expect(html).toContain("souvenir a");
+    expect(html).toContain("souvenir g");
+    expect(html, "le nom technique de la table sert au recoupement (art. 20)").toContain(
+      "episode_detresse",
+    );
+  });
+});

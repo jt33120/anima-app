@@ -116,3 +116,26 @@ export async function choisirHeure(heure: number): Promise<EtatReglages> {
   revalidatePath("/reglages");
   return { statut: "ok" };
 }
+
+/**
+ * Arrêter ou reprendre les courriels d'Anam (revue Epic 6, R7 · art. 21).
+ *
+ * ⚠️ **AUCUNE GARDE ICI, ET C'EST LA MÊME DÉCISION QU'EN 3.5 POUR LA RÉSILIATION.** Ni consentement
+ * art. 9, ni fenêtre de détresse : `limites_levees` est vrai PENDANT un épisode, et garder ce geste
+ * empêcherait quelqu'un en crise de faire taire des courriels qu'elle ne supporte plus.
+ *
+ * Le contrôle de session sert à rendre un message utile ; la garde réelle est `auth.uid()` DANS la
+ * fonction (0062), qui n'a pas de paramètre d'identité — il n'y a rien à forger.
+ */
+export async function reglerCourriels(refuse: boolean): Promise<EtatReglages> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return REFUS;
+
+  const { error } = await supabase.rpc("regler_mes_courriels", { p_refuse: refuse });
+  if (error) return REFUS;
+  revalidatePath("/reglages");
+  return { statut: "ok" };
+}

@@ -96,3 +96,40 @@ export const ECHEC = "Ça n'a pas marché. Tu peux réessayer.";
 export const PAS_ENCORE_ACTIF =
   "Ton choix est enregistré. Les notifications ne partent pas encore : elles attendent une mise en " +
   "service qui n'est pas de ton ressort.";
+
+/**
+ * ── LES COURRIELS D'ANAM (revue Epic 6, R7 · art. 21) ──────────────────────────────────────────
+ *
+ * ⚠️ **CETTE SECTION MANQUAIT, ET SON ABSENCE FAISAIT MENTIR LE BOUTON D'À CÔTÉ.**
+ *
+ * Le seul geste d'arrêt de cet écran s'appelle « Ne plus rien recevoir sur cet appareil ». Il ne
+ * touche que la poussée. Quelqu'un qui le clique, sur une page intitulée « Réglages », a toute raison
+ * de croire qu'elle a tout arrêté — et continue de recevoir rappels d'échéance et synthèses.
+ *
+ * Le désabonnement par jeton (4.9) existait, mais seulement dans le lien d'un courriel DÉJÀ REÇU :
+ * inatteignable pour qui les a supprimés ou classés en indésirables.
+ *
+ * ⚠️ La description NOMME les deux courriels qui existent, et rien d'autre. Écrire « les courriels
+ * d'Anam » sans dire lesquels laisserait croire à une correspondance qui n'a pas lieu — et le jour où
+ * un troisième naîtrait, cette phrase deviendrait fausse toute seule.
+ */
+export const SECTION_COURRIELS = "Les courriels d'Anam";
+
+export const DESCRIPTION_COURRIELS =
+  "Anam t'écrit deux fois : quand une échéance que tu as posée arrive, et quand une synthèse est " +
+  "prête. Rien d'autre. Tu peux arrêter, et reprendre, quand tu veux.";
+
+export const ETAT_COURRIELS_RECUS = "Tu reçois les courriels d'Anam.";
+export const ETAT_COURRIELS_ARRETES = "Tu ne reçois aucun courriel d'Anam.";
+
+export const ARRETER_COURRIELS = "Ne plus recevoir de courriels";
+export const REPRENDRE_COURRIELS = "Recevoir à nouveau les courriels";
+
+/**
+ * ⚠️ Ce qui NE s'arrête pas, et qui doit se dire au même endroit. Les courriels de connexion ne sont
+ * pas de la correspondance d'Anam : les couper l'enfermerait dehors. Le taire, en revanche, ferait
+ * d'un courriel reçu après l'arrêt une promesse rompue.
+ */
+export const COURRIELS_QUI_RESTENT =
+  "Les courriels qui servent à te connecter continuent d'arriver : sans eux, tu ne pourrais plus " +
+  "entrer.";

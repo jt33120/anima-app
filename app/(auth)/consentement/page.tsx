@@ -55,11 +55,20 @@ export default async function PageConsentement({
           humain, pas à une voyante. Anam lit, relie et te répond — mais elle n&apos;a ni
           conscience ni intuition.
         </p>
+        {/* ⚠️ « ET GARDÉ CHIFFRÉ » A ÉTÉ RETIRÉ D'ICI (revue Epic 6, R9).
+            Aucune migration ne chiffre quoi que ce soit — `pgcrypto`/`pgsodium` sont absents des
+            soixante fichiers. Ce que la phrase désignait était le chiffrement disque de l'hébergeur,
+            et c'est réel. Mais « gardé chiffré », lu juste avant de confier ses convictions, se
+            comprend spontanément comme « même vous ne pouvez pas le lire » — ce qui est faux.
+            La revue de sécurité l'avait inscrit (M-2) et l'architecture le liste comme non tranché.
+            On dit donc ce qui EST, y compris la partie inconfortable : c'est la même règle que
+            « les notifications ne partent pas encore » de la 6.2. */}
         <p className="t-corps">
           Ce que tu lui confies est <strong>conservé</strong>, pour qu&apos;elle se
-          souvienne d&apos;une fois sur l&apos;autre, et gardé chiffré. Tu peux tout{" "}
-          <strong>effacer</strong> quand tu veux : alors tout disparaît, chez elle comme
-          chez ses prestataires techniques.
+          souvienne d&apos;une fois sur l&apos;autre. C&apos;est protégé quand ça circule et
+          quand c&apos;est rangé — mais pas au point que personne chez Anima ne puisse
+          jamais le lire. Tu peux tout <strong>effacer</strong> quand tu veux : alors tout
+          disparaît, chez elle comme chez ses prestataires techniques.
         </p>
 
         {/* « Lire le détail » — accordéon déplié EN PLACE (AC4), version courte principale */}

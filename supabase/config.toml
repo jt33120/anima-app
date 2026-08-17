@@ -363,7 +363,12 @@ deno_version = 2
 # secret_key = "env(SECRET_VALUE)"
 
 [analytics]
-enabled = true
+# ⚠️ DÉSACTIVÉ LE 2026-08-17 — le conteneur `analytics` (Logflare, le visualiseur de logs de Studio)
+# refusait de démarrer (« container is not ready: unhealthy ») et BLOQUAIT toute la pile locale :
+# ni base, ni auth, donc aucun test SQL. Il n'est utilisé par aucun test ni par le produit.
+# Le remettre à `true` si tu veux les logs dans Studio, en réglant d'abord le montage du socket
+# Docker qu'il réclame (« analytics requires mounting default docker socket »).
+enabled = false
 port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"

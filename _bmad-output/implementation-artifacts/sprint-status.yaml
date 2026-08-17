@@ -467,8 +467,11 @@ action_items:
       champ). Les découper en trois correctifs isolés ferait trois passages sur les mêmes fichiers.
     owner: "Julian"
     status: done # 2026-08-16 — Story 6.9. ⚠️ T7 était plus grave que le constat : AUCUNE page hors
-    # scène ne menait à /aide. ⚠️ T26 RESTE À RE-MESURER DANS UN VRAI NAVIGATEUR : jsdom n'a pas de
-    # moteur de mise en page, aucun test ne peut statuer sur 307 px. Le mécanisme est livré.
+    # scène ne menait à /aide.
+    # ✅ T26 MESURÉ ET CLOS le 2026-08-17 par Julian, dans un vrai navigateur, fenêtre ~742 px : au
+    # moment de la détresse, le bloc de ressources est visible SANS avoir à défiler. C'était la seule
+    # façon de statuer — jsdom n'a pas de moteur de mise en page, toutes les hauteurs y valent zéro.
+    # La dette « à re-mesurer » est donc éteinte, et elle l'est par une mesure, pas par un test vert.
   - epic: 6
     action: >
       STORY 6.5b — L'HEURE DE NAISSANCE CORRIGEABLE (tour de QA, T17). Écartée de la 6.5 en
@@ -494,7 +497,11 @@ action_items:
       bouton proposé était « Ne plus rien recevoir ». Corrigé : rapprochement des deux sources au
       montage, en LECTURE SEULE (lire `Notification.permission` ne demande rien).
     owner: "Julian"
-    status: done
+    status: done # ✅ VÉRIFIÉ AU CLIC RÉEL le 2026-08-17 (Chrome, protocole en 8 gestes) : les quatre
+    # états de permission se disent correctement, la révocation depuis le navigateur est détectée au
+    # rechargement, et le bouton REPROPOSE de s'abonner au lieu d'exiger un désabonnement. Le geste
+    # n°4 — celui qui piégeait dans un état sans sortie — est le seul qu'aucun test ne pouvait
+    # trancher : le navigateur exige une activation humaine. QA T11 est close.
   - epic: 2
     action: >
       À ARBITRER — les faux positifs de détresse (tour de QA, T4). Le pipeline classe trop large.

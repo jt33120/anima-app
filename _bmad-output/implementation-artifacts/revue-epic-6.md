@@ -248,11 +248,11 @@ honnêtement des mutants déjà tués. Les sept gardes de R6 sont les endroits o
 | **R3** | correctif court (borne SQL 6–21 + sélecteur) | prêt à poser |
 | **R2** | correctif court (`OR barriere_minorite_le is not null`) + fixture de test à rebrancher sur la vraie RPC | prêt à poser |
 | **R5, R6** | retourner les gardes vers la définition courante ; `sansCommentaires` là où il manque ; mesurer l'usage et non l'apparition | prêt à poser |
-| **R4** | retirer les comptes de l'export | décision produit — trivial techniquement |
+| **R4** | ✅ **POSÉ** le 2026-08-17, avec la garde qui mesure la SORTIE | fait |
 | **R8, R10, R11** | correctifs courts | prêts à poser |
-| **R1** | **une story** : rouvrir la règle 4.2 pour que la correction produise un fait `actif` | décision de Julian |
-| **R7** | **une story** : le geste d'arrêt des courriels dans l'application | décision de Julian |
-| **R9** | reformulation | Julian + juriste, avec les CGU |
+| **R1** | **une story** : rouvrir la règle 4.2 pour que la correction produise un fait `actif` | en cours |
+| **R7** | ✅ **POSÉ** le 2026-08-17 — migration 0062 | fait |
+| **R9** | ✅ **REFORMULÉ** le 2026-08-17 ; le texte final reste à valider avec un juriste | fait |
 
 ---
 
@@ -327,3 +327,50 @@ RÈGLE — dans les quatre fonctions de rétention, tout jour civil dérivé de 
 - **269 fichiers / 4589 tests** verts ; `tsc --noEmit`, `eslint .`, `next build` propres
 - Migration 0061 appliquée en local (`db reset` complet, 0001 → 0061)
 - ⚠️ **0061 n'est PAS encore déployée en cloud** — à faire par l'API de gestion, comme les précédentes
+
+
+---
+
+## Second passage — R4, R7, R9 posés le 2026-08-17
+
+**R4** — les deux comptes ont quitté l'export. La garde qui les remplace mesure la **sortie** et non la
+source : deux documents de tailles différentes doivent rendre le même habillage. C'est ce qui rattrape
+un compte calculé au rendu, que les détecteurs FR-031 — qui lisent des chaînes statiques — ne peuvent
+pas voir. Le nom technique de la table reste : il sert à recouper avec l'annexe JSON (art. 20).
+
+**R7** — migration 0062, `regler_mes_courriels(boolean)`. Une **fonction** et non une policy
+d'écriture : sous un `update` ouvert, `jeton` serait à sa portée, et elle pourrait se donner celui
+d'une autre. Un test le vérifie. La surface est un formulaire nu, sans îlot client.
+
+> Trois tests prouvent que ce geste n'est gardé par **rien** — consentement art. 9 révoqué, barrière de
+> minorité posée, épisode de détresse **en cours**. Même décision qu'en 3.5 : `limites_levees` est vrai
+> pendant un épisode, et garder ce geste enfermerait dans nos courriels la personne la plus vulnérable
+> du produit.
+
+**R9** — « et gardé chiffré » a quitté l'écran de consentement. Ce qui le remplace dit la partie
+inconfortable. **À valider avec le juriste, avec les CGU.**
+
+### Vérification du second passage
+
+- **270 fichiers / 4613 tests** verts ; `tsc`, `eslint`, `next build` propres
+- **0061 et 0062 déployées en cloud** le 2026-08-17, et les corps vérifiés un par un : `trancher`
+  lit bien `barriere_minorite_le`, `effacer_utilisatrice` porte bien son `for update`,
+  `poser_echeance_suppression` calcule bien en `Europe/Paris`, et aucune préférence hors créneau ne
+  subsiste en base.
+
+### ✅ Ce que le navigateur a tranché, et qu'aucun test ne pouvait trancher
+
+Protocole en huit gestes exécuté par Julian le 2026-08-17 (Chrome, production). **Tout passe.**
+
+Ferme définitivement deux items ouverts de longue date :
+
+- **QA T11** — les quatre états de permission se disent correctement ; la révocation faite depuis le
+  navigateur est détectée au rechargement ; le bouton **repropose** de s'abonner. Le piège d'origine —
+  devoir *demander à ne rien recevoir* pour pouvoir se réabonner — ne se reproduit pas.
+- **QA T26** — dans une fenêtre de ~742 px, au moment de la détresse, le bloc de ressources est
+  **visible sans avoir à défiler**. jsdom n'ayant pas de moteur de mise en page, c'était la seule
+  façon de statuer.
+
+Vérifiés au passage : R3 (le sélecteur ne propose plus que 06 h – 20 h), R7 (la section « Les
+courriels d'Anam » existe et bascule dans les deux sens), R8 (le désabonnement dit vrai). Console
+propre — aucun compteur n'a fui par cette porte (FR-031).

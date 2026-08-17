@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { definitionCourante } from "./_sql-courant";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -102,16 +103,35 @@ beforeAll(async () => {
     source_maj_le: new Date().toISOString(),
   });
 
-  // La mineure est barrée avec son échéance à 30 jours, comme le pose `appliquer_barriere_minorite`.
-  await admin
-    .from("utilisatrice")
-    .update({ mineur_detecte: true, echeance_suppression: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10) })
-    .eq("id", mineure);
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // LA MINEURE EST BARRÉE PAR LA VRAIE RPC — ET C'EST TOUT LE CORRECTIF (revue Epic 6, R2)
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // ⚠️ CETTE FIXTURE ÉCRIVAIT `mineur_detecte: true` À LA MAIN, SOUS LE COMMENTAIRE « comme le pose
+  // `appliquer_barriere_minorite` ». **Ce n'est pas ce que cette fonction fait.** Elle écrit
+  // `barriere_minorite_le` et l'échéance, et ne touche JAMAIS `mineur_detecte` — les deux drapeaux
+  // disent deux faits différents (déclaration au seuil d'âge, FR-070, contre détection après coup,
+  // FR-071), et 0042 a délibérément refusé de les confondre.
+  //
+  // La fixture fabriquait donc un état que la production ne produit jamais, et **masquait le défaut
+  // au lieu de le révéler** : `trancher_echeance_suppression` ne lisait que `mineur_detecte`, donc la
+  // branche FR-071 était inatteignable pour les seules personnes qu'elle protège. Elles repartaient
+  // GRACIÉES, échéance effacée et non reposable — suspendues à vie, jamais effacées.
+  //
+  // La règle qu'on en tire : une fixture passe par le CHEMIN D'ÉCRITURE RÉEL, sinon elle teste un
+  // monde qui n'existe pas.
+  {
+    const hier = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const { error } = await admin.rpc("appliquer_barriere_minorite", { cible: mineure, echeance: hier });
+    expect(error, "la barrière de minorité n'a pas pu être posée").toBeNull();
+  }
 
   // ⚠️ ET UNE MINEURE SANS ÉCHÉANCE — c'est un mutant survivant qui l'a imposée. Avec la seule
   // `mineure` ci-dessus, l'assertion « une mineure n'entre pas par le chemin de l'inactivité »
   // était vraie POUR UNE AUTRE RAISON : son échéance déjà posée l'excluait de toute façon. Deux
   // défenses qui se couvrent l'une l'autre, et un test incapable de dire laquelle a mordu.
+  // Celle-ci porte l'AUTRE barrière — la minorité DÉCLARÉE au seuil d'âge (FR-070), qui ne pose
+  // jamais d'échéance. Les deux chemins sont donc représentés, et `trancher` doit reconnaître les deux.
   await admin.from("utilisatrice").update({ mineur_detecte: true }).eq("id", mineureSansEcheance);
 }, 60_000);
 
@@ -200,7 +220,20 @@ describe("[6.8/AC2] Trancher — effacer, gracier, ignorer", () => {
     expect((data ?? []).length, "aucune trace d'effacement pour inactivité").toBeGreaterThan(0);
   });
 
-  it("[LE CŒUR] une MINEURE est effacée MÊME abonnée — le compte n'aurait jamais dû exister", async () => {
+  it("[LE CŒUR · R2] une MINEURE DÉTECTÉE est effacée MÊME abonnée — le compte n'aurait jamais dû exister", async () => {
+    // ⚠️ CE TEST NE PROUVAIT RIEN AVANT LA REVUE DE L'EPIC 6, ET IL EN AVAIT L'AIR.
+    //
+    // Sa fixture écrivait `mineur_detecte: true` à la main. `appliquer_barriere_minorite` n'écrit
+    // JAMAIS cette colonne — elle pose `barriere_minorite_le`. Le test fabriquait donc un état que la
+    // production ne produit jamais, et validait une branche que personne ne pouvait atteindre.
+    //
+    // Dans le monde réel, `trancher` ne lisait que `mineur_detecte` : une mineure DÉTECTÉE tombait
+    // dans la grâce ordinaire, son échéance était effacée — et ne pouvait plus être reposée, puisque
+    // `appliquer_barriere_minorite` exige `barriere_minorite_le is null`. Suspendue à vie, jamais
+    // effacée : l'exact inverse de FR-071.
+    //
+    // La fixture passe désormais par la VRAIE RPC. Le mutant est donc mort d'une seule façon :
+    // retirer `or u.barriere_minorite_le is not null` de 0061 rend « graciee » ici.
     await admin.from("abonnement").insert({
       utilisatrice_id: mineure,
       etat: "actif",
@@ -208,6 +241,24 @@ describe("[6.8/AC2] Trancher — effacer, gracier, ignorer", () => {
     });
     expect(await trancher(mineure)).toBe("effacee");
     expect(await existe(mineure)).toBe(false);
+    // Et sous le bon motif : « inactivite » ici voudrait dire que la branche FR-071 a été manquée et
+    // que c'est la voie ordinaire qui a fini par l'effacer, pour une autre raison.
+    const { data } = await admin.from("effacement").select("motif").eq("motif", "minorite").limit(1);
+    expect((data ?? []).length, "effacée, mais pas AU TITRE de la minorité").toBeGreaterThan(0);
+  });
+
+  it("[R2] une MINEURE DÉCLARÉE au seuil d'âge est effacée elle aussi — les deux barrières comptent", async () => {
+    // L'autre drapeau (FR-070, story 1.4). Il ne pose aucune échéance de lui-même : on la pose donc
+    // ici, et ce qu'on éprouve est que `trancher` reconnaît AUSSI ce chemin-là.
+    //
+    // ANTI-VACUITÉ DE LA GARDE VOISINE : sans ce test, lire `barriere_minorite_le` SEUL passerait —
+    // et on aurait remplacé un oubli par l'oubli symétrique.
+    await admin
+      .from("utilisatrice")
+      .update({ echeance_suppression: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10) })
+      .eq("id", mineureSansEcheance);
+    expect(await trancher(mineureSansEcheance)).toBe("effacee");
+    expect(await existe(mineureSansEcheance)).toBe(false);
   });
 
   it("[LE CŒUR] une abonnée dont l'échéance serait échue est GRACIÉE, pas effacée", async () => {
@@ -308,5 +359,51 @@ describe("[6.8/AD-12] Les portes du moteur sont fermées à toute session", () =
       expect(error, "la porte système est ouverte").not.toBeNull();
     }
     expect(await existe(recente), "un appelant sans privilège a effacé un compte").toBe(true);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// [R10] LE JOUR CIVIL EST CELUI DE PARIS — PARTOUT, OU LA COMPARAISON MENT D'UN JOUR
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ CETTE GARDE EST NÉE D'UN MUTANT QUI A SURVÉCU, PUIS D'UN FAUX POSITIF QUI ME L'A CACHÉ.
+//
+// `poser_echeance_suppression` calculait `(now() + interval)::date` — le jour civil UTC — pendant que
+// `trancher_echeance_suppression` et `comptes_a_effacer` comparent à `(now() at time zone
+// 'Europe/Paris')::date`. Entre 22 h et minuit UTC selon la saison, le jour parisien est déjà le
+// lendemain : l'échéance tombait un jour plus tôt que le préavis promis.
+//
+// Le test de pose existant tolère une bande de 80 à 95 jours — bien trop large pour voir un jour
+// d'écart. Le mutant a d'abord été annoncé TUÉ ; en cherchant QUI l'avait tué, la réponse était une
+// panne de préparation (`createUser: {}`), pas une assertion. **Un mutant tué pour la mauvaise raison
+// est un mutant vivant**, et sans cette vérification-là je l'aurais inscrit comme mort.
+//
+// Ce qu'on garde n'est donc pas la ligne corrigée, mais la RÈGLE : dans ces fonctions, tout jour civil
+// dérivé de `now()` passe par Paris. La prochaine occurrence rougira sans qu'on ait à y penser.
+describe("[6.8 · R10] Les dates de rétention se calculent en heure de PARIS", () => {
+  const FONCTIONS = [
+    "poser_echeance_suppression",
+    "trancher_echeance_suppression",
+    "comptes_a_effacer",
+    "comptes_a_prevenir",
+  ] as const;
+
+  it.each(FONCTIONS)("%s ne dérive aucun jour civil de `now()` sans passer par Paris", (nom) => {
+    const sql = definitionCourante(nom);
+    // Toute occurrence de `now()` suivie, dans la même expression, d'un cast en `date`.
+    const casts = [...sql.matchAll(/now\(\)[^;]*?::date/g)].map((m) => m[0]);
+    for (const cast of casts) {
+      expect(
+        cast,
+        `${nom} : un jour civil est calculé hors d'Europe/Paris — « ${cast.trim()} »`,
+      ).toContain("at time zone 'Europe/Paris'");
+    }
+  });
+
+  it("[ANTI-VACUITÉ] le motif MORD sur la forme fautive, sinon il ne garde rien", () => {
+    const fautif = "set e = (now() + make_interval(months => 3))::date where id = x;";
+    const casts = [...fautif.matchAll(/now\(\)[^;]*?::date/g)].map((m) => m[0]);
+    expect(casts, "le motif ne voit plus la forme qu'il doit refuser").toHaveLength(1);
+    expect(casts[0]).not.toContain("at time zone 'Europe/Paris'");
   });
 });

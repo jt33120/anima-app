@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { INVENTAIRE_EFFACEMENT, TABLES_EFFACEES } from "@/lib/domain/inventaire-effacement";
 import { FENETRE_PITR_JOURS_MAX } from "@/lib/domain/effacement";
+import { definitionCourante } from "./_sql-courant";
 
 /**
  * effacement-schema.test.ts — LE MOTEUR, LU DANS LE SQL (Story 6.7, AC1/AC2/AC5).
@@ -27,7 +28,32 @@ const FICHIERS = readdirSync(RACINE)
   .filter((f) => f.endsWith(".sql"))
   .sort();
 const TOUT = FICHIERS.map((f) => sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"))).join("\n");
-const SQL_0058 = sansCommentaires(readFileSync(resolve(RACINE, "0058_effacement_total.sql"), "utf-8"));
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// LE MOTEUR SE TROUVE, IL NE SE NOMME PLUS (revue Epic 6, R5)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ CE FICHIER LISAIT `0058_effacement_total.sql`, ET IL AVAIT CESSÉ DE MESURER QUOI QUE CE SOIT.
+//
+// La 6.8 a remplacé `effacer_toutes_mes_donnees` (`create or replace` dans 0059) : le corps est parti
+// dans `effacer_utilisatrice`, et 0058 n'est plus qu'une enveloppe de trois lignes. Les tests nommés
+// `[LE CŒUR]` ci-dessous — dont « la trace est posée AVANT la première suppression », la propriété
+// sans laquelle un effacement interrompu ne laisse aucune preuve — validaient donc un corps mort. On
+// pouvait inverser l'ordre dans 0059 sans faire rougir personne.
+//
+// Épingler un FICHIER, c'est parier qu'aucune story ne redéfinira la fonction. Le pari est perdu.
+//
+// À la place : on demande au corpus **où vivent les suppressions**, et on mesure LÀ. Si une story
+// future redéplace le corps, ces gardes le suivent. Si deux endroits suppriment, la garde rougit —
+// et c'est le bon moment pour la relire, pas six mois plus tard.
+const CANDIDATS = ["effacer_utilisatrice", "effacer_toutes_mes_donnees"] as const;
+const PORTEURS = CANDIDATS.filter((n) =>
+  definitionCourante(n).includes("delete from public.utilisatrice"),
+);
+const MOTEUR = definitionCourante(PORTEURS[0] ?? CANDIDATS[0]);
+const PORTE = definitionCourante("effacer_toutes_mes_donnees");
+/** Ce que le corpus déclare APRÈS la dernière définition de la porte — donc l'état final de ses droits. */
+const APRES_PORTE = TOUT.slice(TOUT.lastIndexOf(PORTE) + PORTE.length);
 
 const TABLES_DU_SCHEMA = [
   ...new Set(
@@ -85,7 +111,7 @@ describe("[6.7/AC5] La trace ne peut pas être emportée par ce qu'elle trace", 
     // C'est toute la raison d'être de la table. Une clé vers `utilisatrice` — même sans cascade —
     // rendrait la trace supprimable avec la personne, et on garderait la preuve de tout sauf du
     // seul geste qu'un responsable de traitement doit pouvoir prouver.
-    const creation = /create\s+table\s+public\.effacement\s*\(([\s\S]*?)\n\);/i.exec(SQL_0058)?.[1] ?? "";
+    const creation = /create\s+table\s+public\.effacement\s*\(([\s\S]*?)\n\);/i.exec(TOUT)?.[1] ?? "";
     expect(creation.length, "la table `effacement` n'a pas été trouvée dans le corpus").toBeGreaterThan(100);
     expect(creation, "`effacement` a gagné une clé étrangère").not.toMatch(/references/i);
     // Et personne n'en ajoute une plus tard, par `alter table`.
@@ -93,35 +119,61 @@ describe("[6.7/AC5] La trace ne peut pas être emportée par ce qu'elle trace", 
   });
 
   it("elle est deny-by-default : aucune policy, RLS activée ET forcée", () => {
-    expect(SQL_0058).toMatch(/alter\s+table\s+public\.effacement\s+enable\s+row\s+level\s+security/i);
-    expect(SQL_0058).toMatch(/alter\s+table\s+public\.effacement\s+force\s+row\s+level\s+security/i);
+    expect(TOUT).toMatch(/alter\s+table\s+public\.effacement\s+enable\s+row\s+level\s+security/i);
+    expect(TOUT).toMatch(/alter\s+table\s+public\.effacement\s+force\s+row\s+level\s+security/i);
     expect(TOUT, "une policy a été posée sur `effacement`").not.toMatch(
       /create\s+policy[\s\S]{0,80}\son\s+(?:public\.)?effacement\b/i,
     );
   });
 
+  it("[LE MOTEUR SE TROUVE] un seul endroit du corpus supprime l'utilisatrice", () => {
+    // ANTI-VACUITÉ DE TOUT CE QUI SUIT (R5) : si `PORTEURS` était vide, `MOTEUR` retomberait sur une
+    // enveloppe et les gardes d'ordre ci-dessous mesureraient un corps sans `delete` — vertes et
+    // creuses, exactement le défaut qu'on répare. Si deux fonctions supprimaient, il y aurait deux
+    // moteurs, et l'un des deux ne serait gardé par personne.
+    expect(
+      PORTEURS,
+      "le corps du moteur a bougé ou s'est dédoublé : ces gardes doivent être relues",
+    ).toHaveLength(1);
+  });
+
   it("[LE CŒUR] la trace est posée AVANT la première suppression", () => {
     // L'ordre inverse perd la preuve, jamais la donnée : après la suppression de `auth.users`,
-    // `auth.uid()` désigne quelqu'un qui n'existe plus, et une insertion qui échouerait là
-    // laisserait un effacement accompli que rien n'atteste.
-    const posee = SQL_0058.indexOf("insert into public.effacement");
-    const premiereSuppression = SQL_0058.indexOf("delete from public.branche");
+    // l'identité désigne quelqu'un qui n'existe plus, et une insertion qui échouerait là laisserait
+    // un effacement accompli que rien n'atteste.
+    const posee = MOTEUR.indexOf("insert into public.effacement");
+    const premiereSuppression = MOTEUR.indexOf("delete from public.branche");
     expect(posee).toBeGreaterThan(-1);
     expect(premiereSuppression).toBeGreaterThan(-1);
     expect(posee, "la trace est posée après avoir commencé à effacer").toBeLessThan(premiereSuppression);
   });
 
   it("elle porte une EMPREINTE, et la forme en est contrainte", () => {
-    expect(SQL_0058).toMatch(/encode\(sha256\(v_uid::text::bytea\),\s*'hex'\)/);
-    expect(SQL_0058).toMatch(/effacement_empreinte_forme\s+check\s*\(empreinte\s*~\s*'\^\[0-9a-f\]\{64\}\$'\)/i);
+    // L'identifiant est nommé `v_uid` dans la porte (6.7) et `p_utilisatrice_id` dans le moteur
+    // système (6.8) : on ancre sur le CALCUL, pas sur le nom de la variable qui l'alimente.
+    expect(MOTEUR).toMatch(/encode\(sha256\([a-z_]+::text::bytea\),\s*'hex'\)/);
+    expect(TOUT).toMatch(/effacement_empreinte_forme\s+check\s*\(empreinte\s*~\s*'\^\[0-9a-f\]\{64\}\$'\)/i);
+  });
+
+  it("[R11] le moteur est IDEMPOTENT : il verrouille et constate avant de poser une trace", () => {
+    // Le formulaire d'effacement est du HTML pur, sans bouton désactivable (choix assumé de la 6.7).
+    // Un double-tap envoyait donc deux requêtes, dont les `delete` sont idempotents mais dont les
+    // deux `insert into effacement` réussissaient : la trace censée PROUVER qu'un droit a été honoré
+    // mentait par duplication.
+    expect(MOTEUR, "le verrou de ligne a disparu : deux traces redeviennent possibles").toMatch(
+      /from\s+public\.utilisatrice\s+where\s+id\s*=\s*[a-z_]+\s+for\s+update/i,
+    );
+    const verrou = MOTEUR.search(/for\s+update/i);
+    const trace = MOTEUR.indexOf("insert into public.effacement");
+    expect(verrou, "le verrou est posé après la trace : la course reste ouverte").toBeLessThan(trace);
   });
 });
 
 describe("[6.7/AC1] L'ordre du moteur, et pourquoi il n'est pas laissé au hasard", () => {
   it("[LE CŒUR] les branches partent AVANT le reste — seule clé `restrict` du schéma", () => {
-    const branches = SQL_0058.indexOf("delete from public.branche");
-    const utilisatrice = SQL_0058.indexOf("delete from public.utilisatrice");
-    const auth = SQL_0058.indexOf("delete from auth.users");
+    const branches = MOTEUR.indexOf("delete from public.branche");
+    const utilisatrice = MOTEUR.indexOf("delete from public.utilisatrice");
+    const auth = MOTEUR.indexOf("delete from auth.users");
     expect(branches).toBeGreaterThan(-1);
     expect(branches, "les branches ne partent plus en premier").toBeLessThan(utilisatrice);
     expect(utilisatrice).toBeLessThan(auth);
@@ -153,18 +205,23 @@ describe("[6.7/AC1] L'ordre du moteur, et pourquoi il n'est pas laissé au hasar
   });
 
   it("l'identité d'auth part aussi — une ligne ne portant qu'une adresse en est une donnée", () => {
-    expect(SQL_0058).toMatch(/delete\s+from\s+auth\.users\s+where\s+id\s*=\s*v_uid/i);
+    expect(MOTEUR).toMatch(/delete\s+from\s+auth\.users\s+where\s+id\s*=\s*[a-z_]+/i);
   });
 
-  it("le moteur refuse une identité absente", () => {
-    expect(SQL_0058).toMatch(/if\s+v_uid\s+is\s+null\s+then\s+raise\s+exception/i);
+  it("le moteur ET la porte refusent une identité absente", () => {
+    expect(MOTEUR).toMatch(/if\s+[a-z_]+\s+is\s+null\s+then\s+raise\s+exception/i);
+    // La porte a sa propre garde : c'est elle qui lit `auth.uid()`, et un `null` y signifie
+    // « personne » et non « quelqu'un d'introuvable ».
+    expect(PORTE).toMatch(/if\s+v_uid\s+is\s+null\s+then\s+raise\s+exception/i);
   });
 
   it("la porte est nommée : révoquée pour tous, accordée à `authenticated` seul", () => {
-    expect(SQL_0058).toMatch(
+    // ⚠️ MESURÉ APRÈS LA DERNIÈRE DÉFINITION DE LA PORTE (R5). Un `revoke`/`grant` écrit AVANT la
+    // redéfinition courante décrirait des droits d'une version qui n'existe plus.
+    expect(APRES_PORTE).toMatch(
       /revoke\s+all\s+on\s+function\s+public\.effacer_toutes_mes_donnees\(integer\)\s+from\s+public,\s*anon/i,
     );
-    expect(SQL_0058).toMatch(
+    expect(APRES_PORTE).toMatch(
       /grant\s+execute\s+on\s+function\s+public\.effacer_toutes_mes_donnees\(integer\)\s+to\s+authenticated\s*;/i,
     );
   });
@@ -174,9 +231,9 @@ describe("[6.7/AC2 · AD-14] La fenêtre est un ARGUMENT, et sa borne est dans l
   it("[LE CŒUR] aucune échéance n'est écrite en dur dans le SQL", () => {
     // AD-14 : « échéances paramétrées, jamais codées en dur ». La fonction reçoit le nombre de jours ;
     // un `make_interval(days => 7)` littéral ferait mentir la trace le jour où le réglage change.
-    expect(SQL_0058).toMatch(/effacer_toutes_mes_donnees\(p_fenetre_pitr_jours\s+integer\)/i);
-    expect(SQL_0058).toMatch(/make_interval\(days\s*=>\s*p_fenetre_pitr_jours\)/i);
-    expect(SQL_0058, "une durée littérale s'est glissée dans le moteur").not.toMatch(
+    expect(PORTE).toMatch(/effacer_toutes_mes_donnees\(p_fenetre_pitr_jours\s+integer\)/i);
+    expect(MOTEUR).toMatch(/make_interval\(days\s*=>\s*p_fenetre_pitr_jours\)/i);
+    expect(MOTEUR, "une durée littérale s'est glissée dans le moteur").not.toMatch(
       /make_interval\(days\s*=>\s*\d+\)/i,
     );
   });
@@ -184,16 +241,16 @@ describe("[6.7/AC2 · AD-14] La fenêtre est un ARGUMENT, et sa borne est dans l
   it("[LE CŒUR] la borne est une CONTRAINTE DE TABLE — elle lie aussi `service_role`", () => {
     // Une vérification écrite seulement dans la fonction serait contournée par la première tâche
     // système qui insérerait autrement. Un `check` ne se contourne pas : la RLS, si.
-    expect(SQL_0058).toMatch(
+    expect(TOUT).toMatch(
       new RegExp(`effacement_fenetre_bornee\\s+check\\s*\\(fenetre_pitr_jours\\s+between\\s+0\\s+and\\s+${FENETRE_PITR_JOURS_MAX}\\)`, "i"),
     );
   });
 
   it("la trace ne peut pas promettre une survivance antérieure à la demande", () => {
-    expect(SQL_0058).toMatch(/effacement_survivance_coherente\s+check\s*\(survivance_jusqu_au\s*>=\s*demande_le\)/i);
+    expect(TOUT).toMatch(/effacement_survivance_coherente\s+check\s*\(survivance_jusqu_au\s*>=\s*demande_le\)/i);
   });
 
   it("les quatre motifs d'AD-14 sont ouverts — la 6.8 passera par le même moteur", () => {
-    expect(SQL_0058).toMatch(/motif\s+in\s*\('utilisatrice',\s*'minorite',\s*'inactivite',\s*'fermeture'\)/i);
+    expect(TOUT).toMatch(/motif\s+in\s*\('utilisatrice',\s*'minorite',\s*'inactivite',\s*'fermeture'\)/i);
   });
 });

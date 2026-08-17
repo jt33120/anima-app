@@ -28,8 +28,13 @@ const PAGE = lire("app/mes-donnees/page.tsx");
 
 describe("[6.6/AC1] Une seule route d'export, et c'est celle que `/barriere` connaît déjà", () => {
   it("[LE CŒUR] la route sert le document COMPLET, plus les quatre morceaux de la 1.9", () => {
-    expect(ROUTE).toMatch(/chargerExport/);
-    expect(ROUTE).toMatch(/rendreExportLisible/);
+    // ⚠️ ON MESURE L'APPEL, PAS LE NOM (revue Epic 6, R6). `toMatch(/chargerExport/)` était
+    // satisfait par la seule ligne d'IMPORT : on pouvait remplacer l'appel par un document vide et
+    // servir un fichier de trois lignes au titre de l'article 15, sans qu'un test bouge.
+    expect(ROUTE, "`chargerExport` n'est plus APPELÉ — l'import ne prouve rien").toMatch(
+      /await\s+chargerExport\s*\(/,
+    );
+    expect(ROUTE, "`rendreExportLisible` n'est plus APPELÉ").toMatch(/rendreExportLisible\s*\(/);
     // Les lectures table par table de la 1.9 ont disparu : elles ne couvraient que quatre couches.
     expect(ROUTE, "la route lit encore des tables à la main — l'export partiel est revenu").not.toMatch(
       /\.from\(/,
@@ -149,7 +154,12 @@ describe("[6.6/AC3] Rien ne part vers un tiers, et le fichier ne s'exécute pas 
   });
 
   it("la réponse n'est jamais mise en cache (art. 9)", () => {
-    expect(ROUTE).toMatch(/ENTETES_ART9/);
+    // ⚠️ ON MESURE L'ÉTALEMENT DANS LES EN-TÊTES (R6). `toMatch(/ENTETES_ART9/)` était satisfait
+    // par la ligne d'import : retirer le `...ENTETES_ART9` de la réponse rendait un export art. 9
+    // cachable par un intermédiaire, test toujours vert.
+    expect(ROUTE, "`ENTETES_ART9` est importé mais plus étalé dans la réponse").toMatch(
+      /\.\.\.ENTETES_ART9/,
+    );
     expect(ROUTE).toMatch(/export const dynamic\s*=\s*"force-dynamic"/);
     expect(ROUTE).toMatch(/export const fetchCache\s*=\s*"force-no-store"/);
   });

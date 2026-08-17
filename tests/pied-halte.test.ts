@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, relative } from "node:path";
+import { sansCommentaires } from "./_absence";
 import {
   HALTES,
   HORS_HALTE,
@@ -49,7 +50,18 @@ function pagesDeApp(): string[] {
   return trouvees.sort();
 }
 
-const lire = (f: string) => readFileSync(resolve(RACINE, f), "utf-8");
+/**
+ * ⚠️ LES COMMENTAIRES SONT RETIRÉS À LA LECTURE (revue Epic 6, R6).
+ *
+ * Ce fichier lisait le source NU et vérifiait le câblage par `src.includes(...)`. Un développeur qui
+ * COMMENTE la ligne — geste banal pendant une mise au point, oublié ensuite — laissait la chaîne
+ * intacte dans le fichier : la garde restait verte pendant que la mention IA due par l'article 50
+ * disparaissait de la halte.
+ *
+ * `tests/_absence.ts` existe précisément pour ça, et ce fichier documente déjà le piège dix lignes
+ * plus haut — pour un cas voisin, sans se l'appliquer.
+ */
+const lire = (f: string) => sansCommentaires(readFileSync(resolve(RACINE, f), "utf-8"));
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -131,10 +143,20 @@ describe("[6.9/FR-077] La porte de secours est sur TOUTES les haltes", () => {
     }
   });
 
-  it("[ANTI-VACUITÉ] `/barriere` garde son propre lien vers l'aide", () => {
-    // Elle est exclue de l'inventaire parce qu'elle a déjà le sien. Si ce lien disparaissait, la
-    // page d'un compte barré-minorité — celle où le filet compte le plus — n'aurait plus rien.
-    expect(lire("app/barriere/page.tsx")).toMatch(/\/aide/);
+  it("[ANTI-VACUITÉ] `/barriere` porte les ressources d'aide, joignables directement", () => {
+    // ⚠️ CETTE GARDE DISAIT UNE CHOSE FAUSSE, ET SEULS SES COMMENTAIRES LA FAISAIENT PASSER
+    // (revue Epic 6, R6 — trouvée en appliquant le correctif du dépouillement).
+    //
+    // Elle exigeait `/\/aide/` dans `app/barriere/page.tsx` et annonçait « son propre lien vers
+    // l'aide ». Ce lien N'EXISTE PAS : les deux seules occurrences de `/aide` dans ce fichier sont
+    // des commentaires d'explication. La garde lisait la prose et se déclarait satisfaite.
+    //
+    // Ce qui protège réellement quelqu'un ici est PLUS FORT qu'un lien : la page pose les numéros
+    // d'urgence en clair, chacun en `tel:`, joignable d'un appui — sans navigation, sans page à
+    // charger. C'est ça qu'on garde, puisque c'est ça qui existe et que c'est ça qui tient.
+    const src = lire("app/barriere/page.tsx");
+    expect(src, "les ressources ne sont plus posées sur la page").toMatch(/RESSOURCES\.map/);
+    expect(src, "les numéros ne sont plus composables d'un appui").toMatch(/href=\{`tel:\$\{r\.tel\}`\}/);
   });
 });
 
@@ -185,9 +207,12 @@ describe("[6.9] Le pied reste un pied, pas un chrome d'application", () => {
   it("il ne porte que deux liens, et rien d'autre", () => {
     // Le jour où quelqu'un y ajoutera un plan du site, des réseaux sociaux ou un logo, la porte de
     // secours cessera d'être ce qu'on trouve des yeux quand on ne va pas bien.
-    const src = lire("render/PiedHalte.tsx");
-    const liens = src.match(/<Link/g) ?? [];
-    expect(liens.length).toBe(2);
+    // ⚠️ ON COMPTE AUSSI LES `<a>` BRUTS (revue Epic 6, R6). La garde ne comptait que `<Link` :
+    // ajouter `<a href="https://instagram.com/…">` laissait le compte à 2 pendant que le DOM gagnait
+    // un troisième lien parfaitement cliquable.
+    const src = sansCommentaires(lire("render/PiedHalte.tsx"));
+    const liens = [...(src.match(/<Link\b/g) ?? []), ...(src.match(/<a\b/g) ?? [])];
+    expect(liens.length, `le pied porte ${liens.length} liens au lieu de deux`).toBe(2);
   });
 
   it("`render/` reste muet : le pied n'importe pas `lib/domain`", () => {

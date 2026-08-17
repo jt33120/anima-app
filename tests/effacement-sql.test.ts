@@ -126,11 +126,40 @@ describe("[6.7/AC1] Le moteur unique — il ne reste rien, et « rien » se mesu
   });
 });
 
+/** L'empreinte d'Alice, telle que le moteur la calcule — sans clé étrangère, c'est la seule adresse. */
+const empreinteAlice = () => createHash("sha256").update(alice.id).digest("hex");
+
 describe("[6.7/AC5] La trace survit à la personne", () => {
   it("[LE CŒUR] la ligne d'effacement existe TOUJOURS — elle n'a aucune clé vers elle", async () => {
     const { data, error } = await admin.from("effacement").select("*").eq("id", traceId).single();
     expect(error, "la trace a été emportée par la cascade").toBeNull();
     expect(data).toBeTruthy();
+  });
+
+  it("[R11] un SECOND effacement ne pose PAS une seconde trace — il rend la première", async () => {
+    // ⚠️ L'ÉCRAN D'EFFACEMENT EST UN FORMULAIRE HTML PUR, SANS BOUTON DÉSACTIVABLE (choix assumé de
+    // la 6.7 : il n'y a rien à charger pour exercer un droit). Un double-tap — courant sur un geste
+    // « important », surtout sur mobile — envoyait donc deux requêtes. Les deux `delete` sont
+    // idempotents et ne se voient pas, mais les deux `insert into effacement` réussissaient.
+    //
+    // Le résultat était une TRACE QUI MENT PAR DUPLICATION : deux effacements attestés pour un seul
+    // geste, sur la ligne même qui doit prouver qu'un droit a été honoré (AC5).
+    //
+    // La session d'Alice est morte avec son compte : on rappelle donc le MOTEUR, qui est le chemin
+    // qu'emprunte aussi le job de rétention — la seconde collision possible.
+    const avant = await admin.from("effacement").select("id").eq("empreinte", empreinteAlice());
+    expect((avant.data ?? []).length, "l'état de départ n'est pas d'une seule trace").toBe(1);
+
+    const { data: rendu, error } = await admin.rpc("effacer_utilisatrice", {
+      p_utilisatrice_id: alice.id,
+      p_motif: "utilisatrice",
+      p_fenetre_pitr_jours: 5,
+    });
+    expect(error, "le second appel a levé au lieu d'être un non-événement").toBeNull();
+    expect(rendu, "le second appel n'a pas rendu la trace déjà posée").toBe(traceId);
+
+    const apres = await admin.from("effacement").select("id").eq("empreinte", empreinteAlice());
+    expect((apres.data ?? []).length, "une seconde trace a été posée pour un seul effacement").toBe(1);
   });
 
   it("elle porte l'EMPREINTE, jamais l'identifiant", async () => {

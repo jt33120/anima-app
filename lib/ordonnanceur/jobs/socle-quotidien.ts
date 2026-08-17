@@ -5,6 +5,8 @@ import { PALIER } from "@/lib/domain/ordonnanceur-budget";
 import { palierHonoreLHeure } from "@/lib/domain/socle-quotidien";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
 import { creerDepotPoussee, type DepotPoussee } from "@/lib/data/depot-poussee";
+// AD-17 : la même source que `synthese.ts` et `rappel-echeance.ts` (revue Epic 6, R3).
+import { creneauDiurneOuvert } from "@/lib/domain/regime-anam";
 import { creerPortPoussee } from "@/lib/poussee/fabrique";
 import { DELAI_POUSSEE_MS } from "@/lib/poussee/adaptateurs/web-push";
 import type { PortPoussee } from "@/lib/poussee/port";
@@ -90,6 +92,23 @@ export async function executerSocleQuotidienAvec(ctx: ContexteJob, deps: DepsSoc
     journaliserExploitation("socle_palier_incapable", { code: PALIER });
     return;
   }
+
+  // ── LE CRÉNEAU DIURNE, QUI MANQUAIT ICI ET NULLE PART AILLEURS (revue Epic 6, R3 · AD-17) ─────────
+  //
+  // ⚠️ **CE JOB ÉTAIT LE SEUL DES TROIS À NE PAS LE POSER, ET LE SEUL À ALLUMER UN ÉCRAN VERROUILLÉ.**
+  //
+  // `synthese.ts` et `rappel-echeance.ts` appellent `creneauDiurneOuvert(ctx.instant)` avant d'émettre.
+  // Celui-ci lisait l'heure choisie et poussait. La 6.3 a bien posé le créneau « avant toute
+  // réservation dans `notifier()` » — mais le socle ne passe pas par `notifier()` : il appelle
+  // `reveiller()` sur le port de poussée. La garde n'a donc jamais couvert le canal le plus intrusif.
+  //
+  // Le défaut DORMAIT : sur `hobby`, `palierHonoreLHeure()` refuse juste au-dessus et rien n'est jamais
+  // émis. Il se serait réveillé au passage en `pro` — c'est-à-dire le jour où personne ne relit ce
+  // fichier. Quelqu'un qui avait choisi 2 h aurait été réveillée à 2 h.
+  //
+  // Placé APRÈS le refus de palier et AVANT `estConfigure` : on ne consulte pas la base, on ne réserve
+  // rien, on ne consomme aucun droit de pousser. Un tick nocturne est un non-événement, pas un échec.
+  if (!creneauDiurneOuvert(ctx.instant)) return;
 
   // `estConfigure()` AVANT toute lecture, et l'ordre compte : sans clés VAPID, il n'y a rien à faire et
   // surtout rien à RÉSERVER — consommer le droit de pousser sans pousser ferait perdre la journée.

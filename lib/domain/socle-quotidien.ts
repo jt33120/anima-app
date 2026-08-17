@@ -1,4 +1,7 @@
 import { PALIER, TICKS_MAX_PAR_JOUR, DERIVE_PLANIFICATION_MS, type Palier } from "@/lib/domain/ordonnanceur-budget";
+// Le créneau diurne vient de sa source unique (revue Epic 6, R3) : deux définitions de « le soir »
+// divergent au premier ajustement, et l'une des deux devient fausse.
+import { CRENEAU_DIURNE_DEBUT, CRENEAU_DIURNE_FIN } from "@/lib/domain/regime-anam";
 
 /**
  * socle-quotidien.ts — LA MANIFESTATION QUOTIDIENNE DU SOCLE (Story 6.2 · FR-033, FR-035, NFR-015).
@@ -173,8 +176,49 @@ export function indexDuJour(jour: string, taille: number): number {
 /** 8 h 00, heure de Paris (décision D3 — un seul fuseau tant que le produit est français). */
 export const HEURE_PAR_DEFAUT = 8;
 
+/**
+ * ── LE CRÉNEAU DIURNE S'APPLIQUE AUSSI À LA POUSSÉE (revue Epic 6, R3) ────────────────────────────
+ *
+ * ⚠️ **IL NE S'Y APPLIQUAIT PAS, ET C'ÉTAIT LE SEUL CANAL QUI ALLUME UN ÉCRAN VERROUILLÉ.**
+ *
+ * `creneauDiurneOuvert` (`regime-anam`) était appelé par `synthese.ts` et `rappel-echeance.ts` — les
+ * deux jobs de COURRIEL. Le job de poussée lisait l'heure choisie et poussait. Le sélecteur proposait
+ * 00 h à 23 h, la contrainte SQL acceptait `0..23`, et le palier `hobby` rendait le tout inerte : le
+ * défaut dormait, et se serait réveillé au passage en `pro` — c'est-à-dire au moment où plus personne
+ * ne relit ce fichier.
+ *
+ * La borne haute est **20 et non 21** : `creneauDiurneOuvert` teste `h < CRENEAU_DIURNE_FIN`, donc une
+ * poussée à 21 h tombe hors créneau. On dérive les bornes de la source unique plutôt que de réécrire
+ * deux nombres — deux définitions de « le soir » divergent au premier ajustement.
+ *
+ * ⚠️ Ceci n'est PAS la garde. La garde est `preference_socle_heure_ck` (0061), qui lie aussi
+ * `service_role` : `authenticated` détient l'`update` sur `preference_socle`, et un `PATCH` PostgREST
+ * direct ne voit jamais de `<select>`.
+ */
+export const PREMIERE_HEURE_POUSSABLE = CRENEAU_DIURNE_DEBUT;
+export const DERNIERE_HEURE_POUSSABLE = CRENEAU_DIURNE_FIN - 1;
+
+/**
+ * Les heures qu'un écran a le droit de PROPOSER — indépendantes du palier.
+ *
+ * ⚠️ Distinctes de `heuresHonorables`, et c'est voulu : sur `hobby` l'ensemble honorable est VIDE,
+ * et un sélecteur vide empêcherait de régler une préférence que la 6.2 accepte pourtant d'enregistrer
+ * (« Ton choix est enregistré. Les notifications ne partent pas encore »). Ce qu'on peut CHOISIR et ce
+ * que le produit peut TENIR sont deux questions, et les confondre viderait l'écran.
+ */
+export const HEURES_CHOISISSABLES: readonly number[] = Object.freeze(
+  Array.from(
+    { length: CRENEAU_DIURNE_FIN - CRENEAU_DIURNE_DEBUT },
+    (_, i) => CRENEAU_DIURNE_DEBUT + i,
+  ),
+);
+
 export function heureValide(heure: number): boolean {
-  return Number.isInteger(heure) && heure >= 0 && heure <= 23;
+  return (
+    Number.isInteger(heure) &&
+    heure >= PREMIERE_HEURE_POUSSABLE &&
+    heure <= DERNIERE_HEURE_POUSSABLE
+  );
 }
 
 /**
@@ -197,7 +241,15 @@ export function heureValide(heure: number): boolean {
  */
 export function heuresHonorables(palier: Palier): readonly number[] {
   if (!heureHonorable(TICKS_MAX_PAR_JOUR[palier], DERIVE_PLANIFICATION_MS[palier])) return Object.freeze([]);
-  return Object.freeze(Array.from({ length: 24 }, (_, h) => h));
+  // Le créneau diurne (R3) borne ce que la CADENCE autorise : les deux conditions sont
+  // indépendantes, et l'ensemble honorable est leur intersection. Une cadence suffisante ne rend pas
+  // 3 h du matin acceptable.
+  return Object.freeze(
+    Array.from(
+      { length: DERNIERE_HEURE_POUSSABLE - PREMIERE_HEURE_POUSSABLE + 1 },
+      (_, i) => PREMIERE_HEURE_POUSSABLE + i,
+    ),
+  );
 }
 
 /**

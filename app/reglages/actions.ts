@@ -70,6 +70,18 @@ export async function abonnerAppareil(
  */
 export async function desabonnerAppareil(endpoint: string): Promise<EtatReglages> {
   const supabase = await createSupabaseServerClient();
+  // ⚠️ LE CONTRÔLE DE SESSION MANQUAIT ICI, ET NULLE PART AILLEURS (revue Epic 6, R8).
+  //
+  // Ce n'est toujours pas la garde — la policy propriétaire de 0053 l'est. Mais sans session, le
+  // `delete` ne trouve AUCUNE ligne à travers la RLS et réussit : zéro ligne touchée, aucune erreur,
+  // donc `{statut:"ok"}`. L'écran annonçait alors un désabonnement que la base n'avait pas fait, et
+  // le produit continuait de pousser vers quelqu'un persuadée d'avoir dit non. Un succès qui n'a rien
+  // accompli est pire qu'un échec : il ferme la question.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return REFUS;
+
   const { error } = await supabase.from("abonnement_poussee").delete().eq("endpoint", endpoint);
   if (error) return REFUS;
   revalidatePath("/reglages");

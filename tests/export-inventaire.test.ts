@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { definitionCourante } from "./_sql-courant";
 import {
   COLONNES_RETIREES,
   INVENTAIRE_EXPORT,
@@ -52,10 +53,24 @@ const TABLES_DU_SCHEMA = [
   ),
 ].sort();
 
-/** Le SQL de la fonction d'export, isolé — c'est lui qu'on confronte à l'inventaire. */
-const SQL_EXPORT = sansCommentaires(
-  readFileSync(resolve(RACINE, "0057_export_donnees.sql"), "utf-8"),
-);
+/**
+ * La DÉFINITION COURANTE de la fonction d'export — jamais un fichier épinglé (revue Epic 6, R5).
+ *
+ * ⚠️ CE FICHIER LISAIT `0057_export_donnees.sql`, ET C'ÉTAIT LE MÊME PIÈGE QUE CELUI QUI VENAIT DE
+ * SE REFERMER SUR L'EFFACEMENT — simplement encore endormi.
+ *
+ * `create or replace function` est la convention de ce dépôt : `utilisatrices_a_synthetiser`,
+ * `traiter_evenement_abonnement`, `eligible_au_periodique` en portent chacune plusieurs, et
+ * `effacer_toutes_mes_donnees` a été redéfinie par la 6.8 — ce qui a rendu muettes, sans que personne
+ * le voie, TOUTES les gardes `[LE CŒUR]` de l'effacement.
+ *
+ * La story qui ajoutera une couche à l'export suivra cette convention. Le jour où elle le fera, les
+ * gardes ci-dessous cesseraient de voir la vraie fonction. On demande donc au corpus sa dernière
+ * définition, comme Postgres le fait en rejouant les migrations.
+ */
+const SQL_EXPORT = definitionCourante("exporter_mes_donnees");
+/** Ce que le corpus déclare APRÈS elle — donc l'état final de ses droits. */
+const APRES_EXPORT = TOUT.slice(TOUT.lastIndexOf(SQL_EXPORT) + SQL_EXPORT.length);
 
 /** Les clés de section construites par la RPC : `'nom', (select …`. */
 const CLES_RPC = [...SQL_EXPORT.matchAll(/'([a-z_0-9]+)'\s*,\s*\(\s*select/gi)].map((m) => m[1]);
@@ -151,11 +166,13 @@ describe("[6.6/AC1] L'inventaire et la RPC disent EXACTEMENT la même chose", ()
   });
 
   it("la porte est NOMMÉE : révoquée pour tous, accordée à `authenticated` seul", () => {
-    expect(SQL_EXPORT).toMatch(/revoke\s+all\s+on\s+function\s+public\.exporter_mes_donnees\(\)\s+from\s+public,\s*anon/i);
+    // ⚠️ MESURÉ APRÈS la dernière définition (R5) : un `revoke` écrit AVANT elle décrirait les
+    // droits d'une version qui n'existe plus.
+    expect(APRES_EXPORT).toMatch(/revoke\s+all\s+on\s+function\s+public\.exporter_mes_donnees\(\)\s+from\s+public,\s*anon/i);
     // ⚠️ LE `;` FAIT PARTIE DE L'ASSERTION. Sans lui, `to authenticated, anon;` passerait — et la
     // garde vivante ne le verrait pas non plus, puisqu'`anon` se ferait de toute façon refuser par
     // le `v_uid is null`. Le trou serait invisible des deux côtés à la fois.
-    expect(SQL_EXPORT).toMatch(
+    expect(APRES_EXPORT).toMatch(
       /grant\s+execute\s+on\s+function\s+public\.exporter_mes_donnees\(\)\s+to\s+authenticated\s*;/i,
     );
   });

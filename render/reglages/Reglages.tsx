@@ -58,6 +58,14 @@ export interface ProprietesReglages {
   readonly clePublique: string | null;
   readonly abonneIci: boolean;
   readonly heure: number;
+  /**
+   * Les heures proposables, décidées par le MODÈLE et descendues d'ici (revue Epic 6, R3).
+   *
+   * ⚠️ Ce composant générait `Array.from({length: 24})` — il décidait donc du créneau, alors que
+   * `render/` est un adaptateur muet (AD-7) et n'a pas le droit de connaître AD-17. Et de toute façon
+   * un `<select>` ne garde rien : la garde est `preference_socle_heure_ck` (0061).
+   */
+  readonly heures: readonly number[];
   /** Le palier met-il réellement le rythme en service ? Faux ⇒ on le DIT, on ne le cache pas. */
   readonly enService: boolean;
   readonly abonner: (endpoint: string, p256dh: string, auth: string) => Promise<{ statut: string }>;
@@ -182,7 +190,16 @@ export default function Reglages(p: ProprietesReglages) {
       const enregistrement = await navigator.serviceWorker.getRegistration();
       const abonnement = await enregistrement?.pushManager.getSubscription();
       if (abonnement) {
-        await p.desabonner(abonnement.endpoint);
+        // ⚠️ ON LIT LE RETOUR, ET C'EST NEUF (revue Epic 6, R8). `activer()` le faisait déjà ;
+        // `retirer()` l'ignorait, et affichait « désactivé » quoi qu'il arrive. Sur session expirée,
+        // la base gardait la ligne pendant que l'écran affirmait le contraire — donc le produit
+        // poussait encore vers quelqu'un persuadée d'avoir dit non. On ne désabonne PAS le navigateur
+        // dans ce cas : le laisser abonné est ce qui permet de réessayer.
+        const issue = await p.desabonner(abonnement.endpoint);
+        if (issue.statut !== "ok") {
+          setEtat("echec");
+          return;
+        }
         await abonnement.unsubscribe();
       }
       setAbonne(false);
@@ -226,7 +243,7 @@ export default function Reglages(p: ProprietesReglages) {
             demarrer(() => void p.choisirHeure(choix));
           }}
         >
-          {Array.from({ length: 24 }, (_, h) => (
+          {p.heures.map((h) => (
             <option key={h} value={h}>
               {String(h).padStart(2, "0")} h
             </option>

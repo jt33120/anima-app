@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
-import { HEURE_PAR_DEFAUT, palierHonoreLHeure } from "@/lib/domain/socle-quotidien";
+import { HEURE_PAR_DEFAUT, HEURES_CHOISISSABLES, palierHonoreLHeure } from "@/lib/domain/socle-quotidien";
 import * as copie from "@/lib/domain/copie-reglages";
 import * as copieDonnees from "@/lib/domain/copie-mes-donnees";
 import Reglages from "@/render/reglages/Reglages";
@@ -106,6 +106,9 @@ export default async function PageReglages() {
         clePublique={process.env.VAPID_CLE_PUBLIQUE?.trim() ?? null}
         abonneIci={(count ?? 0) > 0}
         heure={preference?.heure ?? HEURE_PAR_DEFAUT}
+        // Le créneau diurne descend du MODÈLE (revue Epic 6, R3) : le composant proposait les 24
+        // heures et décidait donc d'AD-17 à la place du domaine. La garde reste en base (0061).
+        heures={HEURES_CHOISISSABLES}
         enService={palierHonoreLHeure()}
         abonner={abonnerAppareil}
         desabonner={desabonnerAppareil}

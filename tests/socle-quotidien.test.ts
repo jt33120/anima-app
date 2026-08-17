@@ -9,6 +9,9 @@ import {
   corpsDuJour,
   indexDuJour,
   HEURE_PAR_DEFAUT,
+  HEURES_CHOISISSABLES,
+  PREMIERE_HEURE_POUSSABLE,
+  DERNIERE_HEURE_POUSSABLE,
   heureValide,
   heuresHonorables,
   heureHonorable,
@@ -164,20 +167,40 @@ describe("[6.2/AC1] le corps du jour est CALCULÉ, et déterministe", () => {
 });
 
 describe("[6.2/AC8] le palier décide si une heure choisie peut être honorée", () => {
-  it("l'heure par défaut est 8 h, et la validation est bornée à un jour civil", () => {
+  it("[R3] l'heure par défaut est 8 h, et la validation est bornée au CRÉNEAU DIURNE", () => {
+    // ⚠️ LA BORNE ÉTAIT « UN JOUR CIVIL » (0 à 23), ET C'ÉTAIT LE DÉFAUT (revue Epic 6, R3).
+    // `creneauDiurneOuvert` (6 h ≤ h < 21 h) n'était appliqué que par les deux jobs de COURRIEL ; le
+    // canal de POUSSÉE — le seul qui allume un écran verrouillé — l'ignorait. Inerte sur `hobby`, et
+    // réveillé au premier passage en `pro` : quelqu'un qui avait choisi 2 h aurait été réveillée à 2 h.
     expect(HEURE_PAR_DEFAUT).toBe(8);
-    expect(heureValide(0)).toBe(true);
-    expect(heureValide(23)).toBe(true);
+    expect(heureValide(PREMIERE_HEURE_POUSSABLE)).toBe(true);
+    expect(heureValide(DERNIERE_HEURE_POUSSABLE)).toBe(true);
+    expect(heureValide(PREMIERE_HEURE_POUSSABLE - 1), "5 h est encore la nuit").toBe(false);
+    expect(heureValide(DERNIERE_HEURE_POUSSABLE + 1), "21 h est hors créneau (h < FIN)").toBe(false);
+    expect(heureValide(0)).toBe(false);
+    expect(heureValide(23)).toBe(false);
     expect(heureValide(24)).toBe(false);
     expect(heureValide(-1)).toBe(false);
     expect(heureValide(8.5)).toBe(false);
     expect(heureValide(Number.NaN)).toBe(false);
   });
 
+  it("[R3] les heures PROPOSABLES sont exactement le créneau, et le sélecteur ne décide de rien", () => {
+    // `HEURES_CHOISISSABLES` est indépendant du palier — sur `hobby` l'ensemble honorable est vide,
+    // et un sélecteur vide empêcherait de régler une préférence que la 6.2 accepte d'enregistrer.
+    expect(HEURES_CHOISISSABLES[0]).toBe(PREMIERE_HEURE_POUSSABLE);
+    expect(HEURES_CHOISISSABLES.at(-1)).toBe(DERNIERE_HEURE_POUSSABLE);
+    expect(HEURES_CHOISISSABLES.every((h) => heureValide(h))).toBe(true);
+    // ANTI-VACUITÉ : un ensemble vide satisferait `every` sans rien prouver.
+    expect(HEURES_CHOISISSABLES.length).toBe(DERNIERE_HEURE_POUSSABLE - PREMIERE_HEURE_POUSSABLE + 1);
+  });
+
   it("[LE CŒUR] `hobby` n'honore AUCUNE heure — un tick par jour ne couvre pas vingt-quatre heures", () => {
     // C'est toute la story dans une assertion. Le repli est le refus, pas « à peu près 8 h ».
     expect(heuresHonorables("hobby")).toEqual([]);
-    expect(heuresHonorables("pro")).toHaveLength(24);
+    // ⚠️ PLUS 24 (R3) : la cadence et le créneau diurne sont deux conditions indépendantes, et
+    // l'ensemble honorable est leur INTERSECTION. Une cadence suffisante ne rend pas 3 h acceptable.
+    expect(heuresHonorables("pro")).toEqual([...HEURES_CHOISISSABLES]);
   });
 
   it("[LE CŒUR] la DÉRIVE compte autant que la cadence — et c'est le terme qu'on oublie", () => {

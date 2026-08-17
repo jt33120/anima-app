@@ -46,14 +46,33 @@ describe("[AC6] neutre, puis spécifique — et la SEULE différence est une lig
     // ⚠️ LA PASTILLE SANS LE MOT. Le geste naturel, et celui que ce test interdit : allumer une
     // classe d'accent quand Anam a quelque chose à dire. Ce serait un badge — il n'aurait simplement
     // pas de texte. On compare donc les DEUX rendus, attribut par attribut, hors le texte lui-même.
-    const empreinte = (c: CarteAnamVue) => {
+    // ⚠️ L'EMPREINTE NE LISAIT QUE LA RACINE (revue Epic 6, R6). Allumer la classe sur un ENFANT —
+    // `<p className={`… ${carte.ligne ? s.accent : ""}`}>` — laissait les deux empreintes égales
+    // pendant que la pastille s'allumait. La propriété centrale de ce fichier était exactement celle
+    // qui n'était pas prouvée. On parcourt donc TOUS les éléments, racine comprise.
+    const empreintes = (c: CarteAnamVue) => {
       const { container, unmount } = render(<CarteAnam carte={c} />);
-      const article = container.querySelector("article")!;
-      const trace = [...article.attributes].map((a) => `${a.name}=${a.value}`).sort().join("|");
+      const traces = [...container.querySelectorAll("*")].map(
+        (el) =>
+          `${el.tagName}:` +
+          [...el.attributes].map((a) => `${a.name}=${a.value}`).sort().join(","),
+      );
       unmount();
-      return trace;
+      return traces;
     };
-    expect(empreinte(AVEC_MOTIF)).toBe(empreinte(NEUTRE));
+
+    // ⚠️ INCLUSION, PAS ÉGALITÉ — et il a fallu un test rouge pour l'apprendre. La carte avec motif
+    // rend un `<p>` DE PLUS (la ligne), ce qui est licite et voulu. Ce qui ne l'est pas, c'est qu'un
+    // élément DÉJÀ PRÉSENT change d'attributs. On exige donc que chaque signature du rendu neutre se
+    // retrouve intacte dans l'autre : le mutant `${carte.ligne ? s.accent : ""}` modifie la classe du
+    // `<p>` de présence, sa signature neutre disparaît, et la garde rougit.
+    const avec = empreintes(AVEC_MOTIF);
+    for (const signature of empreintes(NEUTRE)) {
+      expect(
+        avec,
+        `un élément change d'attributs quand Anam a quelque chose à dire : ${signature}`,
+      ).toContain(signature);
+    }
   });
 
   it("la ligne paraît TELLE QUELLE — le rendu ne formate ni date ni mot (AD-7)", () => {

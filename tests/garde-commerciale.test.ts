@@ -292,6 +292,13 @@ describe("Story 3.6 — la couture de la 2.9, enfin remplie (l'offre rendue SERV
     // personne ne compare plus à celui que Stripe encaisse.
     expect(src).toMatch(/@\/render\/conversation\/offre-abonnement/);
     expect(src, "un prix en dur dans la surface d'offre").not.toMatch(/\b69\b|€/);
+    // ⚠️ ET IL EST RENDU (revue Epic 6, R6). Les deux assertions ci-dessus étaient satisfaites par
+    // une page qui n'affiche AUCUN prix : l'import du module survit grâce aux autres constantes, et
+    // « pas de littéral » est vrai a fortiori s'il n'y a plus rien. On demandait de l'argent sans
+    // dire combien — l'exact inverse de ce que la garde croyait tenir.
+    expect(src, "le prix n'est plus RENDU : la page demande de l'argent sans dire combien").toMatch(
+      /\{\s*formaterPrixAnnuel\(\)\s*\}/,
+    );
   });
 
   it("[LE CŒUR] la garantie ET la reconduction sont RENDUES là où l'argent est demandé", () => {

@@ -44,7 +44,17 @@ interface Options {
   configure?: boolean;
   echeanceDans?: number;
   endpointsLeve?: string;
+  instant?: Date;
 }
+
+/**
+ * Un mardi à 10 h, heure de Paris — DANS le créneau diurne (revue Epic 6, R3).
+ *
+ * Le job refuse d'émettre hors de 6 h – 21 h depuis que la garde AD-17, qui n'existait que pour les
+ * deux jobs de courriel, couvre enfin le canal de poussée. La fixture posait `new Date()` : la suite
+ * serait devenue verte le matin et rouge le soir.
+ */
+const INSTANT_DIURNE = new Date("2026-08-18T08:00:00Z"); // 10 h à Paris (UTC+2 en août)
 
 const appareil = (endpoint: string): AbonnementPoussee => ({
   endpoint,
@@ -77,7 +87,10 @@ function monter(o: Options = {}) {
   };
   const ctx: ContexteJob = {
     depot: {} as ContexteJob["depot"],
-    instant: new Date(),
+    // ⚠️ UN INSTANT DIURNE FIXE, JAMAIS `new Date()` (revue Epic 6, R3). Le job refuse désormais
+    // d'émettre hors du créneau 6 h – 21 h (AD-17), comme ses deux frères. Une horloge réelle rendrait
+    // cette suite verte le matin et rouge le soir — c'est-à-dire ininterprétable.
+    instant: o.instant ?? INSTANT_DIURNE,
     echeance: new Date(Date.now() + (o.echeanceDans ?? DELAI_JOB_SOCLE_MS)),
     registre: [],
   };
@@ -140,6 +153,42 @@ describe("[6.2/AC8] le palier décide AVANT tout le reste", () => {
 });
 
 describe("[6.2/AC2] l'ordre des gestes, et le plafond", () => {
+  it("[LE CŒUR · R3 · AD-17] la NUIT, rien n'est lu, rien n'est réservé, rien n'est poussé", async () => {
+    // ⚠️ CE JOB ÉTAIT LE SEUL DES TROIS À NE PAS POSER LE CRÉNEAU DIURNE, ET LE SEUL À ALLUMER UN
+    // ÉCRAN VERROUILLÉ (revue Epic 6, R3).
+    //
+    // `synthese.ts` et `rappel-echeance.ts` appellent `creneauDiurneOuvert` ; celui-ci lisait l'heure
+    // choisie et poussait. Le sélecteur proposait 00 h à 23 h : quelqu'un ayant choisi 2 h aurait été
+    // réveillée à 2 h le jour du passage en palier `pro`.
+    //
+    // Le défaut DORMAIT — `hobby` refuse plus haut, rien n'a jamais été émis. C'est exactement ce qui
+    // le rendait dangereux : il se serait réveillé à un changement d'infrastructure, sans témoin.
+    const dues = [{ utilisatriceId: "u1", jour: "2026-08-18" }];
+    const { ctx, deps, trace } = monter({
+      dues,
+      instant: new Date("2026-08-18T00:30:00Z"), // 2 h 30 à Paris
+    });
+    await executerSocleQuotidienAvec(ctx, deps);
+    expect(trace.pousses, "une notification est partie en pleine nuit").toEqual([]);
+    expect(trace.reserves, "un droit de pousser a été consommé la nuit").toEqual([]);
+    expect(trace.ordre, "la base a été consultée pour un tick nocturne").toEqual([]);
+  });
+
+  it("[BORNES] 6 h ouvre le créneau, 21 h le referme", async () => {
+    // ANTI-VACUITÉ ET BORNES EXACTES : `creneauDiurneOuvert` teste `h >= 6 && h < 21`. Sans les deux
+    // bornes, un `<=` glissé dans le prédicat pousserait à 21 h sans que rien ne bouge.
+    const dues = [{ utilisatriceId: "u1", jour: "2026-08-18" }];
+    const aParis = (h: number) => new Date(Date.UTC(2026, 7, 18, h - 2, 0, 0)); // août : UTC+2
+
+    const tot = monter({ dues, instant: aParis(6) });
+    await executerSocleQuotidienAvec(tot.ctx, tot.deps);
+    expect(tot.trace.pousses.length, "6 h du matin est refusé alors qu'il ouvre le créneau").toBe(1);
+
+    const tard = monter({ dues, instant: aParis(21) });
+    await executerSocleQuotidienAvec(tard.ctx, tard.deps);
+    expect(tard.trace.pousses, "21 h pousse encore : la borne haute est trop large").toEqual([]);
+  });
+
   it("[LE CŒUR] on lit les appareils AVANT de réserver", async () => {
     // Patron 4.9/4.10 : tout ce qui peut EMPÊCHER l'envoi est connu avant de consommer le droit
     // d'envoyer. Réserver puis découvrir qu'elle s'est désabonnée lui coûterait sa journée — la clé

@@ -70,6 +70,36 @@ describe("[6.7/AC3] UNE confirmation, sur le même écran, et pas une de plus", 
     expect(ACTION, "l'action renvoie vers un écran de confirmation").not.toMatch(
       /redirect\("\/mes-donnees\/[^"]*"/,
     );
+    // ⚠️ ET LA TROISIÈME FORME, QUI PASSAIT ENTRE LES DEUX AUTRES (revue Epic 6, R6).
+    //
+    // Un « es-tu sûre ? » à étages n'a pas besoin d'une sous-route NI d'un état client : il suffit
+    // de masquer le formulaire derrière `?confirmer=2` et de le rendre depuis le SERVEUR. Aucune
+    // sous-route n'apparaît, aucun `useState` non plus, et le regex de redirection exige un `/`
+    // après `mes-donnees` — pas un `?`. Les trois gardes passaient, et l'écran interdit était là.
+    // ⚠️ LA PAGE LIT BIEN UN PARAMÈTRE, ET C'EST LÉGITIME — un test rouge me l'a appris : `echec`
+    // porte le message d'erreur au retour de l'action. L'interdire en bloc aurait cassé une
+    // fonctionnalité réelle pour fermer une porte imaginaire.
+    //
+    // Ce qu'on garde est donc un INVENTAIRE : le seul paramètre lu est `echec`. Un `?confirmer=2`
+    // ajouté demain change ce type, la garde rougit, et quelqu'un doit relire l'AC3 — plutôt que de
+    // laisser un « es-tu sûre ? » à étages entrer par la seule porte que les deux autres gardes
+    // laissaient ouverte.
+    const parametres = /searchParams:\s*Promise<\{([^}]*)\}>/.exec(PAGE)?.[1] ?? "";
+    expect(parametres, "le type des paramètres d'URL n'a pas été trouvé").not.toBe("");
+    expect(
+      parametres.replace(/\s/g, "").replace(/;$/, ""),
+      "un paramètre d'URL a été ajouté : un second geste peut s'y cacher",
+      // Le `;` final est optionnel en TypeScript : on le retire des deux côtés plutôt que de parier
+      // sur le style de qui écrira la prochaine ligne.
+    ).toBe("echec?:string");
+    // Même inventaire côté action : elle revient bien sur la halte avec un paramètre, mais UNIQUEMENT
+    // pour porter un échec. Un `?confirmer=2` ici serait la deuxième étape par la porte de derrière.
+    const retours = [...ACTION.matchAll(/redirect\("\/mes-donnees\?([a-z_]+)=/g)].map((m) => m[1]);
+    expect(retours.length, "l'action ne revient plus jamais sur la halte").toBeGreaterThan(0);
+    expect(
+      [...new Set(retours)],
+      "l'action revient sur la halte avec un paramètre qui n'est pas un échec",
+    ).toEqual(["echec"]);
   });
 
   it("la case est vérifiée côté SERVEUR aussi — un formulaire se poste sans navigateur", () => {

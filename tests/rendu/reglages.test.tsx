@@ -16,6 +16,7 @@ import {
   AUTORISATION_RETIREE,
   SECTION_SOCLE,
 } from "@/lib/domain/copie-reglages";
+import { HEURES_CHOISISSABLES } from "@/lib/domain/socle-quotidien";
 
 /**
  * Story 6.2 (AC4) — L'ÉCRAN DE RÉGLAGES.
@@ -48,6 +49,10 @@ function proprietes(sur: Partial<ProprietesReglages> = {}): ProprietesReglages {
     clePublique: CLE,
     abonneIci: false,
     heure: 8,
+    // Les heures proposables viennent du DOMAINE (revue Epic 6, R3) : le composant en générait 24 et
+    // décidait donc du créneau diurne à la place de `lib/domain`. On passe la vraie source, jamais une
+    // liste d'essai — sinon ce fichier cesserait de voir le jour où le créneau bougerait.
+    heures: HEURES_CHOISISSABLES,
     enService: true,
     abonner: vi.fn(async () => ({ statut: "ok" })),
     desabonner: vi.fn(async () => ({ statut: "ok" })),
@@ -221,6 +226,45 @@ describe("[QA T11-quater] quand la base et le navigateur ne disent pas la même 
     expect(screen.getByRole("button", { name: ACTIVER })).toBeDefined();
   });
 
+  it("[R8] un désabonnement REFUSÉ par le serveur ne s'annonce pas comme un succès", async () => {
+    // ⚠️ `retirer()` IGNORAIT LE RETOUR DE L'ACTION (revue Epic 6, R8), là où `activer()` le lisait
+    // déjà. Sur session expirée, le `delete` traverse la RLS sans trouver de ligne : zéro ligne
+    // touchée, aucune erreur, donc `ok`. L'écran annonçait « ne reçoit rien » pendant que la base
+    // gardait la ligne — et le produit continuait de pousser vers quelqu'un persuadée d'avoir dit non.
+    //
+    // On ne désabonne PAS le navigateur dans ce cas : le laisser abonné est ce qui permet de
+    // réessayer, et c'est déjà le geste que fait `activer()` en sens inverse.
+    const { desabonner: desabonnerNavigateur } = navigateurCapable();
+    const p = proprietes({ abonneIci: true, desabonner: vi.fn(async () => ({ statut: "erreur" })) });
+    render(<Reglages {...p} />);
+
+    const bouton = await waitFor(() => screen.getByRole("button", { name: DESACTIVER }));
+    bouton.click();
+
+    await waitFor(() => expect(screen.getByTestId("message-reglages").textContent).toBe(ECHEC));
+    expect(
+      screen.getByTestId("etat-abonnement").textContent,
+      "l'écran annonce un désabonnement que la base n'a pas fait",
+    ).toBe(ETAT_ACTIF);
+    expect(
+      desabonnerNavigateur,
+      "le navigateur a été désabonné alors que la base garde la ligne",
+    ).not.toHaveBeenCalled();
+  });
+
+  it("[ANTI-VACUITÉ · R8] un désabonnement ACCEPTÉ, lui, va jusqu'au bout", async () => {
+    // Sans ce contrôle, la garde ci-dessus passerait avec un `retirer()` qui n'aboutit JAMAIS.
+    const { desabonner: desabonnerNavigateur } = navigateurCapable();
+    const p = proprietes({ abonneIci: true });
+    render(<Reglages {...p} />);
+
+    const bouton = await waitFor(() => screen.getByRole("button", { name: DESACTIVER }));
+    bouton.click();
+
+    await waitFor(() => expect(screen.getByTestId("etat-abonnement").textContent).toBe(ETAT_INACTIF));
+    expect(desabonnerNavigateur).toHaveBeenCalledTimes(1);
+  });
+
   it("[LE CŒUR] l'abonnement du navigateur DISPARU compte aussi comme une divergence", async () => {
     // Données de site effacées : la permission est encore accordée, mais il n'y a plus d'abonnement.
     // La base pousserait vers un point mort, et l'écran promettrait quelque chose qui n'arrive pas.
@@ -264,18 +308,30 @@ describe("[6.2/AC4] l'heure, le retrait, et le palier qu'on ne cache pas", () =>
     render(<Reglages {...p} />);
     const select = screen.getByRole("combobox") as HTMLSelectElement;
     expect(select.value).toBe("8");
-    select.value = "21";
+    // 20 h et non 21 h : `creneauDiurneOuvert` teste `h < FIN`, donc 21 h est hors créneau (R3).
+    select.value = "20";
     select.dispatchEvent(new Event("change", { bubbles: true }));
-    await waitFor(() => expect(p.choisirHeure).toHaveBeenCalledWith(21));
+    await waitFor(() => expect(p.choisirHeure).toHaveBeenCalledWith(20));
   });
 
-  it("les vingt-quatre heures du jour civil sont proposées, et elles seules", () => {
+  it("[R3] seules les heures du CRÉNEAU DIURNE sont proposées — et le composant n'en décide pas", () => {
+    // ⚠️ CE TEST EXIGEAIT LES VINGT-QUATRE HEURES, et c'est ce que la revue a repris (R3). Le canal
+    // de poussée est le seul qui allume un écran verrouillé, et c'était le seul des trois à ignorer
+    // `creneauDiurneOuvert`. Inerte sur `hobby`, réveillé au premier passage en `pro`.
+    //
+    // Le composant ne fabrique plus la liste : elle DESCEND du domaine (AD-7). On la lui passe, et on
+    // vérifie qu'il la rend telle quelle — un `<select>` ne garde rien de toute façon, la garde est
+    // `preference_socle_heure_ck` (0061).
     navigateurCapable();
     render(<Reglages {...proprietes()} />);
     const options = screen.getAllByRole("option");
-    expect(options).toHaveLength(24);
-    expect(options[0].textContent).toBe("00 h");
-    expect(options[23].textContent).toBe("23 h");
+    expect(options).toHaveLength(HEURES_CHOISISSABLES.length);
+    expect(options[0].textContent).toBe("06 h");
+    expect(options.at(-1)!.textContent).toBe("20 h");
+    expect(
+      options.map((o) => Number((o as HTMLOptionElement).value)),
+      "le sélecteur invente des heures que le domaine ne propose pas",
+    ).toEqual([...HEURES_CHOISISSABLES]);
   });
 
   it("se retirer défait les DEUX côtés", async () => {

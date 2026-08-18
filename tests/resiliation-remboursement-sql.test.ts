@@ -337,7 +337,9 @@ describe("[AC7/AC9] demander_remboursement — deux chemins convergents, une seu
 
   it("[AC7] confirmer_remboursement est idempotent par event.id (rejeu Stripe)", async () => {
     const evt = `evt-${t}-refund`;
-    const args = { p_utilisatrice: eligibleU.id, p_provider_event_id: evt, p_type: "refund.created" };
+    // `p_cle: null` — le repli nommé de la 0075 : viser la demande la plus récente quand
+    // l'événement ne porte pas notre clé (remboursement fait à la main dans Stripe).
+    const args = { p_utilisatrice: eligibleU.id, p_provider_event_id: evt, p_type: "refund.created", p_cle: null };
     const un = await admin.rpc("confirmer_remboursement", args);
     const deux = await admin.rpc("confirmer_remboursement", args);
     expect(un.data).toBe(true);
@@ -590,6 +592,7 @@ describe("[revue 1-4, #4] un remboursement qui ÉCHOUE laisse une trace", () => 
       p_utilisatrice: echouant.id,
       p_provider_event_id: evt,
       p_type: "refund.updated",
+      p_cle: null,
     });
     expect(error).toBeNull();
     expect(data).toBe(true);
@@ -604,7 +607,7 @@ describe("[revue 1-4, #4] un remboursement qui ÉCHOUE laisse une trace", () => 
 
   it("idempotent par event.id — Stripe rejoue sur 5xx (patron exact de `confirmer_remboursement`)", async () => {
     const evt = `evt-${t}-fail-2`;
-    const args = { p_utilisatrice: echouant.id, p_provider_event_id: evt, p_type: "refund.updated" };
+    const args = { p_utilisatrice: echouant.id, p_provider_event_id: evt, p_type: "refund.updated", p_cle: null };
     expect((await admin.rpc("echouer_remboursement", args)).data).toBe(true);
     expect((await admin.rpc("echouer_remboursement", args)).data, "le rejeu a produit un second effet").toBe(
       false,
@@ -616,6 +619,7 @@ describe("[revue 1-4, #4] un remboursement qui ÉCHOUE laisse une trace", () => 
       p_utilisatrice: echouant.id,
       p_provider_event_id: `evt-${t}-ok`,
       p_type: "refund.created",
+      p_cle: null,
     });
     expect(data).toBe(true);
     const { data: ligne } = await admin
@@ -634,6 +638,7 @@ describe("[revue 1-4, #4] un remboursement qui ÉCHOUE laisse une trace", () => 
       p_utilisatrice: echouant.id,
       p_provider_event_id: `evt-${t}-fail-tardif`,
       p_type: "refund.updated",
+      p_cle: null,
     });
     expect(data).toBe(true); // l'événement est bien consommé (idempotence)
     const { data: ligne } = await admin
@@ -651,6 +656,7 @@ describe("[revue 1-4, #4] un remboursement qui ÉCHOUE laisse une trace", () => 
       p_utilisatrice: echouant.id,
       p_provider_event_id: `evt-${t}-forge`,
       p_type: "refund.updated",
+      p_cle: null,
     });
     expect(error, "une session a pu déclarer son propre remboursement en échec").not.toBeNull();
   });

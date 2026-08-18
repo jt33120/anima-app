@@ -148,7 +148,14 @@ export async function rembourserIntegralement(
       payment_intent: paymentIntent,
       // Pas d'`amount` : l'omettre rembourse la TOTALITÉ. Le calculer nous-mêmes rouvrirait la question
       // du prorata et introduirait un centime d'écart entre notre arithmétique et celle de Stripe.
-      metadata: { utilisatriceId },
+      //
+      // ⚠️ `remboursementCle` EST NOUVELLE, ET ELLE PORTE UNE IDENTITÉ (revue adversariale, R3).
+      // Depuis que la garantie s'exerce PAR CONTRAT, un compte peut avoir plusieurs lignes de
+      // remboursement. `metadata.utilisatriceId` ne suffit donc plus à dire LAQUELLE l'événement
+      // `refund.*` confirme : sans discriminant, le webhook écrirait `confirme_le` sur toutes —
+      // dont celle d'un contrat qui n'a rien reçu. La clé d'idempotence est unique par ligne et
+      // vient déjà de la base : elle est le discriminant naturel, et elle fait l'aller-retour.
+      metadata: { utilisatriceId, remboursementCle: cleIdempotence },
     },
     { idempotencyKey: cleIdempotence },
   );

@@ -109,7 +109,8 @@ export default async function PageAbonnement({
   // l'erreur remonte. C'est exactement ce qui s'est produit, et la page tombait en mode dégradé.
   let etatRemboursement: EtatRemboursement | null = null;
   try {
-    etatRemboursement = await lireEtatRemboursement();
+    // Le contrat COURANT (R3) : sinon l'écran affiche l'état d'un remboursement d'il y a un an.
+    etatRemboursement = await lireEtatRemboursement(abonnement?.subscriptionId ?? null);
   } catch {
     etatRemboursement = null; // on ne dit rien plutôt que de dire faux — la page, elle, reste ouverte
   }

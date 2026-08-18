@@ -57,13 +57,23 @@ export async function POST(request: NextRequest) {
       // `null` : le webhook tombait dans la branche suivante, répondait 200, et rien n'était écrit —
       // pendant que l'écran avait annoncé « le remboursement arrive sur ton moyen de paiement ».
       if (remboursement.issue === "echec") {
-        await echouerRemboursement(remboursement.utilisatriceId, remboursement.providerEventId, remboursement.type);
+        await echouerRemboursement(
+          remboursement.utilisatriceId,
+          remboursement.providerEventId,
+          remboursement.type,
+          remboursement.cle,
+        );
         // Un remboursement refusé par la banque est un incident d'exploitation, pas un aléa : il
         // demande une reprise humaine. On le crie, sans PII (patron des logs de cette route).
         console.error("[stripe/webhook] remboursement en ÉCHEC chez Stripe — reprise nécessaire");
         return new NextResponse(null, { status: 200 });
       }
-      await confirmerRemboursement(remboursement.utilisatriceId, remboursement.providerEventId, remboursement.type);
+      await confirmerRemboursement(
+        remboursement.utilisatriceId,
+        remboursement.providerEventId,
+        remboursement.type,
+        remboursement.cle,
+      );
       return new NextResponse(null, { status: 200 });
     } catch (e) {
       console.error("[stripe/webhook] échec confirmation remboursement", {

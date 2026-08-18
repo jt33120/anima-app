@@ -27,7 +27,9 @@ import { render, screen } from "@testing-library/react";
 const getUser = vi.fn();
 const lireAbonnement = vi.fn();
 const eligible = vi.fn();
-const etatRemboursement = vi.fn(async (): Promise<"confirme" | "echec" | "en_cours" | null> => null);
+/** Prend le contrat courant en argument depuis la 0075 (R3) — et l'ENREGISTRE : c'est ce qu'on mesure. */
+const etatRemboursement =
+  vi.fn<(sub: string | null) => Promise<"confirme" | "echec" | "en_cours" | null>>();
 const etapeOnboarding = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -43,7 +45,7 @@ vi.mock("@/lib/data/depot-resiliation", () => ({
   eligibleAuRemboursement: () => eligible(),
   // Revue 1-4 (#4) : l'ÉTAT PERSISTANT du remboursement. Par défaut `null` — aucune demande en
   // cours —, pour que les cas ci-dessous n'aient à parler que de ce qu'ils testent.
-  lireEtatRemboursement: () => etatRemboursement(),
+  lireEtatRemboursement: (sub: string | null) => etatRemboursement(sub),
 }));
 /**
  * La garde d'onboarding, ajoutée par la QA tour 1 (T15) : la page était atteignable par un compte
@@ -470,4 +472,30 @@ describe("[R2] chaque situation a SA phrase — aucune n'en emprunte une autre",
       expect(screen.queryByText(pasDit), `« ${nom} » emprunte la phrase d'une autre situation`).toBeNull();
     });
   }
+});
+
+describe("[R3] l'état affiché est celui du contrat COURANT, pas d'un remboursement d'il y a un an", () => {
+  /**
+   * `remboursement` n'est jamais purgée, et la lecture ne visait aucun contrat : après un
+   * réabonnement, la page affichait EN PERMANENCE « Ton remboursement est parti sur ton moyen de
+   * paiement » — à propos d'une souscription qui n'existe plus. Et depuis que la garantie s'exerce
+   * par contrat (0075), un compte peut porter plusieurs lignes : un `.maybeSingle()` non ciblé ne
+   * rend même plus une réponse, il rend une erreur — donc la ligne d'état disparaît en silence.
+   */
+  it("[LE CŒUR] la page passe le contrat courant à la lecture d'état", async () => {
+    await monter({ abonnement: abonnement({ subscriptionId: "sub_neuf" }) });
+    expect(etatRemboursement).toHaveBeenCalledWith("sub_neuf");
+  });
+
+  it("aucun contrat : elle passe `null` — c'est la ligne du chemin minorité (FR-071)", async () => {
+    // Un compte détecté mineur qui n'a JAMAIS payé a bien une ligne de remboursement, sans
+    // souscription. Ne rien lire du tout la priverait de l'état de son propre remboursement.
+    await monter({ abonnement: abonnement({ subscriptionId: null, etat: "expire" }) });
+    expect(etatRemboursement).toHaveBeenCalledWith(null);
+  });
+
+  it("aucun abonnement du tout : `null` aussi, jamais `undefined`", async () => {
+    await monter({ abonnement: null });
+    expect(etatRemboursement).toHaveBeenCalledWith(null);
+  });
 });

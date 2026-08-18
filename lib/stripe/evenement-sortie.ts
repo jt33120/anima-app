@@ -33,6 +33,12 @@ export type SortieRemboursement = {
   readonly type: string;
   readonly utilisatriceId: string;
   readonly issue: IssueRemboursementStripe;
+  /**
+   * La clé d'idempotence de LA ligne remboursée (revue adversariale, R3). `null` pour un
+   * remboursement créé à la main dans le tableau de bord Stripe, ou antérieur à la 0075 : la RPC
+   * replie alors sur la demande la plus récente, jamais sur toutes.
+   */
+  readonly cle: string | null;
 };
 
 /** Une reconduction tacite à venir, normalisée. */
@@ -74,7 +80,11 @@ export function interpreterRemboursement(event: Stripe.Event): SortieRembourseme
   const utilisatriceId = refund.metadata?.utilisatriceId;
   if (!utilisatriceId) return null;
 
-  return { providerEventId: event.id, type: event.type, utilisatriceId, issue };
+  // Absente sur un remboursement fait à la main dans le tableau de bord : `null`, pas une chaîne
+  // vide — la RPC distingue « je ne sais pas laquelle » de « celle-ci », et son repli est écrit.
+  const cle = refund.metadata?.remboursementCle || null;
+
+  return { providerEventId: event.id, type: event.type, utilisatriceId, issue, cle };
 }
 
 /**

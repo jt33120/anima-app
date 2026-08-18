@@ -49,7 +49,18 @@ describe("[AC7] interpreterRemboursement", () => {
       type: "refund.created",
       utilisatriceId: "u1",
       issue: "confirme",
+      // Revue adversariale (R3) : la clé d'idempotence fait l'aller-retour, parce qu'un compte peut
+      // désormais porter plusieurs remboursements — un par contrat. Sans elle, le webhook écrirait
+      // la confirmation sur toutes ses lignes, dont celle d'un contrat qui n'a rien reçu.
+      cle: null,
     });
+  });
+
+  it("[R3] quand Stripe rapporte NOTRE clé, elle est portée — c'est le discriminant de la ligne", () => {
+    // Depuis la 0075, un compte peut porter plusieurs remboursements (un par contrat). Sans ce
+    // champ, le webhook écrirait la confirmation sur la plus récente — pas forcément la bonne.
+    const r = refund("succeeded", { utilisatriceId: "u1", remboursementCle: "cle-42" });
+    expect(interpreterRemboursement(evt("refund.created", r, "evt_43"))?.cle).toBe("cle-42");
   });
 
   it("[DUR] un remboursement `pending` ne dit RIEN — ni fin, ni échec", () => {

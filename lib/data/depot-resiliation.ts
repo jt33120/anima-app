@@ -122,12 +122,20 @@ export async function echouerRemboursement(
   utilisatriceId: string,
   providerEventId: string,
   type: string,
+  /**
+   * La clé d'idempotence rapportée par l'événement Stripe (revue adversariale, R3). Depuis que la
+   * garantie s'exerce PAR CONTRAT, un compte peut porter plusieurs lignes : sans discriminant, la
+   * RPC écrirait sur toutes — dont celle d'un contrat qui n'a rien reçu. `null` est LÉGITIME
+   * (remboursement fait à la main dans Stripe) et la RPC replie sur la demande la plus récente.
+   */
+  cle: string | null,
 ): Promise<boolean> {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin.rpc("echouer_remboursement", {
     p_utilisatrice: utilisatriceId,
     p_provider_event_id: providerEventId,
     p_type: type,
+    p_cle: cle,
   });
   if (error) throw new Error(`echouer_remboursement a échoué (${error.code ?? "inconnu"}).`);
   return data === true;
@@ -138,12 +146,20 @@ export async function confirmerRemboursement(
   utilisatriceId: string,
   providerEventId: string,
   type: string,
+  /**
+   * La clé d'idempotence rapportée par l'événement Stripe (revue adversariale, R3). Depuis que la
+   * garantie s'exerce PAR CONTRAT, un compte peut porter plusieurs lignes : sans discriminant, la
+   * RPC écrirait sur toutes — dont celle d'un contrat qui n'a rien reçu. `null` est LÉGITIME
+   * (remboursement fait à la main dans Stripe) et la RPC replie sur la demande la plus récente.
+   */
+  cle: string | null,
 ): Promise<boolean> {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin.rpc("confirmer_remboursement", {
     p_utilisatrice: utilisatriceId,
     p_provider_event_id: providerEventId,
     p_type: type,
+    p_cle: cle,
   });
   if (error) throw new Error(`confirmer_remboursement a échoué (${error.code ?? "inconnu"}).`);
   return data === true;
@@ -219,12 +235,25 @@ export type EtatRemboursement = "confirme" | "echec" | "en_cours";
  * l'écran sans la ligne d'état plutôt que de tomber. Ne rien dire est faux ; ne pas ouvrir la porte
  * de sortie est pire.
  */
-export async function lireEtatRemboursement(): Promise<EtatRemboursement | null> {
+export async function lireEtatRemboursement(
+  /**
+   * ⚠️ LE CONTRAT DONT ON PARLE (revue adversariale, R3). Sans ce paramètre, cette lecture rendait
+   * l'état de N'IMPORTE LAQUELLE de ses lignes : après un réabonnement, l'écran affichait donc en
+   * permanence « Ton remboursement est parti sur ton moyen de paiement » — celui d'il y a un an, à
+   * propos d'un contrat qui n'existe plus. Et depuis que la garantie s'exerce par contrat, un
+   * `.maybeSingle()` sur deux lignes ne rend même plus une réponse : il rend une erreur.
+   *
+   * `null` = aucun contrat courant. On lit alors la ligne SANS souscription — celle du chemin
+   * minorité sur un compte qui n'a jamais payé (FR-071), qui existe et dont l'état la concerne.
+   */
+  subscriptionId: string | null,
+): Promise<EtatRemboursement | null> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("remboursement")
-    .select("confirme_le, echec_le")
-    .maybeSingle();
+  const requete = supabase.from("remboursement").select("confirme_le, echec_le");
+  const { data, error } = await (subscriptionId === null
+    ? requete.is("stripe_subscription_id", null)
+    : requete.eq("stripe_subscription_id", subscriptionId)
+  ).maybeSingle();
   if (error) throw new Error(`lecture remboursement a échoué (${error.code ?? "inconnu"}).`);
   if (!data) return null;
   // L'ordre suit celui de la base : `confirme_le` domine toujours `echec_le` — l'argent rendu est un

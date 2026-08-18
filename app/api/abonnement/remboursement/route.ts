@@ -63,6 +63,14 @@ export async function POST(request: Request) {
   // C'est pourtant ce que la RPC de 0038 disait déjà en toutes lettres : « on rend la MÊME clé,
   // c'est ce qui fait qu'un retry de la route REPARLE À STRIPE de la même opération ». Reparler,
   // pas répondre. L'`idempotencyKey` existe exactement pour que ce rejeu ne rembourse pas deux fois.
+  //
+  // ⚠️ CE COURT-CIRCUIT N'EST JUSTE QUE PARCE QUE LA RÉSERVATION VISE LE CONTRAT COURANT
+  // (revue adversariale du 2026-08-18, R3 · migration 0075). Tant que `remboursement` avait
+  // `utilisatrice_id` en clé primaire, `dejaDemande` pouvait désigner un remboursement d'un contrat
+  // CLOS : quelqu'un qui s'était réabonnée, avait repayé 69 € et rouvrait légitimement la garantie
+  // lisait « le remboursement arrive sur ton moyen de paiement » sans que Stripe soit jamais appelé.
+  // Une fausse confirmation, sans journal ni trace — et une confirmation ferme la question, là où un
+  // refus aurait laissé une prise. Cette ligne n'a pas changé ; ce qu'elle interroge, si.
   if (reservation.dejaDemande && reservation.confirmeLe) return vers("rembourse");
 
   if (!reservation.subscriptionId) {

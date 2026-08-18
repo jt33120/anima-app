@@ -100,7 +100,9 @@ describe("[AC5/AC7/P10] rembourser", () => {
     retrieve.mockResolvedValueOnce(avecPaiement());
     await rembourserIntegralement("sub_1", "u-42", "cle-abc");
     const [params] = refundsCreate.mock.calls[0];
-    expect(params.metadata).toEqual({ utilisatriceId: "u-42" });
+    // `remboursementCle` (revue adversariale, R3) : le DISCRIMINANT de la ligne remboursée. Depuis
+    // que la garantie s'exerce par contrat, `utilisatriceId` seul ne dit plus LAQUELLE confirmer.
+    expect(params.metadata).toEqual({ utilisatriceId: "u-42", remboursementCle: "cle-abc" });
     expect(params.payment_intent).toBe("pi_123");
   });
 

@@ -13,18 +13,19 @@ explicitement exclues.
 
 ## Où on en est (2026-08-18, fin de journée)
 
-**7 fermées sur 33** — R1, R2, R3, R5, R6, R7, R26. Les quatre trouvailles nommées de la revue des
+**12 fermées sur 33** — R1, R2, R3, R5, R6, R7, R8, R9, R11, R12, R26, R28. Les quatre trouvailles nommées de la revue des
 Epics 1 à 4 (#8, #14, #15, #16) sont fermées elles aussi, dans d'autres commits.
 
 Les trois qui coûtaient de l'argent à quelqu'un — R1 (69 € prélevés sur un compte effacé), R2
 (inencaissable à vie après une résiliation) et R3 (une fausse confirmation de virement) — sont
 toutes les trois fermées.
 
-Restent **26**, dont **cinq hautes** : R4 (la réserve du moteur de rétention plus courte que
-l'opération qu'elle protège), R8 (le gate d'allocation lit encore le plancher au tour qui éteint
-l'épisode), R9 (`personne_joignable` n'exige pas les CGU — la 0072 a corrigé ses deux sœurs et
-oublié celle-là), R11 (l'export désactivé sur l'écran de révocation) et R12 (le filet de
-ressources jeté sur un blocage d'egress).
+Restent **21**, dont **une seule haute** : R4 (la réserve du moteur de rétention plus courte que
+l'opération qu'elle protège — un job de fond, invisible à l'usage).
+
+Les deux qui touchaient la sécurité de quelqu'un en détresse — R8 (le 3114 quittant l'écran au tour
+que le serveur classe « urgence ») et R12 (le filet jeté sur un blocage d'egress) — sont fermées.
+R10 tombe avec R1 : c'est le même défaut, décrit deux fois.
 
 ⚠️ **R13 CHANGE DE POIDS DEPUIS R3.** « Un remboursement intégral laisse l'accès premium ouvert
 jusqu'à la fin de la période payée » était une générosité isolée ; maintenant que la garantie se
@@ -272,7 +273,12 @@ L'OBJECTION QUE J'AI TESTÉE — « c'est délibéré » (commentaire l. 331-339
 ```
 </details>
 
-### R8 — Le gate d'allocation ne consulte que `securite.limitesLevees`, jamais le niveau EFFECTIF : au tour qui éteint l'épisode, le verdict vaut encore `niveau_max` (plancher 0067) alors que `limites_levees` est déjà retombé — la conversation est coupée, le composeur désactivé et le bloc de numéros d'urgence n'est jamais émis.
+### ~~R8~~ ✅ — Le gate d'allocation ne consulte que `securite.limitesLevees`, jamais le niveau EFFECTIF : au tour qui éteint l'épisode, le verdict vaut encore `niveau_max` (plancher 0067) alors que `limites_levees` est déjà retombé — la conversation est coupée, le composeur désactivé et le bloc de numéros d'urgence n'est jamais émis.
+
+> **FERMÉE.** `627ac53` : `doitCouperConversation` reçoit `niveauSecurite` et court-circuite dessus,
+> AVANT `limitesLevees`. Le champ est obligatoire et sans défaut — le compilateur a rougi sur trois
+> fichiers de test, ce qui est l'effet voulu. « Hors détresse » était écrit trois fois dans la route ;
+> il l'est une. 8 mutants avec R12, 8 tués.
 
 - **Verdict** : CONFIRME · **angle** : 
 - **Où** : `app/api/anam/message/route.ts:229`
@@ -310,7 +316,11 @@ Tour N+1, elle écrit un nouveau message :
 ```
 </details>
 
-### R9 — `personne_joignable()` — le seul filtre de consentement de la sélection du socle quotidien — n'exige pas `cgu_acceptees`. La 0072 a corrigé `a_consenti_art9()` et `eligible_au_periodique()` et a oublié ce troisième chemin, qui avait justement été extrait en 0053 « pour qu'il n'existe plus deux endroits où écrire » la règle.
+### ~~R9~~ ✅ — `personne_joignable()` — le seul filtre de consentement de la sélection du socle quotidien — n'exige pas `cgu_acceptees`. La 0072 a corrigé `a_consenti_art9()` et `eligible_au_periodique()` et a oublié ce troisième chemin, qui avait justement été extrait en 0053 « pour qu'il n'existe plus deux endroits où écrire » la règle.
+
+> **FERMÉE avec R28.** `ada30ff` (migration 0076) : la délégation posée en 0053 et rompue par la 0072
+> est rétablie. `eligible_au_periodique` n'est plus que « joignable ET premium ». 7 mutants, 7 tués,
+> chacun vérifié dans `pg_proc`.
 
 - **Verdict** : PLAUSIBLE · **angle** : 
 - **Où** : `supabase/migrations/0053_socle_quotidien_poussee.sql:58`
@@ -349,7 +359,10 @@ MAIS LA PORTÉE ANNONCÉE EST RÉFUTÉE SUR TROIS POINTS :
 ```
 </details>
 
-### R11 — Sur l'écran de révocation, le bouton d'export est désactivé (« disponible avant le lancement ») alors que /api/export existe : le seul geste possible est la suppression irréversible.
+### ~~R11~~ ✅ — Sur l'écran de révocation, le bouton d'export est désactivé (« disponible avant le lancement ») alors que /api/export existe : le seul geste possible est la suppression irréversible.
+
+> **FERMÉE.** `ada30ff` : un lien vivant vers `/api/export`, et une garde structurelle — tout écran
+> qui offre d'effacer doit offrir d'emporter, et aucun bouton d'export ne peut être désactivé nulle part.
 
 - **Verdict** : PLAUSIBLE · **angle** : 
 - **Où** : `app/(auth)/consentement/revoque/page.tsx:64`
@@ -370,7 +383,10 @@ FAIT DE CODE CONFIRMÉ, MÉCANIQUE DU TORT PARTIELLEMENT FAUSSE.
 ```
 </details>
 
-### R12 — Sur `egress.bloque` à l'ouverture du flux de réponse, la route rend un JSON 403 nu et JETTE la `trameRessources` déjà décidée — exactement le défaut corrigé dans le `catch` situé six lignes plus haut, laissé ouvert sur la branche jumelle.
+### ~~R12~~ ✅ — Sur `egress.bloque` à l'ouverture du flux de réponse, la route rend un JSON 403 nu et JETTE la `trameRessources` déjà décidée — exactement le défaut corrigé dans le `catch` situé six lignes plus haut, laissé ouvert sur la branche jumelle.
+
+> **FERMÉE.** `627ac53` : les deux branches passent par `tramesQuandLaReponseManque`. Le défaut n'était
+> pas une ligne oubliée — c'était deux endroits où écrire la même règle.
 
 - **Verdict** : PLAUSIBLE · **angle** : 
 - **Où** : `app/api/anam/message/route.ts:716`
@@ -872,7 +888,10 @@ OÙ J'AI CHERCHÉ LA GARDE, ET CE QUE J'AI TROUVÉ :
 ```
 </details>
 
-### R28 — `personne_joignable` n'exige ni `cgu_acceptees` (ajouté par 0072 à `a_consenti_art9` et à `eligible_au_periodique`) ni la majorité POSITIVEMENT établie (`date_naissance is not null`, ajouté par 0066 à `est_barre_minorite`). 0072 a ré-inliné `eligible_au_periodique` et rompu la délégation que 0053 avait justement posée pour qu'il n'existe qu'une définition — laissant le seul appelant restant, `socle_quotidien_du` (l. 254), sur l'ancienne règle.
+### ~~R28~~ ✅ — `personne_joignable` n'exige ni `cgu_acceptees` (ajouté par 0072 à `a_consenti_art9` et à `eligible_au_periodique`) ni la majorité POSITIVEMENT établie (`date_naissance is not null`, ajouté par 0066 à `est_barre_minorite`). 0072 a ré-inliné `eligible_au_periodique` et rompu la délégation que 0053 avait justement posée pour qu'il n'existe qu'une définition — laissant le seul appelant restant, `socle_quotidien_du` (l. 254), sur l'ancienne règle.
+
+> **FERMÉE avec R9.** `ada30ff` (migration 0076) : la majorité doit être POSITIVEMENT établie, miroir de
+> `est_barre_minorite` (0066).
 
 - **Verdict** : PLAUSIBLE · **angle** : 
 - **Où** : `supabase/migrations/0053_socle_quotidien_poussee.sql:43`

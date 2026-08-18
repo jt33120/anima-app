@@ -52,3 +52,32 @@ export function estProduction(env: {
 export function estCleStripeDeTest(cle: string): boolean {
   return /^[a-z]{2}_test_/.test(cle);
 }
+
+/**
+ * ── LE SITE EST-IL OUVERT AUX MOTEURS DE RECHERCHE ? (porte pré-lancement §7) ──────────────────
+ *
+ * ⚠️ FERMÉ PAR DÉFAUT, ET C'EST TOUTE LA DÉCISION. Les deux oublis possibles ne coûtent pas la même
+ * chose : oublier de fermer, c'est se faire indexer — et un index se propage, se met en cache, se
+ * cite, et ne se retire pas d'un `git revert`. Oublier d'ouvrir, c'est rester invisible un jour de
+ * plus, ce qui se répare en posant une variable. On penche donc du côté qui se répare.
+ *
+ * C'est la doctrine d'AD-15 (le repli penche vers le moins d'effet) appliquée à la visibilité, et
+ * celle d'`origineDuSite()` — « un lien mort vaut mieux qu'un lien vers un domaine qu'on ne possède
+ * pas ».
+ *
+ * CE QUE ÇA GARDE, CONCRÈTEMENT. Le produit n'est pas publiable : 0 créneau de corpus sur 210, 0
+ * visuel de carte sur 21, et un protocole de détresse qu'aucun professionnel n'a relu. Être trouvé
+ * par quelqu'un en détresse qui cherche de l'aide, aujourd'hui, serait le pire moment possible pour
+ * ce produit — et c'est exactement ce qu'un moteur de recherche organise.
+ *
+ * ⚠️ LA VALEUR EST UN MOT, PAS UN BOOLÉEN. `true` / `1` / `yes` sont ce que posent les outils, les
+ * gabarits et les copier-coller ; `oui` est ce que pose quelqu'un qui a lu ce commentaire et décidé.
+ */
+export function siteIndexable(env: {
+  ANIMA_INDEXABLE?: string;
+  // La signature d'index existe pour que `process.env` soit acceptable tel quel : sans elle,
+  // TypeScript refuse (TS2559) un environnement qui ne déclare pas la clé nommée ci-dessus.
+  [autreVariable: string]: string | undefined;
+}): boolean {
+  return env.ANIMA_INDEXABLE === "oui";
+}

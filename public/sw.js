@@ -27,7 +27,10 @@
  * ni transformé : ce qui est écrit ici est ce qui s'exécute sur le téléphone.
  */
 
-/* eslint-env serviceworker */
+/* ESLint : `/* eslint-env *\/` n'est plus reconnu par la configuration à plat et devient une ERREUR
+   en v10 (averti par la montée 9.18 → 9.39, porte §7). Les globales du contexte service worker sont
+   déclarées ici, une par une, plutôt que par un environnement nommé. */
+/* global self */
 
 const TITRE_POUSSEE = "Anam";
 

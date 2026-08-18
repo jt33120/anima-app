@@ -9,9 +9,15 @@ stories qui les ont rencontrées ; elles sont ici réunies pour qu'on puisse les
 PERSONNE.** Tant qu'Anima ne reçoit que les données de Julian, presque tout ce qui suit peut attendre.
 Dès qu'une inconnue peut s'inscrire et se confier, chaque porte encore ouverte est un risque réel.
 
-Ce n'est pas un détail de vocabulaire : **l'URL de production est publique et indexable aujourd'hui**
+Ce n'est pas un détail de vocabulaire : **l'URL de production est publique**
 (`https://anima-app-swart.vercel.app`, plan Hobby — Vercel ne sait pas protéger un domaine de
 production en dessous de Pro). « Phase de test » décrit notre intention, pas l'accessibilité réelle.
+
+> **Elle n'est plus INDEXABLE depuis le 2026-08-18** (voir §7). `robots.txt` répond `Disallow: /` et
+> chaque réponse porte `X-Robots-Tag: noindex, nofollow`, tant que `ANIMA_INDEXABLE` ne vaut pas
+> `oui`. Ça ne la rend pas privée — qui connaît l'adresse entre toujours — mais plus personne ne
+> peut la TROUVER. La différence compte : le produit n'est pas publiable, et être trouvé aujourd'hui,
+> ce serait être trouvé par quelqu'un qui cherche de l'aide.
 
 Dernière revue : **2026-08-18** (A1 re-mesurée et aggravée, A2 requalifiée et fermée côté code, §8 périmée corrigée).
 
@@ -46,6 +52,31 @@ La porte n'est donc PAS « régler le PITR sur 7 jours ». Elle est :
 
 ⚠️ Le sens de l'erreur actuelle est le moins mauvais — on annonce peut-être une survivance plus
 longue que la réalité — mais une déclaration RGPD juste par chance reste une déclaration fausse.
+
+> ### 🔴 MESURÉ LE 2026-08-18 (seconde passe) — LA CAUSE, ET ELLE DÉPASSE LE RGPD
+>
+> `GET /v1/organizations/mbryhvcdeifyuskyeogq` rend **`plan: "free"`**. Tout s'explique d'un coup :
+> **un projet Supabase gratuit n'a AUCUNE sauvegarde** — ni PITR, ni quotidienne. `backups: []`
+> n'est pas une lecture manquante, c'est la vérité littérale.
+>
+> **Ce que ça change sur le RGPD :** rien de grave, et dans le bon sens. On annonce « une copie peut
+> survivre jusqu'à 7 jours » alors qu'aucune copie n'existe. C'est faux, c'est plus prudent que la
+> réalité, et ça ne lèse personne. **Ne pas corriger `EFFACEMENT_FENETRE_PITR_JOURS` à `0` pour
+> autant** : le jour où le plan passe en Pro, les sauvegardes quotidiennes apparaissent et le `0`
+> deviendrait faux dans le sens qui, lui, lèse — annoncer un effacement total quand une copie
+> survit. La valeur par défaut prudente (`7`) reste la bonne tant que le plan n'est pas décidé.
+>
+> **Ce que ça change vraiment est ailleurs, et c'est plus lourd :** il n'existe **aucune sauvegarde
+> de la base de production**. Perdre la base, c'est perdre les arbres, les branches, les synthèses et
+> les faits art. 9 de toutes les utilisatrices, définitivement, sans recours. Et un projet gratuit
+> **se met en pause** après une période d'inactivité — le produit tombe tout seul.
+>
+> Ce n'est donc plus une porte de formulation, c'est une porte d'**achat** : `Supabase Pro`, ou
+> aucune vraie personne dans cette base. Elle rejoint la porte n°2 (Vercel Hobby interdit l'usage
+> commercial) — les deux hébergeurs sont sur un plan gratuit que le produit a déjà dépassé.
+>
+> Région mesurée au passage : **`eu-west-1` (Irlande)** — dans l'UE, ce qui est le bon côté pour la
+> porte n°1 et l'art. 9.
 
 ### 🔴 A2 — Stripe est en mode TEST **en production**, et la Story 3.6 vient d'aggraver l'enjeu
 
@@ -454,10 +485,28 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
   *privilèges de table*. Le trou est refermé côté code (`tests/_environnement.ts` refuse désormais
   toute cible non locale), mais **les données déjà écrites, elles, sont toujours là** — et pas
   seulement dans `auth.users` : chaque fixture a pu écrire dans les tables art. 9 en cascade.
-- **`npm audit` : 8 vulnérabilités (6 hautes, 2 basses)** au 13/08. À trier avant lancement.
-  **Ne pas lancer `npm audit fix --force`** — ça casse le build.
-- **`noindex` ou protection de l'URL publique** tant que le produit n'est pas prêt à être trouvé.
-  Décision du 12/08 : laissée telle quelle, à revoir.
+- ✅ **`npm audit` : 8 vulnérabilités → 0, le 2026-08-18.** Triées, puis fermées sans `--force` :
+  `npm audit fix` seul en a réglé 3 (dont `nanoid`) ; les 6 hautes restantes (`postcss`, `sharp`)
+  venaient toutes de `next` et sont tombées avec **`next` 16.2.11 → 16.3.1** (montée de version
+  MINEURE, décidée et vérifiée — pas un `--force` aveugle) ; les 2 basses (`@eslint/plugin-kit`,
+  ReDoS) avec **`eslint` 9.18.0 → 9.39.5**. Les deux versions restent **épinglées à l'exact**, comme
+  avant : `npm install` remet un `^`, il a été retiré.
+  Vérifié après montée : `tsc`, `eslint`, `next build` et les 4675 tests.
+  **Le triage, pour mémoire** : aucune des six n'était atteignable ici — `postcss` ne tourne qu'au
+  build sur notre propre CSS, et `sharp` n'optimise que des fichiers de `public/` (aucun
+  `remotePatterns` configuré, aucune image d'utilisatrice). Elles sont fermées parce que c'était
+  bon marché, pas parce qu'elles saignaient.
+- ✅ **`noindex` — FERMÉE CÔTÉ CODE le 2026-08-18.** Deux couches, un seul prédicat
+  (`siteIndexable`, `lib/domain/environnement.ts`) : `app/robots.ts` répond `Disallow: /`, et
+  `proxy.ts` pose `X-Robots-Tag: noindex, nofollow` sur **toutes** les réponses — l'en-tête est posé
+  PAR-DESSUS le routage, à l'unique endroit où les branches se rejoignent, pour qu'une branche
+  ajoutée demain ne puisse pas l'oublier. Il en faut deux : un `Disallow` interdit d'EXPLORER, pas
+  d'INDEXER — une URL découverte ailleurs peut paraître dans les résultats avec son seul titre.
+  Fermé par défaut ; **seul le mot `oui` ouvre** (`true`/`1`/`yes` sont ce que posent les outils).
+  `app/robots.ts` est `force-dynamic` : sans ça, la garde ne pourrait plus se REFERMER sans
+  redéploiement. `tests/porte-indexation.test.ts` — 9 tests, 3 mutants posés, 3 tués.
+  ⚠️ **Ça ne rend pas le site privé** : qui connaît l'adresse y entre. Une vraie protection reste
+  Vercel Pro (protection par mot de passe) — porte d'achat, voir §2.
 - **Licence des éphémérides** — choix déféré depuis l'architecture, à trancher avant lancement.
 - 🔴 **La fenêtre de survivance annoncée ne mesure rien** (mesuré le 16/08 — voir A1 en tête). Le PITR
   du projet hébergé est **désactivé** (`pitr_enabled: false`) ; `EFFACEMENT_FENETRE_PITR_JOURS` vaut

@@ -371,3 +371,88 @@ describe("[5.5/D12] la copie de consentement couvre la DÉDUCTION, pas seulement
     expect(detail).toMatch(/effacer/);
   });
 });
+
+describe("[revue 1-4, #9] la preuve horodatée ne s'antidate pas — même à la NAISSANCE de la ligne", () => {
+  /**
+   * ══ LE DÉFAUT ═════════════════════════════════════════════════════════════════════════════════
+   *
+   * 0041 a gelé `cree_le` par trigger, et son commentaire dit exactement pourquoi : « La date de
+   * consentement est la PREUVE de licéité art. 9. Elle protège le responsable de traitement ;
+   * qu'elle soit antidatable par le sujet la vide de toute valeur probante. »
+   *
+   * Ce trigger est armé `before UPDATE`. À l'INSERTION, rien ne regardait la colonne : la policy
+   * vérifie la propriétaire, le consentement et la majorité — jamais l'horodatage. `authenticated`
+   * détient l'INSERT ; un `POST /rest/v1/consentement` portant `cree_le: '2019-01-01'` passait, et
+   * la preuve naissait déjà fausse.
+   *
+   * La moitié de la garde couvrait la réécriture. L'autre moitié — la naissance — était ouverte.
+   */
+
+  const u = { email: `cons-date-${t}@exemple.fr`, password: "test-cons-D-123!", id: "" };
+  const ANTIDATE = "2019-01-01T00:00:00.000Z";
+
+  beforeAll(async () => {
+    const { data, error } = await admin.auth.admin.createUser({
+      email: u.email,
+      password: u.password,
+      email_confirm: true,
+    });
+    if (error) throw new Error(`createUser: ${error.message}`);
+    u.id = data.user!.id;
+    await declarerMajorite(admin, u.id);
+  });
+  afterAll(async () => {
+    if (u.id) await admin.auth.admin.deleteUser(u.id);
+  });
+
+  it("⚠️ un INSERT sous JWT portant une `cree_le` choisie est HORODATÉ PAR LE SERVEUR", async () => {
+    const c = clientScope();
+    await c.auth.signInWithPassword({ email: u.email, password: u.password });
+    const { error } = await c.from("consentement").insert({
+      utilisatrice_id: u.id,
+      art9_accorde: true,
+      ia_reconnue: true,
+      cgu_acceptees: true,
+      cree_le: ANTIDATE,
+    });
+    // On n'échoue PAS l'insertion : cette date appartient au serveur, et lever ferait d'une garde
+    // une panne sur une colonne que l'application n'envoie jamais.
+    expect(error, "l'insertion légitime doit passer").toBeNull();
+
+    const { data } = await c.from("consentement").select("cree_le").eq("utilisatrice_id", u.id).single();
+    expect(data?.cree_le, "la preuve de licéité est née antidatée de sept ans").not.toBe(ANTIDATE);
+    const ecartMs = Math.abs(Date.now() - new Date(data!.cree_le as string).getTime());
+    expect(ecartMs, "l'horodatage n'est pas celui du serveur").toBeLessThan(120_000);
+    await c.auth.signOut();
+  });
+
+  it("`service_role` non plus ne choisit cette date — le trigger mord des DEUX côtés", async () => {
+    // C'est le RESPONSABLE DE TRAITEMENT que cette date protège, et il est des deux côtés de la clé
+    // de service. Un horodatage qu'un chemin système peut choisir n'a pas plus de valeur probante
+    // qu'un horodatage que le sujet choisit. Même posture que l'immuabilité d'`entree_journal`.
+    await admin.from("consentement").delete().eq("utilisatrice_id", u.id);
+    const { error } = await admin.from("consentement").insert({
+      utilisatrice_id: u.id,
+      art9_accorde: true,
+      ia_reconnue: true,
+      cgu_acceptees: true,
+      cree_le: ANTIDATE,
+    });
+    expect(error).toBeNull();
+    const { data } = await admin
+      .from("consentement").select("cree_le").eq("utilisatrice_id", u.id).single();
+    expect(data?.cree_le).not.toBe(ANTIDATE);
+  });
+
+  it("et la garde d'UPDATE de 0041 tient toujours — les deux moitiés, pas une seule", async () => {
+    const c = clientScope();
+    await c.auth.signInWithPassword({ email: u.email, password: u.password });
+    const { error } = await c
+      .from("consentement")
+      .update({ cree_le: ANTIDATE })
+      .eq("utilisatrice_id", u.id);
+    expect(error, "la preuve horodatée a pu être réécrite").not.toBeNull();
+    await c.auth.signOut();
+  });
+});
+

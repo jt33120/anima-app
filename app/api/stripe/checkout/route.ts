@@ -5,6 +5,7 @@ import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { origineDuSite } from "@/lib/courriel/origine";
 import { clientStripe } from "@/lib/stripe/client";
 import { PRIX_ABONNEMENT_ANNUEL_CENTIMES, DEVISE_ABONNEMENT, libelleReleveBancaire } from "@/lib/stripe/config";
+import { contratStripeVivant } from "@/lib/domain/abonnement";
 
 /**
  * Route Checkout (Story 3.1, AC1/AC6). Crée une session Stripe Checkout HÉBERGÉE en mode
@@ -82,15 +83,50 @@ export async function POST(request: NextRequest) {
   // Lecture sous JWT (la RLS propriétaire est la garde). Une panne de lecture NE BLOQUE PAS le
   // Checkout : refuser de vendre à cause d'un timeout serait pire que le cas qu'on évite, et le
   // premier abonnement reste protégé par le fait qu'elle voit déjà sa carte d'abonnement.
+  //
+  // ⚠️ LE PRÉDICAT ÉTAIT FAUX, ET LA 3.6 VIENT D'INSTALLER LE BOUTON QUI L'ATTEINT (revue 3.6, R1).
+  //
+  // `etat === "actif"` ne dit PAS « il existe un contrat » : `past_due`, `unpaid`, `incomplete` et
+  // `paused` sont projetés `expire` (défaut de `etatDepuisStatutStripe`), et ce sont exactement les
+  // souscriptions que Stripe relance et finira par encaisser. Tant qu'aucune surface ne vendait dans
+  // cet état, l'écart était théorique. Depuis la 3.6, `/abonnement` affiche « Ton abonnement n'est
+  // plus actif », le bouton « Résilier » du contrat ENCORE OUVERT, et l'offre complète avec
+  // « M'abonner » — trois choses contradictoires dans le même document.
+  //
+  // Ce qui arrivait au clic : nouveau Customer (la session ne pose que `customer_email`), seconde
+  // souscription vivante, 69 € débités. Puis, la projection étant une-ligne-par-utilisatrice, le
+  // premier événement postérieur de l'ANCIENNE souscription reprend la ligne — et le bouton
+  // « Résilier » ne sait plus viser que le contrat mort. Elle paie 69 €/an pour un abonnement
+  // qu'aucune surface du produit ne peut plus désigner : FR-060 et la loi du 16 août 2022.
+  //
+  // ⚠️ NI L'ÉTAT NI L'IDENTIFIANT NE SUFFISENT À TRANCHER, et c'est pour ça qu'on demande à Stripe.
+  // Un abonnement RÉSILIÉ garde son `stripe_subscription_id` : refuser sur « identifiant non nul »
+  // enfermerait dehors quiconque a résilié une fois. Et `expire` confond `past_due` (vivant) avec
+  // `incomplete_expired` (mort) — une première carte refusée doit pouvoir se réabonner.
+  // L'appel n'a lieu QUE s'il y a un identifiant à interroger : le cas nominal (compte gratuit) ne
+  // paie rien. Une panne de Stripe fait REFUSER : le repli est du côté qui ne débite pas deux fois.
   const { data: dejaAbonnee } = await supabase
     .from("abonnement")
     .select("etat, stripe_subscription_id")
     .maybeSingle<{ etat: string; stripe_subscription_id: string | null }>();
-  if (dejaAbonnee?.etat === "actif" && dejaAbonnee.stripe_subscription_id) {
-    return NextResponse.json(
-      { code: "deja_abonnee", message: "Ton abonnement est déjà actif." },
-      { status: 409 },
-    );
+  if (dejaAbonnee?.stripe_subscription_id) {
+    let contratCourt: boolean;
+    try {
+      const sub = await clientStripe().subscriptions.retrieve(dejaAbonnee.stripe_subscription_id);
+      contratCourt = contratStripeVivant(sub.status);
+    } catch (e) {
+      // `resource_missing` = Stripe ne connaît pas cette souscription : il n'y a rien à débiter, on
+      // ne l'enferme pas dehors pour une ligne périmée. Tout autre échec est une IGNORANCE, et on
+      // n'encaisse pas dans l'ignorance.
+      contratCourt = (e as { code?: string })?.code !== "resource_missing";
+      if (contratCourt) console.error("[stripe/checkout] statut d'abonnement illisible");
+    }
+    if (contratCourt) {
+      // Redirection, pas JSON : ce POST vient d'un `<form>` sans JavaScript (MontagePaywall), donc un
+      // corps JSON REMPLACE la page par du texte machine. La sortie (`resilier`) rendait déjà un
+      // retour humain sur son chemin d'échec ; l'entrée n'en avait aucun.
+      return NextResponse.redirect(new URL("/abonnement?etat=contrat_ouvert", request.url), 303);
+    }
   }
 
   // ⚠️ LA GARDE D'ORIGINE ÉTAIT MORTE (revue du 2026-08-13).

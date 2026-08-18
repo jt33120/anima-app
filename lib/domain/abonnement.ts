@@ -31,6 +31,31 @@ export function etatDepuisStatutStripe(statut: string): EtatAbonnement {
 }
 
 /**
+ * ── « PAS ACTIF » NE VEUT PAS DIRE « PLUS DE CONTRAT » (revue 3.6, R1) ─────────────────────────────
+ *
+ * `etatDepuisStatutStripe` renvoie `expire` PAR DÉFAUT : `past_due`, `unpaid`, `incomplete` et
+ * `paused` y tombent tous — ce sont des souscriptions que Stripe RELANCE et finira par encaisser.
+ * Notre projection à trois valeurs les confond avec `incomplete_expired`, qui est mort. Elle ne peut
+ * donc PAS répondre à la seule question qui compte avant de vendre : « Stripe va-t-il encore la
+ * débiter pour un contrat qu'elle a déjà ? »
+ *
+ * ⚠️ ET `stripe_subscription_id` NE LE PEUT PAS NON PLUS : une souscription RÉSILIÉE garde son
+ * identifiant. Refuser sur « identifiant non nul » enfermerait dehors, pour toujours, quiconque a
+ * résilié une fois. C'est pour cela que la garde de la route INTERROGE Stripe au lieu de deviner :
+ * ce prédicat-ci dit seulement ce qu'il faut penser du statut qu'elle rend.
+ *
+ * Les deux seuls statuts MORTS chez Stripe (`canceled`, `incomplete_expired`) sont énumérés, et tout
+ * le reste est tenu pour vivant : un statut inconnu (Stripe en ajoute) doit faire REFUSER la vente,
+ * jamais l'autoriser. Le repli est du côté qui ne débite pas deux fois (AD-15).
+ */
+export const STATUTS_CONTRAT_MORT: readonly string[] = ["canceled", "incomplete_expired"];
+
+/** Le contrat court-il encore chez Stripe ? Tout statut non explicitement mort est tenu pour vivant. */
+export function contratStripeVivant(statut: string): boolean {
+  return !STATUTS_CONTRAT_MORT.includes(statut);
+}
+
+/**
  * L'ENTITLEMENT premium (source de vérité unique, AC4) : premium ⟺ abonnement `actif`. Les gardes par
  * fonctionnalité (Stories 3.3/3.4) interrogent CETTE dérivation, jamais un flag stocké en double.
  */

@@ -5,6 +5,7 @@ import {
   CADENCE_ABONNEMENT,
   TITRE_CARTE,
   GARANTIE_REMBOURSEMENT,
+  RECONDUCTION,
   PERIMETRE_GRATUIT_TITRE,
   PERIMETRE_GRATUIT,
   PERIMETRE_PREMIUM_TITRE,
@@ -20,11 +21,17 @@ import { PRIX_ABONNEMENT_ANNUEL_CENTIMES, DEVISE_ABONNEMENT } from "@/lib/stripe
  * dark pattern (FR-061, AC2). `lib/stripe/config` est `server-only` → lisible ici via le stub de test.
  */
 
+// ⚠️ `RECONDUCTION` MANQUAIT ICI, ET C'ÉTAIT LA SEULE CHAÎNE NEUVE DE LA 3.6 (revue 3.6, R1).
+// Mesuré le 2026-08-18 : remplacer sa valeur par « Dépêche-toi : l'offre expire dans 3 h, plus que
+// 2 places. 99 € au lieu de 149 €. » laissait les 4613 tests VERTS — quatre marqueurs interdits sur
+// quatorze, dans la phrase à enjeu LÉGAL (art. L215-1), sur la surface où l'on demande l'argent.
+// Le scanner ne lisait pas ce qu'il croyait scanner : il ne lit que ce tableau.
 const COPIE = [
   TITRE_CARTE,
   formaterPrixAnnuel(),
   CADENCE_ABONNEMENT,
   GARANTIE_REMBOURSEMENT,
+  RECONDUCTION,
   PERIMETRE_GRATUIT_TITRE,
   ...PERIMETRE_GRATUIT,
   PERIMETRE_PREMIUM_TITRE,

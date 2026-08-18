@@ -13,6 +13,8 @@ import { sansCommentaires } from "./_absence";
 const getUser = vi.fn();
 const limites = vi.fn();
 const sessionsCreate = vi.fn();
+/** Le statut RÉEL de la souscription déjà en base — la seule autorité (revue 3.6, R1). */
+const subRetrieve = vi.fn();
 /** L'abonnement déjà en base, lu par la garde « déjà abonnée » (revue du 2026-08-11, M9). */
 const abonnementLu = vi.fn();
 /** L'étape d'onboarding — la garde « on ne vend pas à un compte suspendu » (revue du 2026-08-13). */
@@ -31,7 +33,10 @@ vi.mock("@/app/(auth)/etat-onboarding", () => ({
   etapeOnboardingPour: () => etape(),
 }));
 vi.mock("@/lib/stripe/client", () => ({
-  clientStripe: () => ({ checkout: { sessions: { create: sessionsCreate } } }),
+  clientStripe: () => ({
+    checkout: { sessions: { create: sessionsCreate } },
+    subscriptions: { retrieve: subRetrieve },
+  }),
 }));
 vi.mock("@/lib/stripe/config", () => ({
   PRIX_ABONNEMENT_ANNUEL_CENTIMES: 6900,
@@ -48,6 +53,7 @@ beforeEach(() => {
   getUser.mockReset();
   limites.mockReset();
   sessionsCreate.mockReset();
+  subRetrieve.mockReset();
   abonnementLu.mockReset();
   etape.mockReset();
   etape.mockResolvedValue("suite"); // compte éligible : le cas nominal
@@ -110,25 +116,105 @@ describe("Story 3.1 — garde AD-9 EXERCÉE sur la route Checkout (effet réel)"
     expect(res.status).toBe(502);
   });
 
-  it("[M9] DÉJÀ ABONNÉE → 409 ET aucune seconde session Stripe", async () => {
+  it("[M9] DÉJÀ ABONNÉE → refus ET aucune seconde session Stripe", async () => {
     // La projection est UNE LIGNE par utilisatrice : deux souscriptions vivantes chez Stripe et la
     // ligne bascule de l'une à l'autre. Elle est débitée deux fois pendant que le bouton « résilier »
     // ne sait viser qu'un seul abonnement — parfois le mort.
     limites.mockResolvedValueOnce(false);
     abonnementLu.mockResolvedValueOnce({ data: { etat: "actif", stripe_subscription_id: "sub_A" } });
+    subRetrieve.mockResolvedValueOnce({ status: "active" });
     const res = await POST(req());
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location"), "le refus doit être LISIBLE, pas un JSON").toContain(
+      "/abonnement?etat=contrat_ouvert",
+    );
     expect(sessionsCreate, "aucune seconde souscription ne doit être montée").not.toHaveBeenCalled();
   });
 
-  it("[M9] un abonnement EXPIRÉ ne bloque pas le réabonnement — la garde ne doit pas enfermer", async () => {
-    // Contrôle non-tautologique : sans lui, `return 409` en dur passerait le test précédent.
+  // ── LE CŒUR DE LA REVUE 3.6 (R1) ────────────────────────────────────────────────────────────────
+  //
+  // Ces quatre statuts sont projetés `expire` chez nous — la garde M9, calée sur `etat === "actif"`,
+  // ne mordait sur AUCUN. Ce sont pourtant des contrats que Stripe relance et finira par encaisser.
+  // Le test d'origine nommait sa variable `sub_mort` et gravait le trou en vert : un `past_due`
+  // n'est pas mort.
+  it.each(["past_due", "unpaid", "incomplete", "paused"])(
+    "[R1] un contrat Stripe « %s » REFUSE la seconde souscription (projeté `expire` chez nous)",
+    async (statut) => {
+      limites.mockResolvedValueOnce(false);
+      abonnementLu.mockResolvedValueOnce({
+        data: { etat: "expire", stripe_subscription_id: "sub_vivant" },
+      });
+      subRetrieve.mockResolvedValueOnce({ status: statut });
+      const res = await POST(req());
+      expect(res.status).toBe(303);
+      expect(res.headers.get("location")).toContain("etat=contrat_ouvert");
+      expect(sessionsCreate, "69 € débités par-dessus un contrat qui court").not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["canceled", "incomplete_expired"])(
+    "[R1] un contrat Stripe « %s » est MORT : le réabonnement passe — la garde n'enferme pas dehors",
+    async (statut) => {
+      // Contrôle non-tautologique, et il porte un cas réel : une PREMIÈRE carte refusée expire en
+      // `incomplete_expired` à H+23. Refuser sur « identifiant non nul » l'aurait bannie à vie.
+      limites.mockResolvedValueOnce(false);
+      abonnementLu.mockResolvedValueOnce({
+        data: { etat: "expire", stripe_subscription_id: "sub_mort" },
+      });
+      subRetrieve.mockResolvedValueOnce({ status: statut });
+      sessionsCreate.mockResolvedValueOnce({ url: "https://checkout.stripe.test/s" });
+      const res = await POST(req());
+      expect(res.status).toBe(303);
+      expect(sessionsCreate).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("[R1] un statut Stripe INCONNU est tenu pour VIVANT — une liste d'autorisation s'ouvrirait toute seule", async () => {
+    // Stripe ajoute des statuts. Écrire la garde en LISTE D'AUTORISATION (« vivant ⟺ l'un de ces
+    // six ») laisserait passer le septième le jour où il naît, sans que rien ne rougisse. La garde
+    // est donc écrite en liste de REFUS : seuls `canceled` et `incomplete_expired` sont morts.
     limites.mockResolvedValueOnce(false);
-    abonnementLu.mockResolvedValueOnce({ data: { etat: "expire", stripe_subscription_id: "sub_mort" } });
+    abonnementLu.mockResolvedValueOnce({
+      data: { etat: "expire", stripe_subscription_id: "sub_A" },
+    });
+    subRetrieve.mockResolvedValueOnce({ status: "statut_que_stripe_inventera" });
+    const res = await POST(req());
+    expect(res.headers.get("location")).toContain("etat=contrat_ouvert");
+    expect(sessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it("[R1] une souscription INCONNUE de Stripe ne bloque pas — une ligne périmée n'est pas un contrat", async () => {
+    limites.mockResolvedValueOnce(false);
+    abonnementLu.mockResolvedValueOnce({
+      data: { etat: "expire", stripe_subscription_id: "sub_fantome" },
+    });
+    subRetrieve.mockRejectedValueOnce(Object.assign(new Error("No such subscription"), {
+      code: "resource_missing",
+    }));
     sessionsCreate.mockResolvedValueOnce({ url: "https://checkout.stripe.test/s" });
     const res = await POST(req());
     expect(res.status).toBe(303);
     expect(sessionsCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("[R1] Stripe ILLISIBLE → on REFUSE : le repli est du côté qui ne débite pas deux fois", async () => {
+    limites.mockResolvedValueOnce(false);
+    abonnementLu.mockResolvedValueOnce({
+      data: { etat: "expire", stripe_subscription_id: "sub_A" },
+    });
+    subRetrieve.mockRejectedValueOnce(new Error("timeout"));
+    const res = await POST(req());
+    expect(res.headers.get("location")).toContain("etat=contrat_ouvert");
+    expect(sessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it("[R1] le cas NOMINAL n'interroge pas Stripe : un compte gratuit ne paie pas un aller-retour", async () => {
+    limites.mockResolvedValueOnce(false);
+    // `abonnementLu` rend `{ data: null }` par défaut — aucun identifiant à interroger.
+    sessionsCreate.mockResolvedValueOnce({ url: "https://checkout.stripe.test/s" });
+    const res = await POST(req());
+    expect(res.status).toBe(303);
+    expect(subRetrieve).not.toHaveBeenCalled();
   });
 });
 

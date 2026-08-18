@@ -126,6 +126,14 @@ export default async function PageAbonnement({
       {retour === "sans_paiement" && <p className={`t-corps ${s.retour}`} role="status">{c.REMBOURSEMENT_SANS_PAIEMENT}</p>}
       {retour === "non_eligible" && <p className={`t-corps ${s.retour}`} role="status">{c.REFUS_REMBOURSEMENT}</p>}
       {retour === "echec" && <p className={`t-corps ${s.retour}`} role="status">{c.ECHEC}</p>}
+      {/* Le refus de l'ENTRÉE dans le paiement, en toutes lettres (revue 3.6, R1). La route Checkout
+          redirige ici plutôt que de rendre un JSON : son POST vient d'un `<form>` sans JavaScript,
+          donc un corps machine REMPLAÇAIT la page. La sortie avait déjà ce retour ; l'entrée non. */}
+      {retour === "contrat_ouvert" && (
+        <p className={`t-corps ${s.retour}`} role="status">
+          {c.REFUS_CONTRAT_OUVERT}
+        </p>
+      )}
 
       {/* ── L'ÉTAT ─────────────────────────────────────────────────────────────────────────────────── */}
       {!abonnement || (!actif && !resiliationDemandee) ? (

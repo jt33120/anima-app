@@ -60,6 +60,27 @@ export const SUCCES_RESILIATION = "C'est fait. Tu gardes ton accès jusqu'à la 
 export const SUCCES_REPRISE = "C'est fait. Ton abonnement continue.";
 export const ECHEC = "Je n'ai pas pu enregistrer ça. Tu peux réessayer.";
 
+/**
+ * ── QUAND LE CONTRAT COURT ENCORE (revue 3.6, R1 · art. L215-1 / FR-060) ───────────────────────────
+ *
+ * Un paiement en échec passe l'abonnement en `past_due` chez Stripe : l'accès s'éteint, mais le
+ * contrat court et les relances continuent. L'écran disait « Ton abonnement n'est plus actif » ET
+ * proposait « M'abonner » — le geste évident quand on veut que ça remarche. Elle payait alors une
+ * SECONDE souscription par-dessus la première.
+ *
+ * ⚠️ CE TEXTE DOIT PORTER LE CHEMIN, PAS SEULEMENT LE REFUS. Un refus sans issue est une impasse, et
+ * l'impasse est ce qu'on reprochait à l'écran d'origine. Le chemin existe et il tient en deux gestes
+ * qui vivent DÉJÀ sur cette page : résilier le contrat coincé, puis reprendre l'offre.
+ *
+ * DETTE NOMMÉE : le produit n'a AUCUNE surface de mise à jour de carte (aucun portail de facturation
+ * Stripe nulle part dans le dépôt). Tant qu'elle n'existe pas, « résilier puis reprendre » est le
+ * seul chemin honnête — et il coûte à celle qui voulait simplement changer de carte.
+ */
+export const REFUS_CONTRAT_OUVERT =
+  "Ton abonnement précédent court encore chez notre prestataire de paiement, même s'il ne te donne " +
+  "plus accès : je ne peux pas t'en vendre un second par-dessus, tu paierais deux fois. Résilie " +
+  "celui-là d'abord — le bouton est plus haut — puis reprends ici.";
+
 /** La garantie (FR-089) — proposée SEULEMENT quand elle y a droit. Jamais annoncée comme un lot de consolation. */
 export const ACTION_REMBOURSEMENT = "Demander le remboursement";
 export const GARANTIE_DISPONIBLE =

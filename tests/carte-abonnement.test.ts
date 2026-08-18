@@ -48,10 +48,21 @@ describe("Story 3.2 — la carte d'abonnement dans le fil (AC1-AC4)", () => {
     expect(src, "aucun prix codé en dur").not.toMatch(/\b69\b|\d+\s*€|€\s*\d/);
   });
 
-  it("garantie + périmètres gratuit ET premium sur la carte (AC3/AC4)", () => {
-    expect(src).toMatch(/GARANTIE_REMBOURSEMENT/);
-    expect(src).toMatch(/PERIMETRE_GRATUIT/);
-    expect(src).toMatch(/PERIMETRE_PREMIUM/);
+  it("garantie + reconduction + périmètres gratuit ET premium sont RENDUS sur la carte (AC3/AC4)", () => {
+    // ⚠️ LE RESSERRAGE M22 N'AVAIT ÉTÉ APPLIQUÉ QU'À L'AUTRE SURFACE DE VENTE (revue 3.6, R2).
+    // `garde-commerciale.test.ts` exige l'INTERPOLATION sur `MontagePaywall` depuis qu'un mutant a
+    // montré qu'une ligne d'import suffisait à satisfaire le nom nu. Ici, les trois assertions
+    // étaient restées des noms nus — et la reconduction (art. L215-1) n'était pas même nommée.
+    // Il y a DEUX surfaces qui demandent l'argent ; une garde qui n'en couvre qu'une n'en couvre
+    // aucune, puisque l'autre reste libre de devenir muette.
+    expect(src).toMatch(/\{GARANTIE_REMBOURSEMENT\}/);
+    expect(src, "la reconduction n'est pas RENDUE sur la carte du fil (art. L215-1)").toMatch(
+      /\{RECONDUCTION\}/,
+    );
+    expect(src).toMatch(/\{PERIMETRE_GRATUIT_TITRE\}/);
+    expect(src).toMatch(/\{PERIMETRE_GRATUIT\.map/);
+    expect(src).toMatch(/\{PERIMETRE_PREMIUM_TITRE\}/);
+    expect(src).toMatch(/\{PERIMETRE_PREMIUM\.map/);
   });
 
   it("ZÉRO dark pattern : pas de barré, pas de minuterie, pas de rareté (FR-061)", () => {

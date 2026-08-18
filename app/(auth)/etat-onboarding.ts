@@ -32,7 +32,7 @@ export async function etapeOnboardingPour(
 
   const { data: consentement, error: erreurConsentement } = await supabase
     .from("consentement")
-    .select("art9_accorde, ia_reconnue, revoked_at")
+    .select("art9_accorde, ia_reconnue, cgu_acceptees, revoked_at")
     .eq("utilisatrice_id", userId)
     .maybeSingle();
   if (erreurConsentement) {
@@ -51,8 +51,23 @@ export async function etapeOnboardingPour(
  * `art9_accorde=false` (écrivable en direct via l'API REST sous RLS) ne vaut PAS un consentement.
  */
 function statutConsentement(
-  c: { art9_accorde: boolean; ia_reconnue: boolean; revoked_at: string | null } | null,
+  c: {
+    art9_accorde: boolean;
+    ia_reconnue: boolean;
+    cgu_acceptees: boolean;
+    revoked_at: string | null;
+  } | null,
 ): StatutConsentement {
-  if (!c || c.art9_accorde !== true || c.ia_reconnue !== true) return "aucun";
+  // ⚠️ `cgu_acceptees` EST LU DEPUIS LA REVUE DES EPICS 1 À 4. Il ne l'était pas — ni ici, ni dans
+  // `a_consenti_art9()` : seule la Server Action exigeait la case, c'est-à-dire rien pour qui écrit
+  // en direct sur PostgREST. Le produit s'utilisait entièrement sans contrat, et la confirmation des
+  // dix-huit ans que 0004 fait porter à cette même case ne valait pas davantage.
+  //
+  // Il est lu ICI ET en base, dans le même correctif : la base seule laisserait `etapeOnboarding`
+  // rendre « suite » à quelqu'un dont toutes les écritures art. 9 échouent ensuite en silence. Une
+  // garde qui laisse entrer dans une pièce où plus rien ne fonctionne est pire que pas de garde.
+  if (!c || c.art9_accorde !== true || c.ia_reconnue !== true || c.cgu_acceptees !== true) {
+    return "aucun";
+  }
   return c.revoked_at === null ? "valide" : "revoque";
 }

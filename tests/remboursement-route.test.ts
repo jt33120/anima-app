@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * REVUE DE CODE du 2026-08-11, lot 2 (M2 et M3) — LA ROUTE DE REMBOURSEMENT, RÉELLEMENT EXERCÉE.
@@ -120,5 +122,68 @@ describe("[M2] la route dit ce qui s'est réellement passé", () => {
     const res = await POST(req());
     expect(res.status).toBe(401);
     expect(reserver).not.toHaveBeenCalled();
+  });
+});
+
+describe("[revue 1-4, #4] l'écran ne promet plus dans le vide", () => {
+  /**
+   * ══ CE QUI ÉTAIT EN JEU ═══════════════════════════════════════════════════════════════════════
+   *
+   * `SUCCES_REMBOURSEMENT` — « C'est demandé. Le remboursement arrive sur ton moyen de paiement. » —
+   * ne paraît qu'UNE fois, au retour de l'action. Ensuite : plus rien. Ni confirmation, ni démenti.
+   * `confirme_le` était écrite par le webhook et lue par PERSONNE.
+   *
+   * Un remboursement refusé par la banque (compte clos, carte remplacée) était donc invisible des
+   * deux côtés : elle attendait un virement annoncé, et nous n'avions aucun signal.
+   *
+   * C'est le même défaut que la révision M2 du 2026-08-11 — « quelqu'un lisait "le remboursement
+   * arrive" et attendait un virement qui ne viendrait jamais » — dont seul le cas « aucun paiement
+   * retrouvé » avait été traité.
+   */
+
+  const page = readFileSync(resolve(process.cwd(), "app/abonnement/page.tsx"), "utf-8");
+  const copie = readFileSync(resolve(process.cwd(), "render/abonnement/copie-abonnement.ts"), "utf-8");
+
+  it("⚠️ la page LIT l'état du remboursement — c'est ce qui manquait", () => {
+    expect(page, "`confirme_le` restait écrite par le webhook et lue par personne").toMatch(
+      /lireEtatRemboursement\s*\(/,
+    );
+  });
+
+  it("les trois états ont chacun leur phrase, et elles sont rendues", () => {
+    for (const cle of ["REMBOURSEMENT_CONFIRME", "REMBOURSEMENT_ECHOUE", "REMBOURSEMENT_EN_COURS"]) {
+      expect(copie, `${cle} manque`).toContain(`export const ${cle}`);
+      expect(page, `${cle} est déclaré mais jamais rendu`).toContain(cle);
+    }
+  });
+
+  it("⚠️ la phrase d'échec ne lui reproche rien, et laisse sa demande ouverte", () => {
+    // Un remboursement refusé l'est presque toujours pour une raison qui lui appartient (compte
+    // clos, carte expirée). Le formuler comme une faute transformerait une panne en reproche — et
+    // la laisser croire que sa demande est perdue la ferait payer deux fois notre problème.
+    const i = copie.indexOf("REMBOURSEMENT_ECHOUE");
+    const phrase = copie.slice(i, copie.indexOf(";", i));
+    expect(phrase, "elle doit savoir que sa demande TIENT").toMatch(/reste ouverte/);
+    expect(phrase, "un écran qui reproche à quelqu'un d'avoir changé de carte").not.toMatch(
+      /tu (aurais|dois|n'as pas)/i,
+    );
+  });
+
+  it("le repli de la lecture d'état est prouvé AU RENDU, pas ici — et le dit", () => {
+    // ⚠️ CETTE GARDE A ÉTÉ RETIRÉE, DÉLIBÉRÉMENT. Elle cherchait un `.catch(` près de l'appel — et
+    // elle avait raison de s'inquiéter du repli, mais tort sur sa forme : `lireEtatRemboursement()
+    // .catch(…)` ne rattrape qu'une promesse REJETÉE ; si l'appel lui-même lève (module absent,
+    // symbole disparu), le `.catch` n'est jamais attaché. C'est arrivé, et la page tombait en mode
+    // dégradé. Le code utilise donc son propre `try`, et une garde de source qui exige `.catch`
+    // rougirait sur du code plus correct qu'elle.
+    //
+    // Ce que le repli PRODUIT est éprouvé là où ça se voit : `tests/rendu/porte-de-sortie.test.tsx`
+    // monte la page avec une lecture qui lève, et vérifie que la porte de sortie est toujours là.
+    // On garde ici la seule chose qu'une lecture de source sache dire : que le repli existe.
+    const i = page.indexOf("await lireEtatRemboursement(");
+    expect(i, "l'appel a disparu de la page").toBeGreaterThan(-1);
+    expect(page.slice(Math.max(0, i - 200), i + 200), "aucun repli autour de la lecture").toMatch(
+      /try\s*\{|\.catch\(/,
+    );
   });
 });

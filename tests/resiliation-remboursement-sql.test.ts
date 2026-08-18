@@ -562,3 +562,104 @@ describe("[AC8] la projection des deux dates : ce qui se conserve et ce qui s'ef
     expect(error, "une surcharge à 8 arguments a survécu au `drop function`").not.toBeNull();
   });
 });
+
+describe("[revue 1-4, #4] un remboursement qui ÉCHOUE laisse une trace", () => {
+  /**
+   * ══ CE QUI ÉTAIT EN JEU ═══════════════════════════════════════════════════════════════════════
+   *
+   * `interpreterRemboursement` ne retenait que `succeeded` : un `refund.updated` en `failed`
+   * rendait `null`, le webhook répondait 200, et rien n'était écrit nulle part. Pendant ce temps
+   * l'écran lui avait dit « C'est demandé. Le remboursement arrive sur ton moyen de paiement. »
+   * Elle attendait un virement qui ne viendrait jamais, et personne n'avait de quoi le voir.
+   */
+
+  const echouant = { email: `rb-echec-${t}@exemple.fr`, id: "" };
+
+  beforeAll(async () => {
+    echouant.id = await creerUtilisatrice(echouant.email);
+    await admin.from("remboursement").delete().eq("utilisatrice_id", echouant.id);
+    const { error } = await admin
+      .from("remboursement")
+      .insert({ utilisatrice_id: echouant.id, motif: "garantie" });
+    if (error) throw new Error(`remboursement: ${error.message}`);
+  });
+
+  it("⚠️ `echouer_remboursement` pose `echec_le` — l'échec cesse d'être invisible", async () => {
+    const evt = `evt-${t}-fail-1`;
+    const { data, error } = await admin.rpc("echouer_remboursement", {
+      p_utilisatrice: echouant.id,
+      p_provider_event_id: evt,
+      p_type: "refund.updated",
+    });
+    expect(error).toBeNull();
+    expect(data).toBe(true);
+    const { data: ligne } = await admin
+      .from("remboursement")
+      .select("echec_le, confirme_le")
+      .eq("utilisatrice_id", echouant.id)
+      .single();
+    expect(ligne?.echec_le, "un remboursement refusé par la banque, sans une trace").not.toBeNull();
+    expect(ligne?.confirme_le, "un échec marqué comme confirmation").toBeNull();
+  });
+
+  it("idempotent par event.id — Stripe rejoue sur 5xx (patron exact de `confirmer_remboursement`)", async () => {
+    const evt = `evt-${t}-fail-2`;
+    const args = { p_utilisatrice: echouant.id, p_provider_event_id: evt, p_type: "refund.updated" };
+    expect((await admin.rpc("echouer_remboursement", args)).data).toBe(true);
+    expect((await admin.rpc("echouer_remboursement", args)).data, "le rejeu a produit un second effet").toBe(
+      false,
+    );
+  });
+
+  it("⚠️ une confirmation EFFACE l'échec : une seconde tentative réussie rend l'écran honnête", async () => {
+    const { data } = await admin.rpc("confirmer_remboursement", {
+      p_utilisatrice: echouant.id,
+      p_provider_event_id: `evt-${t}-ok`,
+      p_type: "refund.created",
+    });
+    expect(data).toBe(true);
+    const { data: ligne } = await admin
+      .from("remboursement")
+      .select("echec_le, confirme_le")
+      .eq("utilisatrice_id", echouant.id)
+      .single();
+    expect(ligne?.confirme_le).not.toBeNull();
+    expect(ligne?.echec_le, "l'écran annoncerait un échec sur un argent déjà rendu").toBeNull();
+  });
+
+  it("⚠️ et un échec n'écrase JAMAIS une confirmation — les webhooks n'arrivent pas dans l'ordre", async () => {
+    // Stripe peut émettre `failed` puis `succeeded` (nouvelle tentative sur un autre moyen), et
+    // rien ne garantit l'ordre de livraison. L'argent rendu est un FAIT ; un échec n'est qu'un état.
+    const { data } = await admin.rpc("echouer_remboursement", {
+      p_utilisatrice: echouant.id,
+      p_provider_event_id: `evt-${t}-fail-tardif`,
+      p_type: "refund.updated",
+    });
+    expect(data).toBe(true); // l'événement est bien consommé (idempotence)
+    const { data: ligne } = await admin
+      .from("remboursement")
+      .select("echec_le, confirme_le")
+      .eq("utilisatrice_id", echouant.id)
+      .single();
+    expect(ligne?.confirme_le, "une confirmation a été perdue").not.toBeNull();
+    expect(ligne?.echec_le, "un échec tardif a démenti un remboursement déjà parti").toBeNull();
+  });
+
+  it("la RPC reste hors de portée d'une session — c'est le webhook qui fait foi", async () => {
+    const c = await session(echouant.email);
+    const { error } = await c.rpc("echouer_remboursement", {
+      p_utilisatrice: echouant.id,
+      p_provider_event_id: `evt-${t}-forge`,
+      p_type: "refund.updated",
+    });
+    expect(error, "une session a pu déclarer son propre remboursement en échec").not.toBeNull();
+  });
+
+  it("et elle LIT son échec (export FR-067 + la ligne d'état de l'écran)", async () => {
+    const c = await session(echouant.email);
+    const { data, error } = await c.from("remboursement").select("echec_le, confirme_le").maybeSingle();
+    expect(error).toBeNull();
+    expect(data, "elle doit voir l'état de son propre remboursement").not.toBeNull();
+  });
+});
+

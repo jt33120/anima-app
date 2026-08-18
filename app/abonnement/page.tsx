@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
-import { lireAbonnement, eligibleAuRemboursement } from "@/lib/data/depot-resiliation";
+import { lireAbonnement, eligibleAuRemboursement, lireEtatRemboursement, type EtatRemboursement } from "@/lib/data/depot-resiliation";
 import * as c from "@/render/abonnement/copie-abonnement";
 import { MontagePaywall } from "@/app/_commerce/MontagePaywall";
 import s from "./abonnement.module.css";
@@ -100,7 +100,30 @@ export default async function PageAbonnement({
         })
       : null;
 
+  // ⚠️ HORS DU `try` CI-DESSUS, ET DANS SON PROPRE `try` — pas un `.catch` sur l'appel. Deux raisons.
+  // D'abord la portée : une panne de cette lecture-ci doit retirer la LIGNE d'état, jamais la page
+  // (fermer la porte de sortie sur un timeout enfermerait quelqu'un dans un abonnement — leçon M12).
+  // Ensuite la forme : `lireEtatRemboursement().catch(…)` ne rattrape qu'une promesse REJETÉE. Si
+  // l'appel lui-même lève — module absent, symbole disparu — le `.catch` n'est jamais attaché, et
+  // l'erreur remonte. C'est exactement ce qui s'est produit, et la page tombait en mode dégradé.
+  let etatRemboursement: EtatRemboursement | null = null;
+  try {
+    etatRemboursement = await lireEtatRemboursement();
+  } catch {
+    etatRemboursement = null; // on ne dit rien plutôt que de dire faux — la page, elle, reste ouverte
+  }
+
   const resiliationDemandee = abonnement?.resiliationDemandeeLe != null;
+  // L'ÉTAT DU REMBOURSEMENT, TANT QU'IL Y A QUELQUE CHOSE À DIRE (revue des Epics 1 à 4, #4). Le
+  // retour d'action `?etat=rembourse` ne paraît qu'une fois ; ce qui suit vit sur la page.
+  const messageRemboursement =
+    etatRemboursement === "confirme"
+      ? c.REMBOURSEMENT_CONFIRME
+      : etatRemboursement === "echec"
+        ? c.REMBOURSEMENT_ECHOUE
+        : etatRemboursement === "en_cours"
+          ? c.REMBOURSEMENT_EN_COURS
+          : null;
   const finAcces = dateFr(abonnement?.resiliationDemandeeLe ?? abonnement?.periodeFin ?? null);
   const actif = abonnement?.etat === "actif";
   // LA SORTIE NE DÉPEND PAS DE L'ÉTAT D'ACCÈS (revue du 2026-08-11, M12).
@@ -132,6 +155,14 @@ export default async function PageAbonnement({
       {retour === "paiement_indisponible" && (
         <p className={`t-corps ${s.retour}`} role="status">
           {c.REFUS_PAIEMENT_INDISPONIBLE}
+        </p>
+      )}
+      {/* L'ÉTAT DU REMBOURSEMENT — persistant, contrairement aux retours d'action ci-dessus. Il
+          existe parce qu'un remboursement refusé par la banque était jeté sans trace pendant que
+          l'écran avait promis un virement (revue des Epics 1 à 4, #4). */}
+      {messageRemboursement && (
+        <p className={`t-corps ${s.retour}`} role="status">
+          {messageRemboursement}
         </p>
       )}
       {retour === "contrat_ouvert" && (

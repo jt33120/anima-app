@@ -44,18 +44,35 @@ describe("[AC7] interpreterRemboursement", () => {
 
   it("porte l'identité depuis NOTRE metadata, sans aucun aller-retour", () => {
     const r = interpreterRemboursement(evt("refund.created", refund("succeeded"), "evt_42"));
-    expect(r).toEqual({ providerEventId: "evt_42", type: "refund.created", utilisatriceId: "u1" });
+    expect(r).toEqual({
+      providerEventId: "evt_42",
+      type: "refund.created",
+      utilisatriceId: "u1",
+      issue: "confirme",
+    });
   });
 
-  it("[DUR] un remboursement `pending` ne confirme RIEN", () => {
+  it("[DUR] un remboursement `pending` ne dit RIEN — ni fin, ni échec", () => {
+    // `pending` reste un `null` légitime : c'est un état transitoire, pas une issue. Le marquer en
+    // échec ferait paraître un démenti à l'écran pendant que l'argent est en route.
     expect(interpreterRemboursement(evt("refund.created", refund("pending")))).toBeNull();
   });
 
-  it("[DUR] un remboursement `failed` ne confirme rien non plus — d'où `refund.updated`", () => {
-    // Un remboursement peut échouer APRÈS coup (compte fermé, carte expirée). Sans ce filtre, on
-    // marquerait `confirme_le` sur un remboursement qui n'a jamais atteint son compte.
-    expect(interpreterRemboursement(evt("refund.updated", refund("failed")))).toBeNull();
-    expect(interpreterRemboursement(evt("refund.updated", refund("succeeded")))).not.toBeNull();
+  it("⚠️ un remboursement `failed` ne CONFIRME rien — mais il n'est plus jeté (revue 1-4, #4)", () => {
+    // ══ CE QUI ÉTAIT EN JEU ═══════════════════════════════════════════════════════════════════
+    // Un remboursement peut échouer APRÈS coup (compte fermé, carte expirée) — c'est la raison
+    // d'être de `refund.updated`, et l'en-tête de ce module le disait déjà. Il rendait pourtant
+    // `null` : le webhook répondait 200 et rien n'était écrit nulle part, pendant que l'écran avait
+    // annoncé « le remboursement arrive sur ton moyen de paiement ». Elle attendait un virement qui
+    // ne viendrait pas, et personne — ni elle, ni nous — n'avait de quoi s'en apercevoir.
+    //
+    // LES DEUX MOITIÉS DE LA RÈGLE, ensemble, sinon aucune ne tient : l'échec REMONTE, et il ne
+    // remonte SURTOUT PAS comme une confirmation.
+    const echec = interpreterRemboursement(evt("refund.updated", refund("failed")));
+    expect(echec, "un échec de remboursement est jeté sans trace").not.toBeNull();
+    expect(echec?.issue, "un échec marqué comme confirmation : le pire des deux mondes").toBe("echec");
+
+    expect(interpreterRemboursement(evt("refund.updated", refund("succeeded")))?.issue).toBe("confirme");
   });
 
   it("sans metadata, rien — jamais de confirmation attribuée au hasard", () => {

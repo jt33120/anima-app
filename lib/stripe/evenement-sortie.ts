@@ -25,10 +25,14 @@ import type Stripe from "stripe";
  */
 
 /** Un remboursement confirmé par Stripe, normalisé. */
-export type RemboursementConfirme = {
+/** Ce qu'un événement `refund.*` peut dire de définitif. `pending` n'en fait pas partie. */
+export type IssueRemboursementStripe = "confirme" | "echec";
+
+export type SortieRemboursement = {
   readonly providerEventId: string;
   readonly type: string;
   readonly utilisatriceId: string;
+  readonly issue: IssueRemboursementStripe;
 };
 
 /** Une reconduction tacite à venir, normalisée. */
@@ -48,18 +52,29 @@ export type ReconductionAVenir = {
  * retrouver la propriétaire demanderait charge → facture → abonnement → metadata, soit deux appels API
  * de plus et deux occasions de plus d'échouer au moment où l'on doit confirmer qu'on a rendu l'argent.
  */
-export function interpreterRemboursement(event: Stripe.Event): RemboursementConfirme | null {
+export function interpreterRemboursement(event: Stripe.Event): SortieRemboursement | null {
   if (event.type !== "refund.created" && event.type !== "refund.updated") return null;
 
   const refund = event.data.object as Stripe.Refund;
-  // `succeeded` seul. Un remboursement `pending` ou `failed` ne doit rien confirmer : `refund.updated`
-  // existe précisément parce qu'un remboursement peut échouer après coup (compte fermé, carte expirée).
-  if (refund.status !== "succeeded") return null;
+
+  // ⚠️ L'ÉCHEC EST UNE SORTIE, PAS UN `null` (revue des Epics 1 à 4, trouvaille #4).
+  //
+  // Cette fonction ne retenait que `succeeded`, et son commentaire disait pourtant l'essentiel :
+  // « `refund.updated` existe précisément parce qu'un remboursement peut ÉCHOUER après coup (compte
+  // fermé, carte expirée) ». Le raisonnement était juste, sa conclusion s'arrêtait à mi-chemin — un
+  // échec rendait `null`, le webhook répondait 200, et rien n'était écrit nulle part.
+  //
+  // Pendant ce temps l'écran lui avait dit : « C'est demandé. Le remboursement arrive sur ton moyen
+  // de paiement. » Elle attendait un virement qui ne viendrait pas, et personne n'avait de quoi s'en
+  // apercevoir. `pending` reste un `null` légitime : ce n'est ni une fin, ni un échec.
+  const issue: IssueRemboursementStripe | null =
+    refund.status === "succeeded" ? "confirme" : refund.status === "failed" ? "echec" : null;
+  if (!issue) return null;
 
   const utilisatriceId = refund.metadata?.utilisatriceId;
   if (!utilisatriceId) return null;
 
-  return { providerEventId: event.id, type: event.type, utilisatriceId };
+  return { providerEventId: event.id, type: event.type, utilisatriceId, issue };
 }
 
 /**

@@ -111,6 +111,28 @@ export async function reserverRemboursement(
   };
 }
 
+/**
+ * Marque le remboursement en ÉCHEC depuis le webhook (`refund.updated` / `failed` — compte fermé,
+ * carte expirée). Rend `false` si l'événement a déjà été traité.
+ *
+ * La demande RESTE en base avec sa clé d'idempotence : un échec n'est pas une annulation, et elle
+ * doit pouvoir redemander sans que Stripe rembourse deux fois. L'écran, lui, cesse de promettre.
+ */
+export async function echouerRemboursement(
+  utilisatriceId: string,
+  providerEventId: string,
+  type: string,
+): Promise<boolean> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin.rpc("echouer_remboursement", {
+    p_utilisatrice: utilisatriceId,
+    p_provider_event_id: providerEventId,
+    p_type: type,
+  });
+  if (error) throw new Error(`echouer_remboursement a échoué (${error.code ?? "inconnu"}).`);
+  return data === true;
+}
+
 /** Confirme le remboursement depuis le webhook. Rend `false` si l'événement a déjà été traité. */
 export async function confirmerRemboursement(
   utilisatriceId: string,
@@ -181,4 +203,33 @@ export async function libererInformationReconduction(
     // Stripe rejoue. Masquer sa cause première derrière une erreur de libération n'aiderait personne.
     console.error("[reconduction] libération de la réservation impossible", { code: error.code ?? "inconnu" });
   }
+}
+
+/** Ce que l'écran « L'abonnement » a besoin de savoir d'un remboursement en cours. */
+export type EtatRemboursement = "confirme" | "echec" | "en_cours";
+
+/**
+ * L'état de SON remboursement, sous JWT — ou `null` si elle n'en a jamais demandé.
+ *
+ * ⚠️ CETTE LECTURE N'EXISTAIT PAS (revue des Epics 1 à 4). `confirme_le` était écrite par le webhook
+ * et lue par personne : l'écran annonçait « le remboursement arrive » au moment de la demande, et
+ * plus rien ensuite ne pouvait le confirmer NI le démentir. Une promesse sans surface.
+ *
+ * REPLI : `null`. Une panne de lecture ne doit pas cacher la page de sortie — l'appelant affiche
+ * l'écran sans la ligne d'état plutôt que de tomber. Ne rien dire est faux ; ne pas ouvrir la porte
+ * de sortie est pire.
+ */
+export async function lireEtatRemboursement(): Promise<EtatRemboursement | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("remboursement")
+    .select("confirme_le, echec_le")
+    .maybeSingle();
+  if (error) throw new Error(`lecture remboursement a échoué (${error.code ?? "inconnu"}).`);
+  if (!data) return null;
+  // L'ordre suit celui de la base : `confirme_le` domine toujours `echec_le` — l'argent rendu est un
+  // fait, un échec n'est qu'un état, et les webhooks n'arrivent pas dans l'ordre.
+  if (data.confirme_le) return "confirme";
+  if (data.echec_le) return "echec";
+  return "en_cours";
 }

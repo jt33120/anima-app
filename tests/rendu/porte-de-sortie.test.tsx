@@ -27,6 +27,7 @@ import { render, screen } from "@testing-library/react";
 const getUser = vi.fn();
 const lireAbonnement = vi.fn();
 const eligible = vi.fn();
+const etatRemboursement = vi.fn(async (): Promise<"confirme" | "echec" | "en_cours" | null> => null);
 const etapeOnboarding = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -40,6 +41,9 @@ vi.mock("@/lib/data/supabase/server", () => ({
 vi.mock("@/lib/data/depot-resiliation", () => ({
   lireAbonnement: () => lireAbonnement(),
   eligibleAuRemboursement: () => eligible(),
+  // Revue 1-4 (#4) : l'ÉTAT PERSISTANT du remboursement. Par défaut `null` — aucune demande en
+  // cours —, pour que les cas ci-dessous n'aient à parler que de ce qu'ils testent.
+  lireEtatRemboursement: () => etatRemboursement(),
 }));
 /**
  * La garde d'onboarding, ajoutée par la QA tour 1 (T15) : la page était atteignable par un compte
@@ -83,8 +87,16 @@ const abonnement = (a: Partial<Abonnement>): Abonnement => ({
 });
 
 /** Monte la page comme Next le ferait : le composant est asynchrone, on attend son JSX. */
-async function monter(opts: { abonnement?: Abonnement | null; retour?: string; confirmer?: string } = {}) {
+async function monter(
+  opts: {
+    abonnement?: Abonnement | null;
+    retour?: string;
+    confirmer?: string;
+    remboursement?: "confirme" | "echec" | "en_cours" | null;
+  } = {},
+) {
   lireAbonnement.mockResolvedValue(opts.abonnement === undefined ? abonnement({}) : opts.abonnement);
+  etatRemboursement.mockResolvedValue(opts.remboursement ?? null);
   const vue = await PageAbonnement({
     searchParams: Promise.resolve({ etat: opts.retour, confirmer: opts.confirmer }),
   });
@@ -95,8 +107,10 @@ beforeEach(() => {
   getUser.mockReset();
   lireAbonnement.mockReset();
   eligible.mockReset();
+  etatRemboursement.mockReset();
   getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
   eligible.mockResolvedValue(false);
+  etatRemboursement.mockResolvedValue(null);
   etapeOnboarding.mockReset();
   etapeOnboarding.mockResolvedValue("suite");
 });
@@ -262,3 +276,56 @@ describe("[M2] « aucun paiement retrouvé » a sa propre phrase", () => {
     expect(screen.queryByText(/aucun paiement à te rembourser/i)).toBeNull();
   });
 });
+
+describe("[revue 1-4, #4] l'état du remboursement VIT sur la page", () => {
+  /**
+   * `SUCCES_REMBOURSEMENT` ne paraît qu'une fois, au retour de l'action. `confirme_le` était écrite
+   * par le webhook et lue par PERSONNE : un remboursement refusé par la banque (compte clos, carte
+   * remplacée) était donc invisible des deux côtés — elle attendait un virement annoncé, et nous
+   * n'avions aucun signal. Ces trois lignes vivent sur la page, tant qu'il y a à dire.
+   */
+
+  it("⚠️ un remboursement en ÉCHEC est DIT — c'est tout l'objet de la trouvaille", async () => {
+    await monter({ remboursement: "echec" });
+    const ligne = screen.getByText(/ta banque a refusé le remboursement/i);
+    expect(ligne.getAttribute("role"), "un état doit être annoncé au lecteur d'écran").toBe("status");
+    // Et surtout : plus aucune promesse de virement à l'écran.
+    expect(screen.queryByText(/arrive sur ton moyen de paiement/i)).toBeNull();
+  });
+
+  it("elle apprend que sa demande TIENT — sinon elle croit devoir tout refaire, ou avoir perdu", async () => {
+    await monter({ remboursement: "echec" });
+    expect(screen.getByText(/ta demande reste ouverte/i)).toBeTruthy();
+  });
+
+  it("un remboursement CONFIRMÉ est dit aussi — et il ne se confond pas avec l'échec", async () => {
+    await monter({ remboursement: "confirme" });
+    expect(screen.getByText(/est parti sur ton moyen de paiement/i)).toBeTruthy();
+    expect(screen.queryByText(/ta banque a refusé/i)).toBeNull();
+  });
+
+  it("en cours : on dit qu'il arrive, sans prétendre qu'il est arrivé", async () => {
+    await monter({ remboursement: "en_cours" });
+    expect(screen.getByText(/est demandé/i)).toBeTruthy();
+    expect(screen.queryByText(/est parti sur/i)).toBeNull();
+  });
+
+  it("aucune demande : AUCUNE de ces trois lignes — on ne parle pas d'un remboursement qui n'existe pas", async () => {
+    await monter({ remboursement: null });
+    expect(screen.queryByText(/remboursement/i), "une ligne d'état sans demande").toBeNull();
+  });
+
+  it("⚠️ et une PANNE de cette lecture retire la ligne, jamais la page de sortie", async () => {
+    // LE MUTANT QUI COMPTE : remettre cette lecture dans le `try` principal. La page basculerait en
+    // mode dégradé — « Je n'arrive pas à afficher ton abonnement » — et le bouton de résiliation
+    // disparaîtrait. Fermer la porte de sortie sur un timeout enferme quelqu'un dans un abonnement.
+    etatRemboursement.mockRejectedValue(new Error("timeout"));
+    await monter({});
+    expect(
+      screen.queryByText(/je n'arrive pas à afficher ton abonnement/i),
+      "une panne de la ligne d'état a emporté la page entière",
+    ).toBeNull();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("abonnement");
+  });
+});
+

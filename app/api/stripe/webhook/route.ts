@@ -5,6 +5,7 @@ import { interpreterRemboursement, interpreterReconduction } from "@/lib/stripe/
 import { creerDepotAbonnement } from "@/lib/data/depot-abonnement";
 import {
   confirmerRemboursement,
+  echouerRemboursement,
   reserverInformationReconduction,
   libererInformationReconduction,
 } from "@/lib/data/depot-resiliation";
@@ -52,6 +53,16 @@ export async function POST(request: NextRequest) {
   const remboursement = interpreterRemboursement(evenement);
   if (remboursement) {
     try {
+      // ⚠️ DEUX ISSUES, PAS UNE (revue des Epics 1 à 4). Un `refund.updated` en `failed` rendait
+      // `null` : le webhook tombait dans la branche suivante, répondait 200, et rien n'était écrit —
+      // pendant que l'écran avait annoncé « le remboursement arrive sur ton moyen de paiement ».
+      if (remboursement.issue === "echec") {
+        await echouerRemboursement(remboursement.utilisatriceId, remboursement.providerEventId, remboursement.type);
+        // Un remboursement refusé par la banque est un incident d'exploitation, pas un aléa : il
+        // demande une reprise humaine. On le crie, sans PII (patron des logs de cette route).
+        console.error("[stripe/webhook] remboursement en ÉCHEC chez Stripe — reprise nécessaire");
+        return new NextResponse(null, { status: 200 });
+      }
       await confirmerRemboursement(remboursement.utilisatriceId, remboursement.providerEventId, remboursement.type);
       return new NextResponse(null, { status: 200 });
     } catch (e) {

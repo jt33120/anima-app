@@ -115,6 +115,31 @@ export const REMBOURSEMENT_SANS_PAIEMENT =
  */
 export const REFUS_REMBOURSEMENT = "Cette demande n'est pas ouverte sur ton abonnement.";
 
+/**
+ * L'ÉTAT PERSISTANT d'un remboursement demandé (revue des Epics 1 à 4, trouvaille #4).
+ *
+ * `SUCCES_REMBOURSEMENT` ne paraît qu'UNE fois, au retour de l'action. Ensuite, plus rien : ni
+ * confirmation, ni démenti. Un remboursement refusé par la banque (compte fermé, carte expirée)
+ * était jeté sans trace, et elle continuait d'attendre un virement annoncé.
+ *
+ * Ces trois lignes vivent sur la page, tant qu'il y a quelque chose à dire. C'est la même discipline
+ * que la révision M2 du 2026-08-11 : une absence dite vaut mieux qu'une promesse qui a l'air tenue.
+ */
+export const REMBOURSEMENT_EN_COURS =
+  "Ton remboursement est demandé. Il arrive sur ton moyen de paiement.";
+export const REMBOURSEMENT_CONFIRME =
+  "Ton remboursement est parti sur ton moyen de paiement. Il peut mettre quelques jours à s'afficher.";
+/**
+ * ⚠️ ELLE N'A RIEN À RÉPARER, ET LA PHRASE DOIT LE DIRE. Un remboursement refusé l'est presque
+ * toujours pour une raison qui lui appartient (compte clos, carte expirée) — mais la formuler comme
+ * un reproche transformerait une panne de notre côté en faute du sien. On dit ce qui s'est passé, on
+ * dit que sa demande TIENT TOUJOURS (la clé d'idempotence est en base : redemander ne rembourse pas
+ * deux fois), et on donne la porte.
+ */
+export const REMBOURSEMENT_ECHOUE =
+  "Ta banque a refusé le remboursement — cela arrive quand un compte a été clos ou une carte remplacée. " +
+  "Ta demande reste ouverte : écris-moi depuis l'aide et on le refait sur un autre moyen de paiement.";
+
 /** L'arbre ne recule pas — dit une fois, platement, pour retirer la peur du geste (FR-029). */
 export const RIEN_NE_DISPARAIT =
   "Ton arbre, tes branches et ce que tu as écrit restent là, et restent à toi.";

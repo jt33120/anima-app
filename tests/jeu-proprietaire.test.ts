@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { CLES_JEU, JEU } from "@/lib/tirage/jeu";
+import { CLES_JEU, JEU, EMPREINTE_JEU, empreinteDeJeu } from "@/lib/tirage/jeu";
+import { tirerUneCarte } from "@/lib/tirage/tirer";
 import { VISUELS_DESSINES, cheminVisuel, REPERTOIRE_VISUELS } from "@/render/lecture/visuels";
 import { CORPUS_DESCRIPTION_CARTES, cleDescription } from "@/lib/corpus/description-cartes";
 import { clesEcrites, textesEcrits } from "@/lib/corpus/port";
@@ -386,5 +387,59 @@ describe("[AC5] un créneau de description par carte, dérivé et jamais recopi�
   it("les 21 cartes ont chacune leur créneau, et il n'y a pas de créneau orphelin", () => {
     const clesCorpus = Object.keys(CORPUS_DESCRIPTION_CARTES.textes).sort();
     expect(clesCorpus).toEqual(JEU.map((c) => cleDescription(c.cle)).sort());
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [R5] L'EMPREINTE DU JEU — un journal d'audit ne ment pas sur ce qu'il sait (revue Epic 5)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ 0050 affirmait « Quatre octets journalisés rendent l'audit définitif ». C'était vrai de la
+// BORNE du modulo, et faux du reste : `rejouer(graine, borne)` rend un INDICE, et un indice ne
+// désigne une carte que dans un JEU DONNÉ. La 5.10 a retiré six cartes prises AU MILIEU de la
+// liste — une ligne écrite sous la 5.7 rejouée contre le jeu courant nomme une carte fausse.
+
+describe("[R5] l'empreinte distingue les JEUX, là où `taille_jeu` ne distingue que les TAILLES", () => {
+  // Les vingt-quatre noms de la 5.7, dans leur ordre d'alors. Ce ne sont pas des cartes inventées
+  // pour le test : c'est le jeu qui aurait réellement produit les lignes de journal d'avant 5.10.
+  const JEU_5_7 = [
+    "porte-entrouverte", "pont", "fontaine", "racine", "serrure", "lanterne",
+    "nid", "chemin-de-traverse", "miroir", "metier-a-tisser", "barque", "clef",
+    "montagne", "riviere", "orage", "arbre-creux", "fenetre", "escalier",
+    "coquillage", "corde", "sablier", "braise", "carrefour", "puits",
+  ];
+
+  it("le jeu de la 5.7 et celui de la 5.10 n'ont PAS la même empreinte", () => {
+    expect(empreinteDeJeu(JEU_5_7)).not.toBe(EMPREINTE_JEU);
+  });
+
+  it("[LE MUTANT] elle dépend de la COMPOSITION, pas seulement de la taille", () => {
+    // Mutant visé : dériver l'empreinte de `TAILLE_JEU`. Deux jeux de 21 cartes DIFFÉRENTES
+    // deviendraient indiscernables — et l'audit nommerait une carte fausse en se croyant sûr.
+    const memeTaille = CLES_JEU.map((c, i) => (i === 0 ? "carte-etrangere" : c));
+    expect(memeTaille.length).toBe(CLES_JEU.length);
+    expect(empreinteDeJeu(memeTaille)).not.toBe(EMPREINTE_JEU);
+  });
+
+  it("[LE MUTANT] elle dépend de l'ORDRE — un indice ne veut rien dire sans lui", () => {
+    // Mutant visé : trier la liste avant de hacher. `jeu.ts` dit « aucun ordre porteur », et c'est
+    // vrai du SENS (AD-11) ; c'est FAUX de l'audit, puisque `rejouer` rend un INDICE. Deux jeux des
+    // mêmes cartes rangées autrement ne rejouent pas pareil, et c'est ce qui doit se voir.
+    const permute = [CLES_JEU[1], CLES_JEU[0], ...CLES_JEU.slice(2)];
+    expect([...permute].sort()).toEqual([...CLES_JEU].sort());
+    expect(empreinteDeJeu(permute)).not.toBe(EMPREINTE_JEU);
+  });
+
+  it("le séparateur tient : deux découpages du même flot de lettres diffèrent", () => {
+    expect(empreinteDeJeu(["ab", "c"])).not.toBe(empreinteDeJeu(["a", "bc"]));
+  });
+
+  it("elle a la FORME que la contrainte de 0064 accepte, et elle est pure", () => {
+    expect(EMPREINTE_JEU).toMatch(/^[0-9a-f]{8}$/);
+    expect(empreinteDeJeu(CLES_JEU)).toBe(EMPREINTE_JEU);
+  });
+
+  it("[ANTI-VACUITÉ] le tirage la DESCEND — sinon rien de tout ceci n'atteint le journal", () => {
+    expect(tirerUneCarte().empreinteJeu).toBe(EMPREINTE_JEU);
   });
 });

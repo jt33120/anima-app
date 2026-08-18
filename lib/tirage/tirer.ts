@@ -1,5 +1,5 @@
 import "server-only"; // un tirage exécuté chez le client serait re-jouable à volonté (AD-11).
-import { JEU, TAILLE_JEU, type CleCarteJeu } from "./jeu";
+import { JEU, TAILLE_JEU, type CleCarteJeu, EMPREINTE_JEU } from "./jeu";
 import { csprngSysteme, indiceUniforme } from "./alea";
 
 /**
@@ -51,6 +51,13 @@ export interface Tirage {
   readonly cle: CleCarteJeu;
   readonly graine: string;
   readonly tailleJeu: number;
+  /**
+   * ⚠️ `tailleJeu` NE SUFFIT PAS, et 0050 affirmait le contraire (revue Epic 5, R5). Il donne la
+   * BORNE du modulo ; rejouer demande aussi la LISTE ORDONNÉE — un indice ne désigne une carte que
+   * dans un jeu donné. La 5.10 a retiré six cartes prises AU MILIEU : une ligne 5.7 rejouée contre
+   * le jeu courant rend une carte fausse, ou rien. Voir `EMPREINTE_JEU`.
+   */
+  readonly empreinteJeu: string;
 }
 
 /**
@@ -62,5 +69,5 @@ export interface Tirage {
  */
 export function tirerUneCarte(): Tirage {
   const { indice, graine } = indiceUniforme(csprngSysteme, TAILLE_JEU);
-  return { cle: JEU[indice].cle, graine, tailleJeu: TAILLE_JEU };
+  return { cle: JEU[indice].cle, graine, tailleJeu: TAILLE_JEU, empreinteJeu: EMPREINTE_JEU };
 }

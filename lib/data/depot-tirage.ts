@@ -59,6 +59,9 @@ export async function deposerTirage(
       carte: tirage.cle,
       graine: tirage.graine,
       taille_jeu: tirage.tailleJeu,
+      // Revue Epic 5 (R5) : sans elle, `taille_jeu` seul fait rejouer une ligne ancienne contre le
+      // jeu COURANT — donc nommer une carte fausse avec assurance (migration 0064).
+      empreinte_jeu: tirage.empreinteJeu,
     })
     // L'identifiant est relu parce que la 5.8 en a besoin pour rattacher la LECTURE au tirage — le
     // rattachement est ce qui ferme le re-tirage (`lecture.tirage_id` unique, 0051). Le générer côté

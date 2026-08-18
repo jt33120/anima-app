@@ -78,6 +78,10 @@ describe("[AC2] l'identité n'entre qu'à l'écriture", () => {
       cle: "barque",
       graine: "0000002a",
       tailleJeu: 24,
+      // ⚠️ VOLONTAIREMENT UNE AUTRE EMPREINTE QUE CELLE DU JEU COURANT (revue Epic 5, R5) : ce test
+      // prouve que le dépôt écrit CE QU'ON LUI DONNE. S'il la recalculait, il réécrirait l'histoire
+      // d'une ligne ancienne avec l'identité du jeu d'aujourd'hui — le défaut même que 0064 corrige.
+      empreinteJeu: "deadbeef",
     });
     expect(journal.ordre).toEqual(["insert:tirage"]);
     expect(insertions[0]).toEqual({
@@ -85,6 +89,7 @@ describe("[AC2] l'identité n'entre qu'à l'écriture", () => {
       carte: "barque",
       graine: "0000002a",
       taille_jeu: 24,
+      empreinte_jeu: "deadbeef",
     });
   });
 
@@ -93,7 +98,13 @@ describe("[AC2] l'identité n'entre qu'à l'écriture", () => {
     // d'horloge, et donc une mauvaise pièce dans un journal d'audit.
     const { client, insertions } = fauxClient();
     await tirerEtDeposer(client as never, "33333333-3333-3333-3333-333333333333");
-    expect(Object.keys(insertions[0]).sort()).toEqual(["carte", "graine", "taille_jeu", "utilisatrice_id"]);
+    expect(Object.keys(insertions[0]).sort()).toEqual([
+      "carte",
+      "empreinte_jeu",
+      "graine",
+      "taille_jeu",
+      "utilisatrice_id",
+    ]);
   });
 
   it("la ligne écrite est rejouable : carte du jeu, graine au format, taille journalisée", async () => {

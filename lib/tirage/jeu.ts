@@ -166,3 +166,46 @@ export const TAILLE_JEU = JEU.length;
 if (TAILLE_JEU < 2) {
   throw new Error(`jeu.ts : un jeu de ${TAILLE_JEU} carte(s) ne peut pas être tiré (AD-11).`);
 }
+
+/**
+ * ── L'EMPREINTE DU JEU (revue Epic 5, R5) ──────────────────────────────────────────────────────
+ *
+ * ⚠️ `TAILLE_JEU` NE SUFFIT PAS À RENDRE LE JOURNAL REJOUABLE, et 0050 affirme le contraire en
+ * toutes lettres : « Quatre octets journalisés rendent l'audit définitif ». C'était vrai de la
+ * BORNE du modulo, et faux du reste. Rejouer une ligne demande deux choses — la borne ET la LISTE
+ * ORDONNÉE des cartes, car `rejouer(graine, borne)` rend un INDICE, et un indice ne désigne une
+ * carte que dans un jeu donné.
+ *
+ * La 5.10 l'a déjà fait mentir : elle a retiré six cartes prises AU MILIEU de la liste. Une ligne
+ * écrite sous la 5.7 (`taille_jeu = 24`) rejouée aujourd'hui rendrait un indice que le jeu courant
+ * fait pointer sur une AUTRE carte — ou sur `undefined` au-delà de 20. Une carte fausse, rendue
+ * avec assurance, sur toutes les lignes antérieures : exactement la panne que le commentaire de la
+ * colonne prétendait avoir rendue impossible.
+ *
+ * ⚠️ ET CE N'EST PAS DERRIÈRE NOUS. Ce fichier annonce lui-même que si Anima refuse `seuil`, « le
+ * jeu tombe à vingt et rien d'autre ne bouge » — ce qui invaliderait de la même façon toutes les
+ * lignes écrites d'ici là.
+ *
+ * L'empreinte NE REND PAS le journal rejouable : on ne rejoue pas un jeu qu'on n'a plus. Elle rend
+ * l'audit HONNÊTE — il peut dire « cette ligne appartient à un jeu que je ne détiens plus » au lieu
+ * de nommer une carte fausse. C'est le minimum qu'un journal d'audit se doit : ne pas mentir sur ce
+ * qu'il sait.
+ *
+ * FNV-1a 32 bits, écrit ici plutôt qu'importé de `node:crypto` : ce module est sous verrou d'imports
+ * (AD-11) et n'a aucune dépendance ; l'empreinte n'a rien de cryptographique, elle DISTINGUE des
+ * jeux, elle ne les protège pas. Elle porte l'ORDRE autant que la composition — deux jeux des mêmes
+ * cartes rangées autrement ne rejouent pas pareil, et c'est précisément ce qui doit se voir.
+ */
+export function empreinteDeJeu(cles: readonly string[]): string {
+  let h = 0x811c9dc5;
+  // ⚠️ SÉPARATEUR OBLIGATOIRE. Sans lui, ["ab","c"] et ["a","bc"] rendraient la même empreinte : deux
+  // jeux distincts déclarés identiques, c'est-à-dire l'inverse exact de ce que cette valeur promet.
+  for (const c of cles.join("\u0000")) {
+    h ^= c.codePointAt(0)!;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
+
+/** L'empreinte du jeu COURANT. Dérivée, jamais écrite — comme `TAILLE_JEU`, et pour la même raison. */
+export const EMPREINTE_JEU: string = empreinteDeJeu(CLES_JEU);

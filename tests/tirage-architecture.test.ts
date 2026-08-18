@@ -79,9 +79,14 @@ describe("[AC1] le point d'entrée du tirage ne prend AUCUN argument", () => {
     expect(tirerUneCarte.length).toBe(0);
   });
 
-  it("le tirage rend la carte, la graine et la taille du jeu — et rien qui vienne d'une personne", () => {
+  it("le tirage rend la carte, la graine, la taille et l'empreinte du jeu — rien qui vienne d'une personne", () => {
+    // ⚠️ CETTE LISTE EST EXHAUSTIVE, ET C'EST TOUT SON INTÉRÊT (AD-11). Elle rougit à l'ajout d'un
+    // champ, quel qu'il soit — c'est ainsi qu'un « juste un identifiant, pour éviter les doublons »
+    // se fait voir. `empreinteJeu` est entrée en 0064 (revue Epic 5, R5) : elle est dérivée de la
+    // LISTE DES CARTES, jamais de qui tire, et elle sert l'audit — sans elle, `taille_jeu` fait
+    // rejouer une ligne ancienne contre le jeu courant, donc nommer une carte fausse.
     const t = tirerUneCarte();
-    expect(Object.keys(t).sort()).toEqual(["cle", "graine", "tailleJeu"]);
+    expect(Object.keys(t).sort()).toEqual(["cle", "empreinteJeu", "graine", "tailleJeu"]);
     expect(CLES_JEU).toContain(t.cle);
     expect(t.graine).toMatch(/^[0-9a-f]{8}$/);
     expect(t.tailleJeu).toBe(TAILLE_JEU);

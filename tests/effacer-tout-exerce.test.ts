@@ -25,7 +25,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // ⚠️ PARCE QU'UNE GARDE DE SOURCE NE VOIT PAS UN `if (false)`. La campagne de mutation a posé
 // `if (false) await arreterFacturationAvantEffacement(…)` : le texte reste, la garde reste verte, et
 // la facturation court. Sur un défaut qui prélève de l'argent, la lecture de source ne suffit pas.
-const arret = vi.fn(async (_id: string) => {});
+const arret = vi.fn(async (id: string) => void id);
 const effacerTout_ = vi.fn(async () => {});
 const redirections: string[] = [];
 

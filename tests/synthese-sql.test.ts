@@ -976,7 +976,13 @@ describe("[REVUE 4.9 / T4-1] les gardes que la campagne d'origine avait laissée
       periode_fin: "2026-05-08T00:00:00Z",
       contenu: "   \n  ",
     });
-    expect(vide.error?.message, "un récit vide n'est pas un récit").toMatch(/synthese_contenu_non_vide/);
+    // ⚠️ LE NOM DE LA CONTRAINTE A CHANGÉ, PAS SA PROMESSE (revue 1-4, #8 · migration 0073).
+    // `synthese_contenu_non_vide` est devenue `synthese_tombstone_est_vide` : elle ne dit plus
+    // « jamais vide », elle dit « vide SI ET SEULEMENT SI effacée ». Un récit blanc non marqué est
+    // donc toujours refusé — et ce test l'a prouvé en attrapant une régression réelle, la première
+    // version de 0073 ayant réécrit `btrim(contenu)` sans son second argument, c'est-à-dire le
+    // défaut que la migration 0032 existait pour corriger.
+    expect(vide.error?.message, "un récit vide n'est pas un récit").toMatch(/synthese_tombstone_est_vide/);
 
     const aLEnvers = await admin.from("synthese").insert({
       utilisatrice_id: jamais.id,

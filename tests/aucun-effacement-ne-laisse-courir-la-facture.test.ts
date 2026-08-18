@@ -118,7 +118,7 @@ describe("[R1] aucun chemin d'effacement ne laisse la facturation courir", () =>
 // LE COMPORTEMENT — mesuré, pas lu
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-const resilier = vi.fn(async (_id: string) => null as string | null);
+const resilier = vi.fn(async (id: string) => (id ? null : null) as string | null);
 const abonnementLu = vi.fn();
 
 vi.mock("@/lib/stripe/resiliation", () => ({

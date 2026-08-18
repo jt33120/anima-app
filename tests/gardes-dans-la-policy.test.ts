@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { declarerMajorite } from "./_semis";
 
 /**
  * REVUE DE CODE DU 2026-08-11, lot 1 — LES GARDES DU SEUIL, CONTRE LE VRAI SQL (migration 0041).
@@ -46,7 +47,16 @@ const t = Date.now();
 const MDP = "test-gardes-123!";
 const comptes: string[] = [];
 
-async function creerCompte(suffixe: string): Promise<{ id: string; client: SupabaseClient }> {
+/**
+ * Crée un compte connecté. `majeure` pose la `date_naissance` que `/naissance` aurait posée : depuis
+ * 0066 la majorité doit être POSITIVEMENT établie pour écrire de l'art. 9, donc un compte de banc qui
+ * n'a jamais répondu est barré partout — comme en production. Les deux seuls appels à `false` sont
+ * les tests qui écrivent EUX-MÊMES la date (elle est immuable : la poser deux fois lève).
+ */
+async function creerCompte(
+  suffixe: string,
+  majeure = true,
+): Promise<{ id: string; client: SupabaseClient }> {
   const email = `gardes-${suffixe}-${t}@exemple.fr`;
   const { data, error } = await admin.auth.admin.createUser({
     email,
@@ -55,6 +65,7 @@ async function creerCompte(suffixe: string): Promise<{ id: string; client: Supab
   });
   if (error) throw new Error(`createUser: ${error.message}`);
   const id = data.user!.id;
+  if (majeure) await declarerMajorite(admin, id);
   comptes.push(id);
 
   const client = clientAnonyme();
@@ -366,7 +377,7 @@ describe("[NON-RÉGRESSION] les neuf colonnes re-grantées couvrent exactement l
    * panne serait muette. Ce bloc écrit les neuf, une par une, par le même chemin que l'application.
    */
   it("naissance (1.4) : date_naissance + prenom + nom_complet", async () => {
-    const u = await creerCompte("nr-naissance");
+    const u = await creerCompte("nr-naissance", false);
     const { error } = await u.client
       .from("utilisatrice")
       .update({ date_naissance: "1990-06-15", prenom: "Alix", nom_complet: "Alix Martin" })
@@ -408,7 +419,7 @@ describe("[NON-RÉGRESSION] les neuf colonnes re-grantées couvrent exactement l
   it("la RPC de 0040 pose toujours la mention, alors que la colonne est hors du grant", async () => {
     // La preuve que « retirer le grant » n'a pas cassé le chemin légitime : la fonction est
     // `security definer`, elle écrit avec les droits de son propriétaire, pas ceux de l'appelante.
-    const u = await creerCompte("nr-mention");
+    const u = await creerCompte("nr-mention", false);
     await consentir(u.id);
     await admin
       .from("utilisatrice")

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 3.3 (T2) — « LES BRANCHES SONT PREMIUM » (FR-088/AC3 [DUR]), prouvé contre un vrai Supabase local
@@ -223,6 +224,7 @@ const MDP = "test-tronc-123!";
 async function creerUtilisatrice(email: string): Promise<string> {
   const { data, error } = await admin.auth.admin.createUser({ email, password: MDP, email_confirm: true });
   if (error) throw new Error(`createUser: ${error.message}`);
+  await declarerMajorite(admin, data.user!.id);
   return data.user!.id;
 }
 

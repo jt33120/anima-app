@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 4.7 (T1) — LA GARANTIE D'ÉCRITURE du cycle de vie, prouvée contre un vrai Supabase local.
@@ -42,6 +43,7 @@ const MDP = "test-cycle-123!";
 async function creerUtilisatrice(email: string) {
   const { data, error } = await admin.auth.admin.createUser({ email, password: MDP, email_confirm: true });
   if (error) throw new Error(`createUser: ${error.message}`);
+  await declarerMajorite(admin, data.user!.id);
   return data.user!.id;
 }
 async function donnerConsentement(c: SupabaseClient, id: string) {

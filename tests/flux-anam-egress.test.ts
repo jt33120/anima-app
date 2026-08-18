@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { reposerConsentement } from "./_rig-consentement";
 import { diffuserSousEgressArt9 } from "@/lib/ai/egress-guard";
 import type { AiPort, EvenementIa, RequeteIa } from "@/lib/ai/port";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 2.2 — l'egress-guard art. 9 sur le FLUX (`diffuserSousEgressArt9`, AC4, AD-13). Preuves
@@ -64,6 +65,9 @@ describe("Egress-guard sur le flux art. 9 (diffuserSousEgressArt9, AD-13, AC4)",
       email_confirm: true,
     });
     if (error) throw new Error(`createUser: ${error.message}`);
+    // 0066 : la majorité doit être POSITIVEMENT établie pour que l'egress laisse passer de l'art. 9.
+    // Ce banc teste le CONSENTEMENT et la ZDR ; il pose donc l'adulte que `/naissance` aurait posée.
+    await declarerMajorite(admin, data.user!.id);
     u.id = data.user!.id;
   });
 

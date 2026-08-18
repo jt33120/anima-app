@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 4.7 — LE GESTE IRRÉVERSIBLE, de bout en bout : la route → le dépôt → la RPC → la base.
@@ -40,6 +41,7 @@ function req(body: unknown): Request {
 async function creerUtilisatrice(email: string) {
   const { data, error } = await admin.auth.admin.createUser({ email, password: MDP, email_confirm: true });
   if (error) throw new Error(`createUser: ${error.message}`);
+  await declarerMajorite(admin, data.user!.id);
   return data.user!.id;
 }
 async function session(email: string): Promise<SupabaseClient> {

@@ -38,12 +38,19 @@ describe("Privilèges EXECUTE durcis (migration 0007, AD-12)", () => {
     }
   });
 
+  // Ce que chaque prédicat répond pour un appelant SANS `auth.uid()` (service_role). La valeur n'est
+  // pas la même, et c'est le sujet : depuis 0066, `est_barre_minorite` exige que la majorité soit
+  // POSITIVEMENT établie — une identité absente ne peut rien établir, donc elle BARRE. Le consentement,
+  // lui, se lit dans l'autre sens : personne n'a consenti, donc `false`. Les deux échouent du côté sûr.
+  const REPONSE_SANS_IDENTITE = { a_consenti_art9: false, est_barre_minorite: true } as const;
+
   for (const fn of ["a_consenti_art9", "est_barre_minorite"] as const) {
     it(`${fn} : service_role PEUT l'exécuter (contrôle positif — la fonction existe et répond)`, async () => {
       const { data, error } = await admin.rpc(fn);
       expect(error).toBeNull();
-      // Sans auth.uid() côté service_role, le prédicat keyé sur auth.uid() renvoie false.
-      expect(data).toBe(false);
+      expect(data, "une identité absente doit faire échouer le prédicat du côté SÛR").toBe(
+        REPONSE_SANS_IDENTITE[fn],
+      );
     });
 
     it(`${fn} : un client anonyme NE PEUT PLUS l'exécuter (grant anon retiré en 0007)`, async () => {

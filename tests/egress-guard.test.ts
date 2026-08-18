@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { reposerConsentement } from "./_rig-consentement";
 import { envoyerSousEgressArt9 } from "@/lib/ai/egress-guard";
 import type { AiPort, EvenementIa, RequeteIa } from "@/lib/ai/port";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 2.1 — l'egress-guard art. 9 (AD-13, AC4). Preuves BLOQUANTES contre un vrai Supabase local :
@@ -58,6 +59,9 @@ describe("Egress-guard art. 9 (AD-13, AC4)", () => {
       email_confirm: true,
     });
     if (error) throw new Error(`createUser: ${error.message}`);
+    // 0066 : la majorité doit être POSITIVEMENT établie pour que l'egress laisse passer de l'art. 9.
+    // Ce banc teste le CONSENTEMENT et la ZDR ; il pose donc l'adulte que `/naissance` aurait posée.
+    await declarerMajorite(admin, data.user!.id);
     u.id = data.user!.id;
   });
 

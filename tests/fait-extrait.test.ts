@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { reposerConsentement } from "./_rig-consentement";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 4.2 — la table `fait_extrait` (faits extraits, AD-8 couche 2). Preuves BLOQUANTES contre un
@@ -39,6 +40,10 @@ async function donnerConsentement(c: SupabaseClient, id: string) {
 async function creerUtilisatrice(email: string) {
   const { data, error } = await admin.auth.admin.createUser({ email, password: MDP, email_confirm: true });
   if (error) throw new Error(`createUser: ${error.message}`);
+  // 0066 : la majorité doit être POSITIVEMENT établie pour écrire de l'art. 9. Un compte créé par
+  // `createUser` n'a pas de `date_naissance` — c'est exactement le trou que 0066 referme. Ce banc-là
+  // teste autre chose ; il pose donc l'adulte que le parcours nominal aurait posée en `/naissance`.
+  await declarerMajorite(admin, data.user!.id);
   return data.user!.id;
 }
 

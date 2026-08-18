@@ -143,3 +143,27 @@ export async function semerTout(admin: SupabaseClient, id: string, marqueur: str
     bail_expire_le: new Date(Date.now() + 3_600_000).toISOString(),
   });
 }
+
+/**
+ * ── DÉCLARER LA MAJORITÉ D'UNE FIXTURE (migration 0066) ────────────────────────────────────────
+ *
+ * Depuis 0066, `est_barre_minorite()` rend VRAI tant qu'une majorité n'est pas POSITIVEMENT
+ * établie : une utilisatrice sans `date_naissance` est barrée des vingt-six policies d'écriture
+ * art. 9. C'est le correctif d'un défaut critique — un compte qui sautait `/naissance` écrivait sa
+ * vie intérieure dans une base art. 9.
+ *
+ * ⚠️ HUIT FICHIERS DE TEST ONT CASSÉ SUR CE CHANGEMENT, ET C'ÉTAIT LA BONNE NOUVELLE : leurs
+ * fixtures créaient un compte sans date et écrivaient de l'art. 9 — c'est-à-dire qu'elles
+ * exerçaient le trou sans le savoir. Elles disent maintenant ce qu'elles ont toujours voulu dire :
+ * « une adulte qui a répondu à la question ».
+ *
+ * À appeler juste après `admin.auth.admin.createUser`, sauf quand le test éprouve précisément
+ * l'absence de date (voir `majorite-non-declaree.test.ts`).
+ */
+export async function declarerMajorite(admin: SupabaseClient, id: string): Promise<void> {
+  const { error } = await admin
+    .from("utilisatrice")
+    .update({ date_naissance: "1990-01-01" })
+    .eq("id", id);
+  if (error) throw new Error(`declarerMajorite(${id}): ${error.message}`);
+}

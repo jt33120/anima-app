@@ -9,6 +9,7 @@ import {
 import { appliquerBarriereMinorite } from "@/lib/safety/appliquer-barriere";
 import { etapeOnboarding } from "@/app/(auth)/onboarding";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 1.9 — appliquer la barrière de minorité détectée (FR-071, AD-14, AD-9, AD-13).
@@ -208,6 +209,11 @@ describe("est_barre_minorite — pas d'oracle inter-utilisatrices (revue 1.6/1.9
       });
       if (error) throw new Error(`createUser: ${error.message}`);
       u.id = data.user!.id;
+      // ⚠️ LES DEUX SONT DES ADULTES ÉTABLIES (migration 0066), et ça RENFORCE ce test.
+      // Sans date, `est_barre_minorite()` rend désormais vrai pour tout le monde — le test aurait
+      // été vrai pour la mauvaise raison. En déclarant la majorité des deux, la SEULE différence
+      // entre elles devient la barrière elle-même : c'est exactement ce que ce bloc veut isoler.
+      await declarerMajorite(admin, u.id);
     }
     // Condition DISCRIMINANTE : une utilisatrice EST suspendue AU MOMENT du test (sinon le test
     // ne prouve que « compte vierge → false », quasi tautologique — revue 1.9).

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { lireFaitsRetenus } from "@/lib/data/lire-memoire";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 6.5 (T1/T3/T6) — CONTRE LE VRAI POSTGRES.
@@ -27,6 +28,7 @@ const MDP = "test-memoire-123!";
 async function creerUtilisatrice(email: string): Promise<string> {
   const { data, error } = await admin.auth.admin.createUser({ email, password: MDP, email_confirm: true });
   if (error) throw new Error(`createUser: ${error.message}`);
+  await declarerMajorite(admin, data.user!.id);
   return data.user!.id;
 }
 

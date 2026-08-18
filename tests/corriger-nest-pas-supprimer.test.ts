@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { declarerMajorite } from "./_semis";
 
 /**
  * corriger-nest-pas-supprimer.test.ts — R1 DE LA REVUE EPIC 6, contre le vrai Postgres (0065).
@@ -54,6 +55,7 @@ async function creerUtilisatrice(suffixe: string): Promise<Utilisatrice> {
   });
   if (error) throw new Error(`createUser: ${error.message}`);
   const id = data.user!.id;
+  await declarerMajorite(admin, id);
   const client = createClient(url, publishable, {
     auth: { autoRefreshToken: false, persistSession: false },
   });

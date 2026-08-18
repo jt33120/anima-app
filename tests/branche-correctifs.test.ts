@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 4.6 — CORRECTIFS DE LA REVUE ADVERSARIALE (migration 0023). Preuves bloquantes contre un vrai
@@ -60,6 +61,7 @@ async function abonnerActive(id: string) {
 async function creerUtilisatrice(email: string) {
   const { data, error } = await admin.auth.admin.createUser({ email, password: MDP, email_confirm: true });
   if (error) throw new Error(`createUser: ${error.message}`);
+  await declarerMajorite(admin, data.user!.id);
   await abonnerActive(data.user!.id);
   return data.user!.id;
 }

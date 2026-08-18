@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 4.1 — la table `entree_journal` (journal brut, AD-8 couche 1). Preuves BLOQUANTES contre un
@@ -34,6 +35,7 @@ async function donnerConsentement(c: SupabaseClient, id: string) {
 async function creerUtilisatrice(email: string) {
   const { data, error } = await admin.auth.admin.createUser({ email, password: "test-journal-123!", email_confirm: true });
   if (error) throw new Error(`createUser: ${error.message}`);
+  await declarerMajorite(admin, data.user!.id);
   return data.user!.id;
 }
 

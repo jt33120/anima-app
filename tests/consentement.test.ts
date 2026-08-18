@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { accordsComplets } from "@/app/(auth)/consentement/accords";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
+import { declarerMajorite } from "./_semis";
 
 /**
  * Story 1.5 — halte de consentement art. 9. Preuves BLOQUANTES en CI :
@@ -43,6 +44,9 @@ describe("Consentement — preuve écrite sous RLS (AC5)", () => {
         email_confirm: true,
       });
       if (error) throw new Error(`createUser: ${error.message}`);
+      // 0066 : la majorité doit être POSITIVEMENT établie pour consentir à l'art. 9. Ce banc teste la
+      // PREUVE de consentement, pas le seuil d'âge ; il pose l'adulte que `/naissance` aurait posée.
+      await declarerMajorite(admin, data.user!.id);
       u.id = data.user!.id;
     }
   });

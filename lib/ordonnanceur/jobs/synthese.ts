@@ -4,6 +4,7 @@ import { fenetreDe } from "@/lib/domain/ordonnanceur";
 import { codeDErreur } from "@/lib/domain/code-erreur";
 import { journaliserExploitation, journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
 import { avecDelai } from "@/lib/domain/delai";
+import { controlerDocument, codeManquement } from "@/lib/domain/controle-sortie";
 import {
   DELAI_MODELE_MS,
   LOT_PAR_TICK,
@@ -309,10 +310,36 @@ async function produirePour(
     return "bloquee";
   }
 
+  // ── LE CONTRÔLE DE SORTIE — LA QUATRIÈME SORTIE DE GÉNÉRATION (revue des Epics 1 à 4) ─────────
+  //
+  // L'en-tête de `controlerDocument` en énumérait TROIS : le flux, la restitution de lecture, le
+  // bilan de clôture. Celle-ci est la quatrième, et elle vivait ailleurs — dans l'ordonnanceur, pas
+  // dans la route — donc personne ne l'a comptée. C'est le défaut trouvé en revue d'Epic 5 (R3),
+  // rejoué une story plus loin : « la route a TROIS sorties de génération et une seule était gardée ».
+  //
+  // Ce qui la gardait était une ligne de CONSIGNE, c'est-à-dire exactement la défense dont l'en-tête
+  // du contrôle documente qu'elle n'a pas suffi. Et cette sortie-ci est la plus durable du produit :
+  // GRAVÉE, ENVOYÉE PAR COURRIEL, re-servie à chaque ouverture de « Ma synthèse », et incluse dans
+  // l'export FR-067. Un « prends soin de toi » y reste pour toujours.
+  //
+  // MODE `coupe`, comme le flux — pas « pas de synthèse du tout ». Un récit amputé d'une phrase
+  // reste un récit ; refuser ferait échouer la tranche, donc la rejouer à l'identique demain, donc
+  // échouer à nouveau, tous les jours, en silence. C'est le piège que ce fichier nomme deux lignes
+  // plus bas, et il vaut ici aussi.
+  const relu = controlerDocument(egress.reponse.texte, "coupe");
+  for (const f of relu.manquements) {
+    // Une FAMILLE, jamais le terme, jamais la phrase — le terme serait une citation de ce qu'Anam a
+    // écrit sur quelqu'un, la phrase serait de l'art. 9 par contamination (NFR-022).
+    journaliserIncidentSecurite("synthese_manquement_voix", { code: codeManquement(f) });
+  }
+
   // La sortie du modèle est bornée AVANT d'entrer en base : un refus poli (« je ne peux pas vous aider »)
   // serait stocké tel quel et lu comme le récit de sa semaine ; du blanc ferait lever la contrainte
   // `contenu_non_vide`, donc échouer la tranche, donc la rejouer à l'identique demain.
-  const contenu = validerSortieSynthese(egress.reponse.texte);
+  //
+  // ⚠️ LE CONTRÔLE PASSE AVANT LA VALIDATION, ET L'ORDRE COMPTE : un texte que la coupe réduit à
+  // rien doit tomber dans le chemin « sortie vide » déjà écrit, pas être gravé en blanc.
+  const contenu = validerSortieSynthese(relu.aEmettre);
   if (contenu === null) throw new Error("synthese_sortie_vide");
 
   const syntheseId = await deps.depot.enregistrer(

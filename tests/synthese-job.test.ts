@@ -1019,6 +1019,59 @@ describe("[T2-1 / AD-13] l'état vivant est relu JUSTE AVANT de poster le journa
     expect(trace.clos[0].reussi, "et c'est bien un échec : on a payé le modèle pour rien").toBe(false);
     expect(trace.clos[0].motif).toBe("synthese_sortie_vide");
   });
+
+  it("⚠️ [revue 1-4] LA QUATRIÈME SORTIE DE GÉNÉRATION traverse enfin le contrôle de lexique", async () => {
+    // ══ LE DÉFAUT ═════════════════════════════════════════════════════════════════════════════
+    //
+    // L'en-tête de `controlerDocument` en énumérait TROIS : le flux, la restitution de lecture, le
+    // bilan de clôture. Celle-ci est la quatrième — et elle vit dans l'ORDONNANCEUR, pas dans la
+    // route, donc personne ne l'a comptée. C'est le défaut de la revue d'Epic 5 (R3) rejoué une
+    // story plus loin : « la route a TROIS sorties de génération et une seule était gardée ».
+    //
+    // Et c'est la sortie la plus DURABLE du produit : gravée, envoyée par courriel, re-servie à
+    // chaque ouverture de « Ma synthèse », et incluse dans l'export FR-067. Un « prends soin de
+    // toi » y restait pour toujours. Ce qui la gardait était une ligne de consigne, c'est-à-dire
+    // exactement la défense dont l'en-tête du contrôle documente qu'elle n'a pas suffi.
+    const { depot } = depotOrdoFactice();
+    const { depot: syn, trace: traceSyn } = depotSyntheseFactice();
+    const { ia } = iaFactice({
+      texte: "## Ta semaine\n- tu as repris le dessin. Prends soin de toi. À la semaine prochaine.",
+    });
+
+    await executerSyntheseAvec(contexte(depot), {
+      depot: syn,
+      ia,
+      supabase: supabaseFactice().client,
+      courriel: creerPortCourrielFactice(),
+    });
+
+    const grave = traceSyn.enregistrements[0]?.contenu ?? "";
+    expect(grave, "une synthèse a bien été gravée (garde non vacue)").not.toBe("");
+    expect(grave, "« prends soin de toi » gravé pour toujours dans son récit").not.toMatch(/soin/i);
+    // ⚠️ MODE `coupe`, PAS « pas de synthèse du tout » : un récit amputé d'une phrase reste un
+    // récit. Refuser ferait échouer la tranche, donc la rejouer à l'identique demain, donc échouer
+    // à nouveau — tous les jours, en silence. Le reste doit donc survivre.
+    expect(grave, "on a jeté le récit entier au lieu de couper la phrase").toContain("le dessin");
+  });
+
+  it("et un texte que la coupe réduit à RIEN tombe dans le chemin « sortie vide » déjà écrit", async () => {
+    // L'ORDRE COMPTE : le contrôle passe AVANT `validerSortieSynthese`. Sans ça, un texte
+    // intégralement coupé serait gravé en blanc — et `contenu_non_vide` ferait échouer la tranche
+    // en base, donc la rejouer à l'identique le lendemain.
+    const { depot, trace } = depotOrdoFactice();
+    const { depot: syn, trace: traceSyn } = depotSyntheseFactice();
+    const { ia } = iaFactice({ texte: "Prends soin de toi." });
+
+    await executerSyntheseAvec(contexte(depot), {
+      depot: syn,
+      ia,
+      supabase: supabaseFactice().client,
+      courriel: creerPortCourrielFactice(),
+    });
+
+    expect(traceSyn.enregistrements, "du blanc est entré en base").toEqual([]);
+    expect(trace.clos[0].motif).toBe("synthese_sortie_vide");
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

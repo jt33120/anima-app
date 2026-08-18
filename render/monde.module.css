@@ -240,15 +240,36 @@
   left: max(0px, calc(50% - var(--contenu-max)));
   bottom: 6%;
   width: min(58vw, 19rem);
-  aspect-ratio: 4 / 5;
+  /* ⚠️ LE RAPPORT DOIT ÊTRE CELUI DU FICHIER (434 × 566), PAS UN RAPPORT ROND (QA T9).
+     `4 / 5` valait 0,800 pour une image à 0,767 : `object-fit: contain` laissait donc ~6 px de
+     bandes de chaque côté. Or le masque plumeux ci-dessous est calculé sur la BOÎTE, pas sur
+     l'image — le bord franc du fichier tombait à 6 px à l'intérieur, là où le masque est encore
+     opaque. Mesuré : un saut de couleur de 56 en UN pixel, rgb(13,11,31) → rgb(25,29,57), sur une
+     scène qui se veut « continue, sans bords » (AD-7, AC1). Le masque était juste ; c'est la boîte
+     qui ne l'était pas. */
+  aspect-ratio: 434 / 566;
   z-index: -1;
   pointer-events: none;
 }
 .seuilImg {
   object-fit: contain;
-  /* bord plumeux : l'image se dissout dans la nuit, aucun cadre (AC1) */
-  -webkit-mask-image: radial-gradient(118% 96% at 46% 44%, #000 55%, transparent 82%);
-  mask-image: radial-gradient(118% 96% at 46% 44%, #000 55%, transparent 82%);
+  /* ── BORD PLUMEUX : l'image se dissout dans la nuit, aucun cadre (AC1) ────────────────────
+     ⚠️ LE SEUL DÉGRADÉ RADIAL NE TOUCHAIT PAS LES CÔTÉS, et c'est ce que la QA a vu (T9).
+     Son ellipse fait 118 % de la largeur : la transparence n'arrive qu'à 0,82 × 1,18 W ≈ 0,97 W du
+     centre, alors que le bord latéral est à 0,54 W. À mi-hauteur, le masque était donc ENCORE
+     OPAQUE sur toute la largeur — il feutrait les coins et le haut, jamais les flancs.
+     Mesuré sur le rendu composité : un saut de couleur de 56 en UN pixel.
+     On l'intersecte donc avec deux fondus rectangulaires qui GARANTISSENT que les derniers pixels
+     de chaque côté tombent à zéro, quel que soit le rapport de la boîte. Le radial garde la forme
+     générale ; les linéaires garantissent l'absence d'arête. */
+  -webkit-mask-image: radial-gradient(118% 96% at 46% 44%, #000 55%, transparent 82%),
+    linear-gradient(to right, transparent 0%, #000 13%, #000 87%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 11%, #000 89%, transparent 100%);
+  mask-image: radial-gradient(118% 96% at 46% 44%, #000 55%, transparent 82%),
+    linear-gradient(to right, transparent 0%, #000 13%, #000 87%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 11%, #000 89%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
 }
 .seuilTexte {
   position: relative;

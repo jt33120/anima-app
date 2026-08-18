@@ -38,6 +38,12 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   interactiveWidget: "resizes-content",
+  // QA tour 2 — IL N'Y AVAIT AUCUNE `theme-color` DANS TOUT LE DOCUMENT (mesuré : 0 occurrence).
+  // La barre du système (encoche Android, barre d'état iOS en PWA) restait donc à la couleur par
+  // défaut du navigateur, en bordure d'une scène de nuit. C'est `--fond`, et rien d'autre : le mode
+  // « contraste renforcé » est un réglage d'accessibilité qui s'active à la main, pas un thème jour
+  // — il n'y a donc pas de variante `prefers-color-scheme` à déclarer ici.
+  themeColor: "#0C0A1E",
 };
 
 // UX-DR-36 : lang="fr" sur le document.

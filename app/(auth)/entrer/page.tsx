@@ -47,6 +47,23 @@ export default async function PageEntrer({
               passe à retenir, rien à perdre.
             </p>
             <FormulaireEntree />
+            {/* ── QA tour 2 — L'INFORMATION DUE AVANT LA COLLECTE (RGPD art. 13) ──────────────
+                Mesuré : cet écran ne contenait AUCUN `href`. Pas un lien, pas une ligne sur ce
+                qu'on fait des données — et c'est ici qu'on demande une adresse e-mail.
+
+                ⚠️ CE N'EST PAS ROUVRIR LA DÉCISION DE `HORS_HALTE`. Elle écarte `PiedHalte` de cet
+                écran pour DEUX raisons — la mention IA (art. 50) n'est pas due avant qu'un modèle
+                ait produit quoi que ce soit, et la porte de secours (FR-077) n'a pas d'interlocuteur
+                à secourir. Les deux tiennent. L'article 13 est une TROISIÈME question, à laquelle
+                personne n'avait répondu : il exige d'informer AU MOMENT où la donnée est obtenue.
+
+                Deux liens nus, pas un pied de site. Le reste — dire ce qu'est Anam avant de
+                demander une adresse — demande la voix d'Anima, et elle relit toute la copie. */}
+            <p className={s.mentions}>
+              <a href="/cgu">Conditions d&apos;utilisation</a>
+              <span aria-hidden="true"> · </span>
+              <a href="/aide">Aide</a>
+            </p>
           </>
         )}
         {process.env.NODE_ENV === "development" && (

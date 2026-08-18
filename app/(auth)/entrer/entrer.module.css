@@ -74,3 +74,23 @@
   font-size: 0.8125rem;
   margin: 0;
 }
+
+/* QA tour 2 — l'information due avant la collecte (RGPD art. 13). Discret, jamais caché : le
+   contraste reste celui du texte doux, et la cible de clic tient les 44 px de haut (WCAG 2.5.8). */
+.mentions {
+  margin: var(--esp-6) 0 0;
+  font-family: var(--pile-ui);
+  font-size: 0.8125rem;
+  color: var(--texte-doux);
+}
+.mentions a {
+  color: var(--texte-doux);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  display: inline-block;
+  padding: 0.6875rem 0;
+}
+.mentions a:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}

@@ -519,7 +519,13 @@ describe("[6.2/§1] `eligible_au_periodique` n'a rien perdu en déléguant", () 
 
   it("3/5 — minorité persistante", async () => {
     const id = await parfaite("mineure");
-    await admin.from("utilisatrice").update({ mineur_detecte: true }).eq("id", id);
+    // Revue Epics 1-4 (#11) : la minorité déclarée passe par `declarer_minorite`, qui pose AUSSI
+    // l'échéance de suppression — sans elle, le compte n'était atteint par aucun chemin d'effacement.
+    // Le trigger de 0070 refuse désormais la moitié d'état que cette fixture écrivait.
+    await admin.rpc("declarer_minorite", {
+      cible: id,
+      echeance: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10),
+    });
     expect(await eligible(id)).toBe(false);
     expect(await joignable(id)).toBe(false);
   });

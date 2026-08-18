@@ -21,6 +21,16 @@ const redirect = vi.fn((chemin: string) => {
 let utilisateur: { id: string } | null = { id: "u1" };
 
 vi.mock("next/navigation", () => ({ redirect: (c: string) => redirect(c) }));
+/**
+ * Revue Epics 1-4 (#11) : la minorité DÉCLARÉE ne passe plus par un UPDATE sous JWT. `mineur_detecte`
+ * seul laissait un compte que le moteur de rétention n'atteignait jamais — `echeance_suppression` est
+ * une colonne système, hors du grant client depuis 0041, donc l'action ne POUVAIT pas la poser.
+ * `declarerMinorite` (service_role) écrit les deux d'un coup.
+ */
+const declarerMinorite = vi.fn<(cible: string) => Promise<void>>(async () => {});
+vi.mock("@/lib/safety/appliquer-barriere", () => ({
+  declarerMinorite: (cible: string) => declarerMinorite(cible),
+}));
 vi.mock("@/lib/data/supabase/server", () => ({
   createSupabaseServerClient: async () => ({
     auth: {
@@ -147,9 +157,31 @@ describe("[non-régression 1.4] le contrôle de majorité reste intact", () => {
       }),
     );
     expect(r.statut).toBe("mineur");
-    expect(update).toHaveBeenCalledTimes(1);
-    expect(update).toHaveBeenCalledWith({ mineur_detecte: true });
+    // ⚠️ AUCUN `update` SOUS JWT — c'est le point de la revue 1-4 (#11). Le drapeau posé seul
+    // fabriquait un compte que rien n'effacerait jamais ; il passe par le chemin système, qui pose
+    // aussi l'échéance de suppression.
+    expect(update, "l'action écrit encore sous JWT : l'échéance ne suivra pas").not.toHaveBeenCalled();
+    expect(declarerMinorite).toHaveBeenCalledTimes(1);
+    expect(declarerMinorite).toHaveBeenCalledWith(utilisateur!.id);
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("⚠️ et si la pose de l'échéance ÉCHOUE, elle est quand même déconnectée", async () => {
+    // Refuser une mineure est une décision de SÉCURITÉ ; elle ne doit pas dépendre du succès d'une
+    // écriture de rétention. Laisser la session ouverte parce qu'une RPC a eu un timeout ferait
+    // exactement l'inverse de ce que la barrière existe pour faire.
+    declarerMinorite.mockRejectedValueOnce(new Error("timeout"));
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const mineure = new Date();
+    mineure.setFullYear(mineure.getFullYear() - 15);
+    const r = await declarerAge(
+      { statut: "saisie" },
+      formulaire({ date_naissance: mineure.toISOString().slice(0, 10), prenom: "Marie" }),
+    );
+    expect(r.statut).toBe("mineur");
+    expect(signOut, "une mineure est restée connectée à cause d'un timeout").toHaveBeenCalledTimes(1);
+    expect(err, "l'échec doit au moins laisser une trace").toHaveBeenCalled();
+    err.mockRestore();
   });
 
   it("refuse une date malformée, une date future et un âge absurde", async () => {

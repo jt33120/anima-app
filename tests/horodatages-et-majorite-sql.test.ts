@@ -300,10 +300,13 @@ describe("[0048/DUR] les 18 ans ne se contournent pas par un PATCH direct", () =
       email_confirm: true,
     });
     comptes.push(data!.user!.id);
-    const { error } = await admin
-      .from("utilisatrice")
-      .update({ mineur_detecte: true })
-      .eq("id", data!.user!.id);
+    // Revue Epics 1-4 (#11) : la minorité déclarée passe par `declarer_minorite`, qui pose AUSSI
+    // l'échéance de suppression — sans elle, le compte n'était atteint par aucun chemin d'effacement.
+    // Le trigger de 0070 refuse désormais la moitié d'état que cette fixture écrivait.
+    const { error } = await admin.rpc("declarer_minorite", {
+      cible: data!.user!.id,
+      echeance: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10),
+    });
     expect(error).toBeNull();
   });
 });

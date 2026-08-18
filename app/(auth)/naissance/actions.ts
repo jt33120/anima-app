@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { calculerAge } from "./age";
+import { declarerMinorite } from "@/lib/safety/appliquer-barriere";
 
 /**
  * ⚠️ `saisie` EST PORTÉE PAR L'ÉTAT D'ERREUR, ET C'EST LE CORRECTIF DE LA QA (tour 1, T19).
@@ -77,10 +78,25 @@ export async function declarerAge(
   if (!user) redirect("/entrer");
 
   if (age < 18) {
-    await supabase
-      .from("utilisatrice")
-      .update({ mineur_detecte: true })
-      .eq("id", user.id);
+    // ⚠️ PAR LE CHEMIN SYSTÈME, PAS PAR UN UPDATE SOUS JWT (revue des Epics 1 à 4, trouvaille #11).
+    //
+    // L'update écrivait `mineur_detecte = true` et rien d'autre. `echeance_suppression` est une
+    // colonne système, hors du grant client depuis 0041 : l'action ne POUVAIT pas la poser. Le
+    // compte tombait donc dans un angle mort — exclu du balayage d'inactivité (« la minorité a son
+    // propre chemin »), et invisible pour l'effacement, qui exige une échéance. Son adresse e-mail
+    // et le fait qu'elle est mineure seraient restés en base sans limite, pour avoir répondu
+    // honnêtement. `declarerMinorite` pose les deux d'un coup, en `service_role`.
+    //
+    // On la déconnecte MÊME si la pose échoue : la refuser est une décision de sécurité, et elle ne
+    // doit pas dépendre du succès d'une écriture de rétention. Le trigger de 0070 garantit qu'aucun
+    // autre chemin ne peut créer la moitié de cet état.
+    try {
+      await declarerMinorite(user.id);
+    } catch (e) {
+      console.error("naissance : minorité déclarée non enregistrée", {
+        nom: e instanceof Error ? e.name : "inconnu",
+      });
+    }
     await supabase.auth.signOut();
     return { statut: "mineur" };
   }

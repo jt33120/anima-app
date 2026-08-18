@@ -18,6 +18,35 @@ import { rembourserIntegralement } from "@/lib/stripe/resiliation";
  * moteur unique de rétention (AD-14 — 1.9 n'efface RIEN), et émet un audit de sécurité sans
  * art. 9. Puis pose le point de déclenchement du remboursement (AC5).
  */
+/**
+ * Pose la minorité DÉCLARÉE au seuil d'âge (FR-070, story 1.4) — AVEC son échéance de suppression.
+ *
+ * ══ POURQUOI CE CHEMIN EXISTE (revue des Epics 1 à 4, trouvaille #11) ═══════════════════════════
+ *
+ * `naissance/actions.ts` écrivait `mineur_detecte = true` sous le JWT de la personne, et rien
+ * d'autre. Or `echeance_suppression` est une colonne SYSTÈME, hors du grant client depuis 0041 :
+ * l'action ne pouvait pas la poser, et personne ne l'a remarqué. Le compte tombait alors dans un
+ * angle mort parfait — `comptes_a_prevenir` exclut les mineures (« la minorité a son propre
+ * chemin »), `comptes_a_effacer` exige une échéance qu'elle n'avait pas.
+ *
+ * Son compte n'aurait jamais été effacé : une adresse e-mail et le fait qu'elle a moins de dix-huit
+ * ans, conservés sans limite, pour avoir répondu honnêtement à la question de son âge.
+ *
+ * ⚠️ CE N'EST PAS `appliquerBarriereMinorite`, ET C'EST DÉLIBÉRÉ. Les deux drapeaux disent deux
+ * faits différents — « elle a déclaré 14 ans » n'est pas « on a détecté après coup » — et 0042 puis
+ * 0061 ont explicitement refusé de les confondre. Deux portes, pas une porte élargie.
+ */
+export async function declarerMinorite(cible: string): Promise<void> {
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin.rpc("declarer_minorite", {
+    cible,
+    // La DURÉE vit dans `lib/safety/barriere-minorite`, en un seul endroit : le SQL reçoit une date
+    // déjà calculée et ne code jamais « 30 » (AD-14).
+    echeance: echeanceSuppression(),
+  });
+  if (error) throw new Error(`declarer_minorite: ${error.message}`);
+}
+
 export async function appliquerBarriereMinorite(cible: string): Promise<void> {
   // service_role : tâche système (AD-12), jamais du contenu. La fonction SQL est révoquée
   // pour public/anon/authenticated → seul ce chemin serveur peut l'appeler.

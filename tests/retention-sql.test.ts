@@ -84,7 +84,7 @@ let abonnee = "";
 let recente = "";
 let revenue = "";
 let mineure = "";
-let mineureSansEcheance = "";
+let mineureDeclaree = "";
 
 beforeAll(async () => {
   if (!url || !publishable || !secret) throw new Error("Supabase local requis.");
@@ -94,7 +94,7 @@ beforeAll(async () => {
   recente = await creerCompte("recente", 1);
   revenue = await creerCompte("revenue", 30);
   mineure = await creerCompte("mineure", 30);
-  mineureSansEcheance = await creerCompte("mineure-nue", 30);
+  mineureDeclaree = await creerCompte("mineure-declaree", 30);
 
   // L'abonnée paie sans jamais ouvrir l'application : ses traces d'activité ne bougent pas.
   await admin.from("abonnement").insert({
@@ -126,13 +126,28 @@ beforeAll(async () => {
     expect(error, "la barrière de minorité n'a pas pu être posée").toBeNull();
   }
 
-  // ⚠️ ET UNE MINEURE SANS ÉCHÉANCE — c'est un mutant survivant qui l'a imposée. Avec la seule
-  // `mineure` ci-dessus, l'assertion « une mineure n'entre pas par le chemin de l'inactivité »
-  // était vraie POUR UNE AUTRE RAISON : son échéance déjà posée l'excluait de toute façon. Deux
-  // défenses qui se couvrent l'une l'autre, et un test incapable de dire laquelle a mordu.
-  // Celle-ci porte l'AUTRE barrière — la minorité DÉCLARÉE au seuil d'âge (FR-070), qui ne pose
-  // jamais d'échéance. Les deux chemins sont donc représentés, et `trancher` doit reconnaître les deux.
-  await admin.from("utilisatrice").update({ mineur_detecte: true }).eq("id", mineureSansEcheance);
+  // ⚠️ L'AUTRE BARRIÈRE : la minorité DÉCLARÉE au seuil d'âge (FR-070). Elle passe par son CHEMIN
+  // D'ÉCRITURE RÉEL — c'est la règle que cet encadré vient d'énoncer, et elle a changé de contenu.
+  //
+  // Ce compte s'appelait `mineureDeclaree`, et il représentait l'état « déclarée, aucune
+  // échéance » — celui que `naissance/actions.ts` produisait, faute de pouvoir écrire une colonne
+  // système. La revue des Epics 1 à 4 (#11) a montré ce que cet état coûtait : le compte était
+  // exclu du balayage d'inactivité ET invisible pour l'effacement, qui exige une échéance. Il
+  // n'aurait jamais été effacé. **0070 le rend impossible** : le trigger refuse désormais une
+  // minorité déclarée sans échéance, et `declarer_minorite` pose les deux d'un coup.
+  //
+  // Conséquence pour le test juste en dessous, dite plutôt que tue : `comptes_a_prevenir` exclut
+  // maintenant cette personne par DEUX clauses — `mineur_detecte = false` et
+  // `echeance_suppression is null`. C'est de la défense en profondeur assumée, pas une garde
+  // vacue : l'échéance seule ne dit pas la minorité, et les mineures ne doivent pas recevoir le
+  // courriel de préavis d'inactivité, qui parle d'un tout autre sujet.
+  {
+    const { error } = await admin.rpc("declarer_minorite", {
+      cible: mineureDeclaree,
+      echeance: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10),
+    });
+    expect(error, "la minorité déclarée n'a pas pu être posée").toBeNull();
+  }
 }, 60_000);
 
 describe("[6.8/AC1] Ce que le moteur ne touche JAMAIS — et c'est la moitié qui compte", () => {
@@ -147,13 +162,17 @@ describe("[6.8/AC1] Ce que le moteur ne touche JAMAIS — et c'est la moitié qu
     expect(await aPrevenir()).not.toContain(recente);
   });
 
-  it("[LE CŒUR] une MINEURE n'entre pas par le chemin de l'inactivité — MÊME sans échéance posée", async () => {
+  it("[LE CŒUR] aucune des DEUX minorités n'entre par le chemin de l'inactivité", async () => {
     const prevenables = await aPrevenir();
-    expect(prevenables).not.toContain(mineure);
-    // Celle-ci n'a AUCUNE échéance : seule la garde `mineur_detecte = false` peut l'exclure.
-    expect(prevenables, "une mineure est prévenue comme une dormeuse ordinaire").not.toContain(
-      mineureSansEcheance,
-    );
+    expect(prevenables, "la minorité DÉTECTÉE (FR-071)").not.toContain(mineure);
+    expect(prevenables, "la minorité DÉCLARÉE (FR-070)").not.toContain(mineureDeclaree);
+    // ⚠️ CE TEST A PERDU UNE PARTIE DE SON TRANCHANT, ET IL FAUT LE DIRE. Il existait pour qu'une
+    // mineure SANS échéance soit exclue par la seule garde `mineur_detecte = false` — l'autre clause
+    // (`echeance_suppression is null`) ne pouvant pas mordre. Depuis 0070, cet état n'existe plus :
+    // une minorité déclarée porte toujours son échéance, donc les deux clauses l'excluent.
+    //
+    // On ne fait pas semblant. Ce qui reste prouvé ici est que les deux populations sont dehors ;
+    // laquelle des deux clauses mord n'est plus distinguable, et ne peut plus l'être.
   });
 
   it("[ANTI-VACUITÉ] la DORMEUSE, elle, est bien prévenue — sinon les trois refus ne prouvent rien", async () => {
@@ -248,17 +267,18 @@ describe("[6.8/AC2] Trancher — effacer, gracier, ignorer", () => {
   });
 
   it("[R2] une MINEURE DÉCLARÉE au seuil d'âge est effacée elle aussi — les deux barrières comptent", async () => {
-    // L'autre drapeau (FR-070, story 1.4). Il ne pose aucune échéance de lui-même : on la pose donc
-    // ici, et ce qu'on éprouve est que `trancher` reconnaît AUSSI ce chemin-là.
+    // L'autre drapeau (FR-070, story 1.4). Depuis 0070 il porte son échéance dès la déclaration ;
+    // on l'avance ici pour la rendre échue, et ce qu'on éprouve est que `trancher` reconnaît AUSSI
+    // ce chemin-là.
     //
     // ANTI-VACUITÉ DE LA GARDE VOISINE : sans ce test, lire `barriere_minorite_le` SEUL passerait —
     // et on aurait remplacé un oubli par l'oubli symétrique.
     await admin
       .from("utilisatrice")
       .update({ echeance_suppression: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10) })
-      .eq("id", mineureSansEcheance);
-    expect(await trancher(mineureSansEcheance)).toBe("effacee");
-    expect(await existe(mineureSansEcheance)).toBe(false);
+      .eq("id", mineureDeclaree);
+    expect(await trancher(mineureDeclaree)).toBe("effacee");
+    expect(await existe(mineureDeclaree)).toBe(false);
   });
 
   it("[LE CŒUR] une abonnée dont l'échéance serait échue est GRACIÉE, pas effacée", async () => {

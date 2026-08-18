@@ -176,12 +176,41 @@ describe("[S1bis] `mineur_detecte` se pose, ne se retire pas (FR-070)", () => {
     await consentir(u.id);
   });
 
-  it("[CONTRÔLE POSITIF] false → true passe sous JWT : c'est le chemin de la déclaration d'âge (1.4)", async () => {
+  it("⚠️ false → true SOUS JWT est désormais REFUSÉ — il laisserait un compte indestructible", async () => {
+    // ══ CE TEST A CHANGÉ DE SENS, PAS D'INTENTION (revue des Epics 1 à 4, #11) ═══════════════════
+    //
+    // Il disait : « c'est le chemin de la déclaration d'âge (1.4) », et c'était vrai —
+    // `naissance/actions.ts` posait bien ce drapeau sous JWT. Le problème est ce qu'il ne posait
+    // PAS : `echeance_suppression`, colonne système hors du grant client depuis 0041. Le compte
+    // tombait alors dans un angle mort parfait — exclu du balayage d'inactivité (« la minorité a
+    // son propre chemin »), invisible pour l'effacement, qui exige une échéance. Il n'aurait jamais
+    // été effacé : une adresse e-mail et le fait qu'elle est mineure, conservés sans limite.
+    //
+    // Le chemin passe désormais par `declarer_minorite` (service_role), qui écrit les deux d'un
+    // coup, et le trigger refuse toute moitié d'état — y compris par PATCH direct sur PostgREST.
     const { error } = await u.client
       .from("utilisatrice")
       .update({ mineur_detecte: true })
       .eq("id", u.id);
-    expect(error, "app/(auth)/naissance/actions.ts pose ce drapeau sous JWT").toBeNull();
+    expect(error, "un compte de mineure sans échéance a pu naître sous JWT").not.toBeNull();
+    expect(error!.message).toContain("échéance de suppression");
+  });
+
+  it("[CONTRÔLE POSITIF] le chemin RÉEL, lui, passe — la garde n'a pas fermé la déclaration d'âge", async () => {
+    // Une garde qui barre tout le monde est une panne. `declarer_minorite` est la porte que
+    // `naissance/actions.ts` emprunte désormais.
+    const { error } = await admin.rpc("declarer_minorite", {
+      cible: u.id,
+      echeance: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10),
+    });
+    expect(error).toBeNull();
+    const { data } = await admin
+      .from("utilisatrice")
+      .select("mineur_detecte, echeance_suppression")
+      .eq("id", u.id)
+      .single();
+    expect(data?.mineur_detecte).toBe(true);
+    expect(data?.echeance_suppression, "déclarée mineure et jamais effaçable").not.toBeNull();
   });
 
   it("EXPLOIT S1bis : true → false est refusé par le trigger", async () => {
@@ -511,11 +540,13 @@ describe("[S6] une mineure déclarée au seuil n'écrit rien (FR-070, migration 
 
   beforeAll(async () => {
     u = await creerCompte("s6");
-    // Le chemin RÉEL de app/(auth)/naissance/actions.ts pour un âge < 18.
-    const { error } = await u.client
-      .from("utilisatrice")
-      .update({ mineur_detecte: true })
-      .eq("id", u.id);
+    // Le chemin RÉEL de app/(auth)/naissance/actions.ts pour un âge < 18. Depuis la revue des Epics
+    // 1 à 4 (#11), ce n'est plus un UPDATE sous JWT mais `declarer_minorite` (service_role) : le
+    // drapeau seul laissait un compte que le moteur de rétention n'atteignait jamais.
+    const { error } = await admin.rpc("declarer_minorite", {
+      cible: u.id,
+      echeance: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10),
+    });
     if (error) throw new Error(`pose du drapeau mineur: ${error.message}`);
   });
 

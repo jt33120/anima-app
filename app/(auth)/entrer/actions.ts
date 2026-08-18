@@ -1,13 +1,91 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { destinationApresAuth } from "@/app/(auth)/destination-apres-auth";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
 import { appliquerBarriereMinorite } from "@/lib/safety/appliquer-barriere";
 import { origineDuSite } from "@/lib/courriel/origine";
 
-export type EtatEntree = { ok: boolean; message?: string };
+/**
+ * `ok` — le courriel est parti, l'écran passe à la saisie du code. `adresse` sert UNIQUEMENT à
+ * l'afficher : « J'ai envoyé un code à toi@exemple.fr ». C'est une garde, pas un ornement — voir
+ * `COOKIE_ATTENTE` ci-dessous.
+ */
+export type EtatEntree = { ok: boolean; message?: string; adresse?: string };
+export type EtatCode = { message?: string };
+
+/**
+ * ══ LE CODE À SIX CHIFFRES — POURQUOI, ET CE QUI LE REND SÛR ══════════════════════════════════
+ *
+ * Le lien magique seul est PKCE : `exchangeCodeForSession` exige un cookie posé sur LE navigateur
+ * qui a demandé le lien. Demander sur l'ordinateur, ouvrir le courriel sur le téléphone, et la
+ * porte se ferme — « lien invalide », sans explication. C'est le cas le plus banal du monde, et
+ * c'est celui qui a empêché Julian de se reconnecter le 15/08 (deux liens sur trois perdus).
+ *
+ * Le code répare exactement ça : il voyage par les YEUX. Il se lit où le courriel arrive, il se
+ * tape où la demande a été faite. La propriété « même navigateur » est donc CONSERVÉE, pas
+ * abandonnée — c'est ce qui distingue cette porte de celle que la revue du 2026-08-13 a condamnée.
+ *
+ * ⚠️ CE QUE LE COOKIE EMPÊCHE, ET C'EST TOUT SON OBJET. L'attaque retirée en août consistait à
+ * envoyer à quelqu'un une URL portant le `token_hash` de l'ATTAQUANT : la victime cliquait et se
+ * retrouvait, sans le voir, dans le compte de l'attaquant — où tout ce qu'elle confierait ensuite à
+ * Anam, c'est-à-dire de l'article 9, s'écrirait chez lui.
+ *
+ * Ici, l'adresse vérifiée NE VIENT JAMAIS DU FORMULAIRE. Elle est lue dans un cookie `httpOnly`
+ * posé au moment de la demande. Un attaquant ne peut donc pas faire vérifier SON code contre une
+ * session qu'il choisit : il faudrait qu'il pose le cookie dans le navigateur de la victime ET
+ * qu'elle tape un code qu'elle n'a pas reçu. L'écran affiche par-dessus l'adresse visée — si ce
+ * n'est pas la sienne, elle le voit avant de taper.
+ *
+ * ⚠️ LA LIMITE DE FORCE BRUTE N'EST PAS ICI, ET IL FAUT LE DIRE. Six chiffres, c'est un million de
+ * possibilités. Le compteur d'essais ci-dessous sert l'UTILISATRICE (« tu t'es trompée, redemande
+ * un code ») — il ne défend rien, puisqu'il vit dans un cookie que celui qu'on craint contrôle. Ce
+ * qui défend est côté Supabase : `rate_limit_verify = 30` par tranche de cinq minutes et par IP,
+ * mesuré sur le projet le 2026-08-18. Un million d'essais à ce rythme demande des mois. Écrire ici
+ * une garde qui ne garde pas serait pire que de ne rien écrire : ça ferait cesser de chercher.
+ */
+const COOKIE_ATTENTE = "anam_entree_attente";
+/** Aligné sur `mailer_otp_exp` du projet (3 600 s, mesuré le 2026-08-18) : le cookie ne survit pas au code. */
+const DUREE_ATTENTE_S = 3600;
+/** Ce qu'on tolère avant de renvoyer demander un code neuf. Confort, pas garde — voir ci-dessus. */
+const ESSAIS_MAX = 5;
+
+type Attente = { readonly adresse: string; readonly essais: number };
+
+async function lireAttente(): Promise<Attente | null> {
+  const brut = (await cookies()).get(COOKIE_ATTENTE)?.value;
+  if (!brut) return null;
+  try {
+    const v = JSON.parse(brut) as Partial<Attente>;
+    if (typeof v.adresse !== "string" || !v.adresse.includes("@")) return null;
+    return { adresse: v.adresse, essais: typeof v.essais === "number" ? v.essais : 0 };
+  } catch {
+    return null;
+  }
+}
+
+async function poserAttente(attente: Attente | null): Promise<void> {
+  const jar = await cookies();
+  if (!attente) {
+    jar.delete(COOKIE_ATTENTE);
+    return;
+  }
+  jar.set(COOKIE_ATTENTE, JSON.stringify(attente), {
+    httpOnly: true,
+    // ⚠️ ÉCRIT À L'ENVERS, EXPRÈS — et c'est une garde de ce dépôt qui me l'a fait corriger.
+    // La forme naturelle (`=== "production"`) rend `false` quand `NODE_ENV` manque : le cookie
+    // partirait alors SANS `Secure` sur un déploiement réel, donc en clair. Écrite ainsi, une
+    // variable absente donne `Secure`. Le seul cas qui l'abaisse est nommé : `development`, où le
+    // site est en http://localhost et où un cookie `Secure` ne serait jamais posé.
+    // Même patron que les portes de démo plus bas, et `tests/auth-magic-link.test.ts` le vérifie.
+    secure: process.env.NODE_ENV !== "development",
+    sameSite: "lax",
+    path: "/",
+    maxAge: DUREE_ATTENTE_S,
+  });
+}
 
 /** Les seuls hôtes pour lesquels `http:` reste acceptable — miroir de `lib/courriel/origine.ts`. */
 const HOTES_LOCAUX = new Set(["localhost", "127.0.0.1"]);
@@ -66,7 +144,65 @@ export async function envoyerLien(
     // Enveloppe neutre, jamais signée Anam (Conventions).
     return { ok: false, message: "L'envoi a échoué. Réessaie dans un instant." };
   }
-  return { ok: true };
+  // Le courriel porte DEUX portes : le lien (PKCE, ce navigateur-ci) et le code (n'importe quel
+  // appareil pour le LIRE, ce navigateur-ci pour le TAPER). On note l'adresse visée.
+  await poserAttente({ adresse: email, essais: 0 });
+  return { ok: true, adresse: email };
+}
+
+/**
+ * Vérifie le code à six chiffres et ouvre la session.
+ *
+ * ⚠️ `type: "email"` — MESURÉ, PAS SUPPOSÉ. `EmailOtpType` en propose six ; le 2026-08-18, contre
+ * le stack local, `verifyOtp({ email, token, type: "email" })` a rendu une session sur un client
+ * NEUF (aucun `code_verifier`), ce qui est précisément la propriété inter-appareils recherchée.
+ * `magiclink` et `signup` n'ont pas été départagés — le code est à usage unique, et le premier
+ * essai a réussi. Si l'un d'eux devenait nécessaire, le test d'intégration le dira.
+ */
+export async function verifierCode(_prev: EtatCode, formData: FormData): Promise<EtatCode> {
+  const attente = await lireAttente();
+  // Le cookie a expiré, ou on arrive ici sans être passée par la demande. On ne devine pas une
+  // adresse : sans elle, il n'y a rien à vérifier, et le formulaire repart de zéro.
+  if (!attente) {
+    return { message: "Ta demande a expiré. Redemande un code, il n'y a rien d'autre à faire." };
+  }
+
+  // ⚠️ UNE PLAGE, PAS UN NOMBRE — ET ÇA VIENT D'UN VRAI COURRIEL (2026-08-18).
+  //
+  // Le stack local envoie six chiffres (`otp_length = 6` dans `config.toml`) ; le projet de
+  // PRODUCTION en envoyait HUIT (`mailer_otp_length: 8`, la valeur par défaut de Supabase). Un
+  // `!== 6` aurait donc refusé tous les codes réels, et personne n'aurait pu entrer — sur la porte
+  // écrite exactement pour réparer une impossibilité d'entrer. Aucun test local n'aurait pu le
+  // voir : ce sont deux projets, et le second n'est pas dans le dépôt.
+  //
+  // La production a été ramenée à 6 pour que l'écran dise vrai. La plage reste, parce que la
+  // prochaine dérive de configuration doit dégrader — un code accepté à huit chiffres n'est
+  // qu'un code PLUS difficile à deviner — au lieu de fermer la porte à tout le monde (AD-15).
+  const code = String(formData.get("code") ?? "").replace(/\D/g, "");
+  if (code.length < 6 || code.length > 8) {
+    return { message: "Le code fait six chiffres. Recopie-le tel qu'il est dans le message." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.verifyOtp({
+    email: attente.adresse, // ⚠️ DU COOKIE, JAMAIS DU FORMULAIRE — c'est toute la garde.
+    token: code,
+    type: "email",
+  });
+
+  if (error) {
+    const essais = attente.essais + 1;
+    if (essais >= ESSAIS_MAX) {
+      await poserAttente(null);
+      return { message: "Trop d'essais. Redemande un code — celui-là ne sert plus." };
+    }
+    await poserAttente({ ...attente, essais });
+    return { message: "Ce code ne correspond pas. Vérifie-le, ou redemande-en un." };
+  }
+
+  await poserAttente(null);
+  // LA MÊME machine d'état que le lien magique — jamais une seconde (leçon 1.4).
+  redirect(await destinationApresAuth(supabase, "/"));
 }
 
 /**

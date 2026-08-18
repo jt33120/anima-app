@@ -168,10 +168,21 @@ describe("Le lien de connexion ne part jamais en clair", () => {
     expect(action).toMatch(/origineDuSite\(\)/);
   });
 
-  it("les portes de démo refusent quand NODE_ENV est absent (échec FERMÉ)", () => {
+  it("TOUTE comparaison de NODE_ENV dans ce fichier échoue FERMÉ", () => {
     // `=== "production"` laisse passer une variable absente — sur une porte qui ouvre un client
     // `service_role` depuis la page de connexion publique.
-    expect(action).not.toMatch(/NODE_ENV\s*===\s*["']production["']/);
-    expect(action.match(/NODE_ENV\s*!==\s*["']development["']/g)?.length).toBe(2);
+    //
+    // ⚠️ LA GARDE COMPTAIT LES OCCURRENCES (« il y en a exactement deux »), et ce compte a rougi le
+    // jour où un TROISIÈME usage légitime est apparu : le drapeau `Secure` du cookie d'attente du
+    // code à six chiffres. Elle avait raison sur le fond — je l'avais écrit `=== "production"`,
+    // donc un cookie de session en clair si `NODE_ENV` manquait — et tort sur la forme : un test
+    // qui grave un nombre rougit à chaque ajout, y compris correct. On mesure donc la RÈGLE.
+    const comparaisons = action.match(/NODE_ENV\s*[!=]==\s*["'][a-z]+["']/g) ?? [];
+    expect(comparaisons.length, "plus aucune comparaison de NODE_ENV ?").toBeGreaterThanOrEqual(3);
+    for (const c of comparaisons) {
+      expect(c, `« ${c} » échoue OUVERT quand la variable manque`).toMatch(
+        /!==\s*["']development["']/,
+      );
+    }
   });
 });

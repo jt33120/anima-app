@@ -255,7 +255,11 @@ describe("Anti-divergence — la barrière est routée dans TOUS les sites de ga
 
   const SITES = [
     "app/page.tsx",
-    "app/auth/confirm/route.ts",
+    // ⚠️ LE SITE A DÉMÉNAGÉ (2026-08-18). Il vivait dans `app/auth/confirm/route.ts` ; le code à six
+    // chiffres a ouvert une SECONDE porte d'entrée, et recopier le routage en aurait fait deux
+    // machines d'état — la faute exacte que ce bloc existe pour empêcher. Les deux portes délèguent
+    // désormais à ce module, et `tests/code-a-six-chiffres.test.ts` refuse qu'aucune ne le rappelle.
+    "app/(auth)/destination-apres-auth.ts",
     "app/(auth)/consentement/actions.ts",
     "app/(auth)/consentement/page.tsx",
     "app/(auth)/consentement/revoque/page.tsx",

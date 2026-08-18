@@ -220,6 +220,27 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Les gabarits d'Anam, qui portent `{{ .Token }}` — le code à six chiffres — À CÔTÉ du lien.
+# `{{ .ConfirmationURL }}` reste, et doit rester : c'est le chemin PKCE de `/auth/confirm`, le seul
+# que la revue du 2026-08-13 ait laissé debout.
+#
+# ⚠️ MESURÉ LE 2026-08-18 : LE STACK LOCAL LES IGNORE. Avec le CLI 2.67.1, le conteneur `auth`
+# reçoit pourtant les bonnes variables (`GOTRUE_MAILER_SUBJECTS_MAGIC_LINK=Ton lien pour entrer`) et
+# sert bien le fichier par kong — vérifié depuis l'intérieur du conteneur — mais le courriel émis
+# porte le sujet et le corps par DÉFAUT de GoTrue. Ces deux sections ne font donc rien en local
+# aujourd'hui ; elles sont ici parce que ces fichiers sont la SOURCE de ce qu'on pousse en
+# production (où ils s'appliquent, eux : l'envoi du 18/08 porte bien le sujet français).
+#
+# Le test d'intégration ne s'appuie donc PAS sur eux : le gabarit par défaut du stack local écrit
+# déjà « Alternatively, enter the code: 123456 », et c'est de là qu'il lit le code.
+[auth.email.template.magic_link]
+subject = "Ton lien pour entrer"
+content_path = "./supabase/templates/lien-magique.html"
+
+[auth.email.template.confirmation]
+subject = "Confirme ton adresse"
+content_path = "./supabase/templates/confirmation.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

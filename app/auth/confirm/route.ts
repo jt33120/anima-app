@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
-import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
+import { destinationApresAuth } from "@/app/(auth)/destination-apres-auth";
 
 /**
  * Confirmation du magic link (Story 1.3, AC2), puis onboarding (Story 1.4) : tant que la date de
@@ -26,10 +25,25 @@ import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
  * `code-verifier` posé sur LE navigateur qui a demandé le lien. Garder à côté une porte qui ne le
  * demande pas annulait la garantie — la serrure était bonne, la fenêtre était ouverte.
  *
- * Vérifié avant de retirer : le projet de lancement n'utilise AUCUN gabarit personnalisé
- * (`mailer_templates_custom_contents` : tout à `false`), donc les liens partent avec
+ * Vérifié avant de retirer : le projet de lancement n'utilisait AUCUN gabarit personnalisé
+ * (`mailer_templates_custom_contents` : tout à `false`), donc les liens partaient avec
  * `{{ .ConfirmationURL }}`, qui passe par le `/auth/v1/verify` de Supabase et revient ici en
  * `?code=`. Le chemin retiré n'était emprunté par personne.
+ *
+ * ⚠️ CETTE PRÉMISSE A CHANGÉ, ET LA CONCLUSION TIENT QUAND MÊME (2026-08-18). Les gabarits
+ * `magic_link` et `confirmation` sont désormais personnalisés — en français, et ils portent le code
+ * à six chiffres. Ils gardent `{{ .ConfirmationURL }}`, donc ce chemin-ci est intact ; et ils
+ * n'exposent AUCUN `token_hash`, ce que le gabarit par défaut faisait. Le durcissement est plus
+ * fort qu'avant, pas moins.
+ *
+ * ══ CE QUE CE CHEMIN NE PEUT PAS FAIRE, ET QUI A JUSTIFIÉ LE CODE À SIX CHIFFRES ══════════════
+ *
+ * `exchangeCodeForSession` exige le cookie `code-verifier` posé sur LE navigateur qui a demandé le
+ * lien. Demander depuis l'ordinateur et ouvrir le courriel sur le téléphone — ou dans le navigateur
+ * intégré d'une application de messagerie — échoue ici, et la personne lit « lien invalide » sans
+ * comprendre pourquoi. C'est la propriété qui protège, et c'est aussi ce qui coince : d'où la
+ * seconde porte, où le code voyage par les YEUX et se tape dans le navigateur d'origine
+ * (`app/(auth)/entrer/actions.ts`).
  */
 
 /**
@@ -58,30 +72,6 @@ export function destinationSure(next: string, origin: string): string {
   if (cible.origin !== origin) return "/";
   return `${cible.pathname}${cible.search}${cible.hash}`;
 }
-async function destinationApresAuth(
-  supabase: SupabaseClient,
-  next: string,
-): Promise<string> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return next;
-
-  const etape = await etapeOnboardingPour(supabase, user.id);
-  // Minorité DÉTECTÉE après coup (1.9, FR-071) : compte suspendu → /barriere, sans signOut
-  // (l'export a besoin de la session). Prime sur tout.
-  if (etape === "barre") return "/barriere";
-  if (etape === "mineur") {
-    // Barrière persistante : un mineur signalé est refusé à CHAQUE connexion (FR-070).
-    await supabase.auth.signOut();
-    return "/entrer?refus=age";
-  }
-  if (etape === "naissance") return "/naissance";
-  if (etape === "consentement") return "/consentement";
-  if (etape === "revoque") return "/consentement/revoque";
-  return next; // suite
-}
-
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");

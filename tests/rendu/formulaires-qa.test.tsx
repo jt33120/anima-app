@@ -34,6 +34,8 @@ const FormulaireConsentement = (await import("@/app/(auth)/consentement/formulai
 const envoyerLien = vi.fn();
 vi.mock("@/app/(auth)/entrer/actions", () => ({
   envoyerLien: (prev: unknown, donnees: FormData) => envoyerLien(prev, donnees),
+  // La seconde porte (code à six chiffres). Muette ici : ce fichier mesure la validation NATIVE.
+  verifierCode: async () => ({}),
 }));
 const FormulaireEntree = (await import("@/app/(auth)/entrer/formulaire-entree")).default;
 
@@ -196,5 +198,58 @@ describe("[QA T28] le produit porte ses propres messages, en français", () => {
     render(<FormulaireEntree />);
     fireEvent.submit(document.querySelector("form") as HTMLFormElement);
     await waitFor(() => expect(screen.getByText("Entre une adresse e-mail valide.")).toBeTruthy());
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// LA SECONDE PORTE — l'écran de saisie du code (2026-08-18)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[entrée] l'écran du code à six chiffres", () => {
+  /**
+   * Le test d'intégration prouve que le code OUVRE une session ; il ne monte aucun écran. Or ce
+   * qui décide qu'on tapera le bon code au bon endroit se joue ici — et deux attributs font
+   * toute la différence sur un téléphone.
+   */
+  async function apresEnvoi() {
+    envoyerLien.mockResolvedValue({ ok: true, adresse: "toi@exemple.fr" });
+    render(<FormulaireEntree />);
+    const form = document.querySelector("form") as HTMLFormElement;
+    fireEvent.submit(form);
+    await screen.findByLabelText(/le code reçu/i);
+  }
+
+  it("[LE CŒUR] l'adresse visée est AFFICHÉE — c'est ce qui rend la fixation visible", async () => {
+    // L'adresse vérifiée vient d'un cookie, jamais du formulaire. L'écrire ici est ce qui permet
+    // de voir, AVANT de taper, qu'un code demandé ne concerne pas son adresse.
+    await apresEnvoi();
+    expect(screen.getByText(/toi@exemple\.fr/)).toBeTruthy();
+  });
+
+  it("le champ appelle le clavier NUMÉRIQUE et le remplissage automatique du code", async () => {
+    // `inputMode="numeric"` évite le clavier alphabétique sur un champ de six chiffres, et
+    // `autoComplete="one-time-code"` fait proposer le code par iOS et Android depuis la
+    // notification — c'est la différence entre recopier et appuyer une fois.
+    await apresEnvoi();
+    const champ = document.querySelector('input[name="code"]') as HTMLInputElement;
+    expect(champ.getAttribute("inputMode")).toBe("numeric");
+    expect(champ.getAttribute("autoComplete")).toBe("one-time-code");
+    // 8, pas 6 : la production envoyait des codes à HUIT chiffres. Un champ tronqué à six les
+    // aurait rendus intapables — sans rien afficher, sur la porte d'entrée.
+    expect(champ.getAttribute("maxLength")).toBe("8");
+  });
+
+  it("l'écran dit que le LIEN est lié à ce navigateur — sinon le code paraît redondant", async () => {
+    // Sans cette phrase, quelqu'un qui a le courriel sous les yeux clique le lien (le geste court)
+    // et se heurte au mur PKCE. Le code n'existe que parce que ce mur existe : il faut le dire.
+    await apresEnvoi();
+    expect(screen.getByText(/n'ouvre que dans ce navigateur/i)).toBeTruthy();
+  });
+
+  it("le champ de code coupe aussi la validation native (même règle que les autres)", async () => {
+    await apresEnvoi();
+    const formulaires = document.querySelectorAll("form");
+    const dernier = formulaires[formulaires.length - 1] as HTMLFormElement;
+    expect(dernier.hasAttribute("noValidate")).toBe(true);
   });
 });

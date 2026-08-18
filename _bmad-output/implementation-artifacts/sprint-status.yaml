@@ -19,7 +19,7 @@
 # prod. Ce qui manque, c'est leur revue. C'est une dette réelle, pas un artefact de comptabilité.
 
 generated: 2026-08-07
-last_updated: 2026-08-16
+last_updated: 2026-08-18
 project: Anam
 project_key: ANAM
 tracking_system: file-system
@@ -80,22 +80,40 @@ development_status:
   epic-4-retrospective: optional
 
   # ── Epic 5 : Le socle & la lecture ────────────────────────────────────────────
-  epic-5: in-progress
+  epic-5: done
   5-1-theme-natal-calcule-une-fois-grave: done # revue 2026-08-12 (A7 : midi LOCAL, pas UTC)
   5-2-numerologie-complete-deterministe: done # revue 2026-08-12 (D1, D5)
   5-3-degradation-gracieuse-sans-heure-completion-tronc: done # revue 2026-08-12 (A2, B5, B6 ; migration 0045)
   5-4-horoscope-mantra-du-jour: done # revue 2026-08-12 (A4 : cibles inaspectables sans heure ; B4) ; 87 créneaux de corpus restent à écrire
-  5-5-enneagramme-test-court-hypothese-anam: review # livrée le 2026-08-13 ; 0049 déployée cloud (49/49) ; 40 mutants, 39 tués + 1 survivant assumé ; 9 créneaux de corpus restent à écrire
-  5-6-accueil-bibliotheque-en-cartes: review # livrée le 2026-08-14 ; aucune migration ; 15 mutants, 15 tués ; détecteur FR-023 réparé (le substantif « soin » était libre) ; l'accueil rend VISIBLES les 165 créneaux de corpus vides — porte pré-lancement
-  5-7-tirage-isole-jeu-proprietaire: review # livrée le 2026-08-14 ; migration 0050 ; 28 mutants, 28 tués (dont 4 faux kills du harnais SQL détectés et repris) ; le tirage a une arité NULLE et un verrou ESLint ; +24 créneaux de sens (Anima) +24 descriptions +24 visuels à produire → 189 créneaux d'Anima au total
-  5-8-rituel-lecture-restitution-ecrite: review # livrée le 2026-08-14 ; migration 0051 ; 24 mutants, 24 tués (dont 5 non-verdicts du harnais SQL repris, et la garde PREMIUM absente de la policy trouvée à la relecture de 0037) ; ferme les deux résidus 5.7 ET le survivant assumé de la 5.5 ; les 23 visuels manquants deviennent visibles à l'écran → porte avant publication
-  5-9-ancrage-exercice-guide-premium: review # livrée le 2026-08-14 ; AUCUNE migration (rien à persister) ; la garde n'est pas une policy mais une frontière de dépendance (server-only + test de frontière) ; l'ancrage n'entre PAS dans la bibliothèque (refus de conception D1, FR-080) ; écart assumé à l'epic sur AD-3 (aucun appel modèle) ; 26 mutants, 26 tués ; +24 créneaux chez Anima (210 au total, 0 écrit) → ferme l'Epic 5
-  5-10-le-jeu-passe-a-21-cartes: review # livrée le 2026-08-15 ; ZÉRO migration ; 14 mutants, 13 tués (M12 mal posé) ; rectifie l'arbitrage du 15/08 au matin (23 → 21) après relecture du JSON brut du brief ; deux gardes nouvelles (anti-doublon de cartes, orphelin de public/jeu) ; corpus d'Anima : 210 créneaux déclarés, 0 écrit ; commande d'art : 63 objets
+  5-5-enneagramme-test-court-hypothese-anam: done # livrée le 2026-08-13 ; 0049 déployée cloud (49/49) ; 40 mutants, 39 tués + 1 survivant assumé ; 9 créneaux de corpus restent à écrire
+  5-6-accueil-bibliotheque-en-cartes: done # livrée le 2026-08-14 ; aucune migration ; 15 mutants, 15 tués ; détecteur FR-023 réparé (le substantif « soin » était libre) ; l'accueil rend VISIBLES les 165 créneaux de corpus vides — porte pré-lancement
+  5-7-tirage-isole-jeu-proprietaire: done # livrée le 2026-08-14 ; migration 0050 ; 28 mutants, 28 tués (dont 4 faux kills du harnais SQL détectés et repris) ; le tirage a une arité NULLE et un verrou ESLint ; +24 créneaux de sens (Anima) +24 descriptions +24 visuels à produire → 189 créneaux d'Anima au total
+  5-8-rituel-lecture-restitution-ecrite: done # livrée le 2026-08-14 ; migration 0051 ; 24 mutants, 24 tués (dont 5 non-verdicts du harnais SQL repris, et la garde PREMIUM absente de la policy trouvée à la relecture de 0037) ; ferme les deux résidus 5.7 ET le survivant assumé de la 5.5 ; les 23 visuels manquants deviennent visibles à l'écran → porte avant publication
+  5-9-ancrage-exercice-guide-premium: done # livrée le 2026-08-14 ; AUCUNE migration (rien à persister) ; la garde n'est pas une policy mais une frontière de dépendance (server-only + test de frontière) ; l'ancrage n'entre PAS dans la bibliothèque (refus de conception D1, FR-080) ; écart assumé à l'epic sur AD-3 (aucun appel modèle) ; 26 mutants, 26 tués ; +24 créneaux chez Anima (210 au total, 0 écrit) → ferme l'Epic 5
+  5-10-le-jeu-passe-a-21-cartes: done # livrée le 2026-08-15 ; ZÉRO migration ; 14 mutants, 13 tués (M12 mal posé) ; rectifie l'arbitrage du 15/08 au matin (23 → 21) après relecture du JSON brut du brief ; deux gardes nouvelles (anti-doublon de cartes, orphelin de public/jeu) ; corpus d'Anima : 210 créneaux déclarés, 0 écrit ; commande d'art : 63 objets
+  # ── REVUE DE CODE ADVERSARIALE DE L'EPIC 5, 2026-08-18 (six angles, avocat de la défense) ──
+  # Dossier : revue-epic-5.md. Cinq trouvailles retenues, TOUTES posées — commits d1564ec, f111c55,
+  # e7c4e48, a386e2c ; migrations 0063 et 0064 déployées cloud.
+  #   R1  une carte retirée par la 5.10 faisait tomber TOUTE la halte « Mes lectures » (le
+  #       transtypage `as CleCarteJeu` affirmait au compilateur ce qui était faux) ;
+  #   R2  /ancrages sollicitait commercialement PENDANT un épisode de détresse (FR-043) — et la
+  #       garde prospective ne pouvait pas le voir : elle indexe le NOM DU DOSSIER ;
+  #   R2b la porte de secours FR-077 manquait sur 2 des 3 sorties de /ancrages ;
+  #   R3  la route a TROIS sorties de modèle et une seule traversait le contrôle de lexique — la
+  #       restitution de lecture (gravée, re-servie, exportée) et le bilan n'étaient pas contrôlés ;
+  #   R4  l'hypothèse d'ennéagramme était gardée à la SEMENCE, pas à la PAROLE : un germe semé à
+  #       froid était prononcé en pleine crise, et DÉPENSÉ ;
+  #   R5  le journal de tirage n'était plus rejouable (taille_jeu donne la borne, pas la liste).
+  # RÉFUTÉE : « on vend une halte vide » — la ligne de vente est FR-056 récité, elle est obligatoire.
+  # ⚠️ LIMITE À CONNAÎTRE : 27 candidates trouvées, 8 retenues. Les 19 autres ne sont pas réfutées,
+  # elles sont NON EXAMINÉES (plafond de dédoublonnage). Quatre agents sont morts en vol (plafond de
+  # dépense) ; les trois candidates CRITIQUES privées d'avocat ont été vérifiées à la main, et les
+  # trois étaient réelles.
   epic-5-retrospective: optional
 
   # ── Epic 6 : Les deux rythmes & tes données ───────────────────────────────────
-  epic-6: in-progress
-  6-1-rythmes-retention-ordonnanceur-unique: review # contextée le 2026-08-14 ; RESSERRÉE à la mesure seule (zéro migration) après validation adversariale : 34 constats, dont 15 critiques
+  epic-6: done
+  6-1-rythmes-retention-ordonnanceur-unique: done # contextée le 2026-08-14 ; RESSERRÉE à la mesure seule (zéro migration) après validation adversariale : 34 constats, dont 15 critiques
   6-1a-sql-ordonnanceur-jeton-alarme: done # AJOUTÉE le 2026-08-14 — extraite de la 6.1 : toute la SQL
   # (migration 0052, jeton T6-19, homme mort 48h→60h, boucle de fermeture de l'alarme, idempotence
   # prouvée sur un effet compté).
@@ -117,9 +135,9 @@ development_status:
   #        réserve) ; il est alors clos `reussi`, l'homme mort voit une réussite, /api/health dit `ok`
   #        et AUCUN `job_en_retard` n'est levé — pour aucun job. Le code le documente, mais la seule
   #        trace est un `console.warn` qui ne survit pas au redéploiement.
-  6-2-socle-quotidien-impersonnel-notifications-discretes: review # livrée le 2026-08-15 ; migration 0053 ; fondation web push complète (manifeste, service worker sans cache, VAPID sans dépendance) + /reglages + privacy-cover. INERTE sur le palier hobby (1 cron/jour ne peut honorer une heure choisie) : le job REFUSE d'émettre, et l'écran le dit. Porte ajoutée en §2 des portes ; 7 corps d'aperçu à faire relire par Anima
-  6-3-anam-rare-et-specifique: review # livrée le 2026-08-15 ; migration 0054 ; N'ÉMET RIEN DE NOUVEAU (MOTIFS_POUSSEE=1, MotifCourriel=2, reserver_notification intouchée) : elle DÉCLARE l'ensemble fermé des 3 motifs en un seul endroit, pose le créneau diurne 6h-21h Paris AVANT toute réservation dans notifier() (signature + 2 appelants) et dans le job de rappel, et livre la carte « Anam » de l'accueil dont l'annonce et l'affichage dérivent de la MÊME source (AC8 prouvé par égalité). AD-17 porté en SQL. 44 mutants, 43 tués. ⚠️ L'accueil rend désormais 6 objets = plafond UX-DR-30 : toute carte de catalogue ajoutée fera rougir
-  6-4-geste-de-pause: review # livrée le 2026-08-16 ; migration 0055 déployée cloud (parité 55/55/55) ;
+  6-2-socle-quotidien-impersonnel-notifications-discretes: done # livrée le 2026-08-15 ; migration 0053 ; fondation web push complète (manifeste, service worker sans cache, VAPID sans dépendance) + /reglages + privacy-cover. INERTE sur le palier hobby (1 cron/jour ne peut honorer une heure choisie) : le job REFUSE d'émettre, et l'écran le dit. Porte ajoutée en §2 des portes ; 7 corps d'aperçu à faire relire par Anima
+  6-3-anam-rare-et-specifique: done # livrée le 2026-08-15 ; migration 0054 ; N'ÉMET RIEN DE NOUVEAU (MOTIFS_POUSSEE=1, MotifCourriel=2, reserver_notification intouchée) : elle DÉCLARE l'ensemble fermé des 3 motifs en un seul endroit, pose le créneau diurne 6h-21h Paris AVANT toute réservation dans notifier() (signature + 2 appelants) et dans le job de rappel, et livre la carte « Anam » de l'accueil dont l'annonce et l'affichage dérivent de la MÊME source (AC8 prouvé par égalité). AD-17 porté en SQL. 44 mutants, 43 tués. ⚠️ L'accueil rend désormais 6 objets = plafond UX-DR-30 : toute carte de catalogue ajoutée fera rougir
+  6-4-geste-de-pause: done # livrée le 2026-08-16 ; migration 0055 déployée cloud (parité 55/55/55) ;
   # 15 mutants, 15 tués. La mesure vient d'`entree_journal` (colonne `cree_le` SEULE, jamais `usage_ia`
   # qui compterait les jobs de fond) ; une séance = une grappe séparée par > 30 min de silence ; seuil
   # STRICT (> 5 séances OU > 60 min sur 7 j glissants) ; fenêtre d'apaisement de 30 jours SANS condition
@@ -127,7 +145,7 @@ development_status:
   # la pause passe EN PREMIER dans `chargerOuverture` (rien d'autre n'est lu, donc rien n'est dépensé),
   # et la garde AD-17 est évaluée AVANT l'insert (sinon un épisode supprimerait la pause au lieu de la
   # différer). AUCUN canal ajouté : la pause vit uniquement en conversation (AC5)
-  6-5-ce-quanam-retient-consulter-corriger-supprimer: review # livrée le 2026-08-16 ; migration 0056
+  6-5-ce-quanam-retient-consulter-corriger-supprimer: done # livrée le 2026-08-16 ; migration 0056
   # déployée cloud (parité 56/56/56) ; 15 mutants, 15 tués (13 au premier passage, les 2 survivants
   # étaient de vrais trous : rien n'exerçait les actions serveur ni la lecture). La base de 4.2 tenait
   # déjà tout (tombstone, trigger anti-résurrection, fusion possédée) : ce qui manquait était l'écran.
@@ -136,7 +154,7 @@ development_status:
   # D2 : la halte NE redirige PAS `revoque` (on ne peut pas supprimer ce qu'on ne voit pas) — corriger
   # est refusé, supprimer ne l'est jamais. D3 : l'annulation RE-DÉPOSE (le tombstone a vidé le contenu,
   # rien ne permet de rembobiner) ; D4 : la suppression est écrite immédiatement, jamais différée
-  6-6-export-complet: review # livrée le 2026-08-16 ; migration 0057 déployée cloud (parité 57/57/57) ;
+  6-6-export-complet: done # livrée le 2026-08-16 ; migration 0057 déployée cloud (parité 57/57/57) ;
   # 19 mutants, 19 tués (18 au premier passage ; M14 survivait parce que le test datait l'export à
   # 23 h 30 UTC — Paris et la machine de test tombaient le MÊME jour, donc le nom de fichier était
   # identique avec ou sans fuseau). ⚠️ LA ROUTE DE LA 1.9 A ÉTÉ ÉLARGIE, PAS DOUBLÉE : /api/export
@@ -151,7 +169,7 @@ development_status:
   # ⚠️ L'INVENTAIRE (lib/domain/inventaire-export.ts) DONNE UN VERDICT AUX 35 TABLES et le corpus de
   # migrations le garde : une table créée sans verdict casse le build. À NE PAS FUSIONNER avec
   # l'inventaire d'effacement de 6.7 — `execution_job` est hors export et devra pourtant être effacée.
-  6-7-effacement-total-exhaustif: review # livrée le 2026-08-16 ; migration 0058 déployée cloud
+  6-7-effacement-total-exhaustif: done # livrée le 2026-08-16 ; migration 0058 déployée cloud
   # (parité 58/58/58) ; 24 mutants, 24 tués (21 au premier passage). ⚠️ TROUVAILLE STRUCTURANTE : la
   # trace d'un effacement NE PEUT PAS vivre dans `audit_securite` — sa clé cascade, donc la trace
   # aurait été effacée par l'effacement. Table `effacement` SANS aucune clé étrangère, portant une
@@ -168,7 +186,7 @@ development_status:
   # est hors export (ne lui apprend rien) mais effacée (son `cible_id` la nomme).
   # DETTE NOMMÉE : le crypto-shredding n'est pas construit (AD-14 autorise les deux branches ; on
   # tient la fenêtre bornée).
-  6-8-moteur-retention-automatique: review # livrée le 2026-08-16 ; migration 0059 déployée cloud
+  6-8-moteur-retention-automatique: done # livrée le 2026-08-16 ; migration 0059 déployée cloud
   # (parité 59/59/59) ; 29 mutants, 29 tués (23 au premier passage). ELLE N'ÉCRIT AUCUN EFFACEUR :
   # le corps de 6.7 devient `effacer_utilisatrice(id, motif, fenêtre)` réservée au rôle système, et
   # `effacer_toutes_mes_donnees` n'est plus qu'une enveloppe. Une garde exige qu'il n'existe QU'UN
@@ -189,7 +207,7 @@ development_status:
   # CONTRÔLE AVANT VOL EN PROD : 97 comptes, 0 échéance, 0 effacement au premier tick.
   # ⚠️ MON HARNAIS DE MUTATION ARCHIVAIT PAR NOM DE BASE et a écrasé lib/domain/retention.ts par
   # lib/ordonnanceur/jobs/retention.ts ; détecté, réparé, harnais corrigé (chemin relatif entier).
-  6-5b-heure-naissance-corrigeable: review # livrée le 2026-08-16 ; migration 0060 déployée cloud ;
+  6-5b-heure-naissance-corrigeable: done # livrée le 2026-08-16 ; migration 0060 déployée cloud ;
   # 31 mutants, 31 tués (24 au premier passage). ⚠️ LA NOTE DE SUIVI SE TROMPAIT : 0039 n'a JAMAIS
   # gravé « une seule fois » — son trigger autorise le recalcul (version+1 + empreinte différente) et
   # la 5.3 l'emprunte déjà. La regravure est PARESSEUSE (`lireThemeNatal` compare les empreintes à
@@ -209,7 +227,7 @@ development_status:
   # ⚠️ HARNAIS : après la campagne de mutation, la suite est passée de 87 s à 746 s avec 36 fichiers
   # SQL en expiration. `db reset` n'y change RIEN ; `supabase stop && start` remet à zéro. La 6.8
   # avait vu la première marche de cette pente — on connaît maintenant le remède.
-  6-9-finition-interface: review # livrée le 2026-08-16 ; AUCUNE migration ; 32 mutants, 32 tués.
+  6-9-finition-interface: done # livrée le 2026-08-16 ; AUCUNE migration ; 32 mutants, 32 tués.
   # ⚠️ LEÇON DE MÉTHODE DE LA CAMPAGNE : sur 6 survivants au premier passage, 4 formaient UNE SEULE
   # famille — mes gardes vérifiaient qu'un nom APPARAÎT dans un fichier, pas qu'il SERT. Une ligne
   # d'import suffisait à les satisfaire pendant que le rendu était muet (dont la reconduction
@@ -236,7 +254,7 @@ development_status:
   # le MÉCANISME : le bloc de ressources est AMENÉ dans le champ à son insertion (seule exception au
   # suivi non captif de 2.2 — AD-9/AD-15 veulent que le filet ATTEIGNE), et la région de conversation
   # rend les 64 px de réserve anti-débordement qu'elle payait sans défiler.
-  3-6-page-offre: review # livrée le 2026-08-16 ; AUCUNE migration ; 32 mutants, 32 tués
+  3-6-page-offre: done # livrée le 2026-08-16 ; AUCUNE migration ; 32 mutants, 32 tués
   # (campagne commune 6.9/3.6/T4, en trois passages) ; ferme la QA T2. Le seul bouton
   # de souscription vivait sur la carte du fil, qui ne paraît qu'à un paywall — or aucune branche
   # n'est proposée à un compte gratuit (3.3/D2-A), donc AUCUN chemin. ⚠️ ELLE N'INVENTE RIEN : les
@@ -252,6 +270,18 @@ development_status:
   # (FR-043). `tests/offre-gardee.test.ts` mesure les deux, sinon la dérogation « sortie » de
   # `garde-commerciale` deviendrait un trou. ⚠️ CONSÉQUENCE HORS CODE : la porte Stripe passe
   # BLOQUANTE (clés de TEST en production, et le chemin vers Checkout vient de s'ouvrir à tous).
+  # ── R1 DE LA REVUE EPIC 6 FERMÉE, 2026-08-18 (commit eb2fa8b, migration 0065 déployée) ──
+  # La quinzième et dernière trouvaille de revue-epic-6.md. CORRIGER UN FAIT LE RETIRAIT DE LA
+  # MÉMOIRE D'ANAM : trois lectures de `fait_extrait.statut` écrites à deux epics d'écart n'étaient
+  # pas d'accord sur `corrige`. L'écran le montrait sous « Ce qu'Anam retient » pendant que la
+  # synthèse — le SEUL chemin qui vit, le rappel n'ayant aucun appelant — cessait de le connaître.
+  # Une rectification (art. 16) traitée comme une pierre tombale. Un prédicat unique, cité par les
+  # trois. Le corps de `materiau_synthese` étant réécrit en entier (forward-only), il a été diffé
+  # mécaniquement contre 0035 : UNE seule ligne de différence, aucune clause perdue.
+  # DEUX TROUS TROUVÉS EN APPLIQUANT : `(extrait, corrige)` était fabricable par PATCH REST (la
+  # règle 4.2 ne vivait que dans une RPC) ; et une RÉSURRECTION par renommage de clé — c'est la CLÉ
+  # qui bloque une ré-extraction, pas la ligne. Fermés par une contrainte de table et par le GRANT.
+  # TROIS TESTS GRAVAIENT LE DÉFAUT EN VERT, dont celui de la synthèse, sous le titre « AD-18 ».
   epic-6-retrospective: optional
 
 # Portes PRÉ-LANCEMENT — humaines, hors code, aucune story ne les débloque toute seule.

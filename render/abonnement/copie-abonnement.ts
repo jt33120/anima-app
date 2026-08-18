@@ -61,6 +61,17 @@ export const SUCCES_REPRISE = "C'est fait. Ton abonnement continue.";
 export const ECHEC = "Je n'ai pas pu enregistrer ça. Tu peux réessayer.";
 
 /**
+ * Quand le paiement n'est pas configuré (porte pré-lancement §4).
+ *
+ * ⚠️ ELLE NE DIT PAS « RÉESSAIE ». Une clé de test en production ne se répare pas en rechargeant :
+ * lui proposer de recommencer serait l'envoyer buter deux fois. Le texte dit ce qui est — ça ne
+ * marche pas maintenant, ce n'est pas de son fait, rien n'a été débité — et s'arrête là.
+ */
+export const REFUS_PAIEMENT_INDISPONIBLE =
+  "Je ne peux pas prendre ton abonnement en ce moment : quelque chose n'est pas en place de notre " +
+  "côté. Rien n'a été débité. Ça n'a rien à voir avec toi, et ça se règle sans toi.";
+
+/**
  * ── QUAND LE CONTRAT COURT ENCORE (revue 3.6, R1 · art. L215-1 / FR-060) ───────────────────────────
  *
  * Un paiement en échec passe l'abonnement en `past_due` chez Stripe : l'accès s'éteint, mais le

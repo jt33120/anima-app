@@ -6,7 +6,13 @@ import * as copie from "@/lib/domain/copie-reglages";
 import * as copieDonnees from "@/lib/domain/copie-mes-donnees";
 import Reglages from "@/render/reglages/Reglages";
 import s from "@/render/reglages/reglages.module.css";
-import { abonnerAppareil, choisirHeure, desabonnerAppareil, reglerCourriels } from "./actions";
+import {
+  abonnerAppareil,
+  choisirHeure,
+  desabonnerAppareil,
+  reglerCourriels,
+  seDeconnecter,
+} from "./actions";
 import PiedHalte from "@/render/PiedHalte";
 import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
 
@@ -159,6 +165,29 @@ export default async function PageReglages() {
       <a className={s.lienHalte} href="/mes-donnees">
         {copieDonnees.TITRE_HALTE}
       </a>
+      {/* QA tour 1 (T22) — REFERMER SA SESSION. Le produit n'en offrait aucun moyen : les seuls
+          `signOut` du dépôt fermaient la session de quelqu'un que le produit REFUSE (minorité
+          détectée), jamais de quelqu'un qui le demande.
+
+          EN DERNIER, ET C'EST DÉLIBÉRÉ. C'est le seul geste de cet écran qui fasse QUITTER la page ;
+          le placer plus haut ferait passer la main dessus en cherchant l'heure du rythme quotidien.
+          Le bas d'un document est là où l'on met ce dont on se sert en partant.
+
+          FORMULAIRE NU, sans îlot client — même raison que les courriels ci-dessus : il n'y a rien à
+          charger pour fermer une session, et un état client de plus serait un endroit de plus où
+          l'écran peut mentir (leçon T11-quater). */}
+      <section className={s.section} aria-labelledby="titre-session">
+        <h2 id="titre-session" className={s.titre}>
+          {copie.SECTION_SESSION}
+        </h2>
+        <p className={s.description}>{copie.DESCRIPTION_SESSION}</p>
+        <form action={seDeconnecter}>
+          <button type="submit" className={s.bouton}>
+            {copie.SE_DECONNECTER}
+          </button>
+        </form>
+      </section>
+
       {/* Story 6.9 (QA T7) — la porte de secours (FR-077) et, là où elle est due, la mention
           IA (art. 50). Le MODÈLE décide ; ce composant dessine. */}
       <PiedHalte

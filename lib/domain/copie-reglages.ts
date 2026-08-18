@@ -133,3 +133,35 @@ export const REPRENDRE_COURRIELS = "Recevoir à nouveau les courriels";
 export const COURRIELS_QUI_RESTENT =
   "Les courriels qui servent à te connecter continuent d'arriver : sans eux, tu ne pourrais plus " +
   "entrer.";
+
+/**
+ * ── REFERMER SA SESSION (QA tour 1, T22) ───────────────────────────────────────────────────────
+ *
+ * Le produit n'avait aucune déconnexion. Les seuls `signOut` du dépôt fermaient la session de
+ * quelqu'un que le produit REFUSE (minorité détectée), jamais de quelqu'un qui le demande.
+ *
+ * Sur un téléphone partagé, ça veut dire qu'on ne peut pas refermer ce qu'on vient d'écrire — en
+ * contradiction directe avec l'attention portée partout ailleurs à la discrétion : l'aperçu de
+ * notification neutre, et les titres d'onglet qui disent tous « Anam » et rien d'autre (NFR-015).
+ */
+export const SECTION_SESSION = "Cette session";
+
+/**
+ * ⚠️ ELLE ANNONCE LE COÛT AVANT LE CLIC. Sans mot de passe, se déconnecter n'est pas gratuit : il
+ * faut rouvrir sa boîte mail pour revenir. Le taire ferait de la sortie un piège — et c'est
+ * exactement le reproche fait à l'écran de résiliation qu'on a refusé d'écrire (3.5).
+ */
+export const DESCRIPTION_SESSION =
+  "Sur un appareil que tu partages, c'est ce qui referme ta session. Pour revenir, tu redemanderas " +
+  "un lien — il n'y a pas de mot de passe à retenir.";
+
+/** Le mot que les gens cherchent, pas celui qui décrit le mécanisme. */
+export const SE_DECONNECTER = "Me déconnecter";
+
+/**
+ * Ce que lit la personne en arrivant sur `/entrer` après le geste.
+ *
+ * Registre PRODUIT, pas voix d'Anam — précédent posé par l'effacement (6.7, `ADIEU`) : c'est un
+ * fait de session, et Anam n'a rien à dire sur une porte qu'on vient de tirer derrière soi.
+ */
+export const SESSION_FERMEE = "Ta session est fermée sur cet appareil.";

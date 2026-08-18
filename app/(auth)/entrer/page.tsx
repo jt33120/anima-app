@@ -1,6 +1,7 @@
 import FormulaireEntree from "./formulaire-entree";
 import { entreeDemo, entreeDemoSuspendue } from "./actions";
 import { ADIEU } from "@/lib/domain/copie-mes-donnees";
+import { SESSION_FERMEE } from "@/lib/domain/copie-reglages";
 import s from "./entrer.module.css";
 
 // NFR-015 / AC7 (1.7) — identité uniforme : « Anam » sur toutes les routes.
@@ -9,9 +10,9 @@ export const metadata = { title: "Anam" };
 export default async function PageEntrer({
   searchParams,
 }: {
-  searchParams: Promise<{ refus?: string; efface?: string }>;
+  searchParams: Promise<{ refus?: string; efface?: string; deconnexion?: string }>;
 }) {
-  const { refus, efface } = await searchParams;
+  const { refus, efface, deconnexion } = await searchParams;
 
   return (
     <main className={s.page}>
@@ -31,6 +32,14 @@ export default async function PageEntrer({
             {efface === "1" && (
               <p className="t-meta" role="status">
                 {ADIEU}
+              </p>
+            )}
+            {/* QA tour 1 (T22) — le retour après une déconnexion demandée. Même registre PRODUIT
+                que l'adieu ci-dessus, et pour la même raison : c'est un fait de session, et Anam
+                n'a rien à dire sur une porte qu'on vient de tirer derrière soi. */}
+            {deconnexion === "1" && (
+              <p className="t-meta" role="status">
+                {SESSION_FERMEE}
               </p>
             )}
             <p className="t-anam">

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { heureValide } from "@/lib/domain/socle-quotidien";
 
@@ -138,4 +139,30 @@ export async function reglerCourriels(refuse: boolean): Promise<EtatReglages> {
   if (error) return REFUS;
   revalidatePath("/reglages");
   return { statut: "ok" };
+}
+
+/**
+ * Refermer sa session sur cet appareil (QA tour 1, T22).
+ *
+ * ── L'ORDRE EST LA GARDE, PAS UN DÉTAIL DE STYLE ───────────────────────────────────────────────
+ *
+ * `redirect()` de Next **lève**. Un `signOut` écrit après ne s'exécuterait donc jamais, et l'écran
+ * annoncerait une session fermée sur une session toujours ouverte — c'est-à-dire la certitude d'être
+ * partie donnée à quelqu'un qui ne l'est pas. Sur un appareil partagé, c'est pire que l'absence de
+ * bouton, qui au moins ne ment pas. Un test tient cet ordre.
+ *
+ * ── AUCUNE GARDE, ET C'EST LA MÊME DÉCISION QU'EN 3.5 ET EN R7 ─────────────────────────────────
+ *
+ * On ne garde jamais une SORTIE. Ni consentement art. 9, ni fenêtre de détresse : garder ce geste
+ * empêcherait quelqu'un en crise de refermer l'écran qu'elle vient de remplir, sur un téléphone qui
+ * n'est peut-être pas le sien.
+ *
+ * ⚠️ ON NE LIT MÊME PAS LA SESSION AVANT. `if (!user) return` serait un défaut ici : une session
+ * illisible est exactement le cas où l'on veut le plus fermer — refuser laisserait le cookie en
+ * place. `signOut` sur une session déjà morte est sans effet, et sans conséquence.
+ */
+export async function seDeconnecter(): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
+  redirect("/entrer?deconnexion=1");
 }

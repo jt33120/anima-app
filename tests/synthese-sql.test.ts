@@ -33,6 +33,12 @@ async function creerUtilisatrice(email: string): Promise<string> {
 }
 
 async function consentir(id: string, options: { revoque?: boolean; sansArt9?: boolean; sansIa?: boolean } = {}) {
+  // ⚠️ LA DATE DE NAISSANCE FAIT PARTIE DU CONSENTEMENT, DE FAIT (revue adversariale, R28). Depuis
+  // la 0076, `personne_joignable` exige que la majorité soit POSITIVEMENT établie — miroir de
+  // `est_barre_minorite` (0066). Ce n'est pas une contrainte de plus sur ce harnais : un compte sans
+  // date est BARRÉ, donc il n'écrit aucune entrée de journal, donc il n'a jamais rien à synthétiser.
+  // Les fixtures décrivaient un état que le produit ne peut pas produire.
+  await admin.from("utilisatrice").update({ date_naissance: "1990-01-01" }).eq("id", id);
   const { error } = await admin.from("consentement").insert({
     utilisatrice_id: id,
     art9_accorde: !options.sansArt9,

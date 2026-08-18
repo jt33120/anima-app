@@ -58,15 +58,24 @@ export default async function PageRevoque({
         </p>
 
         <div className={s.actions}>
-          <button
-            className={s.boutonSecondaire}
-            type="button"
-            disabled
-            style={{ opacity: 0.6 }}
-          >
+          {/* ⚠️ CE BOUTON ÉTAIT DÉSACTIVÉ, AVEC « L'export sera disponible avant le lancement. »
+              (revue adversariale du 2026-08-18, R11). Le texte datait de la 1.6 et n'avait jamais
+              été repris après la 6.6, qui a LIVRÉ `/api/export` — deux autres écrans y pointaient
+              déjà. Le seul geste actif de cette page était donc « Supprimer mon compte ».
+
+              Quelqu'un qui exerce l'article 17 perdait définitivement ses données parce que le
+              produit lui affirmait que l'article 15 n'existait pas encore. C'est le geste le plus
+              irréversible du produit, et il était offert seul.
+
+              Un `<a>` et non un `<form>` : la route sert le fichier en attachement, comme sur
+              `/mes-donnees`. Rien à soumettre, rien qui dépende d'un script chargé. */}
+          <a className={s.boutonSecondaire} href="/api/export">
             <span className="t-bouton">Exporter mes données</span>
-          </button>
-          <p className={s.motif}>L&apos;export sera disponible avant le lancement.</p>
+          </a>
+          <p className={s.motif}>
+            Tu emportes tout : ce que tu as écrit, ce qu&apos;Anam a retenu, ton arbre. Le
+            traitement reste suspendu pendant ce temps.
+          </p>
 
           <form action={supprimerCompteRevoque} style={{ display: "flex" }}>
             <button className={s.boutonDanger} type="submit" style={{ flex: 1 }}>

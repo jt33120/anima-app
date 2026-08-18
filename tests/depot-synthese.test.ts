@@ -44,6 +44,9 @@ beforeAll(async () => {
     if (error) throw new Error(`fixture ${table}: ${error.message}`);
   }
 
+  // La majorité POSITIVEMENT établie (revue adversariale R28, migration 0076) : sans date, le compte
+  // est barré et n'écrit aucune entrée — il n'y aurait donc jamais rien à synthétiser.
+  await admin.from("utilisatrice").update({ date_naissance: "1990-01-01" }).eq("id", elle.id);
   await ecrire("consentement", {
     utilisatrice_id: elle.id,
     art9_accorde: true,

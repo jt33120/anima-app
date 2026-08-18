@@ -66,7 +66,10 @@ vi.mock("@/app/(auth)/etat-onboarding", () => ({
  * reste là quel que soit l'état d'accès.
  */
 vi.mock("@/app/_commerce/MontagePaywall", () => ({
-  MontagePaywall: () => null,
+  // Un MARQUEUR plutôt que `null` (revue des Epics 1 à 4, #16) : sans lui, aucun test de ce fichier
+  // ne pouvait dire si l'offre s'était montée ou non. Il ne porte aucun rôle ARIA, donc les
+  // assertions de boutons/liens ci-dessous comptent exactement ce qu'elles comptaient avant.
+  MontagePaywall: () => <p>[offre montée]</p>,
 }));
 
 const { default: PageAbonnement } = await import("@/app/abonnement/page");
@@ -113,6 +116,37 @@ beforeEach(() => {
   etatRemboursement.mockResolvedValue(null);
   etapeOnboarding.mockReset();
   etapeOnboarding.mockResolvedValue("suite");
+});
+
+describe("[revue 1-4, #16] un compte RÉVOQUÉ ne voit pas un bouton qui ne peut pas marcher", () => {
+  /**
+   * ⚠️ UNE BOUCLE FERMÉE, PAS UNE GARDE DE PLUS. Un compte révoqué n'est délibérément PAS redirigé
+   * hors de `/abonnement` — il a un abonnement à résilier et des droits à exercer, et l'enfermer
+   * ailleurs ferait de la sortie une impasse. Mais il voyait aussi l'offre complète et son bouton
+   * « M'abonner », que `/api/stripe/checkout` refuse ensuite systématiquement (`etape !== "suite"`).
+   * Un bouton qui ne peut pas marcher, sur la page qui parle d'argent.
+   *
+   * Montrer la sortie sans montrer l'entrée est exactement la distinction que cette page tient déjà.
+   */
+  it("[LE TEST QUI COMPTE] « revoque » : la SORTIE reste, l'OFFRE disparaît", async () => {
+    etapeOnboarding.mockResolvedValue("revoque");
+    await monter({ abonnement: abonnement({ etat: "expire" }) });
+    expect(screen.queryByText("[offre montée]"), "l'offre ne doit pas se monter").toBeNull();
+    // La porte, elle, est toujours là — c'est la moitié qu'on ne ferme jamais.
+    expect(screen.getByRole("link", { name: /résilier/i })).toBeTruthy();
+  });
+
+  it("[CONTRÔLE POSITIF] « suite » : l'offre se monte — la garde ne ferme pas tout", async () => {
+    etapeOnboarding.mockResolvedValue("suite");
+    await monter({ abonnement: abonnement({ etat: "expire" }) });
+    expect(screen.getByText("[offre montée]")).toBeTruthy();
+  });
+
+  it("un compte révoqué SANS aucun abonnement ne voit rien à acheter non plus", async () => {
+    etapeOnboarding.mockResolvedValue("revoque");
+    await monter({ abonnement: null });
+    expect(screen.queryByText("[offre montée]")).toBeNull();
+  });
 });
 
 describe("[QA tour 1, T15] la page commerciale est GARDÉE — sauf pour qui doit encore en sortir", () => {

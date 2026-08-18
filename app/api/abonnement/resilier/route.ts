@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { lireAbonnement } from "@/lib/data/depot-resiliation";
 import { resilierEnFinDePeriode, annulerResiliation } from "@/lib/stripe/resiliation";
+import { creerDepotAbonnement } from "@/lib/data/depot-abonnement";
+import type { EtatAbonnement } from "@/lib/domain/abonnement";
 
 /**
  * Route de RÉSILIATION (Story 3.5, AC1/AC3/AC7/AC8).
@@ -33,20 +35,104 @@ export const fetchCache = "force-no-store";
 export const revalidate = 0;
 export const runtime = "nodejs";
 
-async function abonnementDe() {
+/**
+ * PROJETER TOUT DE SUITE CE QUE STRIPE VIENT DE CONFIRMER (revue des Epics 1 à 4, #15).
+ *
+ * ══ LA CONTRADICTION QU'ON RETIRE ═════════════════════════════════════════════════════════════
+ *
+ * La route posait le drapeau chez Stripe puis redirigeait vers `/abonnement?etat=resilie`. La page se
+ * rendait AVANT l'arrivée du webhook `customer.subscription.updated`, donc sur une projection qui
+ * portait encore `resiliation_demandee_le = null`. Elle lisait, dans le même document :
+ *
+ *     « C'est fait. Tu gardes ton accès jusqu'à la fin de la période payée. »
+ *     « Ton abonnement est actif. Il se renouvellera le 1 janvier 2027. »   [ Résilier mon abonnement ]
+ *
+ * Une confirmation, son démenti, une date de renouvellement qui n'aura pas lieu, et le bouton qu'elle
+ * vient d'actionner. Le doute produit a une issue évidente et fausse : recliquer.
+ *
+ * ══ POURQUOI PAR LA MÊME RPC QUE LE WEBHOOK, ET PAS PAR L'URL ═════════════════════════════════
+ *
+ * `?jusqu=2027-01-01` aurait suffi à l'affichage — et aurait fait d'une date à portée juridique une
+ * donnée dont la source est la barre d'adresse. On passe donc par `traiter_evenement_abonnement`,
+ * l'écrivain unique : même dédup (`provider_event_id`), même horloge d'ordre (`source_maj_le`), même
+ * anti-régression. La clé porte le préfixe `local:` — une collision avec un vrai `evt_…` ferait taire
+ * le webhook correspondant.
+ *
+ * L'ÉTAT N'EST PAS INVENTÉ : on reprojette celui qu'on vient de lire. Écrire `actif` en dur serait
+ * juste dans le cas nominal et faux pour un abonnement `past_due` (projeté `expire`) — résilier un
+ * contrat en échec de paiement aurait alors RÉTABLI son accès à l'écran. Une résiliation ne change
+ * pas l'état d'accès, elle ne change que la date.
+ *
+ * Les champs absents passent à `null` : la RPC les CONSERVE par coalesce. Inventer `debut_le`
+ * remettrait à zéro le compteur des trois mois de la garantie FR-089.
+ *
+ * ⚠️ ET C'EST UN CONFORT, JAMAIS L'ENGAGEMENT. Le geste est déjà acquis chez Stripe quand cette
+ * écriture a lieu : une panne de base ne doit pas faire dire « je n'ai pas pu enregistrer ça » à
+ * quelqu'un dont le contrat EST résilié, ni l'inviter à recommencer un geste accompli. On journalise
+ * et on tient la confirmation ; le webhook réparera la projection.
+ */
+async function projeterResiliation(
+  utilisatriceId: string,
+  subscriptionId: string,
+  etat: EtatAbonnement,
+  resiliationDemandeeLe: string | null,
+): Promise<void> {
+  const maintenant = new Date().toISOString();
+  try {
+    await creerDepotAbonnement().traiterEvenement({
+      providerEventId: `local:resiliation:${subscriptionId}:${resiliationDemandeeLe ?? "reprise"}`,
+      type: "local.resiliation",
+      utilisatriceId,
+      etat,
+      customerId: null,
+      subscriptionId,
+      periodeFin: null,
+      sourceMajLe: maintenant,
+      debutLe: null,
+      resiliationDemandeeLe,
+    });
+  } catch (e) {
+    console.error("[abonnement/resilier] projection locale impossible — le webhook réparera", {
+      nom: e instanceof Error ? e.name : "inconnu",
+    });
+  }
+}
+
+/**
+ * ⚠️ UNION DISCRIMINÉE EXPLICITE, ET CE N'EST PAS DE LA COSMÉTIQUE. Sans le champ `erreur: undefined`
+ * sur la branche de succès, le rétrécissement par `"erreur" in r` produisait
+ * `NextResponse | undefined` chez l'appelant : le compilateur ne savait plus que cette route rend
+ * TOUJOURS une réponse. Un test qui lit `res.status` le découvrait ; la route, elle, n'avait aucune
+ * garantie de type que ses deux chemins de refus étaient bien des réponses.
+ */
+type Abonnement =
+  | { readonly erreur: NextResponse; readonly subscriptionId?: undefined }
+  | {
+      readonly erreur?: undefined;
+      readonly subscriptionId: string;
+      readonly utilisatriceId: string;
+      readonly etat: EtatAbonnement;
+    };
+
+async function abonnementDe(): Promise<Abonnement> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { erreur: NextResponse.json({ code: "non_authentifie" }, { status: 401 }) } as const;
+  if (!user) return { erreur: NextResponse.json({ code: "non_authentifie" }, { status: 401 }) };
 
   const abonnement = await lireAbonnement();
   if (!abonnement?.subscriptionId) {
     // Rien à résilier : compte gratuit, ou abonnement jamais projeté. On répond 404 plutôt que 400 —
     // il n'y a pas d'erreur de la part de l'appelante, il n'y a simplement pas d'objet.
-    return { erreur: NextResponse.json({ code: "aucun_abonnement" }, { status: 404 }) } as const;
+    return { erreur: NextResponse.json({ code: "aucun_abonnement" }, { status: 404 }) };
   }
-  return { subscriptionId: abonnement.subscriptionId } as const;
+  // `etat` remonte avec l'identifiant : la projection locale le REPROJETTE tel quel (voir ci-dessus).
+  return {
+    subscriptionId: abonnement.subscriptionId,
+    utilisatriceId: user.id,
+    etat: abonnement.etat as EtatAbonnement,
+  };
 }
 
 /**
@@ -60,21 +146,27 @@ async function abonnementDe() {
  * d'être discipliné, on lui retire le moyen de ne pas l'être, et `tests/sortie-abonnement.test.ts` le
  * vérifie sur la source.
  */
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<NextResponse> {
   const r = await abonnementDe();
-  if ("erreur" in r) return r.erreur;
+  if (r.erreur) return r.erreur;
 
   const reprendre = new URL(request.url).searchParams.get("reprendre") === "1";
 
   try {
     if (reprendre) {
       await annulerResiliation(r.subscriptionId);
+      // `null` est une VALEUR ici, pas une absence : la RPC écrit `resiliation_demandee_le` en
+      // écrasement FRANC pour ce champ, sinon l'écran dirait éternellement « résilié » à quelqu'un
+      // qui est revenu.
+      await projeterResiliation(r.utilisatriceId, r.subscriptionId, r.etat, null);
       return NextResponse.redirect(new URL("/abonnement?etat=reprise", request.url), 303);
     }
-    await resilierEnFinDePeriode(r.subscriptionId);
     // L'ÉTAT ne bouge pas, et c'est voulu : Stripe garde `status = active` jusqu'à l'échéance, donc
-    // `etat` reste `actif` et l'accès court jusqu'à la fin payée (AC8). Ce qui change est la DATE
-    // (`resiliation_demandee_le`), projetée par le webhook et relue par la page.
+    // `etat` reste ce qu'il était et l'accès court jusqu'à la fin payée (AC8). Ce qui change est la
+    // DATE (`resiliation_demandee_le`) — que Stripe vient de nous rendre, et qu'on projette
+    // maintenant plutôt que d'attendre le webhook (revue des Epics 1 à 4, #15).
+    const finAcces = await resilierEnFinDePeriode(r.subscriptionId);
+    await projeterResiliation(r.utilisatriceId, r.subscriptionId, r.etat, finAcces);
     return NextResponse.redirect(new URL("/abonnement?etat=resilie", request.url), 303);
   } catch (e) {
     console.error("[abonnement/resilier] échec", { nom: e instanceof Error ? e.name : "inconnu" });

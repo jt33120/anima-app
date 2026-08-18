@@ -157,6 +157,20 @@ export default async function PageAbonnement({
           {c.REFUS_PAIEMENT_INDISPONIBLE}
         </p>
       )}
+      {/* Les deux autres refus d'entrée (revue des Epics 1 à 4, #16). Ils rendaient un corps JSON,
+          que le navigateur affichait PLEIN ÉCRAN à la place de la page — le POST vient d'un
+          formulaire sans JavaScript. `vente_fermee` sert à la fois le refus AD-9 et le refus
+          d'état : nommer le premier motif écrirait l'épisode de détresse dans l'URL. */}
+      {retour === "vente_fermee" && (
+        <p className={`t-corps ${s.retour}`} role="status">
+          {c.REFUS_VENTE_FERMEE}
+        </p>
+      )}
+      {retour === "paiement_injoignable" && (
+        <p className={`t-corps ${s.retour}`} role="status">
+          {c.REFUS_PAIEMENT_INJOIGNABLE}
+        </p>
+      )}
       {/* L'ÉTAT DU REMBOURSEMENT — persistant, contrairement aux retours d'action ci-dessus. Il
           existe parce qu'un remboursement refusé par la banque était jeté sans trace pendant que
           l'écran avait promis un virement (revue des Epics 1 à 4, #4). */}
@@ -229,7 +243,14 @@ export default async function PageAbonnement({
           même en détresse (« enfermer quelqu'un en crise dans un abonnement »). Mais l'OFFRE est du
           commerce, et le commerce n'atteint pas quelqu'un en détresse (FR-043). Sortir n'est pas
           vendre : les deux gestes vivent sur la même page et n'ont pas le même régime. */}
-      {(!abonnement || (!actif && !resiliationDemandee)) && (
+      {/* ⚠️ `etape === "suite"` EST NOUVEAU, ET IL FERME UNE BOUCLE (revue des Epics 1 à 4, #16).
+          Après les redirections ci-dessus, `etape` ne peut plus valoir que `suite` ou `revoque` —
+          car un compte révoqué N'EST PAS redirigé, délibérément (il a un abonnement à résilier et
+          des droits à exercer). Il voyait donc l'offre complète et le bouton « M'abonner », que la
+          route de vente refuse ensuite systématiquement : un bouton qui ne peut pas marcher, sur la
+          page qui parle d'argent. Montrer la sortie sans montrer l'entrée est exactement la
+          distinction que cette page tient déjà. */}
+      {etape === "suite" && (!abonnement || (!actif && !resiliationDemandee)) && (
         // `MontagePaywall` est la couture gardée POSÉE PAR LA 2.9 pour « une future surface paywall
         // rendue serveur » et restée inerte deux epics. C'est elle, ici. La garde AD-9 vit à
         // l'intérieur : la page ne décide rien, elle place.

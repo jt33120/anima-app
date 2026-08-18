@@ -72,6 +72,36 @@ export const REFUS_PAIEMENT_INDISPONIBLE =
   "côté. Rien n'a été débité. Ça n'a rien à voir avec toi, et ça se règle sans toi.";
 
 /**
+ * ── QUAND LA VENTE EST FERMÉE (revue des Epics 1 à 4, #16) ─────────────────────────────────────────
+ *
+ * UNE SEULE PHRASE POUR DEUX SITUATIONS, ET C'EST LE POINT. Elle sert le refus AD-9 (un épisode de
+ * détresse est ouvert : aucune sollicitation commerciale) et le refus d'état (compte révoqué,
+ * suspendu, onboarding inachevé). Les distinguer aurait exigé de NOMMER le motif — et nommer le
+ * premier motif, c'est écrire l'épisode de détresse dans une phrase à l'écran, puis dans l'historique
+ * du navigateur par le paramètre d'URL.
+ *
+ * ⚠️ ELLE NE DIT PAS « RÉESSAIE », ET NE VEND RIEN. Ni « reviens quand ça ira », ni « tu pourras
+ * t'abonner plus tard », ni le prix : ce serait relancer le commerce dans la phrase même qui le
+ * refuse, à la personne que le refus protège. Elle dit ce qui est, dit que rien n'a été débité, et
+ * s'arrête. Le « pas maintenant » porte l'information que ce n'est pas définitif, sans en faire une
+ * promesse ni un rendez-vous.
+ */
+export const REFUS_VENTE_FERMEE =
+  "Je ne peux pas prendre ton abonnement maintenant. Rien n'a été débité, et il n'y a rien à faire " +
+  "de ton côté.";
+
+/**
+ * ── QUAND NOTRE PRESTATAIRE DE PAIEMENT NE RÉPOND PAS (revue des Epics 1 à 4, #16) ─────────────────
+ *
+ * Distincte de `REFUS_PAIEMENT_INDISPONIBLE` : une clé mal configurée ne se répare pas en rechargeant,
+ * une panne de réseau, si. Confondre les deux dirait « réessaie » à quelqu'un que réessayer ne
+ * sauvera pas — ou tairait le geste utile à quelqu'un pour qui il suffit.
+ */
+export const REFUS_PAIEMENT_INJOIGNABLE =
+  "Je n'ai pas réussi à ouvrir la page de paiement — notre prestataire n'a pas répondu. Rien n'a été " +
+  "débité. Tu peux réessayer dans un moment.";
+
+/**
  * ── QUAND LE CONTRAT COURT ENCORE (revue 3.6, R1 · art. L215-1 / FR-060) ───────────────────────────
  *
  * Un paiement en échec passe l'abonnement en `past_due` chez Stripe : l'accès s'éteint, mais le

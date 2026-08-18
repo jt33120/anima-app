@@ -19,6 +19,20 @@ import { contratStripeVivant } from "@/lib/domain/abonnement";
  * L'identité de la cliente est transportée dans `metadata` ET `subscription_data.metadata` : les
  * events `customer.subscription.*` (webhook) résolvent ainsi l'utilisatrice SANS dépendance à l'ordre
  * de livraison Stripe.
+ *
+ * ══ AUCUNE SORTIE DE CE FICHIER NE REND UN CORPS JSON (revue des Epics 1 à 4, #16) ═══════════════
+ *
+ * Ce POST vient d'un `<form>` HTML SANS JavaScript — la même exigence que la porte de sortie :
+ * acheter ne dépend pas d'un script qui se charge. La conséquence est qu'un `NextResponse.json(...)`
+ * n'est pas « une réponse d'API » : le navigateur REMPLACE la page par le texte du corps, plein
+ * écran, sans mise en forme. Cinq sorties faisaient ça, dont celle qui accueille un compte que le
+ * produit vient de suspendre :
+ *
+ *     {"code":"compte_non_eligible","message":"Indisponible pour le moment."}
+ *
+ * Deux autres sorties de cette même route redirigeaient déjà correctement : la route se contredisait
+ * elle-même. La garde est désormais ABSOLUE et vérifiée sur la source — `NextResponse.json` n'a plus
+ * le droit d'apparaître ici. Énumérer les cinq cas aurait laissé passer le sixième écrit demain.
  */
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -30,16 +44,18 @@ export async function POST(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  // Sans session : la porte, pas un 401 nu. Elle n'a rien à lire d'une page d'abonnement.
   if (!user) {
-    return NextResponse.json({ code: "non_authentifie", message: "Session requise." }, { status: 401 });
+    return NextResponse.redirect(new URL("/entrer", request.url), 303);
   }
 
   // AD-9 : le commerce refuse de se monter tant que les limites sont levées (épisode ouvert).
+  //
+  // ⚠️ LE MOTIF N'EST PAS DANS L'URL, ET C'EST LA RAISON DE PARTAGER `vente_fermee` AVEC LE CAS
+  // SUIVANT. Un `?etat=commerce_suspendu` écrirait l'épisode de détresse dans la barre d'adresse,
+  // puis dans l'historique du navigateur — devant qui regarde par-dessus l'épaule, et pour longtemps.
   if (await limitesCommercialesLevees(user.id)) {
-    return NextResponse.json(
-      { code: "commerce_suspendu", message: "Indisponible pour le moment." },
-      { status: 409 },
-    );
+    return NextResponse.redirect(new URL("/abonnement?etat=vente_fermee", request.url), 303);
   }
 
   // ⚠️ ON NE VEND PAS À UN COMPTE QUE LE PRODUIT VIENT DE SUSPENDRE (revue du 2026-08-13).
@@ -60,12 +76,16 @@ export async function POST(request: NextRequest) {
   //
   // Ne borne QUE l'ENTRÉE dans le paiement. La SORTIE (résilier, rembourser) reste ouverte sans
   // condition — la fermer serait la faute grave, et `app/api/abonnement/resilier/route.ts` le dit.
+  //
+  // La redirection va sur `/abonnement`, et c'est LA MACHINE D'ÉTAT DE LA PAGE qui route ensuite :
+  // barrée → `/barriere`, mineure → sortie de session, naissance incomplète → `/naissance`,
+  // consentement manquant → `/consentement`. Un compte RÉVOQUÉ, lui, reste sur `/abonnement` —
+  // délibérément : il a un abonnement à résilier et des droits à exercer, et l'enfermer ailleurs
+  // ferait de la sortie une impasse. Refaire ce routage ici serait une seconde machine d'état à
+  // maintenir, et la leçon 1.4 dit ce qu'il en advient.
   const etape = await etapeOnboardingPour(supabase, user.id);
   if (etape !== "suite") {
-    return NextResponse.json(
-      { code: "compte_non_eligible", message: "Indisponible pour le moment." },
-      { status: 409 },
-    );
+    return NextResponse.redirect(new URL("/abonnement?etat=vente_fermee", request.url), 303);
   }
 
   // ⚠️ DÉJÀ ABONNÉE — ON NE MONTE PAS UNE SECONDE SOUSCRIPTION (revue du 2026-08-11, M9).
@@ -166,11 +186,13 @@ export async function POST(request: NextRequest) {
   // écrire est le mauvais côté de la panne.
   const origine =
     origineDuSite() ?? (process.env.NODE_ENV === "development" ? request.nextUrl.origin : null);
+  //
+  // Même VÉRITÉ que la clé de test ci-dessus, donc même message : quelque chose n'est pas en place
+  // de notre côté, rien n'a été débité, et recharger n'y changera rien. Deux `etat` distincts pour
+  // une seule phrase auraient prétendu à une distinction que l'utilisatrice ne peut pas exploiter.
   if (!origine) {
-    return NextResponse.json(
-      { code: "origine_non_configuree", message: "Indisponible pour le moment." },
-      { status: 503 },
-    );
+    console.error("[stripe/checkout] ANIMA_SITE_URL absente ou invalide en production");
+    return NextResponse.redirect(new URL("/abonnement?etat=paiement_indisponible", request.url), 303);
   }
   const libelle = libelleReleveBancaire();
 
@@ -178,32 +200,43 @@ export async function POST(request: NextRequest) {
   // réabonnement légitime dans la fenêtre recevrait la MÊME session (déjà réglée). Chaque appel crée
   // une session neuve ; le double-clic est inoffensif (le webhook est idempotent par event.id, et
   // l'utilisatrice n'aboutit qu'un seul Checkout). Cf. deferred-work (jeton par tentative, Story 3.2).
-  const session = await clientStripe().checkout.sessions.create({
-    mode: "subscription",
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: DEVISE_ABONNEMENT,
-          unit_amount: PRIX_ABONNEMENT_ANNUEL_CENTIMES,
-          recurring: { interval: "year", interval_count: 1 },
-          product_data: { name: "Abonnement Anima annuel" },
+  // ⚠️ L'APPEL LUI-MÊME EST ENVELOPPÉ. Sans ce `try`, une panne réseau ou un refus d'API remontait
+  // en exception : Next rendait sa page d'erreur — en anglais, non stylée, sur l'écran qui parle
+  // d'argent. C'était la SIXIÈME sortie machine de cette route, et la seule qu'aucun `code` ne nommait.
+  let session: Awaited<ReturnType<ReturnType<typeof clientStripe>["checkout"]["sessions"]["create"]>>;
+  try {
+    session = await clientStripe().checkout.sessions.create({
+      mode: "subscription",
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: DEVISE_ABONNEMENT,
+            unit_amount: PRIX_ABONNEMENT_ANNUEL_CENTIMES,
+            recurring: { interval: "year", interval_count: 1 },
+            product_data: { name: "Abonnement Anima annuel" },
+          },
         },
-      },
-    ],
-    success_url: `${origine}/?paiement=succes`,
-    cancel_url: `${origine}/?paiement=annule`,
-    customer_email: user.email,
-    client_reference_id: user.id,
-    metadata: { utilisatriceId: user.id, ...(libelle ? { libelle_releve: libelle } : {}) },
-    subscription_data: { metadata: { utilisatriceId: user.id } },
-  });
+      ],
+      success_url: `${origine}/?paiement=succes`,
+      cancel_url: `${origine}/?paiement=annule`,
+      customer_email: user.email,
+      client_reference_id: user.id,
+      metadata: { utilisatriceId: user.id, ...(libelle ? { libelle_releve: libelle } : {}) },
+      subscription_data: { metadata: { utilisatriceId: user.id } },
+    });
+  } catch (e) {
+    console.error("[stripe/checkout] création de session refusée", {
+      nom: e instanceof Error ? e.name : "inconnu",
+    });
+    return NextResponse.redirect(new URL("/abonnement?etat=paiement_injoignable", request.url), 303);
+  }
 
+  // Stripe a répondu, mais sans URL : rien n'a été ouvert, donc rien n'a été débité. Même issue que
+  // l'échec d'appel — c'est la même chose du point de vue de celle qui a cliqué.
   if (!session.url) {
-    return NextResponse.json(
-      { code: "checkout_indisponible", message: "Indisponible pour le moment." },
-      { status: 502 },
-    );
+    console.error("[stripe/checkout] session créée sans URL");
+    return NextResponse.redirect(new URL("/abonnement?etat=paiement_injoignable", request.url), 303);
   }
   return NextResponse.redirect(session.url, 303);
 }

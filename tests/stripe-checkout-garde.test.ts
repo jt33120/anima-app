@@ -69,18 +69,25 @@ afterEach(() => {
 });
 
 describe("Story 3.1 — garde AD-9 EXERCÉE sur la route Checkout (effet réel)", () => {
-  it("session absente → 401 (auth d'abord)", async () => {
+  it("session absente → la PORTE, jamais un 401 nu (auth d'abord)", async () => {
     getUser.mockResolvedValueOnce({ data: { user: null } });
     const res = await POST(req());
-    expect(res.status).toBe(401);
+    // Le code a changé de valeur, pas d'intention (revue des Epics 1 à 4, #16) : ce POST vient d'un
+    // formulaire sans JavaScript, donc un corps JSON remplaçait la page par du texte machine.
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toContain("/entrer");
     expect(limites).not.toHaveBeenCalled();
     expect(sessionsCreate).not.toHaveBeenCalled();
   });
 
-  it("limites LEVÉES → 409 ET checkout.sessions.create JAMAIS appelé (tue résultat-jeté ET inversion)", async () => {
+  it("limites LEVÉES → refus lisible ET checkout.sessions.create JAMAIS appelé (tue résultat-jeté ET inversion)", async () => {
     limites.mockResolvedValueOnce(true);
     const res = await POST(req());
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toContain("/abonnement?etat=vente_fermee");
+    // ⚠️ ET LE MOTIF N'EST PAS DANS L'URL. Un `?etat=commerce_suspendu` écrirait l'épisode de
+    // détresse dans la barre d'adresse, puis dans l'historique du navigateur.
+    expect(res.headers.get("location")).not.toMatch(/detresse|suspendu|crise|episode/i);
     expect(sessionsCreate).not.toHaveBeenCalled();
     expect(limites).toHaveBeenCalledWith("u1");
   });
@@ -109,11 +116,23 @@ describe("Story 3.1 — garde AD-9 EXERCÉE sur la route Checkout (effet réel)"
     expect(args.line_items[0].price_data.recurring).toEqual({ interval: "year", interval_count: 1 });
   });
 
-  it("session.url absente → 502 (jamais de redirection vide)", async () => {
+  it("session.url absente → une phrase, jamais une redirection vide", async () => {
     limites.mockResolvedValueOnce(false);
     sessionsCreate.mockResolvedValueOnce({ url: null });
     const res = await POST(req());
-    expect(res.status).toBe(502);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toContain("/abonnement?etat=paiement_injoignable");
+  });
+
+  it("[revue 1-4, #16] Stripe qui LÈVE ne rend plus la page d'erreur de Next", async () => {
+    // ⚠️ C'ÉTAIT LA SIXIÈME SORTIE MACHINE, ET LA SEULE QU'AUCUN `code` NE NOMMAIT. L'appel n'était
+    // pas enveloppé : une panne réseau remontait en exception, et Next rendait sa propre page
+    // d'erreur — en anglais, non stylée, sur l'écran qui parle d'argent.
+    limites.mockResolvedValueOnce(false);
+    sessionsCreate.mockRejectedValueOnce(new Error("network"));
+    const res = await POST(req());
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toContain("/abonnement?etat=paiement_injoignable");
   });
 
   it("[M9] DÉJÀ ABONNÉE → refus ET aucune seconde session Stripe", async () => {
@@ -233,11 +252,14 @@ describe("La route Checkout refuse un compte non éligible (revue du 2026-08-13)
     ["revoque", "consentement art. 9 révoqué"],
     ["consentement", "n'a jamais consenti"],
     ["naissance", "n'a pas encore donné sa date de naissance"],
-  ])("étape « %s » (%s) → 409 ET aucune session Stripe", async (etat) => {
+  ])("étape « %s » (%s) → refus lisible ET aucune session Stripe", async (etat) => {
     etape.mockResolvedValueOnce(etat);
     const res = await POST(req());
-    expect(res.status).toBe(409);
-    expect(await res.json()).toMatchObject({ code: "compte_non_eligible" });
+    expect(res.status).toBe(303);
+    // ⚠️ LA DESTINATION EST `/abonnement`, ET C'EST ELLE QUI ROUTE ENSUITE. Sa propre machine
+    // d'état renvoie « barre » vers /barriere, « mineur » vers la sortie de session, etc. Refaire
+    // ce routage dans la route de vente serait une seconde machine d'état à maintenir.
+    expect(res.headers.get("location")).toContain("/abonnement?etat=vente_fermee");
     expect(sessionsCreate).not.toHaveBeenCalled();
   });
 
@@ -271,12 +293,14 @@ describe("La route Checkout refuse un compte non éligible (revue du 2026-08-13)
     ["https://anima.example/base", "porte un chemin — avalerait la suite de l'URL"],
     ["https://x:y@anima.example", "identifiant dans l'URL — la forme de l'hameçonnage"],
     ["pas-une-url", "inanalysable"],
-  ])("hors développement, origine %j (%s) → 503 ET aucune session Stripe", async (valeur) => {
+  ])("hors développement, origine %j (%s) → refus lisible ET aucune session Stripe", async (valeur) => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("ANIMA_SITE_URL", valeur);
     const res = await POST(req());
-    expect(res.status).toBe(503);
-    expect(await res.json()).toMatchObject({ code: "origine_non_configuree" });
+    expect(res.status).toBe(303);
+    // Même VÉRITÉ que la clé de test — quelque chose n'est pas en place de notre côté, rien n'a été
+    // débité, recharger n'y changera rien — donc même `etat` et même phrase.
+    expect(res.headers.get("location")).toContain("/abonnement?etat=paiement_indisponible");
     expect(sessionsCreate).not.toHaveBeenCalled();
   });
 

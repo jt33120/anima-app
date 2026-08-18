@@ -21,15 +21,19 @@ describe("Story 3.1 — route Checkout : session hébergée, garde AD-9, secret 
     expect(src).toMatch(/dynamic\s*=\s*["']force-dynamic["']/);
   });
 
-  it("auth d'abord : getUser + 401 si session absente", () => {
+  it("auth d'abord : getUser, puis la PORTE (jamais un 401 nu — revue 1-4, #16)", () => {
     expect(src).toMatch(/getUser\(\)/);
-    expect(src).toMatch(/401/);
+    // L'effet est exercé dans `stripe-checkout-garde.test.ts` ; ici on tient l'ORDRE.
+    // ⚠️ ANCRÉ SUR L'APPEL, PAS SUR LE NOM : `indexOf("limitesCommercialesLevees")` attrapait la
+    // ligne d'IMPORT en tête de fichier, donc l'ordre mesuré n'était jamais celui du code exécuté.
+    expect(src.indexOf("getUser()")).toBeLessThan(src.indexOf("await limitesCommercialesLevees("));
   });
 
-  it("garde AD-9 : la CONDITION limitesCommercialesLevees mène à un 409, AVANT la session (effet exercé dans stripe-checkout-garde.test)", () => {
+  it("garde AD-9 : la CONDITION limitesCommercialesLevees mène au REFUS, AVANT la session (effet exercé dans stripe-checkout-garde.test)", () => {
     // Condition→destination liées dans UNE regex (refuse la négation `if (!(await …))` et le résultat jeté).
-    expect(src, "la garde doit être branchée dans un `if (await …)` menant à 409").toMatch(
-      /if\s*\(\s*await\s+limitesCommercialesLevees\([^)]*\)\s*\)[\s\S]{0,160}?409/,
+    // La destination a changé de FORME, pas de rôle : `vente_fermee` au lieu d'un 409 en JSON (#16).
+    expect(src, "la garde doit être branchée dans un `if (await …)` menant au refus").toMatch(
+      /if\s*\(\s*await\s+limitesCommercialesLevees\([^)]*\)\s*\)[\s\S]{0,400}?vente_fermee/,
     );
     // + ordre : la garde précède la création de session.
     expect(src.indexOf("limitesCommercialesLevees")).toBeLessThan(src.indexOf("checkout.sessions.create"));

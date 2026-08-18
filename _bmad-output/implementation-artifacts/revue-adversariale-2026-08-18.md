@@ -11,6 +11,18 @@ explicitement exclues.
 > tour 1 s'étaient éparpillées dans `sprint-status.yaml` jusqu'à ce qu'on ne puisse plus lire
 > « où en est-on ».
 
+## Où on en est (2026-08-18, fin de journée)
+
+**5 fermées sur 33** — R1, R5, R6, R7, R26. Les quatre trouvailles nommées de la revue des
+Epics 1 à 4 (#8, #14, #15, #16) sont fermées elles aussi, dans d'autres commits.
+
+Restent **28**, dont **quatre hautes** : R2 (le cul-de-sac après résiliation aboutie), R3 (la
+garantie FR-089 refusée en silence à qui y a droit), R4 (la réserve du moteur de rétention plus
+courte que l'opération qu'elle protège), R8 (le gate d'allocation lit encore le plancher au tour
+qui éteint l'épisode), R9 (`personne_joignable` n'exige pas les CGU — la 0072 a corrigé ses deux
+sœurs et oublié celle-là), R11 (l'export désactivé sur l'écran de révocation) et R12 (le filet de
+ressources jeté sur un blocage d'egress).
+
 ## En une ligne
 
 **8 hautes confirmées · 4 hautes plausibles · 15 moyennes confirmées · 2 moyennes plausibles · 4 basses.**
@@ -22,7 +34,9 @@ inatteignable, une casse la sortie de secours, et une laisse un compte en prendr
 
 ## Hautes
 
-### R1 — L'effacement total (art. 17) supprime le compte sans jamais annuler la souscription chez Stripe : la carte est débitée de 69 € pour un compte qui n'existe plus.
+### ~~R1~~ ✅ — L'effacement total (art. 17) supprime le compte sans jamais annuler la souscription chez Stripe : la carte est débitée de 69 € pour un compte qui n'existe plus.
+
+> **FERMÉE.** 375afcd… non — `3a5b9a6` : la garde vit désormais dans `lib/data/arret-facturation.ts`, et un test refuse tout chemin d'effacement qui ne l'appelle pas.
 
 - **Verdict** : CONFIRME · **angle** : 
 - **Où** : `app/mes-donnees/actions.ts:35`
@@ -153,7 +167,9 @@ ENTRÉES CONCRÈTES PRODUISANT LE TORT (défauts en vigueur : INACTIVITE=24 mois
 ```
 </details>
 
-### R5 — /aide est prérendue STATIQUEMENT : ses scripts n'ont aucun nonce, la CSP `script-src 'nonce-…' 'strict-dynamic'` posée par proxy.ts les bloque tous, la page ne s'hydrate jamais et le bouton « Quitter » (sortie rapide, FR-074) ne fait rien.
+### ~~R5~~ ✅ — /aide est prérendue STATIQUEMENT : ses scripts n'ont aucun nonce, la CSP `script-src 'nonce-…' 'strict-dynamic'` posée par proxy.ts les bloque tous, la page ne s'hydrate jamais et le bouton « Quitter » (sortie rapide, FR-074) ne fait rien.
+
+> **FERMÉE.** `c67fd7d` : `/aide` est rendue à la demande, et la garde est GÉNÉRALE — toute page qui monte un composant client. Mesuré : 16 scripts sur 16 noncés, la sortie de secours fonctionne.
 
 - **Verdict** : CONFIRME · **angle** : 
 - **Où** : `app/aide/page.tsx:31`
@@ -181,7 +197,9 @@ J'ai essayé de réfuter, je n'y suis pas arrivé : le défaut est reproduit dan
 ```
 </details>
 
-### R6 — `form-action 'self'` bloque la redirection 303 du Checkout vers checkout.stripe.com sur Chrome et Safari : le seul chemin d'abonnement du produit est inatteignable.
+### ~~R6~~ ✅ — `form-action 'self'` bloque la redirection 303 du Checkout vers checkout.stripe.com sur Chrome et Safari : le seul chemin d'abonnement du produit est inatteignable.
+
+> **FERMÉE.** `c67fd7d` : `form-action 'self' https://checkout.stripe.com`. Mesuré avec le contrôle qui sépare — 200 same-origin passe, 303 vers un tiers était bloqué.
 
 - **Verdict** : CONFIRME · **angle** : 
 - **Où** : `lib/ai/entetes-art9.ts:57`
@@ -207,7 +225,9 @@ RÉFUTATIONS TENTÉES ET ÉCHOUÉES :
 ```
 </details>
 
-### R7 — `abonner_poussee` est `security definer`, accordée à `authenticated`, et supprime une ligne d'`abonnement_poussee` sur le seul `endpoint` fourni par l'appelante — sans aucun contrôle de propriété. C'est la seule écriture inter-comptes du schéma.
+### ~~R7~~ ✅ — `abonner_poussee` est `security definer`, accordée à `authenticated`, et supprime une ligne d'`abonnement_poussee` sur le seul `endpoint` fourni par l'appelante — sans aucun contrôle de propriété. C'est la seule écriture inter-comptes du schéma.
+
+> **FERMÉE.** `375afcd` : la reprise d'un endpoint exige la présentation des clés en place — preuve de possession de l'appareil.
 
 - **Verdict** : CONFIRME · **angle** : 
 - **Où** : `supabase/migrations/0053_socle_quotidien_poussee.sql:355`
@@ -773,7 +793,9 @@ J'ai cherché la garde ailleurs (policy, trigger, contrainte, appelant, rendu, t
 ```
 </details>
 
-### R26 — L'export retire `cle_p256dh` et `cle_auth` d'`abonnement_poussee` au motif que ce sont « des CAPACITÉS, pas des données sur elle », mais conserve `endpoint` — qui EST la capacité de faire disparaître l'abonnement de quelqu'un via `abonner_poussee` (cf. trouvaille n° 1). Le raisonnement appliqué à `preference_courriel.jeton` (« quiconque le lit peut te désabonner sans être toi ») vaut mot pour mot pour cette colonne.
+### ~~R26~~ ✅ — L'export retire `cle_p256dh` et `cle_auth` d'`abonnement_poussee` au motif que ce sont « des CAPACITÉS, pas des données sur elle », mais conserve `endpoint` — qui EST la capacité de faire disparaître l'abonnement de quelqu'un via `abonner_poussee` (cf. trouvaille n° 1). Le raisonnement appliqué à `preference_courriel.jeton` (« quiconque le lit peut te désabonner sans être toi ») vaut mot pour mot pour cette colonne.
+
+> **FERMÉE.** `375afcd` : tombe avec R7. L'endpoint seul n'est plus une capacité, donc l'export retire de nouveau la bonne colonne — sans être touché.
 
 - **Verdict** : CONFIRME · **angle** : 
 - **Où** : `supabase/migrations/0057_export_donnees.sql:152`

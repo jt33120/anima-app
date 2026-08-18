@@ -13,6 +13,7 @@ import {
   CRENEAU_DIURNE_FIN,
 } from "@/lib/domain/regime-anam";
 import { gabaritPour, gabaritLegalPour } from "@/lib/courriel/gabarits";
+import { dateLimiteResiliation } from "@/lib/domain/date-limite";
 import { validerOrigine } from "@/lib/courriel/origine";
 import { jetonValide } from "@/lib/domain/jeton-desabonnement";
 import { chercherInterdits } from "@/lib/domain/lexique-interdit";
@@ -21,6 +22,15 @@ import type { MotifCourriel, MotifLegal } from "@/lib/courriel/port";
 
 /** Les motifs LÉGAUX, ensemble fermé et volontairement séparé de `MotifCourriel` (Story 3.5). */
 const MOTIFS_LEGAUX: readonly MotifLegal[] = ["reconduction_a_venir"];
+/**
+ * Depuis la revue 1-4 (#14), une information légale est une union DISCRIMINÉE : le motif
+ * `reconduction_a_venir` ne peut plus exister sans sa date limite (art. L215-1). Ce helper la pose,
+ * pour que ce fichier continue de ne parler que de ce qu'il mesure — les OBJETS.
+ */
+const infoLegale = (m: MotifLegal) =>
+  m === "reconduction_a_venir"
+    ? ({ motif: m, dateLimite: dateLimiteResiliation("2027-03-05T12:00:00Z")! } as const)
+    : ({ motif: m } as const);
 
 /**
  * Story 6.3 (T4, AC1 / AC2) — LE RÉGIME DE PAROLE D'ANAM, en pur domaine.
@@ -323,7 +333,7 @@ describe("[AC3] l'aperçu ne porte JAMAIS la spécificité — et c'est prouvé,
       motif: m,
       objet: gabaritPour(m as MotifCourriel, { origine, jeton })!.objet,
     }));
-    const legaux = MOTIFS_LEGAUX.map((m) => ({ motif: m, objet: gabaritLegalPour(m, origine)!.objet }));
+    const legaux = MOTIFS_LEGAUX.map((m) => ({ motif: m, objet: gabaritLegalPour(infoLegale(m), origine)!.objet }));
     return [...courriels, ...legaux];
   }
 
@@ -354,7 +364,7 @@ describe("[AC3] l'aperçu ne porte JAMAIS la spécificité — et c'est prouvé,
     })),
     ...MOTIFS_LEGAUX.map((m) => ({
       motif: m,
-      objet: gabaritLegalPour(m, validerOrigine("https://anima.exemple.fr")!)!.objet,
+      objet: gabaritLegalPour(infoLegale(m), validerOrigine("https://anima.exemple.fr")!)!.objet,
     })),
   ]) {
     it(`« ${objet} » (${motif}) : ≤ 6 mots, aucune racine intime, aucun chiffre`, () => {

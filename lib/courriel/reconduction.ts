@@ -1,6 +1,7 @@
 import "server-only";
 import { creerPortCourriel } from "@/lib/courriel/fabrique";
 import { creerDepotCanalCourriel } from "@/lib/data/depot-canal-courriel";
+import { dateLimiteResiliation } from "@/lib/domain/date-limite";
 
 /**
  * Story 3.5 (AC4) — L'ENVOI DE L'INFORMATION AVANT RECONDUCTION TACITE (FR-060, art. L215-1).
@@ -29,7 +30,7 @@ import { creerDepotCanalCourriel } from "@/lib/data/depot-canal-courriel";
  * l'inverse — entre « j'envoie » et « je note que j'ai envoyé » il y a une fenêtre, et cette fenêtre
  * s'appelle « un deuxième courriel ».
  */
-export async function annoncerReconduction(utilisatriceId: string): Promise<void> {
+export async function annoncerReconduction(utilisatriceId: string, echeance: string): Promise<void> {
   const port = creerPortCourriel();
   // Sans configuration, on LÈVE plutôt que d'avaler : le webhook répondra 500, Stripe rejouera, et
   // `information_reconduction` porte déjà la trace — la seconde tentative sera refusée par l'échéance.
@@ -37,8 +38,17 @@ export async function annoncerReconduction(utilisatriceId: string): Promise<void
   // silencieux.
   if (!port.estConfigure()) throw new Error("courriel_non_configure");
 
+  // ⚠️ LA DATE LIMITE EST CALCULÉE ICI, ET UNE ÉCHÉANCE ILLISIBLE LÈVE (revue 1-4, #14).
+  //
+  // L'art. L215-1 impose de mentionner la date limite de résiliation DANS le courriel. Une date fausse
+  // serait pire qu'un courriel qui ne part pas : le second se rattrape au rejeu Stripe, le premier fait
+  // foi. On lève donc plutôt que d'envoyer une approximation — le webhook répond 500, libère la
+  // réservation, et Stripe rejoue.
+  const dateLimite = dateLimiteResiliation(echeance);
+  if (!dateLimite) throw new Error("echeance_illisible");
+
   const adresse = await creerDepotCanalCourriel().adresse(utilisatriceId);
   if (!adresse) throw new Error("adresse_introuvable");
 
-  await port.envoyerInformationLegale(adresse, "reconduction_a_venir");
+  await port.envoyerInformationLegale(adresse, { motif: "reconduction_a_venir", dateLimite });
 }

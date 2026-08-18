@@ -35,6 +35,6 @@ export async function annoncerInactivite(utilisatriceId: string): Promise<boolea
   const adresse = await creerDepotCanalCourriel().adresse(utilisatriceId);
   if (!adresse) return false;
 
-  await port.envoyerInformationLegale(adresse, "inactivite_avant_suppression");
+  await port.envoyerInformationLegale(adresse, { motif: "inactivite_avant_suppression" });
   return true;
 }

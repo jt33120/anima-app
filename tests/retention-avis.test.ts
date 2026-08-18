@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { gabaritLegalPour } from "@/lib/courriel/gabarits";
+import { dateLimiteResiliation } from "@/lib/domain/date-limite";
 import { validerOrigine } from "@/lib/courriel/origine";
 
 /**
@@ -29,7 +30,7 @@ import { validerOrigine } from "@/lib/courriel/origine";
 const ORIGINE = validerOrigine("https://anam.exemple")!;
 
 describe("[6.8/AC2] Le gabarit de l'avis — émis par le PRODUIT, jamais signé d'Anam", () => {
-  const avis = gabaritLegalPour("inactivite_avant_suppression", ORIGINE)!;
+  const avis = gabaritLegalPour({ motif: "inactivite_avant_suppression" }, ORIGINE)!;
 
   it("[LE CŒUR] il n'est PAS signé d'Anam", () => {
     // L'AC2 le demande mot pour mot. Anam est une présence à qui l'on parle ; lui faire annoncer
@@ -37,7 +38,7 @@ describe("[6.8/AC2] Le gabarit de l'avis — émis par le PRODUIT, jamais signé
     expect(avis.texte).not.toMatch(/—\s*Anam/);
     // …et le gabarit VOISIN, lui, l'est bien : sans ce contrôle, l'assertion ci-dessus passerait
     // aussi sur un gabarit vide ou sur un motif inconnu.
-    expect(gabaritLegalPour("reconduction_a_venir", ORIGINE)!.texte).toMatch(/—\s*Anam/);
+    expect(gabaritLegalPour({ motif: "reconduction_a_venir", dateLimite: dateLimiteResiliation("2027-03-05T12:00:00Z")! }, ORIGINE)!.texte).toMatch(/—\s*Anam/);
   });
 
   it("[LE CŒUR] il dit ce qui va se passer, et où aller pour l'empêcher", () => {
@@ -92,7 +93,9 @@ beforeEach(() => {
 describe("[6.8/AC2] `annoncerInactivite` — il ne prétend jamais avoir prévenu", () => {
   it("[CONTRÔLE POSITIF] le chemin nominal envoie et rend `true`", async () => {
     expect(await annoncerInactivite("u-1")).toBe(true);
-    expect(envoyerInformationLegale).toHaveBeenCalledWith("elle@exemple.fr", "inactivite_avant_suppression");
+    expect(envoyerInformationLegale).toHaveBeenCalledWith("elle@exemple.fr", {
+      motif: "inactivite_avant_suppression",
+    });
   });
 
   it("[LE CŒUR] sans canal configuré : rien ne part, et il rend `false`", async () => {

@@ -1,5 +1,6 @@
 import "server-only";
 import type { JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
+import type { DateLimiteResiliation } from "@/lib/domain/date-limite";
 
 /**
  * Story 4.9 — LE PORT COURRIEL. Un contrat unique, à l'image d'`AiPort` (AD-3) : l'applicatif ne connaît
@@ -79,6 +80,25 @@ export type MotifCourriel = "synthese_prete" | "echeance_intention";
 export type MotifLegal = "reconduction_a_venir" | "inactivite_avant_suppression";
 
 
+/**
+ * Story 3.5 / revue des Epics 1 à 4 (#14) — CE QU'UNE INFORMATION LÉGALE TRANSPORTE.
+ *
+ * ⚠️ UNION DISCRIMINÉE, ET C'EST TOUT L'INTÉRÊT. L'art. L215-1 impose de mentionner la DATE LIMITE
+ * DE RÉSILIATION dans le courriel dédié. Un troisième paramètre optionnel aurait laissé le motif
+ * `reconduction_a_venir` partir sans elle — c'est-à-dire hors la loi, en silence, exactement comme
+ * il partait avant. Ici, le compilateur refuse : il n'existe aucune valeur de ce type qui porte ce
+ * motif sans sa date.
+ *
+ * `inactivite_avant_suppression` n'en prend pas : rien n'y est à résilier, et lui en imposer une
+ * obligerait l'appelant à inventer une date pour satisfaire un type.
+ *
+ * Le trou reste refermé par `DateLimiteResiliation` (chaîne marquée, constructeur validant) — cf.
+ * `lib/domain/date-limite.ts`. Aucun fragment de journal ne peut transiter par ce champ.
+ */
+export type InformationLegale =
+  | { readonly motif: "reconduction_a_venir"; readonly dateLimite: DateLimiteResiliation }
+  | { readonly motif: "inactivite_avant_suppression" };
+
 export interface PortCourriel {
   /**
    * Envoie le courriel du motif donné. Lève en cas d'échec — l'appelant décide de son repli (AD-15).
@@ -94,7 +114,7 @@ export interface PortCourriel {
    * Conséquence directe : aucun en-tête `List-Unsubscribe` non plus (RFC 8058 vise le courrier en
    * volume, pas le transactionnel). Voir `gabaritLegalPour`.
    */
-  envoyerInformationLegale(destinataire: string, motif: MotifLegal): Promise<void>;
+  envoyerInformationLegale(destinataire: string, information: InformationLegale): Promise<void>;
   /**
    * Le port peut-il réellement envoyer ? Interrogé AVANT toute réservation : réserver puis découvrir
    * qu'on ne peut pas envoyer consommerait le droit d'envoyer sans avoir envoyé.

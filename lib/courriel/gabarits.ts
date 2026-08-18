@@ -1,5 +1,6 @@
 import "server-only";
-import type { MotifCourriel, MotifLegal } from "@/lib/courriel/port";
+import type { MotifCourriel, InformationLegale } from "@/lib/courriel/port";
+import { PRIX_ABONNEMENT_ANNUEL_CENTIMES } from "@/lib/stripe/config";
 import type { JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
 import type { Origine } from "@/lib/courriel/origine";
 
@@ -111,6 +112,17 @@ export function gabaritPour(motif: MotifCourriel, { origine, jeton }: Adresses):
 }
 
 /**
+ * Le prix, rendu comme il s'écrit en français. Il vient de `lib/stripe/config` — la même constante que
+ * celle envoyée à Stripe — plutôt que d'être recopié : un courriel légal annonçant un montant différent
+ * de celui débité serait la pire divergence possible entre deux chiffres du produit.
+ */
+function euros(centimes: number): string {
+  return centimes % 100 === 0
+    ? `${centimes / 100} €`
+    : `${(centimes / 100).toFixed(2).replace(".", ",")} €`;
+}
+
+/**
  * Story 3.5 — LE GABARIT LÉGAL. Une fonction séparée, sans `jeton` et sans `lienUnClic`.
  *
  * ── CE QU'IL N'A PAS, ET POURQUOI L'ABSENCE EST LE POINT ────────────────────────────────────────────────
@@ -128,29 +140,55 @@ export function gabaritPour(motif: MotifCourriel, { origine, jeton }: Adresses):
  * ── CE QU'IL DIT, ET CE QU'IL NE DIT PAS ────────────────────────────────────────────────────────────────
  *
  * L'objet reste neutre (NFR-015) : il paraît sur un écran verrouillé. « Ton abonnement Anam va être
- * reconduit » nomme déjà un produit et une dépense devant qui regarde par-dessus l'épaule.
+ * reconduit » nomme déjà un produit et une dépense devant qui regarde par-dessus l'épaule. Ni le montant
+ * ni la date n'y entrent : un aperçu de notification ne chiffre pas une dépense devant un tiers.
  *
- * Le texte NE PORTE NI LA DATE NI LE MONTANT — pas par prudence de registre, mais parce qu'ils ne peuvent
- * pas être écrits ici : la table est constante et ses deux seuls trous sont typés nominalement. Les
- * interpoler rouvrirait le paramètre libre que toute la 4.9 a servi à fermer. Ils sont sur la page, qui
- * est derrière une authentification — c'est-à-dire au seul endroit où ils regardent quelqu'un.
+ * ── LA DATE ET LE MONTANT ÉTAIENT ABSENTS DU CORPS, ET C'ÉTAIT UN MANQUEMENT (revue 1-4, #14) ──────────
+ *
+ * Le texte disait : « La date et le montant sont dans l'application : … ». Le raisonnement d'origine était
+ * architectural et sincère — la table est constante, ses deux trous sont typés nominalement, et interpoler
+ * une chaîne libre rouvrirait ce que toute la 4.9 a fermé.
+ *
+ * Il était juste sur le moyen et faux sur la fin. L'art. L215-1 ne demande pas d'indiquer OÙ trouver la
+ * date limite de résiliation : il demande de la MENTIONNER, « dans un encadré apparent », dans le courrier
+ * électronique DÉDIÉ. Renvoyer vers un écran derrière authentification, c'est demander à quelqu'un d'aller
+ * chercher ce que la loi impose de lui apporter — et quelqu'un qui ne se connecte plus est précisément
+ * celui que la reconduction tacite prend au dépourvu.
+ *
+ * Le troisième trou est donc ouvert, et refermé comme les deux autres : `DateLimiteResiliation` est une
+ * chaîne MARQUÉE dont l'unique constructeur n'accepte qu'un instant analysable et rend lui-même le rendu
+ * français (cf. `lib/domain/date-limite.ts`). Le MONTANT, lui, n'a besoin d'aucun trou : une seule offre
+ * existe, donc il s'écrit en clair ici comme le reste du texte.
+ *
+ * ⚠️ DETTE NOMMÉE — L'« ENCADRÉ » EST DESSINÉ EN TEXTE. L'adaptateur n'envoie qu'une partie `text/plain`
+ * (cf. `adaptateurs/resend.ts`) : l'encadré est donc une règle au-dessus et au-dessous, sur sa propre
+ * ligne. C'est apparent dans tout client, et ça ne dépend d'aucune police. Si le juriste exige une vraie
+ * bordure, il faudra une partie HTML — porte pré-lancement §6, avec les CGU et les mentions légales.
  *
  * Le chemin de résiliation est nommé DANS le courriel : prévenir quelqu'un d'une reconduction sans lui
  * dire où l'arrêter serait le respect de la lettre contre l'esprit.
  */
-export function gabaritLegalPour(motif: MotifLegal, origine: Origine): Gabarit | null {
+export function gabaritLegalPour(information: InformationLegale, origine: Origine): Gabarit | null {
+  const { motif } = information;
   if (motif === "reconduction_a_venir") {
+    // L'encadré : sa largeur suit la ligne qu'il entoure, donc il reste juste quelle que soit la date.
+    const encadre = `Date limite de résiliation : ${information.dateLimite}`;
+    const regle = "═".repeat(encadre.length);
     return {
       objet: "Ton abonnement va se renouveler",
       texte: [
         "Bonjour,",
         "",
-        "Ton abonnement Anam arrive à échéance et sera reconduit automatiquement.",
-        "La date et le montant sont dans l'application :",
+        "Ton abonnement Anam arrive à échéance et sera reconduit automatiquement",
+        `pour un an, au prix de ${euros(PRIX_ABONNEMENT_ANNUEL_CENTIMES)}.`,
+        "",
+        regle,
+        encadre,
+        regle,
+        "",
+        "Jusqu'à cette date, tu peux résilier en quelques secondes, sans avoir à te justifier :",
         "",
         `${origine}/abonnement`,
-        "",
-        "Tu peux résilier depuis cette même page, en quelques secondes, quand tu veux.",
         "",
         "— Anam",
       ].join("\n"),

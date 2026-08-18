@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         reconduction.echeance,
       )) {
         try {
-          await annoncerReconduction(reconduction.utilisatriceId);
+          await annoncerReconduction(reconduction.utilisatriceId, reconduction.echeance);
         } catch (envoi) {
           // ⚠️ L'ENVOI A ÉCHOUÉ — ON REND SON DROIT AU REJEU (revue du 2026-08-11, M11).
           //

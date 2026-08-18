@@ -1,5 +1,5 @@
 import "server-only";
-import type { PortCourriel, MotifCourriel, MotifLegal } from "@/lib/courriel/port";
+import type { PortCourriel, MotifCourriel, MotifLegal, InformationLegale } from "@/lib/courriel/port";
 import type { JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
 
 /**
@@ -29,6 +29,8 @@ export interface CourrielEnvoye {
 export interface InformationLegaleEnvoyee {
   readonly destinataire: string;
   readonly motif: MotifLegal;
+  /** Retenu pour qu'un test puisse prouver que la date limite de l'art. L215-1 est bien partie (#14). */
+  readonly dateLimite?: string;
 }
 
 export interface PortCourrielFactice extends PortCourriel {
@@ -51,9 +53,13 @@ export function creerPortCourrielFactice(options: { echoue?: boolean } = {}): Po
       if (options.echoue) throw new Error("courriel_refuse_500");
       envoyes.push({ destinataire, motif, jeton });
     },
-    async envoyerInformationLegale(destinataire: string, motif: MotifLegal): Promise<void> {
+    async envoyerInformationLegale(destinataire: string, information: InformationLegale): Promise<void> {
       if (options.echoue) throw new Error("courriel_refuse_500");
-      legaux.push({ destinataire, motif });
+      legaux.push({
+        destinataire,
+        motif: information.motif,
+        ...(information.motif === "reconduction_a_venir" ? { dateLimite: information.dateLimite } : {}),
+      });
     },
   };
 }

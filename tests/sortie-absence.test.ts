@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { texteVisible } from "./_absence";
 import * as copie from "@/render/abonnement/copie-abonnement";
 import { gabaritLegalPour } from "@/lib/courriel/gabarits";
+import { dateLimiteResiliation } from "@/lib/domain/date-limite";
 import { validerOrigine } from "@/lib/courriel/origine";
 
 /**
@@ -128,20 +129,26 @@ describe("[AC2 DUR] le parcours de sortie ne retient personne", () => {
 
 describe("[AC4] le gabarit légal ne promet aucun désabonnement", () => {
   const origine = validerOrigine("https://exemple.fr")!;
+  // La date limite passe par son constructeur validant — un `as` contournerait le seul mécanisme
+  // qui empêche une chaîne quelconque d'atteindre un serveur de messagerie (#14).
+  const info = {
+    motif: "reconduction_a_venir",
+    dateLimite: dateLimiteResiliation("2027-03-05T12:00:00Z")!,
+  } as const;
 
   it("CONTRÔLE : l'origine de test est valide (sinon le gabarit ne se rend pas)", () => {
     expect(origine).toBeTruthy();
   });
 
   it("le gabarit existe et nomme le chemin de résiliation (contrôle positif)", () => {
-    const g = gabaritLegalPour("reconduction_a_venir", origine)!;
+    const g = gabaritLegalPour(info, origine)!;
     expect(g.objet).toBeTruthy();
     expect(g.texte, "prévenir sans dire où arrêter serait la lettre contre l'esprit").toMatch(/résilier/i);
     expect(g.texte).toContain("/abonnement");
   });
 
   it("[DUR] il ne propose AUCUN désabonnement — la promesse serait intenable", () => {
-    const g = gabaritLegalPour("reconduction_a_venir", origine)!;
+    const g = gabaritLegalPour(info, origine)!;
     // Le courriel repartira l'an prochain quoi qu'elle clique : l'information avant reconduction tacite
     // est due (art. L215-1). Offrir le lien serait mentir, et le mensonge serait découvert au courriel
     // suivant. Le pied de `gabaritPour` (synthèse/échéance) promet, lui, et il peut tenir.
@@ -150,18 +157,35 @@ describe("[AC4] le gabarit légal ne promet aucun désabonnement", () => {
   });
 
   it("[NFR-015] l'objet reste neutre : ni montant, ni date, ni registre ésotérique", () => {
-    const g = gabaritLegalPour("reconduction_a_venir", origine)!;
+    const g = gabaritLegalPour(info, origine)!;
     expect(g.objet).not.toMatch(/\d/); // ni 69 €, ni une date
     expect(g.objet).not.toMatch(/âme|astre|tarot|karma|destin/i);
   });
 
-  it("le texte ne porte NI la date NI le montant — ils vivent derrière l'authentification", () => {
-    const g = gabaritLegalPour("reconduction_a_venir", origine)!;
-    expect(g.texte, "un montant sur un écran verrouillé (NFR-015)").not.toMatch(/\d+\s*€|\beuros?\b/i);
+  /**
+   * ⚠️ CE TEST DISAIT L'INVERSE, ET IL CONSACRAIT LE MANQUEMENT (revue des Epics 1 à 4, #14).
+   *
+   * Il exigeait que le CORPS ne porte ni date ni montant, au motif que « ils vivent derrière
+   * l'authentification » et qu'un montant sur un écran verrouillé violerait NFR-015. La seconde
+   * moitié est vraie de l'OBJET — c'est lui qui paraît en aperçu — et fausse du corps, qu'on
+   * n'ouvre qu'en ouvrant le courriel.
+   *
+   * Et l'art. L215-1 tranche : l'information « mentionne, dans un encadré apparent, la date limite
+   * de résiliation ». Dans le courrier électronique dédié, pas ailleurs. Renvoyer vers un écran
+   * derrière authentification, c'est demander à quelqu'un d'aller chercher ce que la loi impose de
+   * lui apporter — à quelqu'un qui, par hypothèse, ne se connecte plus.
+   *
+   * La garde qui compte reste posée juste au-dessus : l'OBJET, lui, ne porte aucun chiffre.
+   */
+  it("le corps PORTE la date limite et le montant — c'est l'objet qui reste muet", () => {
+    const g = gabaritLegalPour(info, origine)!;
+    expect(g.texte, "art. L215-1 : la date limite est DANS le courriel").toContain("5 mars 2027");
+    expect(g.texte, "on n'annonce pas un débit sans dire combien").toMatch(/69\s*€/);
+    expect(g.objet, "l'aperçu, lui, ne chiffre rien").not.toMatch(/\d/);
   });
 
   it("un motif hors de l'ensemble fermé rend `null` — l'adaptateur refusera d'envoyer", () => {
-    expect(gabaritLegalPour("inconnu" as never, origine)).toBeNull();
+    expect(gabaritLegalPour({ motif: "inconnu" } as never, origine)).toBeNull();
   });
 });
 

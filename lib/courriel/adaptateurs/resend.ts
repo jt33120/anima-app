@@ -2,7 +2,7 @@ import "server-only";
 import { avecDelai } from "@/lib/domain/delai";
 import { gabaritPour, gabaritLegalPour, EXPEDITEUR_NOM } from "@/lib/courriel/gabarits";
 import type { Origine } from "@/lib/courriel/origine";
-import type { PortCourriel, MotifCourriel, MotifLegal } from "@/lib/courriel/port";
+import type { PortCourriel, MotifCourriel, InformationLegale } from "@/lib/courriel/port";
 import type { JetonDesabonnement } from "@/lib/domain/jeton-desabonnement";
 
 /**
@@ -68,8 +68,8 @@ export function creerPortResend(cle: string, expediteur: string, origine: Origin
      * proposer un désabonnement sur un courriel qui repartira de toute façon serait une promesse
      * intenable, et Gmail l'afficherait à côté de l'expéditeur avant même l'ouverture.
      */
-    async envoyerInformationLegale(destinataire: string, motif: MotifLegal): Promise<void> {
-      const gabarit = gabaritLegalPour(motif, origine);
+    async envoyerInformationLegale(destinataire: string, information: InformationLegale): Promise<void> {
+      const gabarit = gabaritLegalPour(information, origine);
       if (!gabarit) throw new Error("courriel_motif_inconnu");
 
       const reponse = await avecDelai(

@@ -551,3 +551,55 @@ action_items:
     # le bon — ses annotations sont l'intention produit du PRD §5, écrites par un développeur.
     # Le chiffre se porte au professionnel de la porte pré-lancement ; il n'autorise rien tout seul.
 
+  # ── ACTIONS ISSUES DE LA RÉTROSPECTIVE DES SIX EPICS (2026-08-18) ─────────────────────────────
+  # Dossier : retrospective-epics-1-a-6-2026-08-18.md — UN document pour les six, et il dit pourquoi :
+  # chaque story porte déjà ses leçons, ce qui n'avait jamais été regardé est ce qui TRAVERSE les six.
+  # CONSTAT CENTRAL : 388 mutants posés, 385 tués (99,2 %) — et les revues ont quand même trouvé
+  # ~45 défauts réels. La mutation ne peut rien dire d'une ligne ABSENTE, d'une garde qui mesure la
+  # mauvaise chose, d'un défaut d'INTERVALLE entre deux stories, ni d'un défaut DORMANT. Ces quatre
+  # familles couvrent la quasi-totalité des trouvailles des six epics.
+  - epic: "1-4"
+    action: >
+      Revue adversariale multi-agents des Epics 1 à 4, ciblée sur les deux familles dominantes : la
+      garde qui vérifie qu'un nom APPARAÎT (la ligne d'import suffit) et le défaut qui vit dans
+      l'INTERVALLE entre deux stories. C'EST LE TROU DE COUVERTURE LE PLUS LARGE DU PROJET : ces
+      quatre epics n'ont eu que des revues par story, mono-modèle, et ces deux familles n'y ont donc
+      jamais été cherchées systématiquement — alors qu'elles ont produit l'essentiel des trouvailles
+      des Epics 5 et 6.
+    owner: "Claude"
+    status: open
+  - epic: 5
+    action: >
+      Trier les 19 candidates NON EXAMINÉES de la revue Epic 5 (27 trouvées, 8 retenues par le
+      plafond de dédoublonnage). Elles ne sont pas réfutées : elles n'ont jamais été regardées. Les
+      trois candidates CRITIQUES privées d'avocat de la défense ont été vérifiées à la main, et les
+      TROIS étaient réelles — le taux de vrais positifs du lot non trié n'est donc pas nul.
+    owner: "Claude"
+    status: open
+  - epic: "1-6"
+    action: >
+      Balayage systématique des gardes « nom nu » : toute assertion `toMatch(/NOM/)` sur une source
+      doit exiger l'USAGE (interpolation, appel) ou devenir un inventaire à verdicts. Critère de fin :
+      aucune garde de fichier ne survit à la suppression du code qu'elle prétend garder.
+    owner: "Claude"
+    status: open
+  - epic: "1-6"
+    action: >
+      Un test d'INTERVALLE par couture connue : jeu ↔ archives de lecture, halte ↔ garde commerciale,
+      projection Stripe ↔ surfaces de vente, écran mémoire ↔ rappel. Chaque story est éprouvée seule ;
+      aucune campagne n'éprouve la couture, et c'est là que vivent deux tiers des défauts.
+    owner: "Claude"
+    status: open
+  - epic: "1-6"
+    action: >
+      Lever le plafond de dépense mensuel, ou décider d'assumer les revues en direct sans sous-agents.
+      Le 2026-08-18, 7 agents sur 34 sont morts en vol, dont les trois synthèses.
+    owner: "Julian"
+    status: open
+  - epic: 3
+    action: >
+      Portail de facturation Stripe : AUCUNE surface de mise à jour de carte n'existe dans le produit
+      (`grep billing_portal` ne rend rien). « Résilier puis reprendre » est le seul chemin honnête, et
+      il coûte à celle qui voulait simplement changer de carte après un `past_due`.
+    owner: "Julian (décision), Claude (pose)"
+    status: open

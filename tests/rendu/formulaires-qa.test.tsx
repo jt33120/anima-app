@@ -31,6 +31,12 @@ const FormulaireNaissance = (await import("@/app/(auth)/naissance/formulaire-nai
 const FormulaireConsentement = (await import("@/app/(auth)/consentement/formulaire-consentement"))
   .default;
 
+const envoyerLien = vi.fn();
+vi.mock("@/app/(auth)/entrer/actions", () => ({
+  envoyerLien: (prev: unknown, donnees: FormData) => envoyerLien(prev, donnees),
+}));
+const FormulaireEntree = (await import("@/app/(auth)/entrer/formulaire-entree")).default;
+
 const champ = (nom: string) => document.querySelector(`input[name="${nom}"]`) as HTMLInputElement;
 const formulaire = () => document.querySelector("form") as HTMLFormElement;
 
@@ -160,5 +166,35 @@ describe("[QA T31-bis] l'écran de consentement n'affiche pas le contraire de ce
       expect(screen.getByText("Enregistrement impossible. Réessaie.")).toBeTruthy(),
     );
     expect(screen.queryByText(/ci-dessus pour commencer/)).toBeNull();
+  });
+});
+
+describe("[QA T28] le produit porte ses propres messages, en français", () => {
+  it("les deux formulaires du chemin d'entrée coupent la validation NATIVE", () => {
+    // Sans ça, le navigateur affiche « Please fill in this field. » à quiconque ne l'a pas en
+    // français — sur le premier écran d'un produit qui ne parle que français. Ce texte suit la
+    // langue DU NAVIGATEUR : le produit ne peut pas le traduire, il peut seulement cesser de s'en
+    // remettre à lui.
+    for (const Formulaire of [FormulaireEntree, FormulaireNaissance]) {
+      const { unmount } = render(<Formulaire />);
+      const f = document.querySelector("form") as HTMLFormElement;
+      expect(f.noValidate, "la bulle native doit être coupée").toBe(true);
+      unmount();
+    }
+  });
+
+  it("⚠️ mais `required` RESTE — il n'était pas là pour la bulle", () => {
+    // MUTATION-CIBLE : retirer `required` en même temps que la bulle. Ce serait plus simple et
+    // FAUX : `required` est annoncé par les lecteurs d'écran (« obligatoire »), et c'est sa vraie
+    // fonction. La bulle n'en était qu'un effet de bord du navigateur.
+    render(<FormulaireEntree />);
+    expect((document.querySelector('input[name="email"]') as HTMLInputElement).required).toBe(true);
+  });
+
+  it("et le serveur, lui, répond en français", async () => {
+    envoyerLien.mockResolvedValue({ ok: false, message: "Entre une adresse e-mail valide." });
+    render(<FormulaireEntree />);
+    fireEvent.submit(document.querySelector("form") as HTMLFormElement);
+    await waitFor(() => expect(screen.getByText("Entre une adresse e-mail valide.")).toBeTruthy());
   });
 });

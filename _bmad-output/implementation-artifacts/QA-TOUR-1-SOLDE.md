@@ -11,8 +11,7 @@ vérification n'est pas possible sans navigateur ni séance réelle, c'est écri
 
 ## En une ligne
 
-**18 fermées · 12 ouvertes · 1 arbitrée.** Aucune des 12 ouvertes n'empêche un test ; quatre d'entre
-elles ne peuvent être ni vues ni fermées autrement qu'**en conditions réelles** — ce qui est
+**19 fermées · 11 ouvertes · 1 arbitrée.** Aucune des 11 ouvertes n'empêche un test ; quatre d'entre elles ne peuvent être ni vues ni fermées autrement qu'**en conditions réelles** — ce qui est
 précisément l'objet du prochain tour.
 
 ---
@@ -37,6 +36,7 @@ précisément l'objet du prochain tour.
 | T20 | « Deux façons » suivi de trois options | Déjà corrigée : `etat.exaequo.length === 2 ? "Deux" : "Plusieurs"` |
 | T22 | Aucun moyen de se déconnecter | **Fermée le 18/08** |
 | T25 | `/ancrages` vend pendant la détresse | Revue Epic 5, R2 |
+| T9 | Un rectangle plus clair autour du personnage du Seuil | **Fermée le 18/08** — mesurée au pixel dans un navigateur réel : saut de couleur de **56 en un pixel** avant, **≤ 5** après. Deux causes : `aspect-ratio: 4 / 5` sur une image en 0,767 (`object-fit: contain` laissait 6 px de bandes, et le masque est calculé sur la boîte), et un dégradé radial qui ne touchait jamais les flancs |
 | T30 | Le 3919 sous un libellé périmé | **Fermée le 18/08** — et un test garde désormais les six appellations |
 | T31 | L'erreur de consentement ne s'efface pas | **Fermée le 18/08** — plus **T31-bis**, trouvée en la corrigeant |
 
@@ -69,12 +69,11 @@ L'écran le plus sensible du produit affichait le contraire de ce qu'il croyait.
 Ce sont des comportements de **modèle** et de **parcours**, pas des lignes de code fautives. Aucun
 test unitaire ne les produit — c'est pour ça qu'ils sont encore là.
 
-### Que seul un navigateur peut voir — 3
+### Que seul un navigateur peut voir — 2
 
 | | Trouvaille |
 |---|---|
 | T26 | ⚠️ **La plus sérieuse.** Au moment de la détresse, le fil se cale sur la carte de ressources : ce que la personne vient d'écrire sort de l'écran |
-| T9 | Un rectangle plus clair borde l'arbre et le personnage — une scène qui se veut sans bords |
 | T10 | À 390 px, la barre de navigation est transparente et recouvre le contenu qui défile dessous |
 
 ### Hors code — 3
@@ -89,7 +88,7 @@ test unitaire ne les produit — c'est pour ça qu'ils sont encore là.
 
 | | Trouvaille | Pourquoi pas aujourd'hui |
 |---|---|---|
-| T21 | Apostrophes droites sur presque toute l'interface | Balayage textuel large ; des tests assertent des chaînes exactes. À faire d'un bloc, pas en passant |
+| T21 | Apostrophes droites sur presque toute l'interface | **MESURÉ le 18/08 : 486 droites contre 13 courbes dans les chaînes affichées** (commentaires retirés ; le compte brut de 10 458 sur `lib+render+app` était trompeur — il comptait les commentaires français). C'est borné et faisable d'un bloc. Reporté quand même : churner 486 chaînes juste avant un tour de QA rendrait ce tour illisible, et beaucoup de tests assertent des phrases exactes. À faire APRÈS le tour 2, en une passe |
 | T28 | Message de validation natif en anglais | Le correctif (`noValidate` + messages du produit) touche le chemin d'entrée, le plus critique du produit. À faire avec un tour de vérification, pas à l'aveugle |
 
 ---

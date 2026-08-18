@@ -35,8 +35,14 @@ export default function FormulaireNaissance() {
   return (
     /* QA tour 1 (T19) — CE QUI A ÉTÉ TAPÉ REVIENT APRÈS UN REFUS. `useActionState` réinitialise un
        formulaire non contrôlé après chaque action : une date au futur effaçait aussi le prénom, et
-       tout était à ressaisir. L'action renvoie la saisie, ces `defaultValue` la remettent. */
-    <form action={action} className={s.form}>
+       tout était à ressaisir. L'action renvoie la saisie, ces `defaultValue` la remettent.
+
+       T28 — `noValidate` : sans lui, le navigateur affiche sa bulle native (« Please fill in this
+       field. ») à quiconque n'a pas un navigateur en français, sur le premier écran d'un produit
+       qui ne parle que français. Le serveur valide déjà et répond dans la voix du produit. Et
+       c'est T19 qui rend ce choix sûr : un aller-retour serveur ne coûte plus la saisie.
+       `required` RESTE — il est annoncé par les lecteurs d'écran, et c'est sa vraie fonction. */
+    <form action={action} className={s.form} noValidate>
       <label htmlFor="prenom" className={s.etiquette}>
         {/* Étiquette VISIBLE (jamais un placeholder en guise d'étiquette) */}
         <span className="t-meta">Ton prénom</span>

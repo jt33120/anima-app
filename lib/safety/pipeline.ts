@@ -23,19 +23,21 @@ export interface EtatLimites {
 }
 
 /**
- * État d'épisode CROSS-TOUR (`episode_detresse`, Story 2.4). `episodeOuvert()` (lu AVANT le tour)
- * pilote le forçage « fort pour tout l'épisode » ; `enregistrerTour(niveauDetecte)` est appelé à
+ * État d'épisode CROSS-TOUR (`episode_detresse`, Story 2.4). `plancherEpisode()` (lu AVANT le tour)
+ * pilote le forçage « fort pour tout l'épisode » — il rend le niveau ATTEINT par l'épisode ouvert, 0
+ * s'il n'y en a pas (revue 1-4 : un plancher fixé à 1 laissait retomber une idéation active sous le
+ * seuil du bloc de ressources dès qu'un repli de fournisseur rendait 1) ; `enregistrerTour(niveauDetecte)` est appelé à
  * CHAQUE tour avec le niveau DÉTECTÉ BRUT — il ouvre/rehausse (≥ 1), compte les tours sûrs et éteint
  * (= 0), puis renvoie l'état des limites. Le placeholder reste honnête (aucun épisode) pour les tests.
  */
 export interface DepotEpisode {
-  episodeOuvert(): Promise<boolean>;
+  plancherEpisode(): Promise<NiveauSecurite>;
   enregistrerTour(niveauDetecte: NiveauSecurite): Promise<EtatLimites>;
 }
 
 export const depotEpisodePlaceholder: DepotEpisode = {
-  async episodeOuvert() {
-    return false; // dérive de `episode_detresse.fin IS NULL`
+  async plancherEpisode() {
+    return 0; // aucun épisode ouvert ⇒ aucun plancher
   },
   async enregistrerTour() {
     return { limitesLevees: false }; // aucun épisode persistant côté placeholder
@@ -77,10 +79,16 @@ export async function evaluerSecuriteDuTour(
   }
 
   // 2. niveauEffectif : le forçage vaut pour TOUT l'épisode (Story 2.4), pas seulement ce tour.
-  // `episodeOuvert()` est lu AVANT l'enregistrement (état au début du tour) → pilote le forçage.
+  // `plancherEpisode()` est lu AVANT l'enregistrement (état au début du tour) → pilote le forçage.
+  //
+  // ⚠️ LE PLANCHER EST LE NIVEAU ATTEINT, PAS 1 (revue des Epics 1 à 4). Avec un plancher fixé à 1,
+  // une femme classée « idéation active » au tour N perdait tout numéro d'urgence au tour N+1 dès
+  // que le fournisseur était dégradé : le repli rend 1, le plancher rendait 1, et le bloc de
+  // ressources n'est émis qu'à partir de 2. L'épisode SAVAIT qu'il avait atteint 3 — personne ne le
+  // lui demandait. Le forçage tenait le tier de modèle, pas le niveau de réponse.
   const depot = deps.depotEpisode ?? depotEpisodePlaceholder;
-  const ouvert = await depot.episodeOuvert();
-  const niveauEffectif = Math.max(detection.verdict.niveau, ouvert ? 1 : 0) as NiveauSecurite;
+  const plancher = await depot.plancherEpisode();
+  const niveauEffectif = Math.max(detection.verdict.niveau, plancher) as NiveauSecurite;
   // Niveau inchangé → on préserve le verdict tel quel (dont la décision `repli_sur`). Bumped par un
   // épisode ouvert → on re-dérive un verdict cohérent au niveau effectif.
   const verdict: VerdictSecurite =

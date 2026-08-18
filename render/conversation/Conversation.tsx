@@ -9,6 +9,7 @@ import { insererTour } from "./fil-ops";
 import { LIGNE_QUOTA_EPUISEE } from "./ligne-quota";
 import { REPONSE_REFUS, CONFIRME_NAISSANCE, ECHEC_NAISSANCE } from "./copie-proposition";
 import type { Tour, OuvertureData, TourHistorique } from "./types";
+import { toursApresRejeu, blocRessourcesDejaPresent } from "./rejeu";
 import s from "./conversation.module.css";
 
 /**
@@ -334,15 +335,19 @@ export default function Conversation({
         // lecteur d'écran (R3) — sinon le filet de secours est inséré muet pour l'AT.
         onRessources: (position, ressources, verifieLe) => {
           const idRes = nouvelId();
-          setTours((prev) =>
-            insererTour(prev, idAnam, position, {
+          setTours((prev) => {
+            // La garde anti-doublon vit ICI depuis la revue Epics 1-4, et plus dans la purge du
+            // « Réessayer » : on refuse d'AJOUTER un second bloc identique, au lieu de retirer le
+            // premier. Refuser d'ajouter ne peut jamais laisser l'écran sans numéros ; retirer, si.
+            if (blocRessourcesDejaPresent(prev, idAnam, ressources)) return prev;
+            return insererTour(prev, idAnam, position, {
               id: idRes,
               role: "ressource",
               ancreId: idAnam,
               ressources,
               verifieLe,
-            }),
-          );
+            });
+          });
           setAnnonce("Des ressources d’aide sont affichées.");
         },
         // Beat d'apparition (2.7) : Anam paraît en Présence au moment décidé par l'arc (serveur).
@@ -446,17 +451,9 @@ export default function Conversation({
       const envoi = envoisParTour.current.get(idAnam);
       if (!envoi) return;
       envoisParTour.current.delete(idAnam);
-      // Retire le tour d'Anam ET tout bloc rattaché par `ancreId` (ressources 2.6, bilan + carte 3.2) —
-      // sinon un tour de clôture qui échoue APRÈS avoir émis bilan/carte laisserait ceux-ci orphelins, et
-      // le rejeu en insérerait un SECOND (double bilan / double paywall — même patron que le double 15/112,
-      // revue 2.6 R2 / 3.2).
-      setTours((prev) =>
-        prev.filter(
-          (t) =>
-            t.id !== idAnam &&
-            !((t.role === "ressource" || t.role === "bilan" || t.role === "paywall") && t.ancreId === idAnam),
-        ),
-      );
+      // Retire le tour d'Anam ET les blocs qu'un rejeu réémettrait EN DOUBLE (bilan, paywall).
+      // ⚠️ PAS le bloc de ressources : la règle, et ce qu'elle a coûté, sont écrites dans `rejeu.ts`.
+      setTours((prev) => toursApresRejeu(prev, idAnam));
       // MÊME jeton que l'envoi initial (3.4, AC1) : le retry est le MÊME tour logique → le métrage et
       // l'allocation résiduelle ne se recomptent pas (clé d'idempotence serveur stable).
       lancer(envoi.messages, envoi.jeton);

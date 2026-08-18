@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AiPort, ReponseIa } from "@/lib/ai/port";
+import type { AiPort, ReponseIa, NiveauSecurite } from "@/lib/ai/port";
 import {
   evaluerSecuriteDuTour,
   doitExecuterTravailSchema,
@@ -40,16 +40,17 @@ function adaptateur(texte: string): AiPort {
 
 const messages = [{ role: "user" as const, content: "coucou" }];
 
-function depotFactice(ouvert: boolean, limitesApres = ouvert) {
+/** `plancher` = niveau ATTEINT par l'épisode ouvert, 0 s'il n'y en a pas (revue Epics 1-4). */
+function depotFactice(plancher: NiveauSecurite, limitesApres = plancher > 0) {
   const enregistrerTour = vi.fn(async () => ({ limitesLevees: limitesApres }));
-  const depot: DepotEpisode = { episodeOuvert: async () => ouvert, enregistrerTour };
+  const depot: DepotEpisode = { plancherEpisode: async () => plancher, enregistrerTour };
   return { depot, enregistrerTour };
 }
 
 describe("evaluerSecuriteDuTour — pipeline sécurité-d'abord", () => {
   it("niveau 0 : verdict poursuivre, audit émis (tier fort), enregistrerTour(0) appelé (chaque tour, 2.4)", async () => {
     const audits: AuditDetresse[] = [];
-    const { depot, enregistrerTour } = depotFactice(false);
+    const { depot, enregistrerTour } = depotFactice(0);
     const r = await evaluerSecuriteDuTour(
       {
         supabase: supabaseFactice(),
@@ -70,7 +71,7 @@ describe("evaluerSecuriteDuTour — pipeline sécurité-d'abord", () => {
 
   it("niveau 2 : verdict intervenir, audit émis, enregistrerTour(2)", async () => {
     const audits: AuditDetresse[] = [];
-    const { depot, enregistrerTour } = depotFactice(false, true);
+    const { depot, enregistrerTour } = depotFactice(0, true);
     const r = await evaluerSecuriteDuTour(
       { supabase: supabaseFactice(), adaptateur: adaptateur("NIVEAU: 2"), depotEpisode: depot, emettreAudit: async (a) => void audits.push(a) },
       messages,
@@ -83,7 +84,7 @@ describe("evaluerSecuriteDuTour — pipeline sécurité-d'abord", () => {
 
   it("ÉPISODE OUVERT + tour classé 0 → niveauEffectif = 1 (forçage), mais enregistrerTour reçoit le BRUT 0", async () => {
     const audits: AuditDetresse[] = [];
-    const { depot, enregistrerTour } = depotFactice(true); // épisode ouvert
+    const { depot, enregistrerTour } = depotFactice(1); // épisode ouvert
     const r = await evaluerSecuriteDuTour(
       { supabase: supabaseFactice(), adaptateur: adaptateur("NIVEAU: 0"), depotEpisode: depot, emettreAudit: async (a) => void audits.push(a) },
       messages,
@@ -99,7 +100,7 @@ describe("evaluerSecuriteDuTour — pipeline sécurité-d'abord", () => {
 
   it("BLOCAGE d'egress → propagé, AUCUN audit émis (rien n'a été classé)", async () => {
     const audits: AuditDetresse[] = [];
-    const { depot, enregistrerTour } = depotFactice(false);
+    const { depot, enregistrerTour } = depotFactice(0);
     const r = await evaluerSecuriteDuTour(
       { supabase: supabaseFactice(false), adaptateur: adaptateur("NIVEAU: 3"), depotEpisode: depot, emettreAudit: async (a) => void audits.push(a) },
       messages,

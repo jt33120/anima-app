@@ -405,3 +405,57 @@ describe("episode_detresse — entité possédée, deny-by-default, transition g
     expect(error, "grant anon retiré en 0011 (surface anon fermée, patron 0007)").not.toBeNull();
   });
 });
+
+describe("[revue 1-4] `niveau_plancher_episode` — le plancher est le niveau ATTEINT", () => {
+  const v = { email: `plancher-${t}@exemple.fr`, password: "test-pl-123!", id: "" };
+
+  beforeAll(async () => {
+    const { data, error } = await admin.auth.admin.createUser({
+      email: v.email,
+      password: v.password,
+      email_confirm: true,
+    });
+    if (error) throw new Error(`createUser: ${error.message}`);
+    v.id = data.user!.id;
+  });
+  afterAll(async () => {
+    if (v.id) await admin.auth.admin.deleteUser(v.id);
+  });
+
+  it("aucun épisode → 0 (et le booléen historique en dérive)", async () => {
+    expect((await admin.rpc("niveau_plancher_episode", { cible: v.id })).data).toBe(0);
+    expect((await admin.rpc("episode_detresse_ouvert", { cible: v.id })).data).toBe(false);
+  });
+
+  it("⚠️ un épisode monté à 3 rend 3 — c'est CE niveau que le pipeline doit forcer", async () => {
+    // Le défaut : le pipeline lisait un booléen et forçait donc TOUJOURS 1. Sous le niveau 2, aucun
+    // bloc de ressources n'est émis — l'écran d'une femme classée « idéation active » perdait ses
+    // numéros au premier tour où le fournisseur était dégradé.
+    await tour(admin, v.id, 3);
+    expect((await admin.rpc("niveau_plancher_episode", { cible: v.id })).data).toBe(3);
+    expect((await admin.rpc("episode_detresse_ouvert", { cible: v.id })).data).toBe(true);
+  });
+
+  it("il suit la MONOTONIE de `niveau_max` : un tour plus bas ne fait pas redescendre le plancher", async () => {
+    await tour(admin, v.id, 1);
+    expect((await admin.rpc("niveau_plancher_episode", { cible: v.id })).data).toBe(3);
+  });
+
+  it("et il retombe à 0 quand l'épisode s'éteint — le forçage ne survit pas à l'épisode", async () => {
+    // Seuil 1 + durée minimale 0 : ce tour sûr suffit à éteindre.
+    await tour(admin, v.id, 0, { seuil: 1, dureeMinS: 0 });
+    expect((await admin.rpc("niveau_plancher_episode", { cible: v.id })).data).toBe(0);
+    expect((await admin.rpc("episode_detresse_ouvert", { cible: v.id })).data).toBe(false);
+  });
+
+  it("elle reste POSSÉDÉE par le serveur : `authenticated` ne peut pas l'exécuter (patron 0010)", async () => {
+    // L'épisode révèle un état de santé mentale (art. 9, FR-046). Un oracle sous JWT dirait à
+    // n'importe qui, y compris à quelqu'un qui a volé une session, où en est la personne.
+    const c = clientScope();
+    await c.auth.signInWithPassword({ email: v.email, password: v.password });
+    const { error } = await c.rpc("niveau_plancher_episode", { cible: v.id });
+    expect(error, "le plancher doit être hors de portée d'une session").not.toBeNull();
+    await c.auth.signOut();
+  });
+});
+

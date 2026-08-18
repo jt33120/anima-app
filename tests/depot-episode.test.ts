@@ -20,11 +20,17 @@ const CLE = "22222222-2222-2222-2222-222222222222"; // jeton de tour LOGIQUE (id
 beforeEach(() => rpc.mockReset());
 
 describe("creerDepotEpisode — câblage vers les fonctions possédées", () => {
-  it("episodeOuvert() appelle episode_detresse_ouvert(cible) et renvoie son booléen", async () => {
-    rpc.mockResolvedValueOnce({ data: true, error: null });
+  it("plancherEpisode() appelle niveau_plancher_episode(cible) et renvoie le niveau ATTEINT", async () => {
+    // Revue Epics 1-4 : c'était `episode_detresse_ouvert`, et le plancher valait donc toujours 1.
+    rpc.mockResolvedValueOnce({ data: 3, error: null });
     const depot = creerDepotEpisode(CIBLE, CLE);
-    expect(await depot.episodeOuvert()).toBe(true);
-    expect(rpc).toHaveBeenCalledWith("episode_detresse_ouvert", { cible: CIBLE });
+    expect(await depot.plancherEpisode()).toBe(3);
+    expect(rpc).toHaveBeenCalledWith("niveau_plancher_episode", { cible: CIBLE });
+  });
+
+  it("aucun épisode ouvert → 0 : le plancher ne force rien", async () => {
+    rpc.mockResolvedValueOnce({ data: 0, error: null });
+    expect(await creerDepotEpisode(CIBLE, CLE).plancherEpisode()).toBe(0);
   });
 
   it("enregistrerTour(niveau) passe le niveau DÉTECTÉ + les seuils du pur + le JETON DE TOUR (2-4b), renvoie limitesLevees", async () => {
@@ -68,11 +74,14 @@ describe("creerDepotEpisode — repli sûr (AD-15) : jamais planter, pencher ver
     err.mockRestore();
   });
 
-  it("episodeOuvert : erreur RPC → true par défaut (le doute force le fort) + incident", async () => {
+  it("plancherEpisode : erreur RPC → 1 (le doute force le fort, sans INVENTER un niveau) + incident", async () => {
+    // ⚠️ 1 ET PAS 3. Une panne de RPC ne dit rien du niveau : inventer 3 mettrait quelqu'un qui va
+    // bien en protocole de crise sur un incident réseau. 1 est exactement ce que l'ancien booléen
+    // garantissait — le repli ne régresse sur rien, et ne surjoue rien.
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     rpc.mockResolvedValueOnce({ data: null, error: { code: "XX000", message: "boom" } });
     const depot = creerDepotEpisode(CIBLE, CLE);
-    expect(await depot.episodeOuvert()).toBe(true); // repli : suppose ouvert → force fort
+    expect(await depot.plancherEpisode()).toBe(1);
     expect(err).toHaveBeenCalled();
     err.mockRestore();
   });

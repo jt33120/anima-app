@@ -700,10 +700,14 @@ export async function POST(request: NextRequest) {
     egress = await diffuserSousEgressArt9({ supabase, adaptateur, requete });
   } catch (e) {
     console.error("anam/message : échec d'ouverture du flux", { nom: e instanceof Error ? e.name : "inconnu" });
-    return NextResponse.json(
-      { code: "erreur_serveur", message: "Service indisponible, réessaie." },
-      { status: 500, headers: ENTETES_ART9 },
-    );
+    // ⚠️ ON REND UN FLUX, PAS UN JSON NU (revue des Epics 1 à 4). Le bloc de ressources a déjà été
+    // DÉCIDÉ ci-dessus, par une classification qui a bien eu lieu : c'est le flux de RÉPONSE qui n'a
+    // pas pu s'ouvrir, pas la détection. Un `NextResponse.json` jetait ce bloc à la poubelle — le
+    // client ne lit les ressources que dans une trame — et l'écran de quelqu'un en détresse
+    // n'affichait qu'« une erreur est survenue », précisément au tour où le filet était dû.
+    // La trame `erreur` reste émise après : elle allume le bouton « Réessayer », qui ne retire plus
+    // rien (`rejeu.ts`).
+    return fluxDeTrames([...(trameRessources ? [trameRessources] : []), { t: "erreur" }]);
   }
 
   if (egress.bloque) {

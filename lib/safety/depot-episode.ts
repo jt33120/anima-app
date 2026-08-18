@@ -3,7 +3,7 @@ import type { NiveauSecurite } from "@/lib/ai/port";
 import type { DepotEpisode, EtatLimites } from "./pipeline";
 import { DUREE_MIN_EPISODE_MS, FENETRE_POST_EPISODE_MS, SEUIL_TOURS_SURS } from "./episode-detresse";
 import { rpcAvecRepli } from "./rpc-repli";
-import { episodeDetresseOuvert } from "./episode-lecture";
+import { niveauPlancherEpisode } from "./episode-lecture";
 
 /**
  * Dépôt RÉEL d'épisode de détresse (Story 2.4) — rend concrète la couture `DepotEpisode` laissée par
@@ -15,7 +15,7 @@ import { episodeDetresseOuvert } from "./episode-lecture";
  * penche vers la PROTECTION — incident journalisé sans art. 9 (code d'erreur seul, NFR-022) :
  *   • `enregistrerTour` en échec → `limitesLevees = true` (le doute lève les limites : jamais de
  *     paywall sur un possible épisode, FR-043) ;
- *   • `episodeOuvert` en échec → `true` (suppose ouvert → force le fort, AD-5).
+ *   • `plancherEpisode` en échec → `1` (suppose un épisode ouvert → force le fort, AD-5).
  */
 
 /** Seuils d'extinction en unités SQL (secondes entières — un seuil clinique non-multiple de 1000 ms
@@ -33,9 +33,11 @@ const P_FENETRE_S = Math.round(FENETRE_POST_EPISODE_MS / 1000);
  */
 export function creerDepotEpisode(utilisatriceId: string, cleTour: string): DepotEpisode {
   return {
-    // Repli : suppose ouvert → force le fort (le doute protège). MÊME lecture que la garde de
-    // montage commerciale (source unique `episode-lecture`, jamais deux dérivations divergentes).
-    episodeOuvert: () => episodeDetresseOuvert(utilisatriceId, "episode_ouvert"),
+    // Le niveau ATTEINT par l'épisode ouvert (0 sinon) — repli 1, le doute protège. MÊME lecture
+    // que la garde de montage commerciale (source unique `episode-lecture`, jamais deux dérivations
+    // divergentes : le booléen commercial DÉRIVE de ce même plancher).
+    plancherEpisode: () =>
+      niveauPlancherEpisode(utilisatriceId, "plancher_episode") as Promise<NiveauSecurite>,
 
     // Repli : le doute lève les limites (jamais de paywall en détresse).
     enregistrerTour: (niveauDetecte: NiveauSecurite): Promise<EtatLimites> =>

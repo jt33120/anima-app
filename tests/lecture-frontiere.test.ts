@@ -143,21 +143,18 @@ describe("[AC5] la carte n'est jamais purgée par « Réessayer »", () => {
     expect(bloc, "un `ancreId` sur la carte la rendrait purgeable au « Réessayer »").not.toContain("ancreId");
   });
 
-  it("le filtre de « Réessayer » ne cite QUE les trois rôles ancrés", () => {
-    // Le filtre est écrit en dur (`ressource`/`bilan`/`paywall`). Si quelqu'un y ajoutait `carte`, la
-    // carte disparaîtrait au premier échec de flux — et un nouveau tirage suivrait.
-    const src = lire("render/conversation/Conversation.tsx");
-    // Les COMMENTAIRES sont retirés : ils parlent légitimement de « la carte d'abonnement » et du
-    // « double paywall ». Sans ce retrait, l'assertion ci-dessous rougirait sur de la prose.
-    const bloc = src
-      .slice(src.indexOf("const reessayer"), src.indexOf("const refuserAbonnement"))
-      .replace(/\/\/.*$/gm, "");
-    expect(bloc).toContain('t.role === "ressource"');
-    // ⚠️ ON CHERCHE LE MOT, PAS UNE COMPARAISON PRÉCISE. La première version de cette assertion
+  it("le filtre de « Réessayer » ne connaît PAS le mot « carte »", () => {
+    // ⚠️ CETTE GARDE A CHANGÉ DE CIBLE (revue Epics 1-4). Elle lisait le filtre à l'intérieur de
+    // `Conversation.tsx` et exigeait qu'il cite `ressource`, `bilan` et `paywall` — ce qui a figé
+    // pendant deux epics le défaut le plus grave de l'écran : le bloc de numéros d'urgence purgé
+    // par le geste même qu'on propose après un échec. Le filtre vit désormais dans `rejeu.ts`, et
+    // ce que le fil DEVIENT est exercé par `rejeu-ne-retire-pas-le-filet.test.ts`, sur de vrais
+    // tours. Ce qui reste ici est ce qu'un test de source sait faire, et rien de plus.
+    const src = lire("render/conversation/rejeu.ts").replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+    // ON CHERCHE LE MOT, PAS UNE COMPARAISON PRÉCISE. La première version de cette assertion
     // cherchait `t.role === "carte"` — et le mutant qui écrit `t.role !== "carte"` (la forme
-    // NATURELLE pour exclure la carte d'un filtre de conservation) lui passait sous le nez. Le test
-    // était vert, la garde ne gardait rien. Le mot « carte » n'a AUCUNE raison légitime d'apparaître
-    // dans le filtre de « Réessayer » : c'est lui qu'on interdit.
-    expect(bloc, "« Réessayer » touche à la carte : le rituel serait nié").not.toContain("carte");
+    // NATURELLE pour exclure la carte d'un filtre de conservation) lui passait sous le nez. Le mot
+    // « carte » n'a AUCUNE raison légitime d'apparaître dans la mécanique du rejeu.
+    expect(src, "« Réessayer » touche à la carte : le rituel serait nié").not.toContain("carte");
   });
 });

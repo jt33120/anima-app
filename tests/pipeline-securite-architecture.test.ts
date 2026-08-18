@@ -168,11 +168,15 @@ describe("Story 2.5 — filet hors-IA + garde de montage : invariants d'architec
   });
 
   it("la DÉCISION `limites_levees` vit dans `lib/safety` ; `render/` la consomme sans la dériver (AD-7)", () => {
-    // La dérivation `fin IS NULL` (via episode_detresse_ouvert) est une SOURCE UNIQUE dans lib/safety…
-    expect(lire(LECTURE)).toMatch(/episode_detresse_ouvert/);
+    // L'état d'épisode est une SOURCE UNIQUE dans lib/safety. Depuis la revue des Epics 1 à 4, cet
+    // état est un NIVEAU (`niveau_plancher_episode`) dont le booléen historique dérive — un seul
+    // module connaît la RPC, et un seul appel la fait.
+    expect(lire(LECTURE)).toMatch(/niveau_plancher_episode/);
     // …que la garde de montage consomme sans la réimplémenter (jamais deux horloges, AD-17)…
     expect(lire(LIMITES)).toMatch(/episodeDetresseOuvert/);
-    expect(lire(LIMITES)).not.toMatch(/episode_detresse_ouvert/); // délègue, ne recopie pas la RPC
+    expect(lire(LIMITES)).not.toMatch(/niveau_plancher_episode|episode_detresse_ouvert/); // délègue, ne recopie pas la RPC
+    // …et le dépôt du pipeline non plus : il passe par la MÊME lecture, jamais par sa propre RPC.
+    expect(lire(resolve(racine, "lib/safety/depot-episode.ts"))).not.toMatch(/niveau_plancher_episode\(/);
     // …et la garde de rendu NE parle jamais à la base ni ne dérive l'état elle-même (render muet).
     expect(lire(GARDE_COMMERCIALE)).not.toMatch(/episode_detresse_ouvert|@\/lib\/data\/supabase/);
     expect(lire(GARDE_COMMERCIALE)).toMatch(/limitesCommercialesLevees/);
@@ -571,3 +575,30 @@ describe("[AD-13] l'egress art. 9 est un passage OBLIGÉ — pour TOUT le dépô
     expect(variante, "fail-safe : une erreur RPC bloque").toMatch(/error\s*\|\|\s*eligible\s*!==\s*true/);
   });
 });
+
+describe("[revue 1-4] le filet SURVIT à la panne du flux (AD-15)", () => {
+  it("⚠️ le `catch` d'ouverture du flux rend un FLUX qui porte les ressources, jamais un JSON nu", () => {
+    // ══ LE DÉFAUT ════════════════════════════════════════════════════════════════════════════════
+    // Le bloc de ressources est DÉCIDÉ avant l'ouverture du flux, par une classification qui a bien
+    // eu lieu. Si l'ouverture échoue, c'est la RÉPONSE qui manque — pas la détection. La route
+    // rendait alors un `NextResponse.json` de 500 : le client ne lit les ressources que dans une
+    // trame, donc le bloc décidé partait à la poubelle et l'écran de quelqu'un classé « idéation
+    // active » n'affichait qu'un message d'erreur, précisément au tour où le filet était dû.
+    //
+    // ⚠️ CECI EST UNE GARDE DE SOURCE, et elle le sait : aucun banc de ce dépôt ne monte cette route
+    // (trop de dépendances serveur). Elle ancre donc la vérification sur le SEUL `catch` concerné,
+    // et exige que le nom du bloc y apparaisse — un `fluxDeTrames([{ t: "erreur" }])` nu, qui est
+    // exactement le mutant naturel, la fait rougir.
+    const src = lire(ROUTE);
+    const i = src.indexOf("diffuserSousEgressArt9(");
+    expect(i, "l'ouverture du flux a changé de nom : cette garde ne garde plus rien").toBeGreaterThan(-1);
+    const bloc = src.slice(i, src.indexOf("if (egress.bloque)", i));
+    expect(bloc, "le `catch` d'ouverture a disparu du périmètre").toMatch(/catch\s*\(/);
+    expect(bloc, "une panne de flux rendait un JSON : les ressources n'y passent pas").not.toMatch(
+      /NextResponse\.json/,
+    );
+    expect(bloc, "le filet décidé doit repartir dans la réponse d'erreur").toMatch(/trameRessources/);
+    expect(bloc, "et la trame `erreur` rallume « Réessayer »").toMatch(/t:\s*"erreur"/);
+  });
+});
+

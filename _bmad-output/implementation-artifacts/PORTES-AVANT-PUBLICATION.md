@@ -21,6 +21,73 @@ production en dessous de Pro). « Phase de test » décrit notre intention, pas 
 
 Dernière revue : **2026-08-18** (A1 re-mesurée et aggravée, A2 requalifiée et fermée côté code, §8 périmée corrigée).
 
+
+---
+
+## CE QUE JULIAN DOIT FAIRE À LA MAIN — la liste ordonnée
+
+Tout ce qui suit est **hors code**. Le code ne peut plus rien pour ces portes ; elles demandent un
+achat, une signature, un domaine, un avis juridique, ou l'écriture d'Anima. L'ordre n'est pas
+arbitraire : chaque bloc débloque le suivant.
+
+### ⓪ La décision qui commande tout le reste — **où Anima vit-elle ?**
+
+**Le DPA de Vercel INTERDIT les données de l'article 9** (Schedule 1 §6.1), et l'article 9 est
+exactement ce que ce produit collecte. **Ce n'est pas un problème de plan** : Vercel Pro ne change pas
+une ligne du contrat, qui est auto-incorporé et non amendable en libre-service.
+
+> ⚠️ **Ne pas acheter Vercel Pro avant d'avoir tranché ça.** Ce serait payer un an d'un hébergeur
+> qu'on quitte. L'issue étudiée est Railway : contrat **signé** (donc amendable ligne à ligne),
+> `europe-west4` (Amsterdam), et son Exhibit A dit *« Sensitive Data: None »* — ce qui est une
+> phrase à faire amender, pas un feu vert. Voir §2.
+
+### ① Les achats, dans l'ordre de ce qu'ils débloquent
+
+| | Quoi | Ce que ça débloque | Ordre de grandeur |
+|---|---|---|---|
+| 1 | **Un nom de domaine** | Quatre portes d'un coup : les liens de courriel, la cible des liens de connexion, SPF/DKIM/DMARC, les mentions légales | ~15 €/an |
+| 2 | **Supabase Pro** | **Il n'existe aujourd'hui AUCUNE sauvegarde de la base de production** (`plan: "free"` mesuré). Et un projet gratuit se met en pause tout seul. | ~25 $/mois |
+| 3 | **L'hébergeur** (Vercel Pro ou Railway) | L'usage commercial (Hobby l'interdit, et tu vends 69 €/an), la protection par mot de passe, la fréquence des tâches planifiées | ~20 $/mois |
+| 4 | **Activer le compte Stripe** | `charges_enabled` est `false` : rien ne peut être encaissé aujourd'hui | — |
+
+### ② Les signatures — cinq sous-traitants, art. 28
+
+Mistral · l'hébergeur retenu · Resend · Stripe · Supabase. Les drapeaux `MISTRAL_DPA_SIGNED` et
+`MISTRAL_ZDR_CONFIRMED` sont posés **sur déclaration** en production : ils doivent devenir vrais.
+
+### ③ Le juridique — la porte la plus lourde du produit
+
+- **La validation du protocole de détresse par un professionnel qualifié.** Le code applique
+  aujourd'hui un protocole que personne de qualifié n'a relu. C'est la seule porte de cette liste
+  dont l'ouverture peut faire du mal à quelqu'un.
+- CGU, politique de confidentialité, écran de consentement — rédigés et validés. L'information
+  art. 13 doit intégrer Resend (destinataire, US) et la finalité nouvelle de l'adresse de compte.
+- La phrase de reconduction (art. L215-1) à valider avec le reste.
+
+### ④ Anima — ce qu'elle seule peut produire
+
+- **210 créneaux de corpus, 0 écrit.** Ordre d'urgence : **les 87 du quotidien d'abord** (60 mantras,
+  12 Lune, 15 aspects) — ce sont eux qui remplissent le premier écran. Puis 69 numérologie, 24
+  ancrages, 21 sens de cartes, 9 ennéagramme.
+- **63 objets d'art** — 21 cartes × (un visuel + sa description littérale + son sens). Aucun n'existe.
+- **Un arbitrage avant de commander quoi que ce soit : garde-t-elle la carte `seuil` ?** Si non, le
+  jeu tombe à 20 et rien d'autre ne bouge.
+- **Elle relit TOUTE la copie de l'application**, pas seulement ses textes — c'est sa réponse écrite.
+- Deux questions ouvertes : **le visage d'Anam** (le personnage, c'est elle — or c'est lui qui
+  *parle*) et **la palette** (sa marque est chaude, l'application est une nuit).
+
+### ⑤ Ce que je peux faire pour toi, le moment venu
+
+Rien de tout ça ne demande une décision de ma part, seulement ton feu vert :
+
+- **Effacer les 92 comptes de test de la base de production** (mesuré : 92 sur 97 sont des fixtures
+  de la suite, du 12 au 15/08). ⚠️ Destructif — je ne le fais pas sans que tu le dises.
+- Poser `ANIMA_ENV=production` et `ANIMA_INDEXABLE=oui` le jour du lancement, et pas avant.
+- Brancher `ANIMA_SITE_URL`, le `site_url` Supabase et le webhook Stripe sur le vrai domaine.
+- Construire le **portail de facturation Stripe** : le produit n'a aujourd'hui **aucune surface de
+  mise à jour de carte** — qui veut changer de carte doit résilier puis reprendre (dette nommée par
+  la revue 3.6).
+
 ---
 
 ## Audit du 2026-08-16 — ce qui a été MESURÉ, pas relu
@@ -507,7 +574,12 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
   redéploiement. `tests/porte-indexation.test.ts` — 9 tests, 3 mutants posés, 3 tués.
   ⚠️ **Ça ne rend pas le site privé** : qui connaît l'adresse y entre. Une vraie protection reste
   Vercel Pro (protection par mot de passe) — porte d'achat, voir §2.
-- **Licence des éphémérides** — choix déféré depuis l'architecture, à trancher avant lancement.
+- ✅ **Licence des éphémérides — RIEN À TRANCHER, vérifié le 2026-08-18.** Le choix déféré par
+  l'architecture a en fait été fait en implémentant : `astronomy-engine@2.1.19`, **MIT**, **zéro
+  dépendance transitive** (`node_modules/astronomy-engine/package.json`, champ `license`). MIT
+  autorise l'usage commercial sans redevance ni signature. Il n'y a ni achat, ni contrat, ni
+  attribution obligatoire au-delà de la mention de licence. La porte est fermée et n'aurait pas dû
+  rester ouverte — elle l'est restée parce que personne n'était allé LIRE le champ.
 - 🔴 **La fenêtre de survivance annoncée ne mesure rien** (mesuré le 16/08 — voir A1 en tête). Le PITR
   du projet hébergé est **désactivé** (`pitr_enabled: false`) ; `EFFACEMENT_FENETRE_PITR_JOURS` vaut
   7 jours et cette valeur part dans chaque trace d'effacement et sur l'écran « Mes données ». Deux

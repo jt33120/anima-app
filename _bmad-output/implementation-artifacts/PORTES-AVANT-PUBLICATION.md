@@ -13,7 +13,7 @@ Ce n'est pas un détail de vocabulaire : **l'URL de production est publique et i
 (`https://anima-app-swart.vercel.app`, plan Hobby — Vercel ne sait pas protéger un domaine de
 production en dessous de Pro). « Phase de test » décrit notre intention, pas l'accessibilité réelle.
 
-Dernière revue : **2026-08-16** (audit MESURÉ, voir ci-dessous).
+Dernière revue : **2026-08-18** (A1 re-mesurée et aggravée, A2 requalifiée et fermée côté code, §8 périmée corrigée).
 
 ---
 
@@ -26,6 +26,12 @@ Quatre constats, dont deux qui changent une couleur.
 ### ⚠️ A1 — La fenêtre PITR n'est adossée à RIEN (porte §7, requalifiée)
 
 `GET /v1/projects/zlhlzoalmszohrxrnsmo/database/backups` rend **`pitr_enabled: false`**.
+
+> **RE-MESURÉ LE 2026-08-18, ET C'EST PIRE.** La même route rend aujourd'hui `pitr_enabled: false`,
+> `walg_enabled: true`, **`backups: []` — liste VIDE** — et `physical_backup_data: {}`. L'API ne
+> déclare donc AUCUNE sauvegarde restaurable, ni aucune fenêtre. Ce n'est pas « une rétention non
+> écrite de notre côté » : c'est une rétention qu'on ne peut pas lire du tout. Le `7` annoncé à
+> l'utilisatrice dans un écran de droits RGPD ne s'adosse à rien de vérifiable.
 
 La Story 6.7 écrit dans chaque trace d'effacement `fenetre_pitr_jours = 7` et une date de survivance
 à +7 jours, et l'écran « Mes données » l'annonce à l'utilisatrice. **Ce 7 ne mesure rien.** Le
@@ -44,6 +50,24 @@ longue que la réalité — mais une déclaration RGPD juste par chance reste un
 ### 🔴 A2 — Stripe est en mode TEST **en production**, et la Story 3.6 vient d'aggraver l'enjeu
 
 `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` vaut `pk_test_51TVGUr…` dans l'environnement **Production**.
+
+> ⚠️ **CETTE PREUVE MESURAIT LA MAUVAISE VARIABLE (relevé le 2026-08-18).**
+> `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` n'est lue **par aucun fichier du dépôt** : le Checkout est
+> HÉBERGÉ (redirection vers `session.url`), donc aucun Stripe.js côté client, donc aucun usage de la
+> clé publiable. Elle n'est présente que dans `.env.example`. La variable qui décide réellement du
+> mode est `STRIPE_SECRET_KEY`, **serveur**, et elle n'a pas été mesurée.
+>
+> La conclusion de l'audit reste très probablement juste — mais elle reposait sur un témoin inerte.
+> C'est la famille de défauts dominante de ce projet (« la garde mesure qu'un nom apparaît, pas qu'il
+> sert »), appliquée cette fois à l'audit lui-même.
+>
+> **✅ FERMÉE CÔTÉ CODE le 2026-08-18.** `clientStripe()` REFUSE désormais de se construire avec une
+> clé `*_test_*` sur un déploiement de production (`estProduction` + `estCleStripeDeTest`,
+> `lib/domain/environnement.ts`). La garde vit dans le SEUL module autorisé à importer le SDK, donc
+> toute surface de paiement écrite demain en hérite. La route traduit le refus en message lisible
+> (`/abonnement?etat=paiement_indisponible`) plutôt qu'en 500. `tests/porte-paiement.test.ts`,
+> 2 mutants tués. **La porte reste OUVERTE** : le code ne fait plus semblant d'encaisser, il refuse —
+> il ne remplace pas un compte Stripe réel.
 
 Ce n'était pas grave tant que personne ne pouvait atteindre le paiement : aucune branche n'est
 proposée à un compte gratuit (3.3, D2-A), donc aucun paywall, donc aucun chemin vers Checkout.
@@ -448,13 +472,18 @@ Le mode test est **entièrement câblé et vérifié** en production (13/08) : c
 
 ---
 
-## 8. Ce qui n'est pas une porte mais une obligation légale non encore codée
+## 8. L'obligation légale qui n'était pas codée — ✅ FERMÉE le 2026-08-18
 
-L'**Epic 6 entier** (8 stories, aucune commencée) porte le droit à l'effacement et à la portabilité :
-`6-5` consulter/corriger/supprimer ce qu'Anam retient, `6-6` export complet, `6-7` effacement total
-exhaustif, `6-8` moteur de rétention automatique. **FR-067 et NFR-021 ne sont pas satisfaits tant que
-ces stories n'existent pas.** Ce n'est pas une signature à obtenir : c'est du code à écrire, et il doit
-l'être avant la première vraie utilisatrice.
+> ⚠️ **CETTE SECTION AFFIRMAIT JUSQU'AU 2026-08-18 QUE L'EPIC 6 N'ÉTAIT PAS COMMENCÉ.** C'était faux :
+> il est intégralement livré, revu, et ses dix stories sont `done`. Un document de portes qui décrit
+> un état dépassé est pire qu'un document absent — il fait chercher au mauvais endroit.
+
+L'**Epic 6 est livré en entier** : `6-5` consulter/corriger/supprimer ce qu'Anam retient (migration
+0056), `6-6` export complet (0057), `6-7` effacement total exhaustif (0058), `6-8` moteur de rétention
+automatique (0059). **FR-067 et NFR-021 sont satisfaits par le code.**
+
+Ce qui RESTE de cette section n'est plus du code mais une mesure : voir **A1** en tête — la fenêtre de
+survivance annoncée à l'utilisatrice (`EFFACEMENT_FENETRE_PITR_JOURS = 7`) ne mesure toujours rien.
 
 Deux décisions à ne pas redécouvrir quand ce moteur sera écrit :
 

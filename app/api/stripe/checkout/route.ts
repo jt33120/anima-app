@@ -105,6 +105,22 @@ export async function POST(request: NextRequest) {
   // `incomplete_expired` (mort) — une première carte refusée doit pouvoir se réabonner.
   // L'appel n'a lieu QUE s'il y a un identifiant à interroger : le cas nominal (compte gratuit) ne
   // paie rien. Une panne de Stripe fait REFUSER : le repli est du côté qui ne débite pas deux fois.
+  // ⚠️ LE PAIEMENT EST-IL SEULEMENT CONFIGURÉ ? (porte pré-lancement §4)
+  //
+  // `clientStripe()` REFUSE de se construire avec une clé de TEST sur un déploiement de production :
+  // un Checkout y aboutirait sans qu'un centime soit encaissé, et le webhook projetterait un
+  // abonnement en base. On l'appelle ICI, avant toute autre chose, pour que ce refus devienne un
+  // message lisible — et non un 500, ni pire : un « contrat déjà ouvert » emprunté au bloc suivant,
+  // qui dirait à quelqu'un une chose fausse sur son propre abonnement.
+  try {
+    clientStripe();
+  } catch (e) {
+    console.error("[stripe/checkout] paiement non configuré", {
+      nom: e instanceof Error ? e.name : "inconnu",
+    });
+    return NextResponse.redirect(new URL("/abonnement?etat=paiement_indisponible", request.url), 303);
+  }
+
   const { data: dejaAbonnee } = await supabase
     .from("abonnement")
     .select("etat, stripe_subscription_id")

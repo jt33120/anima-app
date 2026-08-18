@@ -129,6 +129,11 @@ export default async function PageAbonnement({
       {/* Le refus de l'ENTRÉE dans le paiement, en toutes lettres (revue 3.6, R1). La route Checkout
           redirige ici plutôt que de rendre un JSON : son POST vient d'un `<form>` sans JavaScript,
           donc un corps machine REMPLAÇAIT la page. La sortie avait déjà ce retour ; l'entrée non. */}
+      {retour === "paiement_indisponible" && (
+        <p className={`t-corps ${s.retour}`} role="status">
+          {c.REFUS_PAIEMENT_INDISPONIBLE}
+        </p>
+      )}
       {retour === "contrat_ouvert" && (
         <p className={`t-corps ${s.retour}`} role="status">
           {c.REFUS_CONTRAT_OUVERT}

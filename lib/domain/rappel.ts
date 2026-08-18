@@ -56,16 +56,29 @@ function estBlanc(s: string): boolean {
 
 /**
  * Assemble le contexte de rappel — fonction PURE, propriétaire de la forme du rappel.
- *  (1) filtre défensif `statut='actif'` (AC3, niveau DOMAINE) : jamais un tombstone dans un rappel, même si
- *      un futur appelant (export Epic 6, synthèse 4.9) passe un ensemble plus large — non redondant avec le
- *      `where statut='actif'` de `charger_faits_actifs()` (qui garde le chemin live en base) ;
+ *  (1) filtre défensif « VIVANT » (AC3, niveau DOMAINE) : jamais un tombstone dans un rappel, même si
+ *      un futur appelant (export Epic 6, synthèse 4.9) passe un ensemble plus large — non redondant avec
+ *      `public.fait_est_vivant()` de `charger_faits_rappelables()` (qui garde le chemin live en base) ;
+ *
+ *      ⚠️ IL DISAIT `statut === 'actif'`, ET IL A PORTÉ LA MOITIÉ DE R1 (revue Epic 6). Un fait CORRIGÉ
+ *      n'est pas un tombstone : c'est une phrase qu'ELLE a affirmée (art. 16). Le filtre l'écartait
+ *      comme un effacement — l'écran affichait « voici ce qu'Anam a retenu » avec sa correction,
+ *      pendant qu'Anam avait cessé de la connaître.
+ *
+ *      ⚠️ ET IL ÉTAIT INATTEIGNABLE, ce qui est la raison pour laquelle personne ne l'a vu : le dépôt
+ *      tamponnait `statut: "actif"` sur CHAQUE ligne, parce que la RPC ne rendait pas la colonne. Deux
+ *      défenses qui se couvraient l'une l'autre — la base filtrait, le domaine croyait filtrer, et
+ *      aucun test ne pouvait distinguer les deux. La colonne descend maintenant (0065) ;
  *  (2) tri daté décroissant, ordre TOTAL (départage par `cleDedoublonnage`) ;
  *  (3) sélection déterministe plafonnée à `limite` ;
  *  (4) résumé normalisé (`null` si vide/blanc, invisibles Unicode compris) ;
  *  (5) non-invention (AC5) : de la matière = un résumé OU au moins un fait actif.
  */
 export function assemblerRappel(entree: { resume: string | null; faits: FaitDate[]; limite?: number }): Rappel {
-  const actifs = entree.faits.filter((f) => f.statut === "actif"); // (1) AC3 — garde tombstone domaine
+  // (1) AC3 — garde tombstone domaine. « Vivant » = tout sauf le tombstone, MÊME PRÉDICAT que
+  // `public.fait_est_vivant` (0065) : R1 est né de deux définitions du même mot, écrites à deux
+  // epics d'écart, qui ont fini par ne plus dire la même chose.
+  const actifs = entree.faits.filter((f) => f.statut !== "supprime");
   // (2) daté décroissant, ordre TOTAL : `cleDedoublonnage` départage les `creeLe` égaux (revue 4.3, B) → sélection
   // sous `limite` déterministe même si un futur appelant (export/synthèse) passe des faits à même date.
   const ordonnes = [...actifs].sort(

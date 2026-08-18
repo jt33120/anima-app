@@ -140,11 +140,22 @@ describe("fait_extrait — art. 9 sous JWT, deny-by-default (AC5)", () => {
     await c.auth.signOut();
   });
 
-  it("une session NON authentifiée ne lit rien", async () => {
+  it("une session NON authentifiée ne lit rien — et depuis 0065 elle n'a même plus le PRIVILÈGE", async () => {
+    // ⚠️ CETTE ASSERTION A CHANGÉ DE FORME, ET C'EST UN DURCISSEMENT (revue Epic 6, R1 · §7).
+    //
+    // Avant : `anon` détenait le privilège de table et ne voyait rien parce que la POLICY le filtrait
+    // (`auth.uid()` est nul) — donc `error === null` et zéro ligne. Une seule serrure.
+    // Depuis : `revoke all on public.fait_extrait from anon`. Le jour où une policy est écrite
+    // `using (true)` par copie d'un gabarit — c'est arrivé ailleurs dans ce dépôt — le privilège
+    // absent est la deuxième serrure. `anon` reçoit maintenant 42501, pas un ensemble vide.
+    //
+    // La garde d'origine (« la table existe et répond — pas un faux-vert `table absente` ») reste
+    // tenue : un 42501 est un refus de PRIVILÈGE, il prouve que la relation est bien là. Une table
+    // absente rendrait 42P01.
     const anon = clientScope();
     const { data, error } = await anon.from("fait_extrait").select("*").eq("utilisatrice_id", u1.id);
-    expect(error).toBeNull(); // (revue F) : la table existe et répond — pas un faux-vert « table absente »
-    expect(data ?? []).toHaveLength(0); // masqué : la ligne de u1 existe pourtant (deny-by-default)
+    expect(error?.code, "anon doit être refusé au PRIVILÈGE, pas seulement filtré").toBe("42501");
+    expect(data ?? []).toHaveLength(0);
   });
 });
 

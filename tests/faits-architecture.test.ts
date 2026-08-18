@@ -20,14 +20,14 @@ import { resolve } from "node:path";
  * le chaînage multi-ligne. Interdire le nom les attrape TOUS — tout accès (lecture OU écriture) doit le citer.
  * (revue 4.3, F) On ancre sur une FRONTIÈRE DE MOT `\bfait_extrait\b` (pas le nom collé entre quotes) : attrape
  * AUSSI le SQL brut (`from fait_extrait where …`) et le nom qualifié (`"public.fait_extrait"`), tout en excluant
- * les RPC possédées (`fusionner_fait_extrait`/`charger_faits_actifs` : `fait`/`faits` y est précédé de `_`, pas
+ * les RPC possédées (`fusionner_fait_extrait`/`charger_faits_rappelables` : `fait`/`faits` y est précédé de `_`, pas
  * de frontière) et la colonne `p_extrait_source`.
  *
  * (Story 4.3) La « future lecture » que ce commentaire anticipait est arrivée — le rappel opportun LIT les
  * faits actifs. On l'a HONORÉE SANS AFFAIBLIR le ban : la lecture passe par une fonction POSSÉDÉE
- * `charger_faits_actifs()` (security invoker, filtre `statut='actif'` en base), pas par `.from("fait_extrait")`.
+ * `charger_faits_rappelables()` (security invoker, filtre `statut='actif'` en base), pas par `.from("fait_extrait")`.
  * Résultat : le nom de table reste banni dans tout le périmètre, et on ajoute juste une seconde RPC possédée
- * confinée à son dépôt (`charger_faits_actifs` ↔ `depot-rappel.ts`, comme `fusionner_fait_extrait` ↔ `depot-faits.ts`).
+ * confinée à son dépôt (`charger_faits_rappelables` ↔ `depot-rappel.ts`, comme `fusionner_fait_extrait` ↔ `depot-faits.ts`).
  *
  * Résidu connu (partagé, dette transverse aux ~7 gardes de source) : un nom construit dynamiquement
  * (`"fait_" + "extrait"`) échapperait — pathologique, non traité ; le vrai rempart reste en base
@@ -76,12 +76,12 @@ const tousSource = [
 
 const RPC = /fusionner_fait_extrait/;
 // (Story 4.3) la LECTURE possédée des faits actifs — confinée à son dépôt, comme la RPC d'écriture.
-const RPC_LECTURE = /charger_faits_actifs/;
+const RPC_LECTURE = /charger_faits_rappelables/;
 // (Story 6.5) `charger_faits_retenus` : `faits` y est précédé de `_`, donc pas de frontière avant
 // `fait` — le littéral de table ne la confond pas avec un accès direct.
 const RPC_MEMOIRE = /charger_faits_retenus/;
 // (revue 4.3, F) FRONTIÈRE DE MOT : attrape le nom nu ("fait_extrait"), le SQL brut (from fait_extrait),
-// le qualifié ("public.fait_extrait") — mais PAS `fusionner_fait_extrait`/`charger_faits_actifs` (précédés
+// le qualifié ("public.fait_extrait") — mais PAS `fusionner_fait_extrait`/`charger_faits_rappelables` (précédés
 // de `_`, donc pas de frontière avant `fait`/`faits`) ni `p_extrait_source`.
 const TABLE_LITERAL = /\bfait_extrait\b/;
 
@@ -111,7 +111,7 @@ describe("fait_extrait — un seul chemin d'écriture possédé (T5/AC4)", () =>
     expect('"public.fait_extrait"').toMatch(TABLE_LITERAL); // (revue 4.3, F) nom qualifié
     // Contrôles négatifs : les RPC possédées et la colonne ne sont PAS des accès table (frontière de mot).
     expect('rpc("fusionner_fait_extrait")').not.toMatch(TABLE_LITERAL);
-    expect('rpc("charger_faits_actifs")').not.toMatch(TABLE_LITERAL);
+    expect('rpc("charger_faits_rappelables")').not.toMatch(TABLE_LITERAL);
     expect("p_extrait_source").not.toMatch(TABLE_LITERAL);
   });
 
@@ -143,10 +143,10 @@ describe("fait_extrait — un seul chemin d'écriture possédé (T5/AC4)", () =>
     expect('rpc("charger_faits_retenus")').not.toMatch(TABLE_LITERAL);
   });
 
-  it("(Story 4.3) la RPC de lecture `charger_faits_actifs` n'est référencée QUE dans lib/data/depot-rappel.ts", () => {
+  it("(Story 4.3) la RPC de lecture `charger_faits_rappelables` n'est référencée QUE dans lib/data/depot-rappel.ts", () => {
     for (const f of tousSource) {
       if (f === DEPOT_RAPPEL) continue;
-      expect(lire(f), `réf. à charger_faits_actifs hors depot-rappel : ${f}`).not.toMatch(RPC_LECTURE);
+      expect(lire(f), `réf. à charger_faits_rappelables hors depot-rappel : ${f}`).not.toMatch(RPC_LECTURE);
     }
     // Contrôle positif : le dépôt de rappel l'appelle bien → la garde n'est pas vide.
     expect(lire(DEPOT_RAPPEL)).toMatch(RPC_LECTURE);

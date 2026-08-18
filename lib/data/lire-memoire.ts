@@ -16,7 +16,7 @@ import { estAffichable, type FaitRetenu } from "@/lib/domain/memoire-retenue";
  * La première version de ce fichier écrivait `.from("fait_extrait")`. `faits-architecture.test.ts`
  * a rougi, et elle avait raison : le dépôt exige que le littéral de cette table n'apparaisse NULLE
  * PART dans le code applicatif — `fusionner_fait_extrait` pour l'écriture (4.2),
- * `charger_faits_actifs` pour la lecture du rappel (4.3), et maintenant `charger_faits_retenus`
+ * `charger_faits_rappelables` pour la lecture du rappel (4.3), et maintenant `charger_faits_retenus`
  * pour celle de l'écran. Sur une table art. 9, ce que ça achète est concret : la FORME de ce qui
  * sort est décidée en un seul endroit auditable, et aucun appelant ne peut écrire `select("*")`.
  *

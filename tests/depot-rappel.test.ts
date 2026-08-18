@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 /**
  * Story 4.3 (T4) — le dépôt du rappel. Le client JWT est MOCKÉ (aucune base) : on prouve le CÂBLAGE —
- * le résumé via `.from("resume_glissant")`, les faits via la fonction possédée `.rpc("charger_faits_actifs")`,
+ * le résumé via `.from("resume_glissant")`, les faits via la fonction possédée `.rpc("charger_faits_rappelables")`,
  * la délégation au domaine pur `assemblerRappel`, l'`enregistrerResume` en upsert — et que le dépôt LÈVE
  * sur erreur réelle. Le comportement base réel (RLS, tombstone, write-gate) est prouvé dans `resume-glissant.test.ts`.
  */
@@ -23,7 +23,7 @@ describe("depot-rappel — câblage lecture (assembler) via résumé + fonction 
     rpc.mockReset();
   });
 
-  it("assembler lit le résumé (.from resume_glissant) ET les faits (.rpc charger_faits_actifs), délègue au pur", async () => {
+  it("assembler lit le résumé (.from resume_glissant) ET les faits (.rpc charger_faits_rappelables), délègue au pur", async () => {
     from.mockReturnValue({ select: () => ({ maybeSingle: async () => ({ data: { contenu: "elle revient sur son père" }, error: null }) }) });
     rpc.mockResolvedValue({
       data: [
@@ -34,7 +34,7 @@ describe("depot-rappel — câblage lecture (assembler) via résumé + fonction 
     });
     const r = await creerDepotRappel("u-1").assembler(5);
     expect(from).toHaveBeenCalledWith("resume_glissant");
-    expect(rpc).toHaveBeenCalledWith("charger_faits_actifs");
+    expect(rpc).toHaveBeenCalledWith("charger_faits_rappelables");
     expect(r.resume).toBe("elle revient sur son père");
     expect(r.faits.map((f) => f.cleDedoublonnage)).toEqual(["recent", "vieux"]); // trié daté décroissant par le pur
     expect(r.aDeLaMatiere).toBe(true);

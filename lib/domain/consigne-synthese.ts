@@ -99,7 +99,11 @@ export function messagesSynthese(materiau: MateriauSynthese, jeton: string): Mes
   const fermeture = `<<<FIN JOURNAL ${jeton}>>>`;
 
   if (materiau.faits.length > 0) {
-    lignes.push("CE QU'ANAM RETIENT (faits actifs, déjà validés) :");
+    // ⚠️ ELLE DISAIT « faits actifs », ET C'EST DEVENU FAUX (revue Epic 6, R1). Le matériau contient
+    // désormais aussi ce qu'elle a RÉÉCRIT. Réparer la mémoire en laissant un mensonge dans la
+    // consigne serait remplacer un défaut par un autre, sur le seul texte que le modèle lit comme
+    // une description de ce qu'on lui donne.
+    lignes.push("CE QU'ANAM RETIENT (faits retenus, y compris ceux qu'elle a réécrits) :");
     for (const fait of materiau.faits) lignes.push(`- ${fait}`);
     lignes.push("");
   }

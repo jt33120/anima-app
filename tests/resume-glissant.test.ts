@@ -4,13 +4,14 @@ import { assemblerRappel, type FaitDate } from "@/lib/domain/rappel";
 
 /**
  * Story 4.3 — le RÉCEPTACLE `resume_glissant` (résumé glissant, AD-14) + la LECTURE possédée des faits
- * actifs `charger_faits_actifs()`. Preuves BLOQUANTES contre un vrai Supabase local — miroir art. 9
+ * actifs `charger_faits_rappelables()`. Preuves BLOQUANTES contre un vrai Supabase local — miroir art. 9
  * « possédé sous JWT » de `fait-extrait.test.ts` :
  *  - schéma : `contenu` (art. 9), `utilisatrice_id` unique, `id uuid`, `cree_le`/`maj_le timestamptz` ;
  *  - art. 9 sous JWT (AD-12) : deny-by-default — une AUTRE utilisatrice ne lit rien, une session anonyme non plus ;
  *  - write-gate (AD-13) : écriture refusée sans consentement / sous barrière minorité / après révocation ;
  *    la LECTURE (export) survit à la révocation ;
- *  - [DUR] AC3 côté LECTURE : `charger_faits_actifs()` ne renvoie QUE les faits `actif` — un tombstone
+ *  - [DUR] AC3 côté LECTURE : `charger_faits_rappelables()` ne renvoie QUE les faits VIVANTS (revue Epic 6,
+ *    R1 : `corrige` en fait partie — c'est une phrase qu'ELLE a affirmée) — un tombstone
  *    (corrige/supprime) n'entre JAMAIS dans un rappel (mutation-cible : retirer `where statut='actif'`) ;
  *  - effacement FR-067 : le `delete` sous JWT est refusé (aucune policy) ; service_role supprime des lignes.
  */
@@ -200,7 +201,7 @@ describe("resume_glissant — write-gate art. 9 & lecture survivante (AC4)", () 
   });
 });
 
-describe("charger_faits_actifs() — [DUR] AC3 côté lecture : un tombstone n'entre JAMAIS dans un rappel", () => {
+describe("charger_faits_rappelables() — [DUR] AC3 côté lecture : un tombstone n'entre JAMAIS dans un rappel", () => {
   const u = { email: `rg-actifs-${t}@exemple.fr`, id: "" };
 
   beforeAll(async () => {
@@ -214,14 +215,18 @@ describe("charger_faits_actifs() — [DUR] AC3 côté lecture : un tombstone n'e
     if (u.id) await admin.auth.admin.deleteUser(u.id);
   });
 
-  it("ne renvoie QUE les faits actif (le corrige/supprime est exclu — mutation-cible : retirer where statut='actif')", async () => {
+  // ⚠️ CE TEST GRAVAIT R1 EN VERT (revue Epic 6). Il exigeait que le fait CORRIGÉ soit exclu du
+  // rappel, sous le commentaire « tombstone jamais rappelé » — en rangeant une rectification (art. 16)
+  // dans la même catégorie qu'un effacement. Pendant ce temps `charger_faits_retenus` (0056) le
+  // montrait à l'écran sous le titre « Ce qu'Anam retient ». Une seule des deux pouvait avoir raison.
+  it("[R1] rend le fait CORRIGÉ — et le tombstone, lui, reste dehors (mutation-cible : `statut = 'actif'`)", async () => {
     const c = clientScope();
     await c.auth.signInWithPassword({ email: u.email, password: MDP });
-    const { data, error } = await c.rpc("charger_faits_actifs");
+    const { data, error } = await c.rpc("charger_faits_rappelables");
     expect(error).toBeNull();
     const cles = (data ?? []).map((f: { cle_dedoublonnage: string }) => f.cle_dedoublonnage);
     expect(cles).toContain(`actif-${t}`);
-    expect(cles).not.toContain(`corrige-${t}`); // tombstone jamais rappelé
+    expect(cles, "une correction n'est pas une pierre tombale (art. 16)").toContain(`corrige-${t}`);
     expect(cles).not.toContain(`supprime-${t}`);
     // Porte la matière datée (AC2) : cree_le/maj_le présents.
     const actif = (data ?? []).find((f: { cle_dedoublonnage: string }) => f.cle_dedoublonnage === `actif-${t}`);
@@ -234,7 +239,7 @@ describe("charger_faits_actifs() — [DUR] AC3 côté lecture : un tombstone n'e
     autre.id = await creerUtilisatrice(autre.email);
     const c = clientScope();
     await c.auth.signInWithPassword({ email: autre.email, password: MDP });
-    const { data, error } = await c.rpc("charger_faits_actifs");
+    const { data, error } = await c.rpc("charger_faits_rappelables");
     expect(error).toBeNull();
     const cles = (data ?? []).map((f: { cle_dedoublonnage: string }) => f.cle_dedoublonnage);
     expect(cles).not.toContain(`actif-${t}`); // les faits de u ne fuient pas
@@ -272,7 +277,7 @@ describe("rappel bout-en-bout — le chemin réel (JWT) nourrit assemblerRappel 
 
     // Chemin réel : lecture du résumé (select) + des faits actifs (rpc possédée), puis assemblage PUR.
     const resume = (await c.from("resume_glissant").select("contenu").maybeSingle()).data?.contenu ?? null;
-    const bruts = (await c.rpc("charger_faits_actifs")).data ?? [];
+    const bruts = (await c.rpc("charger_faits_rappelables")).data ?? [];
     const faits: FaitDate[] = bruts.map((f: { cle_dedoublonnage: string; contenu: string; cree_le: string; maj_le: string }) => ({
       cleDedoublonnage: f.cle_dedoublonnage,
       contenu: f.contenu,
@@ -296,7 +301,7 @@ describe("rappel bout-en-bout — le chemin réel (JWT) nourrit assemblerRappel 
     const c = clientScope();
     await c.auth.signInWithPassword({ email: vide.email, password: MDP });
     const resume = (await c.from("resume_glissant").select("contenu").maybeSingle()).data?.contenu ?? null;
-    const bruts = (await c.rpc("charger_faits_actifs")).data ?? [];
+    const bruts = (await c.rpc("charger_faits_rappelables")).data ?? [];
     const rappel = assemblerRappel({ resume, faits: [] });
     expect(bruts).toHaveLength(0);
     expect(rappel).toEqual({ resume: null, faits: [], aDeLaMatiere: false });

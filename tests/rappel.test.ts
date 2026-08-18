@@ -15,7 +15,17 @@ function fait(cle: string, statut: FaitDate["statut"], creeLe: string): FaitDate
 }
 
 describe("assemblerRappel — tombstone jamais rappelé (AC3, [DUR] côté domaine)", () => {
-  it("exclut un fait corrige et un fait supprime, ne garde que les actif (mutation-cible : retirer le filtre)", () => {
+  // ⚠️ CE TEST GRAVAIT R1 EN VERT (revue Epic 6). Il exigeait qu'un fait CORRIGÉ soit exclu du
+  // rappel « comme un tombstone » — c'est-à-dire que corriger une phrase la retire de la mémoire
+  // d'Anam. L'écran affichait pourtant « voici ce qu'Anam a retenu » AVEC la correction : deux
+  // lectures d'une même règle, écrites à deux epics d'écart, et l'utilisatrice au milieu.
+  //
+  // L'art. 16 est un droit de RECTIFICATION, pas d'effacement. Réécrire est une AFFIRMATION.
+  //
+  // ⚠️ ET CE TEST NE POUVAIT RIEN ATTRAPER : le dépôt tamponnait `statut: "actif"` sur chaque ligne
+  // (la RPC ne rendait pas la colonne), donc ce filtre n'était jamais atteint en production. Il
+  // éprouvait une fonction pure sur des entrées qui n'existaient pas. Le statut descend depuis 0065.
+  it("[R1] garde le fait CORRIGÉ — réécrire est une affirmation, pas un effacement (art. 16)", () => {
     const r = assemblerRappel({
       resume: null,
       faits: [
@@ -24,10 +34,19 @@ describe("assemblerRappel — tombstone jamais rappelé (AC3, [DUR] côté domai
         fait("c", "supprime", "2026-07-12T00:00:00Z"),
       ],
     });
-    const cles = r.faits.map((f) => f.cleDedoublonnage);
-    expect(cles).toEqual(["a"]);
-    expect(cles).not.toContain("b");
-    expect(cles).not.toContain("c");
+    const cles = r.faits.map((f) => f.cleDedoublonnage).sort();
+    expect(cles).toEqual(["a", "b"]);
+  });
+
+  it("[AC3] et le TOMBSTONE, lui, ne rentre jamais — élargir n'a pas ouvert l'effacement", () => {
+    // Mutation-cible : retirer le filtre. Le seul statut qui sorte est `supprime`, et c'est le même
+    // prédicat que `public.fait_est_vivant` en base — une seule définition, deux implémentations qui
+    // ne peuvent plus diverger sans faire rougir `corriger-nest-pas-supprimer.test.ts`.
+    const r = assemblerRappel({
+      resume: null,
+      faits: [fait("c", "supprime", "2026-07-12T00:00:00Z")],
+    });
+    expect(r.faits).toEqual([]);
   });
 });
 

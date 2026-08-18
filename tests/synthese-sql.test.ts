@@ -60,9 +60,15 @@ async function graver(id: string, cle: string, contenu: string, creeLe?: string,
 }
 
 async function poserFait(id: string, cle: string, contenu: string, statut = "actif") {
+  // ⚠️ L'ORIGINE SUIT LE STATUT (contrainte `fait_extrait_machine_reste_vivante`, 0065). Une ligne
+  // `(extrait, corrige)` ou `(extrait, supprime)` n'est plus insérable — même par service_role, une
+  // contrainte de table ne connaît pas les rôles. C'est voulu : réécrire et effacer sont des gestes
+  // d'ELLE, et la mention D6 de l'écran (« Tu as réécrit cette phrase ») devient vraie par
+  // construction. La fixture disait le contraire, et le disait avec les privilèges de l'admin.
+  const origine = statut === "actif" ? "extrait" : "utilisatrice";
   const { error } = await admin
     .from("fait_extrait")
-    .insert({ utilisatrice_id: id, origine: "extrait", statut, cle_dedoublonnage: cle, contenu });
+    .insert({ utilisatrice_id: id, origine, statut, cle_dedoublonnage: cle, contenu });
   if (error) throw new Error(`poserFait: ${error.message}`);
 }
 
@@ -205,15 +211,24 @@ describe("[AD-18] les tombstones ne reviennent pas dans le matériau", () => {
   });
   afterAll(async () => supprimer(u.id));
 
-  it("[LE CŒUR] seuls les faits `actif` remontent — jamais un `corrige`, jamais un `supprime`", async () => {
-    // Mutation-cible : retirer `and f.statut = 'actif'`. AD-18 est le droit de retirer quelque chose de
-    // sa propre mémoire ; le voir revenir dans une synthèse une semaine plus tard n'est pas un bogue
-    // d'affichage, c'est le démenti de la promesse.
+  it("[LE CŒUR] le TOMBSTONE ne remonte jamais — et le CORRIGÉ, si (revue Epic 6, R1)", async () => {
+    // ⚠️ CE TEST GRAVAIT R1, ET SUR LE SEUL CHEMIN QUI VIT. Il exigeait `m.faits` égal au seul fait
+    // actif, en rangeant la correction avec le tombstone sous le titre « AD-18 ». Or AD-18 est le
+    // droit de RETIRER quelque chose de sa mémoire — pas le droit de la voir disparaître quand elle
+    // la RÉÉCRIT. L'écran affichait la correction sous « Ce qu'Anam retient » ; la synthèse, elle,
+    // ne la recevait plus. Une seule des deux lectures pouvait avoir raison, et c'était l'écran :
+    // l'art. 16 est un droit de rectification, et réécrire est une affirmation.
+    //
+    // Mutation-cible désormais : remettre `and f.statut = 'actif'` — le test rougit sur la première
+    // assertion ; retirer le prédicat entièrement — il rougit sur la seconde.
     const m = await materiau(u.id);
-    // L'égalité EXACTE porte les deux exclusions : le `corrige` par son texte, le `supprime` par le
-    // fait qu'aucune troisième entrée n'apparaît (son contenu, lui, est vide par construction).
-    expect(m.faits).toEqual(["elle a repris le dessin"]);
-    expect(JSON.stringify(m.faits)).not.toMatch(/CORRIGÉ/);
+    expect(m.faits, "sa correction n'atteint pas la synthèse — c'est R1").toContain(
+      "CE QU'ELLE A CORRIGÉ",
+    );
+    expect(m.faits).toContain("elle a repris le dessin");
+    // Le tombstone reste dehors, et l'égalité EXACTE le prouve : aucune troisième entrée
+    // n'apparaît (son contenu est vide par construction depuis 0056).
+    expect([...m.faits].sort()).toEqual(["CE QU'ELLE A CORRIGÉ", "elle a repris le dessin"].sort());
   });
 });
 

@@ -61,7 +61,7 @@ describe("[QA T18] la commune non choisie s'explique", () => {
   });
 
   it("plus rien à écrire : le motif le dit au lieu de laisser un bouton muet", () => {
-    render(<FormulaireHeure deja={{ heure: 7.25, lieu: "33063" }} />);
+    render(<FormulaireHeure deja={{ heure: "07:15:00", lieu: "Bordeaux" }} />);
     expect(bouton().disabled).toBe(true);
     expect(screen.getByText(/rien à écrire ici/)).toBeTruthy();
   });

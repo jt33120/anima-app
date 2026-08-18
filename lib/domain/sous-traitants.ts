@@ -66,9 +66,15 @@ export const SOUS_TRAITANTS: readonly SousTraitant[] = [
     cle: "paiement",
     role: "le prestataire de paiement",
     verdict: "retention_legale",
+    // ⚠️ CE MOTIF SE LIT À LA SUITE DU `role`, et il a été réécrit pour ça (QA tour 2).
+    // Il disait « les factures déjà émises restent chez lui » — un « lui » sans antécédent, parce
+    // que `phraseCeQuiReste()` ne concaténait que les motifs et jetait les rôles. Sur l'écran de
+    // l'effacement art. 17, le seul référent qu'une lectrice pouvait y accrocher était « Anam »,
+    // lecture factuellement fausse. Les mots « prestataire » et « paiement » n'apparaissaient nulle
+    // part sur la page, ni sur /aide, ni sur /cgu : l'acteur n'était récupérable d'aucun chemin.
     motif:
-      "les factures déjà émises restent chez lui : une pièce comptable relève d'une obligation " +
-      "légale de conservation, pas d'un consentement qu'on retire.",
+      "garde les factures déjà émises — une pièce comptable relève d'une obligation légale de " +
+      "conservation, pas d'un consentement qu'on retire.",
     garde: "porte:conservation-comptable",
   },
   {

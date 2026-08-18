@@ -82,7 +82,14 @@ export const EFFACEMENT_CE_QUI_RESTE_PREFIXE = "Une seule chose ne peut pas part
  */
 export function phraseCeQuiReste(): string {
   if (RETENUS_PAR_LA_LOI.length === 0) return "";
-  return `${EFFACEMENT_CE_QUI_RESTE_PREFIXE} ${RETENUS_PAR_LA_LOI.map((t) => t.motif).join(" ")}`;
+  // ⚠️ LE `role` EST DANS LA PHRASE, ET SON ABSENCE ÉTAIT LE DÉFAUT (QA tour 2). On ne joignait que
+  // les motifs ; le motif du paiement disait « restent chez lui » et ce « lui » ne renvoyait à rien
+  // de ce qui est affiché. `role` est pourtant décrit dans le registre comme « ce qu'il fait pour
+  // le produit, en français d'utilisatrice » — un champ écrit pour être lu par elle, qu'AUCUN
+  // consommateur ne lisait. Un champ obligé d'être substantiel puis jamais montré est un mensonge
+  // par omission, sur l'écran même où elle exerce son droit à l'effacement.
+  const parts = RETENUS_PAR_LA_LOI.map((t) => `${t.role} ${t.motif}`);
+  return `${EFFACEMENT_CE_QUI_RESTE_PREFIXE} ${parts.join(" ")}`;
 }
 
 export function effacementFenetre(jours: number): string {

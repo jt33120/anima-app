@@ -92,10 +92,47 @@ export default function Fil({
   const conteneur = useRef<HTMLDivElement>(null);
   const etaitEnBas = useRef(true);
 
+  /**
+   * ── UN DÉFILEMENT QUE NOUS PROVOQUONS NE DIT RIEN DE SON INTENTION (QA tour 2, BLOQUANT) ──────
+   *
+   * `etaitEnBas` répond à une seule question : « veut-elle suivre la conversation ? ». Seul SON
+   * geste peut y répondre. Or le navigateur émet le même évènement `scroll` pour son doigt et pour
+   * notre `scrollIntoView` — et le gestionnaire ci-dessous les lisait pareil.
+   *
+   * Conséquence mesurée : le filet de détresse amène le bloc de ressources dans le champ (l'unique
+   * exception nommée plus bas) ; ce bloc n'étant pas tout en bas du fil, `estAncreEnBas` devient
+   * FAUX, et le suivi ne se rallume plus JAMAIS. Tout ce qu'elle écrit ensuite, et tout ce qu'Anam
+   * répond ensuite, naît hors de l'écran sans que rien ne bouge. Mesuré : `scrollTop` figé à 341 px
+   * alors que le témoin sans détresse suivait 0 → 130 → 388.
+   *
+   * ⚠️ LE CORRECTIF DE LA 6.9 AVAIT DONC CRÉÉ PIRE QUE CE QU'IL RÉPARAIT — au moment le plus
+   * délicat du produit, et seulement là. C'est la deuxième famille de défauts du dépôt : le défaut
+   * vit dans l'intervalle, ici entre une story et son propre correctif.
+   */
+  const defilementProgramme = useRef(false);
+  const marquerNotreDefilement = () => {
+    defilementProgramme.current = true;
+    // ⚠️ DEUX FILETS, ET LE PREMIER EST LE BON. Le gestionnaire relâche la garde dès qu'il a avalé
+    // l'évènement qu'on attendait : la fenêtre d'aveuglement dure donc UN évènement, pas un délai.
+    // Sans ce détail, une garde ouverte deux trames pourrait avaler SON geste à elle si elle défile
+    // dans les ~32 ms qui suivent l'arrivée d'un tour — c'est-à-dire rendre le suivi captif, ce que
+    // la règle non captive de la 2.2 refuse. Le second filet (les deux trames) ne sert qu'au cas où
+    // AUCUN évènement n'arrive — un défilement programmé qui ne déplace rien n'en émet pas.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        defilementProgramme.current = false;
+      });
+    });
+  };
+
   useEffect(() => {
     const el = conteneur.current;
     if (!el) return;
     const surScroll = () => {
+      if (defilementProgramme.current) {
+        defilementProgramme.current = false;
+        return;
+      }
       etaitEnBas.current = estAncreEnBas(el);
     };
     el.addEventListener("scroll", surScroll, { passive: true });
@@ -110,7 +147,10 @@ export default function Fil({
   // invisible, exactement le défaut qu'il vient corriger.
   useEffect(() => {
     const el = conteneur.current;
-    if (el && etaitEnBas.current) el.scrollTop = el.scrollHeight;
+    if (el && etaitEnBas.current) {
+      marquerNotreDefilement();
+      el.scrollTop = el.scrollHeight;
+    }
   }, [tours, prepare]);
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -136,6 +176,7 @@ export default function Fil({
     derniereRessource.current = dernier.id;
     // `block: "nearest"` : on l'amène dans le champ SANS recentrer la page — elle n'est pas
     // déplacée plus que nécessaire. Jamais « smooth » : cohérent reduced-motion, comme tout le fil.
+    marquerNotreDefilement();
     ressourceRef.current?.scrollIntoView({ block: "nearest" });
   }, [tours]);
 

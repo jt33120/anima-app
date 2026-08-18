@@ -48,6 +48,17 @@
   --mesure: 32rem;
   --contenu-max: 40rem;
   --cible-tactile: 44px;
+  /* ── LA HAUTEUR DE LA BARRE BASSE, DÉCLARÉE UNE FOIS (QA tour 2, bloquant) ──────────────────
+     Elle était lue à DEUX endroits, dans deux formes différentes : `.nav` la produisait par son
+     rembourrage (44 + 2 × 12 = 68 px) et `.regionConversation` en réservait `--cible-tactile`
+     (44 px). Les 24 px d'écart mettaient le bas du composeur SOUS la barre — et la barre, étant
+     posée au-dessus, avalait le tap. Mesuré : `elementFromPoint` sur le bas du bouton « Envoyer »
+     rendait le NAV. Le message n'était pas envoyé, et rien ne le disait.
+     C'est la leçon R1 de la revue Epic 6 : deux lectures d'une même question finissent par ne plus
+     dire la même chose. Ici l'écart valait un message perdu en silence. */
+  --hauteur-nav: calc(
+    var(--cible-tactile) + var(--esp-3) + max(var(--esp-3), env(safe-area-inset-bottom))
+  );
 
   /* Rayons */
   --rayon-sm: 4px;

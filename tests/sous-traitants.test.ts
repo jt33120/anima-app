@@ -101,6 +101,12 @@ describe("[6.7/AC1] Ce que l'effacement NE PEUT PAS retirer est dit, pas tu", ()
     const phrase = phraseCeQuiReste();
     for (const s of RETENUS_PAR_LA_LOI) {
       expect(phrase, `${s.cle} : sa rétention légale n'est pas annoncée`).toContain(s.motif);
+      // ⚠️ QA tour 2 — LA PHRASE DOIT NOMMER QUI CONSERVE. Elle disait « les factures déjà émises
+      // restent chez lui » : un « lui » sans antécédent sur l'écran de l'effacement art. 17, où le
+      // seul référent accrochable était « Anam » — lecture factuellement fausse. Le `role` est
+      // décrit dans le registre comme « en français d'utilisatrice » : un champ écrit pour être lu
+      // par elle, et qu'aucun consommateur ne lisait.
+      expect(phrase, `${s.cle} : la phrase ne dit pas QUI conserve`).toContain(s.role);
     }
     expect(phrase).toMatch(/légale|obligation/i);
 

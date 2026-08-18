@@ -161,7 +161,18 @@ describe("[6.9/T26] Le bloc de ressources est AMENÉ dans le champ", () => {
     const bloc = css.slice(css.indexOf(".regionConversation"), css.indexOf(".titreConversation"));
     expect(bloc).toMatch(/overflow:\s*hidden/);
     expect(bloc).toMatch(/padding-top:\s*var\(--cible-tactile\)/);
-    expect(bloc).toMatch(/padding-bottom:\s*var\(--cible-tactile\)/);
+    // ⚠️ LE BAS A CHANGÉ LE 2026-08-18, ET C'EST UNE CORRECTION DE CETTE GARDE, PAS SON ABANDON.
+    // Elle exigeait `--cible-tactile` (44 px) en bas. L'intention était juste — ne pas payer les
+    // 32 px d'air anti-débordement dont cette région n'a pas besoin — mais la valeur était fausse :
+    // la barre basse fait 68 px. Le composeur finissait donc 12 px SOUS elle, et la barre avalait le
+    // tap sur « Envoyer » (mesuré au navigateur : `elementFromPoint` rendait `NAV`). Le message
+    // n'était pas envoyé, et rien ne le disait.
+    // On garde l'intention — pas d'air en trop — avec la bonne mesure : la hauteur de la barre,
+    // déclarée une seule fois. Voir `tests/reserve-barre-basse.test.ts`.
+    expect(bloc).toMatch(/padding-bottom:\s*var\(--hauteur-nav\)/);
+    expect(bloc, "l'air anti-débordement reste écarté : cette région ne défile pas").not.toMatch(
+      /padding-bottom:[^;]*--esp-6/,
+    );
   });
 });
 

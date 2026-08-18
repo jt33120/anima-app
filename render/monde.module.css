@@ -160,7 +160,10 @@
 
      On garde la hauteur de la surimpression et celle de la nav ; on rend l'air. */
   padding-top: var(--cible-tactile);
-  padding-bottom: var(--cible-tactile);
+  /* ⚠️ LA RÉSERVE DU BAS EST CELLE DE LA BARRE, PAS CELLE D'UNE CIBLE TACTILE (QA tour 2).
+     `--cible-tactile` valait 44 px pour une barre qui en fait 68 : le composeur finissait 12 px
+     DESSOUS, et la barre avalait le tap sur « Envoyer ». */
+  padding-bottom: var(--hauteur-nav);
   /* Fond OPAQUE (aplat --fond) sous la conversation : le texte du fil ne se pose JAMAIS sur
      l'imagerie de la scène (l'arbre clair au centre, la lune) — AC5/UX-DR-39, contraste WCAG AA
      garanti. La story autorise explicitement « un aplat fond comme fond de fil ». Le fondu de
@@ -314,6 +317,13 @@
 .nav {
   position: fixed;
   z-index: 10;
+  /* La hauteur est COMMANDÉE par le jeton, pas produite par le rembourrage : c'est ce qui garantit
+     que la réserve de `.regionConversation` reste juste si le rembourrage change un jour. */
+  min-height: var(--hauteur-nav);
+  /* Le dégradé est transparent sur ses deux tiers hauts — délibéré, la scène n'a pas de bord franc.
+     Mais une zone transparente qui CAPTE le pointeur est un piège : elle avale des gestes destinés
+     à ce qu'on voit derrière. Les liens, eux, le reprennent. */
+  pointer-events: none;
   left: 0;
   right: 0;
   bottom: 0;
@@ -338,6 +348,7 @@
   }
 }
 .navLien {
+  pointer-events: auto;
   min-height: var(--cible-tactile);
   min-width: var(--cible-tactile);
   display: inline-flex;

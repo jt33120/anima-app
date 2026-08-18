@@ -51,6 +51,7 @@ import {
   absorberSousControle,
   terminerControle,
   etatControleInitial,
+  controlerDocument,
   codeManquement,
   type ModeControle,
 } from "@/lib/domain/controle-sortie";
@@ -541,6 +542,33 @@ export async function POST(request: NextRequest) {
       const texte = rendu.reponse.texte.trim();
       if (!texte) return fluxDeTrames([{ t: "erreur" }]);
 
+      // ⚠️ LE CONTRÔLE DE LEXIQUE MANQUAIT ICI, ET C'EST LE TEXTE QUI COMPTE LE PLUS (revue Epic 5,
+      // R3 · FR-023, NFR-008). La restitution est le plus long texte généré du produit, elle est
+      // GRAVÉE par `cloreLecture`, re-servie à chaque ouverture de « Mes lectures », et incluse dans
+      // l'export FR-067 — définitivement. Elle sortait par ce `return` avant d'atteindre le contrôle
+      // du chemin de conversation, et rien d'autre ne la relisait : ni la base (0051 ne pose que des
+      // contraintes de forme), ni le rendu, ni l'export.
+      //
+      // Sa seule défense était une ligne de CONSIGNE — exactement la défense dont
+      // `controle-sortie.ts` documente qu'elle n'a pas suffi.
+      //
+      // ON REFUSE DE GRAVER, ON NE TRONQUE PAS. Le mode `coupe` retient la phrase fautive ET tout ce
+      // qui la suit : graver le reste écrirait dans son archive un document mutilé, présenté comme
+      // ce qu'Anam lui a dit. La carte reste sienne et « Réessayer » rejoue le tour (patron déjà en
+      // place au-dessus). RISQUE ASSUMÉ ET NOMMÉ : si le modèle répète la même faute, elle voit une
+      // erreur en boucle — le `console.warn` est ce qui rend cette boucle visible côté serveur.
+      //
+      // `coupe` sans condition : ce bloc n'est atteint que `horsDetresse` (la garde est la condition
+      // du `if` au-dessus), donc le mode `observe` n'a aucun sens ici.
+      const controle = controlerDocument(texte, "coupe");
+      if (controle.manquements.length > 0) {
+        // Une FAMILLE, jamais le terme, jamais la phrase (NFR-022) — même règle que la voix.
+        for (const f of controle.manquements) {
+          console.warn(`anam/message : ${codeManquement(f)} (manquement de lecture)`);
+        }
+        return fluxDeTrames([{ t: "erreur" }]);
+      }
+
       // La clôture est ce qui LIBÈRE l'index partiel. Si elle échoue, la lecture reste ouverte et la
       // carte reste la sienne : on n'émet pas un document qu'on n'a pas su graver (patron du journal
       // brut 4.1). Le « Réessayer » du client rejoue le tour sur la MÊME carte.
@@ -820,7 +848,19 @@ export async function POST(request: NextRequest) {
                 adaptateur,
                 requete: { capacite: "synthese", messages: [consigneBilan(), ...messages], contientArt9: true, niveauSecurite: 0 },
               });
-              if (!bilan.bloque) {
+              // ⚠️ LE BILAN NON PLUS NE TRAVERSAIT PAS LE CONTRÔLE (revue Epic 5, R3). Il est généré
+              // par une passe SÉPARÉE, hors du flux relu ligne 761 : `structurerBilan` ne fait que
+              // découper un titre et des points. Trou de la même famille que la lecture, trouvé en
+              // corrigeant celle-ci — la route a TROIS sorties de génération et une seule était
+              // gardée. Un manquement ⇒ pas de bilan : c'est le repli qui existe déjà quand la
+              // structuration échoue, et la clôture reste valide (Anam a clos, le fil continue).
+              const manquementsBilan = bilan.bloque
+                ? []
+                : controlerDocument(bilan.reponse.texte, "coupe").manquements;
+              for (const f of manquementsBilan) {
+                console.warn(`anam/message : ${codeManquement(f)} (manquement de bilan)`);
+              }
+              if (!bilan.bloque && manquementsBilan.length === 0) {
                 const structure = structurerBilan(bilan.reponse.texte);
                 if (structure) emettre({ t: "bilan", titre: structure.titre, points: structure.points });
                 // Story 3.2 — la carte s'ancre SOUS le bilan : jamais de trame `paywall` si la

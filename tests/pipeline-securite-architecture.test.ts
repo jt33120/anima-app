@@ -338,6 +338,71 @@ describe("Story 2.8 — voix + troncature : câblage serveur (FR-083/084, AD-1/A
     expect(src, "la troncature doit lire la sortie du contrôle").toMatch(/absorberDelta\(voixEtat,\s*c\.aEmettre\)/);
   });
 
+  it("[Epic 5 · R3] TOUTE sortie de modèle lue par elle traverse le contrôle — inventaire, pas occurrence", () => {
+    // ⚠️ LE TEST D'À CÔTÉ ÉTAIT VRAI ET AVEUGLE. Il demande `absorberSousControle(` quelque part dans
+    // le FICHIER : l'unique appel du chemin de conversation le satisfait, et il ne peut rien dire des
+    // AUTRES sorties de la même route. Il y en avait deux, et aucune n'était contrôlée :
+    //
+    //   • la RESTITUTION DE LECTURE (5.8) — le plus long texte du produit, GRAVÉ par `cloreLecture`,
+    //     re-servi à chaque ouverture de « Mes lectures », inclus dans l'export FR-067 ;
+    //   • le BILAN DE CLÔTURE (2.9) — passe séparée, `structurerBilan` ne fait que découper.
+    //
+    // Mesuré : `chercherInterdits("Prends soin de toi.")` rend `soigner`, et la QA a relevé cette
+    // phrase exacte sur ce modèle. Elle serait partie, gravée, et jamais journalisée.
+    //
+    // MÊME PATRON QUE `pied-halte` ET `inventaire-export` : on ne cherche pas une occurrence, on
+    // exige un VERDICT sur chaque appel. Un quatrième appel de modèle ajouté sans verdict casse la
+    // CI — c'est la seule forme qui survive à la prochaine surface de génération.
+    const src = lire(ROUTE);
+    const APPELS: Record<string, "lue_par_elle" | "jamais_montree"> = {
+      // La conversation streamée : contrôlée fragment par fragment (`absorberSousControle`).
+      capaciteGeneration: "lue_par_elle",
+      // La restitution de lecture : contrôlée en entier AVANT `cloreLecture` — on ne grave pas un
+      // document fautif, et on ne le tronque pas non plus (mutiler une archive est pire).
+      '"lecture"': "lue_par_elle",
+      // Le bilan de clôture : contrôlé avant `structurerBilan` ; un manquement ⇒ pas de bilan.
+      '"synthese"': "lue_par_elle",
+      // ⚠️ L'EXTRACTION D'ARC EST LA SEULE EXCEPTION, ET ELLE EST NOMMÉE. Sa sortie ne descend PAS
+      // vers elle : `requeteExtractionArc` rend des SIGNAUX que la route consomme pour faire avancer
+      // l'arc. Aucun de ses caractères n'atteint un écran. Si un jour elle en atteignait un, ce
+      // verdict devrait changer — et c'est pour ça qu'il est écrit ici plutôt que sous-entendu.
+      "requeteExtractionArc(messages)": "jamais_montree",
+    };
+
+    // (1) L'INVENTAIRE EST COMPLET : autant d'appels de modèle que de verdicts.
+    const appelsTrouves = src.match(/(?:envoyer|diffuser)SousEgressArt9\(/g) ?? [];
+    expect(
+      appelsTrouves.length,
+      "un appel de modèle a été ajouté ou retiré sans verdict dans cet inventaire",
+    ).toBe(Object.keys(APPELS).length);
+
+    // (2) CHAQUE VERDICT DÉSIGNE UN APPEL RÉEL — sinon l'inventaire se viderait en silence.
+    for (const marqueur of Object.keys(APPELS)) {
+      expect(src, `verdict mort : ${marqueur} ne désigne plus aucun appel`).toContain(marqueur);
+    }
+
+    // (3) CHAQUE SORTIE LUE PAR ELLE TRAVERSE UN CONTRÔLE. Les deux documents non streamés passent
+    // par `controlerDocument` ; le flux, par `absorberSousControle`.
+    expect(src, "la restitution de lecture n'est plus contrôlée").toMatch(
+      /controlerDocument\(\s*texte\s*,\s*"coupe"\s*\)/,
+    );
+    expect(src, "le bilan de clôture n'est plus contrôlé").toMatch(
+      /controlerDocument\(\s*bilan\.reponse\.texte\s*,\s*"coupe"\s*\)/,
+    );
+    expect(src, "le flux de conversation n'est plus contrôlé").toMatch(/absorberSousControle\s*\(/);
+
+    // (4) LE CONTRÔLE DE LA LECTURE PRÉCÈDE LA GRAVURE. Après `cloreLecture`, refuser ne sert plus à
+    // rien : le document est dans son archive et dans son export. C'est l'ordre qui fait la garde.
+    expect(
+      src.indexOf('controlerDocument(texte, "coupe")'),
+      "le contrôle doit précéder cloreLecture — sinon le document fautif est déjà gravé",
+    ).toBeLessThan(src.indexOf("await cloreLecture("));
+
+    // (5) ET LE MANQUEMENT SE DIT — une FAMILLE, jamais le terme, jamais la phrase (NFR-022).
+    expect(src).toMatch(/manquement de lecture/);
+    expect(src).toMatch(/manquement de bilan/);
+  });
+
   it("[QA T29/T5 · AD-17] en détresse le contrôle OBSERVE — il ne coupe jamais", () => {
     // La garde de sécurité du module : la phrase fautive peut PRÉCÉDER l'orientation vers le 3114.
     // Couper là retirerait le numéro. Mutation-cible : passer `"coupe"` inconditionnellement.

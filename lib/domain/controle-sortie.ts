@@ -186,6 +186,37 @@ export function terminerControle(etat: EtatControle, mode: ModeControle): IssueC
 }
 
 /**
+ * ── LE CONTRÔLE D'UN DOCUMENT ENTIER (revue Epic 5, R3) ────────────────────────────────────────
+ *
+ * ⚠️ CE MODULE N'AVAIT QU'UN SEUL APPELANT DE PRODUCTION, ET LA ROUTE EN A TROIS SORTIES.
+ *
+ * `absorberSousControle` est écrit pour un FLUX : on l'appelle fragment par fragment, puis
+ * `terminerControle` ferme la queue non ponctuée. Le chemin de conversation le fait. Mais la même
+ * route génère deux autres textes, NON streamés, par un `return` antérieur ou une passe séparée :
+ * la RESTITUTION DE LECTURE (5.8) et le BILAN DE CLÔTURE (2.9). Ni l'un ni l'autre ne traversait le
+ * contrôle. Le premier est le plus long texte du produit, il est GRAVÉ, re-servi à chaque ouverture
+ * de « Mes lectures », et inclus dans l'export FR-067 — définitivement.
+ *
+ * Ce qui les gardait était une ligne de CONSIGNE (« aucun vocabulaire clinique ou médical, aucun
+ * "soin" ni "soigner" »), c'est-à-dire exactement la défense dont l'en-tête de ce fichier documente
+ * qu'elle n'a pas suffi. Mesuré : `chercherInterdits("Prends soin de toi.")` rend `soigner` — une
+ * phrase que la QA a relevée sur ce même modèle.
+ *
+ * La fonction ne fait RIEN DE NEUF : elle enchaîne les deux appels que le flux fait déjà, pour que
+ * les trois sorties citent un contrôle au lieu d'en recopier la danse en deux temps. Un document
+ * n'a qu'un fragment, et sa queue se ferme immédiatement.
+ */
+export function controlerDocument(texte: string, mode: ModeControle): IssueControle {
+  const absorbe = absorberSousControle(etatControleInitial(), texte, mode);
+  const ferme = terminerControle(absorbe.etat, mode);
+  return {
+    etat: ferme.etat,
+    aEmettre: absorbe.aEmettre + ferme.aEmettre,
+    manquements: [...new Set([...absorbe.manquements, ...ferme.manquements])],
+  };
+}
+
+/**
  * Le code de journalisation d'un manquement. Une FAMILLE, jamais un terme, jamais la phrase.
  *
  * Le terme matché serait déjà une citation de ce qu'Anam a dit à quelqu'un ; la phrase serait de

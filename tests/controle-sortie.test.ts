@@ -6,6 +6,7 @@ import {
   terminerControle,
   etatControleInitial,
   codeManquement,
+  controlerDocument,
   type EtatControle,
   type ModeControle,
 } from "@/lib/domain/controle-sortie";
@@ -213,5 +214,54 @@ describe("[NFR-022] ce qui remonte ne porte JAMAIS de verbatim", () => {
     const r = absorberSousControle(etatControleInitial(), "Prends soin de toi.", "coupe");
     expect(r.aEmettre).toBe("");
     expect(Object.keys(r).sort()).toEqual(["aEmettre", "etat", "manquements"]);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// LE DOCUMENT ENTIER — la restitution de lecture et le bilan (revue Epic 5, R3)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[R3] controlerDocument — un texte NON streamé se fait relire comme un flux", () => {
+  // La phrase de référence vient d'une vraie session, comme les deux du haut de ce fichier.
+  const FAUTIF =
+    "Tu as posé quelque chose de lourd aujourd'hui, et tu l'as posé toi-même.\n\n" +
+    "La porte que tu vois n'attend rien de toi. Prends soin de toi.";
+
+  it("il constate le manquement qu'aucune autre garde ne voyait", () => {
+    const r = controlerDocument(FAUTIF, "coupe");
+    expect(r.manquements).toContain("soigner");
+  });
+
+  it("[ANTI-VACUITÉ] et un document PROPRE traverse intact — la garde ne refuse pas tout", () => {
+    const propre =
+      "Tu as posé quelque chose de lourd aujourd'hui, et tu l'as posé toi-même.\n\n" +
+      "La porte que tu vois n'attend rien de toi. Elle est déjà entrouverte.";
+    const r = controlerDocument(propre, "coupe");
+    expect(r.manquements).toEqual([]);
+    expect(r.aEmettre).toBe(propre);
+  });
+
+  it("la QUEUE NON PONCTUÉE est relue elle aussi — c'est là que finit un texte coupé aux jetons", () => {
+    // ⚠️ Sans `terminerControle`, la dernière phrase d'un document sans point final n'est jamais
+    // vérifiée : elle n'est pas encore une phrase pour l'absorbeur. C'est la moitié du travail de
+    // cette fonction, et la moitié qu'on oublie en recopiant la danse en deux temps à la main.
+    const r = controlerDocument("Elle est déjà entrouverte. Prends soin de toi", "coupe");
+    expect(r.manquements).toContain("soigner");
+  });
+
+  it("en `observe`, il constate SANS retenir — même règle qu'en flux (AD-17)", () => {
+    const r = controlerDocument(FAUTIF, "observe");
+    expect(r.manquements).toContain("soigner");
+    expect(r.aEmettre).toBe(FAUTIF);
+  });
+
+  it("il ne réinvente rien : même verdict que la danse en deux temps du flux", () => {
+    // La garde qui empêche les deux chemins de diverger — c'est exactement le défaut R1 de la revue
+    // Epic 6, transposé : deux lectures d'une même règle, écrites à deux endroits.
+    const a = absorberSousControle(etatControleInitial(), FAUTIF, "coupe");
+    const b = terminerControle(a.etat, "coupe");
+    const doc = controlerDocument(FAUTIF, "coupe");
+    expect(doc.aEmettre).toBe(a.aEmettre + b.aEmettre);
+    expect([...doc.manquements].sort()).toEqual([...new Set([...a.manquements, ...b.manquements])].sort());
   });
 });

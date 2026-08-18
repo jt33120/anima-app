@@ -8,7 +8,19 @@ import { doitCouperConversation } from "@/lib/domain/allocation-residuelle";
  */
 
 // Base : un compte gratuit, hors détresse, séance close, 5 tours consommés, limite 5 → CAS DE COUPURE.
-const COUPE = { premium: false, limitesLevees: false, seanceClose: true, toursConsommes: 5, limite: 5 };
+//
+// ⚠️ `niveauSecurite` EST OBLIGATOIRE DEPUIS LA REVUE ADVERSARIALE (R8), et c'est délibéré : le
+// champ n'a pas de valeur par défaut, donc aucun appelant ne peut l'oublier — le compilateur a
+// d'ailleurs rougi sur ce fichier même. Le cas où il compte (niveau > 0 pendant que `limitesLevees`
+// est déjà retombé) vit dans `tests/le-filet-ne-tombe-jamais.test.ts`.
+const COUPE = {
+  premium: false,
+  limitesLevees: false,
+  niveauSecurite: 0,
+  seanceClose: true,
+  toursConsommes: 5,
+  limite: 5,
+};
 
 describe("doitCouperConversation — la dérivation unique (AD-17)", () => {
   it("gratuit, hors détresse, post-séance, allocation atteinte → COUPE", () => {
@@ -40,7 +52,7 @@ describe("doitCouperConversation — la dérivation unique (AD-17)", () => {
 
   it("n'importe quel court-circuit gagne : premium ET détresse ET épuisé → ne coupe pas", () => {
     expect(
-      doitCouperConversation({ premium: true, limitesLevees: true, seanceClose: true, toursConsommes: 99, limite: 1 }),
+      doitCouperConversation({ premium: true, limitesLevees: true, niveauSecurite: 0, seanceClose: true, toursConsommes: 99, limite: 1 }),
     ).toBe(false);
   });
   it("l'ORDRE protège : premium prime même si tout le reste pousserait à couper", () => {

@@ -461,8 +461,15 @@ describe("Story 2.9 — clôture + bilan + placement gardé : câblage serveur (
     const src = lire(ROUTE);
     // `limitesLevees` n'était qu'un COMMENTAIRE en 2.4 → prouver qu'il est désormais LU (hors commentaires).
     expect(src, "securite.limitesLevees est consommé, pas seulement documenté").toMatch(/!\s*securite\.limitesLevees/);
+    // ⚠️ LA DÉRIVATION A ÉTÉ NOMMÉE (revue adversariale, R8). Elle était écrite TROIS fois dans ce
+    // fichier, et le gate d'allocation n'en portait que la moitié — c'est ce qui coupait la
+    // conversation au tour qui éteint l'épisode. Ce qui est gardé reste le même : niveau 0 ET
+    // aucun épisode ouvert. Ce qui change, c'est qu'il n'y a plus qu'un endroit où l'écrire.
     expect(src, "gate = niveau 0 ET pas d'épisode ouvert").toMatch(
-      /clotureAutorisee\s*=\s*niveauSecurite\s*===\s*0\s*&&\s*!\s*securite\.limitesLevees/,
+      /const horsDetresse\s*=\s*niveauSecurite\s*===\s*0\s*&&\s*!\s*securite\.limitesLevees;/,
+    );
+    expect(src, "la clôture doit consommer cette dérivation, pas une seconde").toMatch(
+      /clotureAutorisee\s*=\s*horsDetresse;/,
     );
   });
 
@@ -604,7 +611,14 @@ describe("[revue 1-4] le filet SURVIT à la panne du flux (AD-15)", () => {
       /NextResponse\.json/,
     );
     expect(bloc, "le filet décidé doit repartir dans la réponse d'erreur").toMatch(/trameRessources/);
-    expect(bloc, "et la trame `erreur` rallume « Réessayer »").toMatch(/t:\s*"erreur"/);
+    // ⚠️ LA TRAME `erreur` A DÉMÉNAGÉ, ET C'ÉTAIT LE POINT (revue adversariale, R12). Elle était
+    // écrite littéralement ici — et une SECONDE fois, six lignes plus bas, la branche jumelle
+    // `if (egress.bloque)` rendait un JSON 403 nu. Deux endroits pour la même règle, dont un seul
+    // corrigé. La règle vit désormais dans `tramesQuandLaReponseManque`, que les DEUX appellent ;
+    // le contenu de la réponse est éprouvé dans `tests/le-filet-ne-tombe-jamais.test.ts`.
+    expect(bloc, "la sortie doit passer par la fonction partagée").toMatch(
+      /tramesQuandLaReponseManque\(trameRessources\)/,
+    );
   });
 });
 

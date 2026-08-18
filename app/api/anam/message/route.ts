@@ -13,6 +13,7 @@ import { journaliserAuditDetresse } from "@/lib/safety/journaliser-audit";
 import { creerDepotEpisode } from "@/lib/safety/depot-episode";
 import { consigneReponse } from "@/lib/safety/consigne-detresse";
 import { blocRessourcesDetresse } from "@/lib/safety/bloc-ressources-detresse";
+import { tramesQuandLaReponseManque } from "@/lib/safety/filet-sans-reponse";
 import { verifieLeLibelle } from "@/lib/safety/ressources-aide";
 import { creerDepotSeance } from "@/lib/data/depot-seance";
 import { creerDepotJournal } from "@/lib/data/depot-journal";
@@ -197,7 +198,12 @@ export async function POST(request: NextRequest) {
   // sûr protecteur, dérivé de `episode_detresse.fin IS NULL`, AD-17). En détresse la séance CESSE
   // d'être une séance : le protocole de détresse (2.3–2.6) prend le relais, aucun bilan (AC5). La
   // machine d'arc ne recule pas de clore/nommer → ce gate est EXPLICITE ici, réévalué à chaque tour.
-  const clotureAutorisee = niveauSecurite === 0 && !securite.limitesLevees;
+  // ⚠️ UNE SEULE DÉRIVATION DE « HORS DÉTRESSE » (revue adversariale, R8). Elle était écrite trois
+  // fois dans ce fichier — ici, au gate d'allocation, et à l'étage de reconceptualisation — et le
+  // gate n'en portait QUE LA MOITIÉ (`!limitesLevees`, sans le niveau). C'est cette moitié qui
+  // coupait la conversation au tour qui éteint l'épisode.
+  const horsDetresse = niveauSecurite === 0 && !securite.limitesLevees;
+  const clotureAutorisee = horsDetresse;
 
   // Trace de séance chargée UNE fois (Story 2.7) — sert au GATE d'allocation (3.4) PUIS à l'étage arc
   // (une seule lecture, jamais deux). `charger` LÈVE sur panne (jamais un état initial qu'un `ecrire`
@@ -226,7 +232,10 @@ export async function POST(request: NextRequest) {
   // tour PREMIUM (illimité, AC5) ou de DÉTRESSE (gate non entré) ne doit JAMAIS polluer le décompte —
   // sinon un downgrade premium→gratuit en cours de mois recompterait rétroactivement des tours illimités.
   let tourAllocationResiduelle = false;
-  if (!securite.limitesLevees && seanceClose) {
+  // `horsDetresse` et non `!limitesLevees` : voir la dérivation plus haut. La garde est DOUBLE —
+  // le domaine décide (`doitCouperConversation`), et la route ne dépense même pas la lecture
+  // premium ni le comptage sur un tour de détresse.
+  if (horsDetresse && seanceClose) {
     let premiumConv = true; // défaut PRUDENT : lecture en échec → premium → aucune coupure (fail-open)
     try {
       premiumConv = await estPremiumCourante();
@@ -245,6 +254,9 @@ export async function POST(request: NextRequest) {
         couper = doitCouperConversation({
           premium: premiumConv,
           limitesLevees: securite.limitesLevees,
+          // Le niveau EFFECTIF, plancher d'épisode compris (R8) : c'est la dérivation du domaine qui
+          // décide, jamais la seule condition d'entrée ci-dessus — un futur appelant l'oublierait.
+          niveauSecurite,
           seanceClose,
           toursConsommes,
           limite: limiteAllocationResiduelle(),
@@ -489,7 +501,6 @@ export async function POST(request: NextRequest) {
   // ⚠️ LE GATE DE DÉTRESSE VIT ICI, SÉPARÉMENT DE `clotureAutorisee`. L'expression est la même, et la
   // partager ferait dépendre une garde de sécurité (AD-17) d'une décision de produit (2.9). Les deux
   // vivent séparément et sont testées séparément — la leçon de la 5.5.
-  const horsDetresse = niveauSecurite === 0 && !securite.limitesLevees;
 
   /** Émet une suite de trames et clôt. Aucun appel modèle : ce chemin ne génère rien. */
   const fluxDeTrames = (trames: readonly Parameters<typeof ligneNdjson>[0][]) =>
@@ -710,14 +721,21 @@ export async function POST(request: NextRequest) {
     // n'affichait qu'« une erreur est survenue », précisément au tour où le filet était dû.
     // La trame `erreur` reste émise après : elle allume le bouton « Réessayer », qui ne retire plus
     // rien (`rejeu.ts`).
-    return fluxDeTrames([...(trameRessources ? [trameRessources] : []), { t: "erreur" }]);
+    return fluxDeTrames(tramesQuandLaReponseManque(trameRessources));
   }
 
   if (egress.bloque) {
-    return NextResponse.json(
-      { code: `egress_bloque_${egress.raison}`, message: "Envoi bloqué (consentement / ZDR / barrière)." },
-      { status: 403, headers: ENTETES_ART9 },
-    );
+    // ⚠️ MÊME SORTIE QUE LE `catch` CI-DESSUS, PAR LA MÊME FONCTION (revue adversariale, R12).
+    //
+    // Cette branche rendait un `NextResponse.json` 403 nu, alors que sa jumelle six lignes plus
+    // haut avait été corrigée — et son commentaire décrivait déjà le tort mot pour mot. Le client
+    // fait `if (!reponse.ok) throw` : ce 403 devenait « une erreur est survenue », et le bloc de
+    // ressources DÉJÀ DÉCIDÉ n'atteignait jamais l'écran.
+    //
+    // Le motif du blocage n'a jamais été lu par personne côté client ; il part au journal, où il
+    // sert à quelque chose, et sans article 9.
+    console.error("anam/message : egress bloqué", { raison: egress.raison });
+    return fluxDeTrames(tramesQuandLaReponseManque(trameRessources));
   }
 
   const flux = egress.flux;

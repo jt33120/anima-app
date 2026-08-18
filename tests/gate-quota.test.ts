@@ -55,9 +55,25 @@ describe("Story 3.4 (T5) — le gate d'allocation est ordonné APRÈS la sécuri
 });
 
 describe("Story 3.4 (T5) — les court-circuits (AC5 premium, AC6 détresse) et le repli sûr", () => {
-  it("BYPASS détresse : le gate ne s'active pas si `limites_levees` (AC6), et le passe au prédicat", () => {
-    expect(route).toMatch(/if\s*\(\s*!securite\.limitesLevees\s*&&\s*seanceClose\s*\)/);
-    expect(route).toMatch(/limitesLevees:\s*securite\.limitesLevees/);
+  it("BYPASS détresse : le gate ne s'active pas en détresse (AC6), et passe les DEUX signaux", () => {
+    // ⚠️ CETTE GARDE A GRAVÉ LE DÉFAUT (revue adversariale, R8). Elle exigeait littéralement
+    // `if (!securite.limitesLevees && seanceClose)` — c'est-à-dire la MOITIÉ de « hors détresse ».
+    // Il manquait le niveau effectif, et cette moitié coupait la conversation au tour qui éteint
+    // l'épisode : `limites_levees` est déjà faux tandis que le verdict vaut encore 3. C'est la
+    // troisième garde de ce dépôt qui rougit sur son propre correctif au lieu de rougir sur le
+    // défaut. On mesure donc la RÈGLE : les deux signaux entrent, aucun n'est perdu.
+    expect(route, "la dérivation « hors détresse » doit être nommée une fois").toMatch(
+      /const horsDetresse = niveauSecurite === 0 && !securite\.limitesLevees;/,
+    );
+    expect(route, "le gate n'est pas entré en détresse").toMatch(
+      /if \(horsDetresse && seanceClose\)/,
+    );
+    // Et le prédicat du domaine reçoit les DEUX — c'est lui qui décide, pas la condition d'entrée.
+    const appel = route.slice(route.indexOf("doitCouperConversation({"));
+    expect(appel.slice(0, 300)).toMatch(/limitesLevees:\s*securite\.limitesLevees/);
+    expect(appel.slice(0, 300), "le niveau effectif n'atteint pas la dérivation").toMatch(
+      /niveauSecurite,/,
+    );
   });
 
   it("BYPASS premium : le comptage n'a lieu QUE si `!premiumConv` (AC5, court-circuit avant lecture DB)", () => {

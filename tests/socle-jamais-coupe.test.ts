@@ -149,7 +149,7 @@ describe("[T6-2] LE FILET POUR L'EPIC 5 — l'inventaire vieillit en rougissant,
 describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne les garde", () => {
   it("la PREMIÈRE SÉANCE n'est jamais coupée, quelle que soit la consommation", () => {
     // Mutation-cible : retirer `if (!e.seanceClose) return false` de `doitCouperConversation`.
-    const enSeance = { premium: false, limitesLevees: false, seanceClose: false, toursConsommes: 9999, limite: 1 };
+    const enSeance = { premium: false, limitesLevees: false, niveauSecurite: 0, seanceClose: false, toursConsommes: 9999, limite: 1 };
     expect(doitCouperConversation(enSeance), "FR-059 : la 1ʳᵉ séance est intégrale").toBe(false);
     // …et le CONTRÔLE POSITIF : une fois la séance close, la limite s'applique bien (sinon le test
     // ci-dessus serait satisfait par une fonction qui ne coupe JAMAIS rien).
@@ -442,14 +442,14 @@ describe("[T6-3 / AC5 / FR-058] l'allocation s'épuise : coupée, mais jamais à
     // et le bloc suivant prouve que le socle, lui, ne bouge pas.
     process.env.ALLOCATION_RESIDUELLE_TOURS = "3";
     expect(limiteAllocationResiduelle()).toBe(3);
-    const e = { premium: false, limitesLevees: false, seanceClose: true, toursConsommes: 3, limite: 3 };
+    const e = { premium: false, limitesLevees: false, niveauSecurite: 0, seanceClose: true, toursConsommes: 3, limite: 3 };
     expect(doitCouperConversation(e), "à la limite, ça coupe").toBe(true);
     expect(doitCouperConversation({ ...e, toursConsommes: 2 }), "en dessous, ça passe").toBe(false);
   });
 
   it("…et LA DÉTRESSE lève la coupure, toujours (AD-9/AD-17 : aucun commerce sur la sécurité)", () => {
     process.env.ALLOCATION_RESIDUELLE_TOURS = "3";
-    const e = { premium: false, limitesLevees: true, seanceClose: true, toursConsommes: 99, limite: 3 };
+    const e = { premium: false, limitesLevees: true, niveauSecurite: 0, seanceClose: true, toursConsommes: 99, limite: 3 };
     expect(doitCouperConversation(e)).toBe(false);
   });
 

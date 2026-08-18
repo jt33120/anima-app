@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
-import { resilierEnFinDePeriode } from "@/lib/stripe/resiliation";
+import { arreterFacturationAvantEffacement } from "@/lib/data/arret-facturation";
 import { lireAccords } from "./accords";
 
 export type EtatConsentement = { statut: "saisie" | "erreur"; message?: string };
@@ -90,15 +90,13 @@ async function effacerCompteCourant(cheminEchec: string): Promise<void> {
   // (art. 17) ; une facturation sur un compte inexistant, elle, est irréversible et impossible à
   // rattraper depuis le produit. C'est aussi la doctrine déjà écrite ici : « jamais d'effacement
   // silencieux sur un chemin RGPD » (acquis revue 1.5). La session est conservée, elle peut réessayer.
+  //
+  // ⚠️ CE BLOC A ÉTÉ EXTRAIT (revue adversariale, R1). Il était écrit ici à la main, et l'Epic 6 a
+  // écrit un second chemin d'effacement — « Tout effacer » sur `/mes-donnees` — sans lui. Une garde
+  // recopiée dans l'appelant est une garde qu'on oubliera : c'est la leçon 1.4, et elle vient de se
+  // rejouer. Le geste vit maintenant dans `lib/data/arret-facturation.ts`, en un seul endroit.
   try {
-    const { data: abo } = await admin
-      .from("abonnement")
-      .select("stripe_subscription_id")
-      .eq("utilisatrice_id", user.id)
-      .maybeSingle<{ stripe_subscription_id: string | null }>();
-    if (abo?.stripe_subscription_id) {
-      await resilierEnFinDePeriode(abo.stripe_subscription_id);
-    }
+    await arreterFacturationAvantEffacement(user.id);
   } catch (e) {
     console.error("[consentement] annulation Stripe impossible — effacement suspendu", {
       nom: e instanceof Error ? e.name : "inconnu",

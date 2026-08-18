@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { effacerToutesSesDonnees } from "@/lib/data/effacer-donnees";
+import { arreterFacturationAvantEffacement } from "@/lib/data/arret-facturation";
 import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
 
 /**
@@ -30,6 +31,26 @@ export async function effacerTout(donnees: FormData): Promise<void> {
   if (!user) redirect("/entrer");
 
   if (donnees.get("compris") !== "oui") redirect("/mes-donnees?echec=confirmation");
+
+  // ⚠️ ARRÊTER LA FACTURATION AVANT D'EFFACER (revue adversariale, R1).
+  //
+  // La cascade efface `abonnement` en base et ne dit rien à Stripe : la souscription restait
+  // `active`, et 69 € partaient à l'échéance de la carte de quelqu'un qui n'a plus de compte, plus
+  // de page `/abonnement` et plus de session — une opposition bancaire pour seul recours.
+  //
+  // Le même défaut avait été corrigé sur le chemin de RÉVOCATION le 2026-08-11 (M7). Il n'avait pas
+  // suivi jusqu'ici, parce que la garde vivait recopiée dans l'appelant. Elle vit désormais dans
+  // `lib/data/arret-facturation.ts`, et une garde de test refuse tout chemin d'effacement qui ne
+  // l'appelle pas — il y en aura un troisième.
+  //
+  // ON N'EFFACE PAS SI ELLE LÈVE. Le droit à l'effacement supporte un délai (art. 17) ; un débit sur
+  // un compte disparu, non. La session est conservée, elle peut réessayer.
+  try {
+    await arreterFacturationAvantEffacement(user.id);
+  } catch (e) {
+    journaliserIncidentSecurite("effacement_total_facturation", e);
+    redirect("/mes-donnees?echec=facturation");
+  }
 
   try {
     await effacerToutesSesDonnees(supabase);

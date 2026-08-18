@@ -14,7 +14,7 @@ import {
 } from "@/lib/domain/arbitrage-ouverture";
 import { journaliserIncidentSecurite } from "@/lib/safety/rpc-repli";
 import { premiumSousJwt } from "@/lib/safety/entitlement-premium";
-import { lireHypotheseEnneagramme } from "@/lib/data/lire-enneagramme";
+import { chargerHypotheseADire } from "@/lib/data/lire-enneagramme";
 import { PHRASE_OUVERTURE_HYPOTHESE } from "@/lib/domain/enneagramme-hypothese";
 
 /**
@@ -179,7 +179,12 @@ export async function chargerOuverture(
     // prochain chargement ; c'est l'inverse exact de la mention de complétion, qui n'a qu'une seule
     // chance parce qu'elle s'auto-éteint.
     try {
-      const h = await lireHypotheseEnneagramme(supabase, utilisatriceId, { seulementADire: true });
+      // ⚠️ LA GARDE DE DÉTRESSE MANQUAIT SUR CE CHEMIN (revue Epic 5, R4 · migration 0063). La
+      // lecture n'était qu'un `select` sur trois colonnes : 0049 ne gardait que la SEMENCE du germe,
+      // rien n'en gardait la PAROLE. Un germe semé à froid lundi était donc prononcé mardi en pleine
+      // crise — et DÉPENSÉ, donc jamais redit à un moment calme. `charger_hypothese_a_dire` porte le
+      // même prédicat que `charger_proposition_branche`, dont le germe a la même forme.
+      const h = await chargerHypotheseADire(supabase);
       if (h.statut === "calcule") {
         return {
           type: "hypothese-enneagramme",

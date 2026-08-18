@@ -232,6 +232,35 @@ interface LigneHypothese {
 }
 
 /**
+ * ── LE GERME DÛ À LA PAROLE (revue Epic 5, R4 · migration 0063) ────────────────────────────────
+ *
+ * ⚠️ CHEMIN SÉPARÉ, ET C'EST TOUT L'OBJET DU CORRECTIF. `lireHypotheseEnneagramme` sert DEUX
+ * appelants qui n'ont pas la même règle : `/enneagramme`, qu'elle ouvre elle-même pour y lire son
+ * résultat, et `chargerOuverture`, où c'est ANAM QUI PARLE. La seconde doit se taire pendant un
+ * épisode de détresse et dans les 72 h qui suivent (FR-042, AD-17) ; la première, jamais — lui
+ * fermer ses propres données en crise serait un refus d'accès (art. 15).
+ *
+ * La règle ne vit PAS ici : elle vit dans `charger_hypothese_a_dire()` (0063), qui cite
+ * `branche_bloquee_par_detresse()` — la même source unique que `charger_proposition_branche`, dont
+ * le germe a exactement la même forme. La recopier en TypeScript fabriquerait la divergence que la
+ * revue Epic 6 a payée sur `fait_extrait.statut` : deux lectures d'une règle, qui finissent par ne
+ * plus dire la même chose.
+ *
+ * `aDire` est vrai par construction : la RPC ne rend que des germes dont `dite_le is null`.
+ */
+export async function chargerHypotheseADire(supabase: SupabaseClient): Promise<ResultatHypothese> {
+  const { data, error } = await supabase
+    .rpc("charger_hypothese_a_dire")
+    .maybeSingle<{ id: string; type: number }>();
+
+  if (error) return { statut: "indisponible", raison: "lecture_impossible" };
+  if (!data) return { statut: "indisponible", raison: "aucune" };
+  if (!estTypeEnneagramme(data.type)) return { statut: "indisponible", raison: "lecture_impossible" };
+
+  return { statut: "calcule", hypothese: { id: data.id, type: data.type, aDire: true } };
+}
+
+/**
  * L'hypothèse en attente, s'il y en a une.
  *
  * `seulementADire` — `true` pour la conversation (ne redis pas ce qui a été dit), `false` pour la

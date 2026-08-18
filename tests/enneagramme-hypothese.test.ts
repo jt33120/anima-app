@@ -270,7 +270,7 @@ describe("[5.5/AC2 DUR] la sortie brute du modèle ne franchit AUCUNE frontière
     expect(source, "aucun dépôt d'écriture importé").not.toMatch(/from\s*["']@\/lib\/data\/depot-enneagramme/);
     expect(source, "aucune construction de dépôt").not.toMatch(/creerDepotEnneagramme\s*\(/);
     // Le témoin : elle LIT bien quelque chose (sinon la garde d'absence serait vraie du vide).
-    expect(source).toContain("lireHypotheseEnneagramme");
+    expect(source).toContain("chargerHypotheseADire");
   });
 
   it("[AC8 DUR] la route de conversation ne lit JAMAIS le type retenu", () => {

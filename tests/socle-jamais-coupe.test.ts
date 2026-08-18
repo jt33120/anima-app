@@ -270,7 +270,7 @@ describe("[T6-1 / AC4] les items FR-055 qui EXISTENT : aucun chemin premium ne l
      */
     vi.resetModules();
     vi.doMock("@/lib/data/lire-enneagramme", () => ({
-      lireHypotheseEnneagramme: async () => ({
+      chargerHypotheseADire: async () => ({
         statut: "calcule",
         hypothese: { id: "h-1", type: 4, aDire: true },
       }),

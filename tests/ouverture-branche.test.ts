@@ -32,7 +32,7 @@ vi.mock("@/lib/data/depot-rythme", () => ({
 /** Story 5.5 — la lecture du germe d'hypothèse, mockée comme les deux dépôts ci-dessus. */
 const lireHypothese = vi.fn();
 vi.mock("@/lib/data/lire-enneagramme", () => ({
-  lireHypotheseEnneagramme: (...a: unknown[]) => lireHypothese(...a),
+  chargerHypotheseADire: (...a: unknown[]) => lireHypothese(...a),
 }));
 
 import { chargerOuverture } from "@/lib/safety/ouverture-branche";
@@ -375,10 +375,28 @@ describe("[5.5/AC2] l'hypothèse d'Anam dans l'ouverture", () => {
     expect((await chargerOuverture(client(false), UID, MAINTENANT))?.type).toBe("hypothese-enneagramme");
   });
 
-  it("elle est demandée en « seulement à dire » — une hypothèse dite ne se redit pas", async () => {
+  it("[R4] elle passe par la RPC GARDÉE, jamais par la lecture directe de la halte", async () => {
+    // ⚠️ CE TEST A CHANGÉ D'OBJET, ET C'EST LE CORRECTIF R4 (revue Epic 5 · migration 0063).
+    //
+    // Il vérifiait le drapeau `{ seulementADire: true }` sur `lireHypotheseEnneagramme` — un
+    // `select` sur trois colonnes, sans le moindre prédicat de détresse. 0049 ne gardait que la
+    // SEMENCE du germe : un germe posé à froid lundi était donc prononcé mardi en pleine crise, et
+    // DÉPENSÉ, donc jamais redit à un moment calme.
+    //
+    // Le drapeau ne veut plus rien dire : `charger_hypothese_a_dire()` ne rend QUE des germes
+    // jamais dits, par construction, et refuse de rendre quoi que ce soit pendant un épisode ou
+    // dans les 72 h (`branche_bloquee_par_detresse`, même source unique que la branche). Ce qui se
+    // garde ici est donc l'AIGUILLAGE : le chemin où Anam PARLE prend la RPC gardée, et pas la
+    // lecture directe qui, elle, reste due à `/enneagramme` (art. 15 — voir 0063).
+    //
+    // La preuve que la garde MORD vit contre la vraie base : `enneagramme-depot-sql.test.ts`.
     lireHypothese.mockResolvedValue(GERME);
     await chargerOuverture(supa, UID, MAINTENANT);
-    expect(lireHypothese).toHaveBeenCalledWith(supa, UID, { seulementADire: true });
+    expect(lireHypothese).toHaveBeenCalledWith(supa);
+    const src = readFileSync(resolve(process.cwd(), "lib/safety/ouverture-branche.ts"), "utf-8");
+    expect(src, "l'ouverture est repassée par la lecture NON gardée").not.toMatch(
+      /lireHypotheseEnneagramme/,
+    );
   });
 
   it("[ORDRE] la mention de complétion passe DEVANT — elle n'a qu'une seule chance", async () => {

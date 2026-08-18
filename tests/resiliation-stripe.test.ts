@@ -177,3 +177,48 @@ describe("[M1] ce que le double du SDK ne pouvait pas voir — l'argument `expan
     expect(refundsCreate, "et c'est ainsi que 69 € ne partaient jamais").not.toHaveBeenCalled();
   });
 });
+
+describe("[revue 1-4] l'ORDRE : résilier d'abord, rembourser ensuite", () => {
+  /**
+   * ══ CE QUI ÉTAIT EN JEU ═══════════════════════════════════════════════════════════════════════
+   *
+   * L'ordre inverse choisissait la mauvaise moitié à perdre. `refunds.create` réussit, la résiliation
+   * tombe ensuite (timeout, 5xx, lambda tuée) : elle est REMBOURSÉE ET TOUJOURS ABONNÉE. La route
+   * rend « echec », donc rien ne dit à personne qu'un virement est parti — et à l'échéance suivante,
+   * elle est re-facturée. Invisible des deux côtés.
+   *
+   * Dans le bon ordre, la moitié qu'on risque de perdre est le remboursement : visible à l'écran,
+   * réparable par un rejeu (la clé d'idempotence vit en base), et elle ne re-facture personne
+   * pendant qu'on attend.
+   */
+
+  it("⚠️ la résiliation est posée AVANT que le remboursement ne parte", async () => {
+    // Le test précédent (« rembourser ENTRAÎNE la résiliation ») passe dans les DEUX ordres : il
+    // vérifie que les deux appels ont eu lieu, pas lequel d'abord. C'est exactement ce qui a laissé
+    // le défaut vivre. Ici on lit l'horloge d'invocation des deux doublures.
+    retrieve.mockResolvedValueOnce(avecPaiement());
+    expect(await rembourserIntegralement("sub_1", "u1", "cle-abc")).toBe("rembourse");
+    const ordreResiliation = update.mock.invocationCallOrder[0];
+    const ordreRemboursement = refundsCreate.mock.invocationCallOrder[0];
+    expect(ordreResiliation, "aucune résiliation posée").toBeGreaterThan(0);
+    expect(ordreRemboursement, "aucun remboursement émis").toBeGreaterThan(0);
+    expect(
+      ordreResiliation,
+      "remboursée d'abord : une panne ici la laisse remboursée ET abonnée, sans que rien ne le dise",
+    ).toBeLessThan(ordreRemboursement);
+  });
+
+  it("une résiliation qui échoue n'émet AUCUN remboursement — on ne rend pas l'argent d'un abonnement qui court", async () => {
+    update.mockRejectedValueOnce(new Error("stripe 503"));
+    retrieve.mockResolvedValueOnce(avecPaiement());
+    await expect(rembourserIntegralement("sub_1", "u1", "cle-abc")).rejects.toThrow();
+    expect(refundsCreate, "l'argent est parti alors que l'abonnement court toujours").not.toHaveBeenCalled();
+  });
+
+  it("et le chemin SANS paiement résilie quand même (AD-9 : la sécurité ne dépend pas du commerce)", async () => {
+    retrieve.mockResolvedValueOnce({ latest_invoice: { payments: { data: [] } } });
+    expect(await rembourserIntegralement("sub_1", "u1", "cle")).toBe("rien_a_rembourser");
+    expect(update).toHaveBeenCalledWith("sub_1", { cancel_at_period_end: true });
+  });
+});
+

@@ -90,9 +90,10 @@ export type IssueRemboursement = "rembourse" | "rien_a_rembourser";
 /**
  * REMBOURSER INTÉGRALEMENT — et résilier dans la foulée.
  *
- * LES DEUX, TOUJOURS. Rembourser sans résilier rend l'argent et laisse la souscription courir : elle
- * serait re-facturée à l'échéance suivante, après avoir été remboursée. C'est le genre de moitié de geste
- * qui transforme une garantie en incident de facturation.
+ * LES DEUX, TOUJOURS, ET DANS CET ORDRE — résilier PUIS rembourser. Rembourser sans résilier rend
+ * l'argent et laisse la souscription courir : elle serait re-facturée à l'échéance suivante, après avoir
+ * été remboursée. C'est le genre de moitié de geste qui transforme une garantie en incident de
+ * facturation — et c'est précisément la moitié qu'on perdait quand le remboursement passait en premier.
  *
  * MONTANT INTÉGRAL, jamais au prorata. FR-089 dit « remboursée » ; et l'éligibilité elle-même établit que
  * le produit n'a rien produit (aucune branche posée) — facturer un prorata d'un service dont on vient de
@@ -127,10 +128,20 @@ export async function rembourserIntegralement(
   // barrière de minorité posée sur un compte qui n'a jamais payé (FR-071 s'applique à tout compte
   // détecté mineur, abonné ou non). Lever ici ferait échouer la barrière de sécurité à cause de
   // l'absence d'un paiement : la sécurité ne dépend jamais du commerce (AD-9).
-  if (!paymentIntent) {
-    await resilierEnFinDePeriode(subscriptionId);
-    return "rien_a_rembourser";
-  }
+  // ⚠️ ON RÉSILIE D'ABORD, ON REMBOURSE ENSUITE (revue des Epics 1 à 4). L'ordre inverse existait, et
+  // il choisissait la mauvaise moitié à perdre : si `refunds.create` réussissait et que la résiliation
+  // tombait ensuite — timeout, 5xx, lambda tuée — elle était remboursée ET TOUJOURS ABONNÉE. La route
+  // rend « echec », donc rien ne dit à personne qu'un virement est parti ; et à l'échéance suivante
+  // elle est re-facturée. Un incident de facturation invisible des deux côtés.
+  //
+  // Dans cet ordre-ci, la moitié qu'on risque de perdre est le remboursement : elle est résiliée et
+  // l'argent n'est pas encore revenu. C'est VISIBLE (l'écran dit « echec »), c'est réparable (la
+  // réservation garde sa clé d'idempotence, un rejeu reparle à Stripe de la MÊME opération), et
+  // surtout ça ne la re-facture pas pendant qu'on attend. Poser `cancel_at_period_end` est de toute
+  // façon idempotent : le rejeu le repose sans conséquence.
+  await resilierEnFinDePeriode(subscriptionId);
+
+  if (!paymentIntent) return "rien_a_rembourser";
 
   await stripe.refunds.create(
     {
@@ -142,6 +153,5 @@ export async function rembourserIntegralement(
     { idempotencyKey: cleIdempotence },
   );
 
-  await resilierEnFinDePeriode(subscriptionId);
   return "rembourse";
 }

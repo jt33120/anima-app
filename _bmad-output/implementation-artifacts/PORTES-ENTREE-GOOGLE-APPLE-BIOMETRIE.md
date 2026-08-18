@@ -132,6 +132,16 @@ par la petite porte d'une envie de Face ID.
 
 ---
 
+## Décision de Julian, 2026-08-18
+
+**Rien n'est configuré tant qu'on est en web.** Pour les tests web, le courriel et la possibilité de
+se reconnecter suffisent — et c'est fait. Google, Apple et la biométrie attendent la migration mobile.
+
+⚠️ **RAPPEL À DÉCLENCHER AVANT TOUTE PUBLICATION SUR L'APP STORE.** Ce n'est pas une préférence :
+la *Review Guideline 4.8* d'Apple impose Sign in with Apple à toute application qui propose une
+connexion par un tiers. Publier avec Google et sans Apple fait **rejeter la soumission**. Et le
+compte Apple Developer (99 $/an) plus la vérification de domaine ne s'obtiennent pas la veille.
+
 ## En une ligne
 
 **Google maintenant** (il me faut deux chaînes). **Apple et Face ID le jour du natif**, ensemble,

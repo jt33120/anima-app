@@ -16,6 +16,7 @@ import { blocRessourcesDetresse } from "@/lib/safety/bloc-ressources-detresse";
 import { verifieLeLibelle } from "@/lib/safety/ressources-aide";
 import { creerDepotSeance } from "@/lib/data/depot-seance";
 import { creerDepotJournal } from "@/lib/data/depot-journal";
+import { consignerTourAnam } from "@/lib/data/depot-tour-anam";
 import { evaluerReconceptualisationDuTour, fenetreDetresseActive } from "@/lib/safety/reconceptualisation-pipeline";
 import { evaluerRetourThemeDuTour } from "@/lib/safety/retour-theme-pipeline";
 import { creerDepotBranche } from "@/lib/data/depot-branche";
@@ -37,7 +38,7 @@ import {
 import { causesRefusLecture, lectureEnAttente, ouvrirLecture, cloreLecture, type Lecture } from "@/lib/data/depot-lecture";
 import { lireDescriptionCarte } from "@/lib/corpus/description-cartes";
 import type { CleCarteJeu } from "@/lib/tirage/jeu";
-import { consignePhaseArc } from "@/lib/domain/consigne-phase";
+import { consignePhaseDuTour } from "@/lib/domain/consigne-phase";
 import { consigneVoixAnam } from "@/lib/domain/consigne-voix";
 import { consigneBilan } from "@/lib/domain/consigne-bilan";
 import { structurerBilan } from "@/lib/domain/bilan";
@@ -672,8 +673,10 @@ export async function POST(request: NextRequest) {
   // une séance, AC5) : la consigne de phase `clore` (« c'est toi qui clos… ») est supprimée — seul
   // l'overlay détresse régit le tour. Les autres phases restent injectées (bénignes en détresse ;
   // `nommer` est de toute façon inatteignable en détresse via `peutNommer`).
-  const consignePhase =
-    arc && (arc.etat.phase !== "clore" || clotureAutorisee) ? consignePhaseArc(arc.etat.phase) : null;
+  // ⚠️ `consignePhaseDuTour`, PAS `consignePhaseArc` (revue des Epics 1 à 4). `clore` est terminal :
+  // dériver la consigne de la seule PHASE ordonnait à Anam de clore la séance à chaque tour, pour
+  // toujours. La règle — et ce qu'elle coûtait — est écrite dans `consigne-phase.ts`.
+  const consignePhase = consignePhaseDuTour(arc, clotureAutorisee);
   const consigneDetresse = consigneReponse(securite.verdict);
   const prefixes = [consigneVoix, consignePhase, consigneDetresse].filter((c): c is MessageIa => c !== null);
   const messagesReponse = prefixes.length ? [...prefixes, ...messages] : messages;
@@ -738,7 +741,14 @@ export async function POST(request: NextRequest) {
   const corpsFlux = new ReadableStream<Uint8Array>({
     async start(controller) {
       const encoder = new TextEncoder();
+      // ── CE QU'ANAM A DIT, POUR LE JOURNAL (revue des Epics 1 à 4, trouvaille #6) ───────────────
+      // Accumulé SUR L'ENTONNOIR D'ÉMISSION, jamais sur le flux du modèle. Ce qui est gravé est donc
+      // exactement ce qu'elle a lu : le texte que le contrôle de lexique a supprimé n'a jamais été
+      // dit, et celui que la troncature a coupé non plus. Poser l'accumulateur ici et pas dans la
+      // boucle garantit aussi qu'un futur chemin d'émission de delta y tombera sans qu'on y pense.
+      let ditParAnam = "";
       const emettre = (trame: Parameters<typeof ligneNdjson>[0]) => {
+        if (trame.t === "delta") ditParAnam += trame.c;
         try {
           controller.enqueue(encoder.encode(ligneNdjson(trame)));
         } catch {
@@ -881,6 +891,24 @@ export async function POST(request: NextRequest) {
           // Bloc ressources APRÈS le tour d'Anam (niveau 2, AC4) : juste avant la trame terminale.
           if (trameRessources && trameRessources.position === "apres") emettre(trameRessources);
           emettre({ t: "fin" });
+
+          // ── LE CÔTÉ D'ANAM DU JOURNAL (revue des Epics 1 à 4, trouvaille #6) ────────────────────
+          // `entree_journal` porte `role ('utilisatrice'|'anam')` depuis 0016, et TROIS lecteurs
+          // l'attendaient — le fil retrouvé au rechargement, le contexte d'une branche, le matériau
+          // de synthèse. Personne ne l'écrivait : au rechargement, elle retrouvait ses propres
+          // messages à la suite, sans une seule réponse. Un monologue.
+          //
+          // APRÈS `fin`, et c'est l'ordre qui compte : la réponse est déjà partie, donc cette
+          // écriture ne retarde rien de ce qu'elle attend. On ne grave que le tour ABOUTI — un tour
+          // en échec sera remplacé par son rejeu, à l'écran comme au journal.
+          if (ditParAnam) {
+            try {
+              await consignerTourAnam(user.id, cleIdempotence, ditParAnam);
+            } catch (e) {
+              // Jamais une panne de tour : la réponse a déjà été lue (voir `depot-tour-anam.ts`).
+              console.error("anam/message : tour d'Anam non gravé", { nom: e instanceof Error ? e.name : "inconnu" });
+            }
+          }
         }
       } catch (e) {
         console.error("anam/message : flux interrompu", { nom: e instanceof Error ? e.name : "inconnu" });

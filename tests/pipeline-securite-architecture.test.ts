@@ -277,7 +277,13 @@ describe("Story 2.7 — arc de séance : câblage serveur (AD-16, AD-1, AD-5)", 
   it("la consigne de PHASE est injectée (system) avant la génération ; la détresse reste au plus près des messages", () => {
     const src = lire(ROUTE);
     expect(src).toMatch(/@\/lib\/domain\/consigne-phase/);
-    expect(src).toMatch(/consignePhaseArc\s*\(/);
+    // ⚠️ `consignePhaseDuTour`, PAS `consignePhaseArc` (revue des Epics 1 à 4). `clore` est terminal :
+    // dériver la consigne de la seule PHASE ordonnait à Anam de clore la séance à chaque tour, pour
+    // toujours. La route ne dérive donc plus rien elle-même — la règle vit dans `consigne-phase.ts`.
+    expect(src).toMatch(/consignePhaseDuTour\s*\(/);
+    expect(src, "la route ne re-dérive pas la consigne depuis la seule phase").not.toMatch(
+      /consignePhaseArc\s*\(/,
+    );
     // Ordre [voix (2.8), consignePhase, consigneDetresse] → la consigne de détresse (2.6) reste la
     // DERNIÈRE avant messages (overlay sécurité prioritaire) ; la voix (2.8) se préfixe en tête.
     expect(src).toMatch(/\[\s*consigneVoix\s*,\s*consignePhase\s*,\s*consigneDetresse\s*\]/);
@@ -599,6 +605,46 @@ describe("[revue 1-4] le filet SURVIT à la panne du flux (AD-15)", () => {
     );
     expect(bloc, "le filet décidé doit repartir dans la réponse d'erreur").toMatch(/trameRessources/);
     expect(bloc, "et la trame `erreur` rallume « Réessayer »").toMatch(/t:\s*"erreur"/);
+  });
+});
+
+describe("[revue 1-4] ce qui est gravé au journal est ce qu'elle a LU", () => {
+  it("⚠️ le texte d'Anam s'accumule sur l'ÉMISSION, jamais sur le flux du modèle", () => {
+    // ══ POURQUOI L'ENDROIT DÉCIDE DE TOUT ════════════════════════════════════════════════════════
+    // Entre le flux du modèle et l'écran, deux filtres coupent : le contrôle de lexique (qui
+    // SUPPRIME une phrase fautive) et la troncature de voix (FR-084, 3 phrases). Accumuler sur
+    // `ev.texte` graverait donc, mot pour mot et de façon IMMUABLE, une phrase que le contrôle a
+    // précisément refusé de laisser sortir — et la rendrait au rechargement, au fil d'une branche,
+    // et au modèle par le matériau de synthèse. Le journal dirait qu'Anam a dit ce qu'elle n'a
+    // jamais dit.
+    //
+    // Sur l'entonnoir `emettre`, la propriété tient toute seule, y compris pour un futur chemin
+    // d'émission qu'on n'a pas encore écrit. Même patron que le point de sortie unique du proxy.
+    const src = lire(ROUTE);
+    const i = src.indexOf("const emettre = (trame");
+    expect(i, "l'entonnoir d'émission a changé de nom : cette garde ne garde plus rien").toBeGreaterThan(-1);
+    const entonnoir = src.slice(i, src.indexOf("};", i));
+    expect(entonnoir, "l'accumulation a quitté l'entonnoir").toMatch(/ditParAnam\s*\+=/);
+
+    // Et NULLE PART ailleurs : ni sur `ev.texte` (le brut du modèle), ni sur la sortie du contrôle
+    // avant la troncature.
+    const accumulations = src.match(/ditParAnam\s*\+=/g) ?? [];
+    expect(accumulations.length, "le texte d'Anam s'accumule à plusieurs endroits").toBe(1);
+    expect(src, "on graverait le brut du modèle, contrôle et troncature compris").not.toMatch(
+      /ditParAnam\s*\+=\s*ev\.texte/,
+    );
+  });
+
+  it("la gravure passe par la RPC attestée-serveur, jamais par le dépôt sous JWT", () => {
+    // 0016 épingle `role = 'utilisatrice'` dans la policy : le côté `anam` ne peut pas s'écrire sous
+    // JWT, sinon n'importe qui ferait dire n'importe quoi à Anam, de façon inaltérable.
+    const src = lire(ROUTE);
+    expect(src).toMatch(/consignerTourAnam\s*\(/);
+    expect(lire(resolve(racine, "lib/data/depot-tour-anam.ts"))).toMatch(/consigner_tour_anam/);
+    // Le dépôt sous JWT ne connaît QUE le côté d'elle.
+    expect(lire(resolve(racine, "lib/data/depot-journal.ts")), "le dépôt sous JWT grave du `anam`").not.toMatch(
+      /"anam"|'anam'/,
+    );
   });
 });
 

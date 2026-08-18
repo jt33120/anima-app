@@ -83,6 +83,9 @@ export interface Transition {
   vers: Phase;
 }
 
+/** Le beat à faire paraître, ou `null`. Nommé pour que `consignePhaseDuTour` puisse le lire. */
+export type BeatArc = "nommer" | "cloture" | null;
+
 export interface ResultatArc {
   /** Le nouvel état, à persister dans la trace (jamais une mutation de l'entrée). */
   etat: EtatArc;
@@ -95,7 +98,7 @@ export interface ResultatArc {
    * naît sur la transition nommer → clore (2.9, Anam passe en Veille et le bilan s'insère). Émis UNE
    * seule fois — un tour déjà EN clore ne le rejoue pas (idempotence : clore n'a aucune transition).
    */
-  beat: "nommer" | "cloture" | null;
+  beat: BeatArc;
 }
 
 /** Signaux neutres (tous faux) — repli quand aucun signal n'est extractible : l'arc n'avance pas. */

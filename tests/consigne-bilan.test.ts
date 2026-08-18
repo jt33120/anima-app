@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { consigneBilan } from "@/lib/domain/consigne-bilan";
-import { consignePhaseArc } from "@/lib/domain/consigne-phase";
+import { consignePhaseArc, consignePhaseDuTour } from "@/lib/domain/consigne-phase";
 
 /**
  * Story 2.9 (T2) — la CONSIGNE DE GÉNÉRATION DU BILAN, cœur PUR (AD-1), patron de `consigneVoixAnam`.
@@ -59,5 +59,53 @@ describe("Story 2.9 — consigne de phase « clore » : Anam clôt elle-même (F
     expect(clore?.content, "pas de récapitulatif / pas de conclusion enveloppante").toMatch(
       /r[ée]capitulatif|enveloppante/i,
     );
+  });
+});
+
+describe("[revue 1-4] la consigne de clôture vaut pour LE tour qui clôt, pas pour tous ceux d'après", () => {
+  /**
+   * ══ LE DÉFAUT ═════════════════════════════════════════════════════════════════════════════════
+   *
+   * `clore` est TERMINAL (« l'arc ne rouvre jamais », AC1) : la phase vaut `clore` pour toujours. La
+   * route dérivait la consigne de la seule PHASE — donc, une fois la première séance close, Anam
+   * recevait l'ordre de clore la séance à CHAQUE tour suivant. Un mois plus tard, au premier message
+   * de la journée, elle répondait « on en a assez fait pour ce soir ».
+   *
+   * Les tours d'après existent pourtant : c'est l'allocation résiduelle (3.4). Ce ne sont pas des
+   * séances, et rien ne doit y ordonner de clore.
+   */
+
+  const enClore = (beat: "nommer" | "cloture" | null) => ({ etat: { phase: "clore" as const }, beat });
+
+  it("⚠️ un tour APRÈS la clôture ne reçoit plus aucune consigne de phase", () => {
+    // LE MUTANT QUI COMPTE : revenir à `consignePhaseArc(arc.etat.phase)`. Il meurt ici, et ici seul.
+    expect(consignePhaseDuTour(enClore(null), true)).toBeNull();
+  });
+
+  it("mais LE tour qui clôt la reçoit — c'est lui qui porte le beat `cloture`", () => {
+    const c = consignePhaseDuTour(enClore("cloture"), true);
+    expect(c?.role).toBe("system");
+    expect(c?.content).toContain("C'est TOI qui clos la séance");
+  });
+
+  it("et en détresse, même ce tour-là ne l'a pas : la séance cesse d'être une séance (AD-9, AC5)", () => {
+    expect(consignePhaseDuTour(enClore("cloture"), false)).toBeNull();
+  });
+
+  it("les phases non terminales gardent leur consigne, clôture autorisée ou non", () => {
+    // `observer` porte le gate FR-005 (« ne délivre pas encore d'observation nommée »). Le suspendre
+    // en détresse ferait exactement le contraire de ce qu'il faut.
+    for (const autorisee of [true, false]) {
+      const c = consignePhaseDuTour({ etat: { phase: "observer" }, beat: null }, autorisee);
+      expect(c?.content, "le gate d'observation prématurée a disparu").toContain("NE DÉLIVRE PAS");
+    }
+    expect(consignePhaseDuTour({ etat: { phase: "nommer" }, beat: "nommer" }, true)?.content).toContain(
+      "NOMMER",
+    );
+  });
+
+  it("`construire` n'a rien à contraindre, et l'absence d'arc non plus", () => {
+    expect(consignePhaseDuTour({ etat: { phase: "construire" }, beat: null }, true)).toBeNull();
+    expect(consignePhaseDuTour(null, true)).toBeNull();
   });
 });

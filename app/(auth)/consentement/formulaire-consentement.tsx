@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   donnerConsentement,
@@ -31,6 +31,53 @@ export default function FormulaireConsentement() {
   const [refus, setRefus] = useState(false);
   const pret = art9 && cgu;
 
+  /**
+   * QA tour 1 (T31) — L'ERREUR S'EFFACE DÈS QU'ON TOUCHE À QUELQUE CHOSE.
+   *
+   * « Coche les deux accords pour continuer. » restait affiché une fois les deux cases cochées et le
+   * bouton réactivé, empilé sous l'indication permanente « Coche les deux accords ci-dessus pour
+   * commencer. » — deux phrases quasi identiques, dont une périmée.
+   *
+   * ⚠️ ON NE MASQUE PAS SUR `pret`, ET C'EST LE POINT. L'action rend AUSSI « Enregistrement
+   * impossible. Réessaie. », qui survient précisément quand les deux cases SONT cochées : le
+   * masquer ferait disparaître le seul message qui dit que rien n'a été enregistré. Ce qui périme un
+   * message d'erreur, ce n'est pas l'état du formulaire — c'est le fait qu'on l'ait modifié depuis.
+   */
+  const [modifieDepuisEnvoi, setModifieDepuisEnvoi] = useState(false);
+
+  /**
+   * ── QA tour 1, T31-bis — TROUVÉ EN CORRIGEANT T31, ET PLUS GRAVE QUE LUI ─────────────────────
+   *
+   * React 19 RÉINITIALISE LE DOM DU FORMULAIRE après chaque action. Les deux cases sont pourtant
+   * contrôlées : leur état React reste `true`, et React ne réécrit pas une propriété DOM dont la
+   * valeur rendue n'a pas changé. Résultat mesuré (`tests/rendu/formulaires-qa.test.tsx`) : après
+   * un envoi qui échoue — « Enregistrement impossible. Réessaie. » — les deux cases s'affichent
+   * DÉCOCHÉES pendant que `pret` vaut toujours vrai.
+   *
+   * Concrètement, sur l'écran de consentement art. 9 : deux cases visuellement non cochées, le
+   * bouton « Je commence » actif, et aucun motif de blocage. Un nouveau clic sur le bouton poste un
+   * `FormData` VIDE — le serveur répond « Coche les deux accords pour continuer. » à quelqu'un qui
+   * les a cochés. L'écran le plus sensible du produit affiche le contraire de ce qu'il croit.
+   *
+   * On remet donc le DOM en accord avec l'état après chaque rendu. L'état React reste la source de
+   * vérité ; c'est l'affichage qui est rattrapé, jamais l'inverse.
+   */
+  const formulaire = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const cases = formulaire.current?.elements;
+    if (!cases) return;
+    const poser = (nom: string, valeur: boolean) => {
+      const champ = cases.namedItem(nom);
+      if (champ instanceof HTMLInputElement) champ.checked = valeur;
+    };
+    poser("art9", art9);
+    poser("cgu", cgu);
+  });
+  const cocher = (poser: (v: boolean) => void) => (coche: boolean) => {
+    setModifieDepuisEnvoi(true);
+    poser(coche);
+  };
+
   // Refus (AC6) : UNE confirmation franche, registre factuel — aucune culpabilisation ni reconquête.
   if (refus) {
     return (
@@ -59,7 +106,14 @@ export default function FormulaireConsentement() {
   }
 
   return (
-    <form action={action} className={s.form}>
+    <form
+      ref={formulaire}
+      action={(donnees: FormData) => {
+        setModifieDepuisEnvoi(false);
+        return action(donnees);
+      }}
+      className={s.form}
+    >
       {/* Deux cases DISTINCTES, non pré-cochées, jamais groupées (FR-012 / NFR-006) */}
       <fieldset className={s.cases}>
         <legend className="t-meta">Tes deux accords, séparément</legend>
@@ -69,7 +123,7 @@ export default function FormulaireConsentement() {
             type="checkbox"
             name="art9"
             checked={art9}
-            onChange={(e) => setArt9(e.target.checked)}
+            onChange={(e) => cocher(setArt9)(e.target.checked)}
             className={s.checkbox}
           />
           {/* ⚠️ « ET CE QU'ELLE EN DÉDUIT » A ÉTÉ AJOUTÉ PAR LA STORY 5.5 (décision D12), ET CE
@@ -97,7 +151,7 @@ export default function FormulaireConsentement() {
             type="checkbox"
             name="cgu"
             checked={cgu}
-            onChange={(e) => setCgu(e.target.checked)}
+            onChange={(e) => cocher(setCgu)(e.target.checked)}
             className={s.checkbox}
           />
           <span className="t-corps">
@@ -115,7 +169,7 @@ export default function FormulaireConsentement() {
         </label>
       </fieldset>
 
-      {etat.statut === "erreur" && etat.message ? (
+      {etat.statut === "erreur" && etat.message && !modifieDepuisEnvoi ? (
         <p className={s.erreur} role="alert">
           {etat.message}
         </p>

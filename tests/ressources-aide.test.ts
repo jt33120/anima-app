@@ -29,6 +29,35 @@ describe("RESSOURCES_AIDE — le filet, adapté au danger (AC3, FR-074)", () => 
     expect(RESSOURCES_AIDE.some((r) => r.service.includes("SOS Amitié"))).toBe(true);
   });
 
+  it("⚠️ chaque service porte son APPELLATION OFFICIELLE, pas une description du sujet", () => {
+    // QA tour 1, T30 — le 3919 était libellé « Violences faites aux femmes ». Le numéro, la
+    // gratuité, l'anonymat et la disponibilité étaient exacts ; seul le NOM ne l'était plus.
+    //
+    // ⚠️ CE TEST EXISTE PARCE QUE SON ABSENCE A ÉTÉ MESURÉE. Changer ce libellé n'a fait rougir
+    // AUCUN des 4 685 tests du dépôt : les numéros étaient gardés, les noms ne l'étaient pas. Or
+    // c'est le nom qui permet à quelqu'un de vérifier ailleurs qu'on parle bien du même service —
+    // et c'est exactement ce qu'on veut qu'elle puisse faire avec un numéro qu'on lui donne.
+    //
+    // Toute modification de cette table doit passer par la revue FR-044 ci-dessous ; ce test rend
+    // le passage OBLIGATOIRE en cassant à la première dérive.
+    //
+    // ON NE GARDE QUE `service`, PAS `desc`. Une première version exigeait aussi que la description
+    // reprenne le nom : c'était une règle inventée, et le 112 l'a réfutée — « Numéro d'urgence
+    // européen. » est juste, et n'a pas à répéter « Urgence européenne ».
+    const officiel: Record<string, string> = {
+      "3114": "Prévention du suicide",
+      "15": "SAMU",
+      "112": "Urgence européenne",
+      "3919": "Violences Femmes Info", // arretonslesviolences.gouv.fr
+      "119": "Enfance en danger",
+      "09 72 39 40 50": "SOS Amitié",
+    };
+    for (const r of RESSOURCES_AIDE) {
+      expect(officiel[r.numero], `numéro non répertorié : ${r.numero}`).toBeDefined();
+      expect(r.service, `libellé de ${r.numero}`).toBe(officiel[r.numero]);
+    }
+  });
+
   it("les 5 familles de danger sont représentées", () => {
     const familles = new Set(RESSOURCES_AIDE.map((r) => r.famille));
     for (const f of ["suicide", "urgence_vitale", "violences_femmes", "enfance", "ecoute"] as FamilleDanger[]) {

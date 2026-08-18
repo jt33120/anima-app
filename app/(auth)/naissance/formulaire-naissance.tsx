@@ -33,6 +33,9 @@ export default function FormulaireNaissance() {
   }
 
   return (
+    /* QA tour 1 (T19) — CE QUI A ÉTÉ TAPÉ REVIENT APRÈS UN REFUS. `useActionState` réinitialise un
+       formulaire non contrôlé après chaque action : une date au futur effaçait aussi le prénom, et
+       tout était à ressaisir. L'action renvoie la saisie, ces `defaultValue` la remettent. */
     <form action={action} className={s.form}>
       <label htmlFor="prenom" className={s.etiquette}>
         {/* Étiquette VISIBLE (jamais un placeholder en guise d'étiquette) */}
@@ -43,6 +46,7 @@ export default function FormulaireNaissance() {
           type="text"
           autoComplete="given-name"
           maxLength={100}
+          defaultValue={etat.saisie?.prenom ?? ""}
           required
           className={s.champ}
         />
@@ -53,6 +57,7 @@ export default function FormulaireNaissance() {
           id="date_naissance"
           name="date_naissance"
           type="date"
+          defaultValue={etat.saisie?.date ?? ""}
           required
           className={s.champ}
         />
@@ -65,6 +70,7 @@ export default function FormulaireNaissance() {
           type="text"
           autoComplete="name"
           maxLength={200}
+          defaultValue={etat.saisie?.nomComplet ?? ""}
           aria-describedby="nom_complet_aide"
           className={s.champ}
         />

@@ -1,0 +1,164 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+
+/**
+ * formulaires-qa.test.tsx — DEUX FORMULAIRES QUI PUNISSAIENT L'ERREUR (QA tour 1, T19 et T31).
+ *
+ * Ces deux défauts ne vivent NI dans le domaine NI dans le serveur : ils vivent dans ce que React
+ * fait d'un formulaire après une action. Aucun test de `lib/` ne pouvait les voir — il fallait
+ * monter les composants. C'est précisément la classe de défauts que la QA humaine a trouvée et que
+ * 4 685 tests avaient laissée passer.
+ *
+ * ⚠️ `jest-dom` N'EST PAS DISPONIBLE dans le projet `rendu` : on assert avec `toBeTruthy()` et
+ * `getAttribute()`, jamais `toBeInTheDocument()` / `toHaveAttribute()`.
+ */
+
+// ── T19 ─────────────────────────────────────────────────────────────────────────────────────────
+
+const declarerAge = vi.fn();
+vi.mock("@/app/(auth)/naissance/actions", () => ({
+  declarerAge: (prev: unknown, donnees: FormData) => declarerAge(prev, donnees),
+}));
+
+// ── T31 ─────────────────────────────────────────────────────────────────────────────────────────
+
+const donnerConsentement = vi.fn();
+vi.mock("@/app/(auth)/consentement/actions", () => ({
+  donnerConsentement: (prev: unknown, donnees: FormData) => donnerConsentement(prev, donnees),
+}));
+
+const FormulaireNaissance = (await import("@/app/(auth)/naissance/formulaire-naissance")).default;
+const FormulaireConsentement = (await import("@/app/(auth)/consentement/formulaire-consentement"))
+  .default;
+
+const champ = (nom: string) => document.querySelector(`input[name="${nom}"]`) as HTMLInputElement;
+const formulaire = () => document.querySelector("form") as HTMLFormElement;
+
+describe("[QA T19] une date refusée n'efface plus ce qui était déjà tapé", () => {
+  it("le prénom, la date et le nom complet reviennent après un refus", async () => {
+    // ⚠️ CE QUE MESURE CE TEST. `useActionState` réinitialise un formulaire non contrôlé après
+    // chaque action : une date au futur effaçait AUSSI le prénom et le nom, et tout était à
+    // ressaisir. Le correctif est que l'action renvoie la saisie et que les champs la reprennent
+    // en `defaultValue` — ce que ce test éprouve de bout en bout, pas par lecture du source.
+    declarerAge.mockResolvedValue({
+      statut: "erreur",
+      message: "Cette date est dans le futur.",
+      saisie: { prenom: "Camille", date: "2030-01-01", nomComplet: "Camille Perrin" },
+    });
+
+    render(<FormulaireNaissance />);
+    fireEvent.submit(formulaire());
+
+    await waitFor(() => expect(screen.getByText("Cette date est dans le futur.")).toBeTruthy());
+    expect(champ("prenom").value, "le prénom était perdu").toBe("Camille");
+    expect(champ("date_naissance").value, "la date était perdue").toBe("2030-01-01");
+    expect(champ("nom_complet").value, "le nom complet était perdu").toBe("Camille Perrin");
+  });
+
+  it("sur le chemin MINEUR, rien ne revient — l'écran de refus remplace le formulaire", async () => {
+    // La branche < 18 ans n'écrit rien, pas même en mémoire de formulaire (AD-14, FR-071).
+    // Repeupler un écran qu'on vient de refuser serait une invitation à retenter avec une
+    // autre date.
+    declarerAge.mockResolvedValue({ statut: "mineur" });
+
+    render(<FormulaireNaissance />);
+    fireEvent.submit(formulaire());
+
+    await waitFor(() => expect(screen.getByText(/réservé aux adultes/i)).toBeTruthy());
+    expect(document.querySelector('input[name="prenom"]'), "plus de formulaire du tout").toBeNull();
+  });
+});
+
+describe("[QA T31] l'erreur de consentement s'efface dès qu'on touche à quelque chose", () => {
+  const cases = () =>
+    Array.from(document.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+
+  it("après un refus, cocher une case retire le message périmé", async () => {
+    donnerConsentement.mockResolvedValue({
+      statut: "erreur",
+      message: "Coche les deux accords pour continuer.",
+    });
+
+    render(<FormulaireConsentement />);
+    fireEvent.submit(formulaire());
+    await waitFor(() =>
+      expect(screen.getByText("Coche les deux accords pour continuer.")).toBeTruthy(),
+    );
+
+    fireEvent.click(cases()[0]);
+    expect(
+      screen.queryByText("Coche les deux accords pour continuer."),
+      "le message périmé cohabitait avec l'indication permanente, deux phrases quasi identiques",
+    ).toBeNull();
+  });
+
+  it("⚠️ un message qui n'est PAS périmé survit à l'état « prêt »", async () => {
+    // LE MUTANT QUI COMPTE : masquer l'erreur sur `pret` (les deux cases cochées). Ce serait plus
+    // simple et FAUX — « Enregistrement impossible. Réessaie. » survient précisément quand les deux
+    // cases SONT cochées. Le masquer ferait disparaître le seul message qui dit que rien n'a été
+    // enregistré. Ce qui périme une erreur, ce n'est pas l'état du formulaire, c'est qu'on l'ait
+    // modifié DEPUIS.
+    donnerConsentement.mockResolvedValue({
+      statut: "erreur",
+      message: "Enregistrement impossible. Réessaie.",
+    });
+
+    render(<FormulaireConsentement />);
+    fireEvent.click(cases()[0]);
+    fireEvent.click(cases()[1]);
+    fireEvent.submit(formulaire());
+
+    await waitFor(() =>
+      expect(screen.getByText("Enregistrement impossible. Réessaie.")).toBeTruthy(),
+    );
+    // Les deux cases sont cochées : `pret` est vrai, et le message doit rester.
+    expect(screen.getByText("Enregistrement impossible. Réessaie.")).toBeTruthy();
+  });
+});
+
+describe("[QA T31-bis] l'écran de consentement n'affiche pas le contraire de ce qu'il croit", () => {
+  const cases = () =>
+    Array.from(document.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+
+  it("les cases restent COCHÉES après un envoi qui échoue", async () => {
+    // ⚠️ TROUVÉ EN ÉCRIVANT LE TEST DE T31, PAS EN LE CHERCHANT. React 19 réinitialise le DOM du
+    // formulaire après chaque action ; les cases sont contrôlées, donc leur état React reste vrai,
+    // et React ne réécrit pas une propriété DOM dont la valeur rendue n'a pas changé.
+    //
+    // Mesuré avant correctif : `[false, false]` à l'écran, `pret` vrai dans l'état. Sur l'écran de
+    // consentement art. 9 : deux cases visuellement décochées, « Je commence » actif, aucun motif
+    // de blocage — et un nouveau clic postait un `FormData` vide, à quoi le serveur répondait
+    // « Coche les deux accords pour continuer. » à quelqu'un qui venait de les cocher.
+    donnerConsentement.mockResolvedValue({
+      statut: "erreur",
+      message: "Enregistrement impossible. Réessaie.",
+    });
+
+    render(<FormulaireConsentement />);
+    fireEvent.click(cases()[0]);
+    fireEvent.click(cases()[1]);
+    fireEvent.submit(formulaire());
+
+    await waitFor(() =>
+      expect(screen.getByText("Enregistrement impossible. Réessaie.")).toBeTruthy(),
+    );
+    expect(
+      cases().map((c) => c.checked),
+      "l'écran doit montrer ce que l'état croit",
+    ).toEqual([true, true]);
+  });
+
+  it("et l'état « prêt » reste cohérent : aucun motif de blocage ne s'affiche", async () => {
+    // Le motif « Coche les deux accords ci-dessus pour commencer. » ne paraît que si `pret` est
+    // faux. Son absence, cases cochées, prouve que l'affichage et l'état disent la même chose.
+    donnerConsentement.mockResolvedValue({ statut: "erreur", message: "Enregistrement impossible. Réessaie." });
+    render(<FormulaireConsentement />);
+    fireEvent.click(cases()[0]);
+    fireEvent.click(cases()[1]);
+    fireEvent.submit(formulaire());
+    await waitFor(() =>
+      expect(screen.getByText("Enregistrement impossible. Réessaie.")).toBeTruthy(),
+    );
+    expect(screen.queryByText(/ci-dessus pour commencer/)).toBeNull();
+  });
+});

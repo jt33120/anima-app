@@ -61,6 +61,23 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
   const demanderHeure = deja.heure === null;
   const demanderLieu = deja.lieu === null;
 
+  /**
+   * Pourquoi le bouton n'ouvre pas — ou `null` s'il ouvre (QA tour 1, T18).
+   *
+   * Deux cas distincts, parce qu'ils appellent deux gestes différents : ne rien avoir tapé, et
+   * avoir tapé quelque chose que le référentiel ne reconnaît pas. Les confondre dirait « saisis ta
+   * commune » à quelqu'un qui vient de le faire.
+   */
+  const lieuManquant = demanderLieu && !choisi;
+  const bloque = lieuManquant || (!demanderLieu && !demanderHeure);
+  const motifBlocage = lieuManquant
+    ? requete.trim().length > 0
+      ? "Choisis ta commune dans la liste qui s'ouvre sous le champ — je ne reconnais pas encore ce que tu as tapé."
+      : "Indique ta commune de naissance pour que je puisse enregistrer."
+    : bloque
+      ? "Tout est déjà enregistré : il n'y a rien à écrire ici."
+      : null;
+
   // Recherche différée : on n'interroge pas le serveur à chaque frappe. 250 ms est le seuil
   // au-delà duquel une frappe est finie sans que l'attente se sente.
   useEffect(() => {
@@ -234,10 +251,22 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
       <button
         type="submit"
         className={s.bouton}
-        disabled={enCours || (demanderLieu && !choisi) || (!demanderLieu && !demanderHeure)}
+        disabled={enCours || bloque}
+        aria-describedby={motifBlocage ? "motif-blocage-heure" : undefined}
       >
         <span className="t-bouton">{enCours ? "…" : "Enregistrer"}</span>
       </button>
+
+      {/* QA tour 1 (T18) — LE MOTIF DU BLOCAGE EST ÉCRIT EN TOUTES LETTRES.
+          « Zzzzville-sur-Néant » tapé sans rien choisir dans la liste laissait un formulaire
+          d'apparence rempli et un bouton mort, sans un mot. C'est le patron déjà posé par l'écran
+          de consentement (1.5, AC3) : un état désactivé ne dit jamais POURQUOI, et un bouton qui ne
+          répond pas se lit comme une panne du produit, pas comme une saisie à finir. */}
+      {motifBlocage ? (
+        <p id="motif-blocage-heure" className="t-meta" aria-live="polite">
+          {motifBlocage}
+        </p>
+      ) : null}
     </form>
   );
 }

@@ -7,6 +7,7 @@ import { MontagePaywall } from "@/app/_commerce/MontagePaywall";
 import s from "./abonnement.module.css";
 import PiedHalte from "@/render/PiedHalte";
 import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
+import { situationAbonnement } from "@/lib/domain/abonnement";
 
 // NFR-015 — « Anam » partout, y compris ici : le titre paraît dans un onglet, potentiellement partagé.
 export const metadata = { title: "Anam" };
@@ -113,7 +114,19 @@ export default async function PageAbonnement({
     etatRemboursement = null; // on ne dit rien plutôt que de dire faux — la page, elle, reste ouverte
   }
 
-  const resiliationDemandee = abonnement?.resiliationDemandeeLe != null;
+  // ⚠️ UNE SITUATION, PLUS TROIS BOOLÉENS (revue adversariale du 2026-08-18, R2).
+  //
+  // `actif`, `resiliationDemandee` et `contratOuvert` étaient recombinés dans QUATRE endroits de
+  // cette page. Huit combinaisons, cinq écrites — et celle que Stripe envoie à CHAQUE échéance
+  // (`etat = 'resilie'` AVEC `cancel_at` encore renseigné) n'était traitée nulle part. La page
+  // annonçait alors un accès jusqu'à une date RÉVOLUE, n'offrait que « Reprendre » — refusé par
+  // Stripe à tous les coups sur un contrat clos —, et taisait l'offre. Depuis la 3.6, cette page
+  // est le seul chemin d'abonnement d'un compte sans branche : quiconque avait résilié une fois
+  // ne pouvait plus jamais s'abonner.
+  //
+  // La dérivation vit dans `lib/domain` (AD-1) : elle est éprouvée sans monter la page, et la
+  // route de résiliation lit LA MÊME — les deux ne peuvent plus diverger.
+  const situation = situationAbonnement(abonnement);
   // L'ÉTAT DU REMBOURSEMENT, TANT QU'IL Y A QUELQUE CHOSE À DIRE (revue des Epics 1 à 4, #4). Le
   // retour d'action `?etat=rembourse` ne paraît qu'une fois ; ce qui suit vit sur la page.
   const messageRemboursement =
@@ -125,18 +138,18 @@ export default async function PageAbonnement({
           ? c.REMBOURSEMENT_EN_COURS
           : null;
   const finAcces = dateFr(abonnement?.resiliationDemandeeLe ?? abonnement?.periodeFin ?? null);
-  const actif = abonnement?.etat === "actif";
   // LA SORTIE NE DÉPEND PAS DE L'ÉTAT D'ACCÈS (revue du 2026-08-11, M12).
   //
   // Le geste était gardé par `actif`. Or un paiement en échec passe l'abonnement en `past_due` chez
   // Stripe, donc `etat = 'expire'` ici : l'écran affichait « Ton abonnement n'est plus actif » et
   // AUCUN bouton — pendant que Stripe poursuivait ses relances et finirait par encaisser. La
-  // personne la plus coincée du produit était la seule sans porte.
-  //
-  // La 3.5 avait pourtant construit `abonnementGerable` exprès pour que le LIEN survive à cet
-  // état (« quelqu'un coincé entre un accès fermé et un contrat ouvert »). Le lien était posé, la
-  // destination oubliée. La route de résiliation, elle, n'a jamais demandé que le `subscriptionId`.
-  const contratOuvert = abonnement?.subscriptionId != null;
+  // personne la plus coincée du produit était la seule sans porte. C'est la situation
+  // `sans_acces_contrat_ouvert` : elle porte le geste, comme `actif`.
+  const contratAResilier = situation === "actif" || situation === "sans_acces_contrat_ouvert";
+  // L'OFFRE se monte partout où il n'y a PLUS de contrat vivant — y compris après une résiliation
+  // aboutie (R2), et y compris sur un contrat coincé, que la route Checkout refusera avec une phrase
+  // qui porte le chemin (`REFUS_CONTRAT_OUVERT`) plutôt qu'un mur.
+  const offrable = situation !== "actif" && situation !== "resiliation_en_cours";
 
   return (
     <main className={s.page}>
@@ -179,6 +192,11 @@ export default async function PageAbonnement({
           {messageRemboursement}
         </p>
       )}
+      {retour === "contrat_clos" && (
+        <p className={`t-corps ${s.retour}`} role="status">
+          {c.REFUS_CONTRAT_CLOS}
+        </p>
+      )}
       {retour === "contrat_ouvert" && (
         <p className={`t-corps ${s.retour}`} role="status">
           {c.REFUS_CONTRAT_OUVERT}
@@ -186,34 +204,45 @@ export default async function PageAbonnement({
       )}
 
       {/* ── L'ÉTAT ─────────────────────────────────────────────────────────────────────────────────── */}
-      {!abonnement || (!actif && !resiliationDemandee) ? (
-        // ⚠️ STORY 3.6 (QA T2) — DEUX SITUATIONS QUI ÉTAIENT CONFONDUES.
-        //
-        // « Jamais abonnée » et « abonnement terminé » tombaient dans la même branche, et lisaient la
-        // même phrase. Un compte gratuit envoyé ici par `/ancrages` lisait donc « Ton abonnement
-        // n'est plus actif » à propos d'un abonnement qui n'a jamais existé — un état inventé, sur
-        // la page qui parle d'argent.
-        <p className="t-corps">{abonnement ? c.ETAT_TERMINE : c.ETAT_JAMAIS_ABONNEE}</p>
-      ) : resiliationDemandee ? (
+      {/* ⚠️ STORY 3.6 (QA T2) — « jamais abonnée » et « abonnement terminé » lisaient la MÊME phrase.
+          Un compte gratuit envoyé ici par `/ancrages` lisait « Ton abonnement n'est plus actif » à
+          propos d'un abonnement qui n'a jamais existé — un état inventé, sur la page qui parle
+          d'argent. Chaque situation a désormais sa phrase, et il n'en reste aucune sans nom (R2). */}
+      {situation === "jamais_abonnee" ? (
+        <p className="t-corps">{c.ETAT_JAMAIS_ABONNEE}</p>
+      ) : situation === "actif" ? (
+        <>
+          <p className="t-corps">{c.ETAT_ACTIF}</p>
+          {finAcces && <p className="t-meta">{c.ETAT_ACTIF_JUSQU_AU(finAcces)}</p>}
+        </>
+      ) : situation === "resiliation_en_cours" ? (
         <>
           <p className="t-corps">{c.ETAT_RESILIE}</p>
           {finAcces && <p className="t-meta">{c.ETAT_RESILIE_JUSQU_AU(finAcces)}</p>}
         </>
       ) : (
         <>
-          <p className="t-corps">{c.ETAT_ACTIF}</p>
-          {finAcces && <p className="t-meta">{c.ETAT_ACTIF_JUSQU_AU(finAcces)}</p>}
+          <p className="t-corps">{c.ETAT_TERMINE}</p>
+          {/* ⚠️ LA DATE N'EST DITE QUE SI LE CONTRAT EST BIEN CLOS. Sur un contrat COINCÉ
+              (`past_due` : accès éteint, relances en cours), « il s'est terminé le … » serait faux —
+              et la `periode_fin` en base porterait une date parfaitement plausible. */}
+          {situation === "termine" && finAcces && (
+            <p className="t-meta">{c.ETAT_TERMINE_LE(finAcces)}</p>
+          )}
         </>
       )}
 
       {/* ── LE GESTE ───────────────────────────────────────────────────────────────────────────────── */}
-      {resiliationDemandee ? (
+      {/* ⚠️ « REPRENDRE » NE PARAÎT QUE SI LE CONTRAT COURT ENCORE (R2). Sur un contrat clos, Stripe
+          refuse `subscriptions.update` sans appel — « a canceled subscription can only update its
+          metadata » — et la route rendait `?etat=echec` : « Tu peux réessayer », indéfiniment. */}
+      {situation === "resiliation_en_cours" ? (
         <form className={s.geste} method="post" action="/api/abonnement/resilier?reprendre=1">
           <button className="t-bouton" type="submit">
             {c.ACTION_REPRENDRE}
           </button>
         </form>
-      ) : contratOuvert ? (
+      ) : contratAResilier ? (
         confirmer === "1" ? (
           // LA CONFIRMATION, SUR LA MÊME VUE, UN SEUL BOUTON (FR-060). Pas de « es-tu sûre ? », pas de
           // second écran, pas de champ « dis-nous pourquoi ». Le lien de retour n'est pas un bouton
@@ -250,7 +279,7 @@ export default async function PageAbonnement({
           route de vente refuse ensuite systématiquement : un bouton qui ne peut pas marcher, sur la
           page qui parle d'argent. Montrer la sortie sans montrer l'entrée est exactement la
           distinction que cette page tient déjà. */}
-      {etape === "suite" && (!abonnement || (!actif && !resiliationDemandee)) && (
+      {etape === "suite" && offrable && (
         // `MontagePaywall` est la couture gardée POSÉE PAR LA 2.9 pour « une future surface paywall
         // rendue serveur » et restée inerte deux epics. C'est elle, ici. La garde AD-9 vit à
         // l'intérieur : la page ne décide rien, elle place.

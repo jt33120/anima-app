@@ -363,3 +363,111 @@ describe("[revue 1-4, #4] l'état du remboursement VIT sur la page", () => {
   });
 });
 
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// R2 — la résiliation ABOUTIE (revue adversariale du 2026-08-18)
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[R2] une fois la résiliation ABOUTIE, la page n'est plus un cul-de-sac", () => {
+  /**
+   * À l'échéance, Stripe émet `customer.subscription.deleted` : `status = 'canceled'` ET `cancel_at`
+   * toujours renseigné — c'est ainsi qu'elle a résilié, il n'y a pas d'autre chemin dans le produit.
+   * La projection portait donc `etat = 'resilie'` et une date, et la page lisait la date comme si
+   * elle signifiait « résiliation en cours ». Trois torts dans le même document, et le troisième
+   * était définitif : depuis la 3.6, cette page est le SEUL chemin d'abonnement d'un compte sans
+   * branche. Toute personne ayant résilié une fois ne pouvait plus jamais s'abonner.
+   */
+  const aboutie = () =>
+    abonnement({ etat: "resilie", resiliationDemandeeLe: "2026-03-04T10:00:00Z" });
+
+  it("[LE TEST QUI COMPTE] l'OFFRE se monte — sinon elle est inencaissable à vie", async () => {
+    await monter({ abonnement: aboutie() });
+    expect(
+      screen.getByText("[offre montée]"),
+      "la seule surface d'abonnement du produit reste fermée après une résiliation",
+    ).toBeTruthy();
+  });
+
+  it("plus de bouton « Reprendre » — Stripe le refuse toujours sur un contrat clos", async () => {
+    await monter({ abonnement: aboutie() });
+    expect(
+      screen.queryByRole("button", { name: /reprendre/i }),
+      "un bouton qui ne peut pas marcher, sur la page qui parle d'argent",
+    ).toBeNull();
+  });
+
+  it("plus de bouton « Résilier » non plus — il n'y a plus rien à résilier", async () => {
+    await monter({ abonnement: aboutie() });
+    expect(screen.queryByRole("link", { name: /résilier/i })).toBeNull();
+  });
+
+  it("[LE MENSONGE] l'écran ne promet plus un accès jusqu'à une date RÉVOLUE", async () => {
+    await monter({ abonnement: aboutie() });
+    expect(
+      screen.queryByText(/tu y as accès jusqu'au/i),
+      "la page annonce un accès qui n'existe plus",
+    ).toBeNull();
+    expect(screen.getByText(/n'est plus actif/i)).toBeTruthy();
+  });
+
+  it("elle dit QUAND il s'est terminé — la date est vraie, c'est son libellé qui mentait", async () => {
+    await monter({ abonnement: aboutie() });
+    expect(screen.getByText(/4 mars 2026/)).toBeTruthy();
+  });
+
+  it("[CONTRÔLE QUI SÉPARE] résiliation EN COURS : « Reprendre » est là, l'offre non", async () => {
+    // Sans ce contrôle, rendre `termine` partout passerait le test ci-dessus. Les deux situations
+    // portent la MÊME date en base : seul `etat` les distingue.
+    await monter({ abonnement: abonnement({ etat: "actif", resiliationDemandeeLe: "2027-03-04T10:00:00Z" }) });
+    expect(screen.getByRole("button", { name: /reprendre/i })).toBeTruthy();
+    expect(screen.queryByText("[offre montée]"), "on ne vend pas à qui a encore son accès").toBeNull();
+    expect(screen.getByText(/tu y as accès jusqu'au/i)).toBeTruthy();
+  });
+
+  it("[CONTRÔLE] un abonnement ACTIF ne voit toujours aucune offre", async () => {
+    await monter({ abonnement: abonnement({ etat: "actif" }) });
+    expect(screen.queryByText("[offre montée]")).toBeNull();
+  });
+});
+
+describe("[R2] chaque situation a SA phrase — aucune n'en emprunte une autre", () => {
+  /**
+   * Le comportement que `tests/offre-gardee.test.ts` gravait dans la syntaxe de la page, mesuré ici
+   * là où il compte : à l'écran. Une phrase par situation, et jamais deux situations sous la même.
+   */
+  const cas = [
+    { nom: "jamais abonnée", ab: null, dit: /tu n'as pas d'abonnement/i, pasDit: /n'est plus actif/i },
+    {
+      nom: "actif",
+      ab: abonnement({ etat: "actif" }),
+      dit: /ton abonnement est actif/i,
+      pasDit: /n'est plus actif/i,
+    },
+    {
+      nom: "résiliation en cours",
+      ab: abonnement({ etat: "actif", resiliationDemandeeLe: "2027-03-04T10:00:00Z" }),
+      dit: /ton abonnement est résilié/i,
+      pasDit: /n'est plus actif/i,
+    },
+    {
+      nom: "contrat coincé (past_due)",
+      ab: abonnement({ etat: "expire" }),
+      dit: /n'est plus actif/i,
+      pasDit: /il s'est terminé le/i,
+    },
+    {
+      nom: "résiliation aboutie",
+      ab: abonnement({ etat: "resilie", resiliationDemandeeLe: "2026-03-04T10:00:00Z" }),
+      dit: /il s'est terminé le/i,
+      pasDit: /tu y as accès jusqu'au/i,
+    },
+  ] as const;
+
+  for (const { nom, ab, dit, pasDit } of cas) {
+    it(`« ${nom} » : sa phrase, et pas celle d'à côté`, async () => {
+      await monter({ abonnement: ab });
+      expect(screen.getByText(dit)).toBeTruthy();
+      expect(screen.queryByText(pasDit), `« ${nom} » emprunte la phrase d'une autre situation`).toBeNull();
+    });
+  }
+});

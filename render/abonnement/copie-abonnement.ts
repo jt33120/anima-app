@@ -33,6 +33,19 @@ export const ETAT_ACTIF_JUSQU_AU = (date: string) => `Il se renouvellera le ${da
 export const ETAT_RESILIE = "Ton abonnement est résilié.";
 export const ETAT_RESILIE_JUSQU_AU = (date: string) => `Tu y as accès jusqu'au ${date}.`;
 export const ETAT_TERMINE = "Ton abonnement n'est plus actif.";
+/**
+ * ── QUAND IL S'EST TERMINÉ (revue adversariale du 2026-08-18, R2) ──────────────────────────────
+ *
+ * ⚠️ CETTE PHRASE EXISTE PARCE QUE LA DATE ÉTAIT DÉJÀ À L'ÉCRAN — SOUS LE MAUVAIS LIBELLÉ. Une
+ * résiliation ABOUTIE porte `etat = 'resilie'` ET `cancel_at` : la page lisait la seconde comme
+ * « résiliation en cours » et annonçait « Tu y as accès jusqu'au 4 mars 2026 » — une date révolue,
+ * donc la promesse d'un accès qui n'existe plus. La date n'était pas fausse ; ce qu'on en disait
+ * l'était.
+ *
+ * Elle reste FACTUELLE et ne vend rien : ni « reviens quand tu veux », ni « ton arbre t'attend ».
+ * Ce qui vend est l'offre en dessous, et elle est nommée comme telle.
+ */
+export const ETAT_TERMINE_LE = (date: string) => `Il s'est terminé le ${date}.`;
 
 /**
  * ── STORY 3.6 (QA T2) — CE QU'ON DIT À QUELQU'UN QUI N'A JAMAIS EU D'ABONNEMENT ────────────────
@@ -117,6 +130,21 @@ export const REFUS_PAIEMENT_INJOIGNABLE =
  * Stripe nulle part dans le dépôt). Tant qu'elle n'existe pas, « résilier puis reprendre » est le
  * seul chemin honnête — et il coûte à celle qui voulait simplement changer de carte.
  */
+/**
+ * ── QUAND LE CONTRAT EST DÉJÀ CLOS (revue adversariale du 2026-08-18, R2) ──────────────────────
+ *
+ * Le miroir exact de `REFUS_CONTRAT_OUVERT`. Elle arrive ici avec une page ouverte dans un second
+ * onglet, ou au retour d'un signet : le contrat s'est éteint entre l'affichage et le clic. La route
+ * répondait alors `?etat=echec` — « Je n'ai pas pu enregistrer ça. Tu peux réessayer. » —, et
+ * réessayer se heurtait au même mur, indéfiniment (patron `REFUS_RAYONNEMENT`, 4.7).
+ *
+ * ⚠️ ELLE PORTE LE CHEMIN, PARCE QU'IL Y EN A UN. Un contrat clos ne se reprend pas chez Stripe,
+ * mais un nouvel abonnement s'ouvre — et l'offre est sur cette page, juste en dessous.
+ */
+export const REFUS_CONTRAT_CLOS =
+  "Ton abonnement est terminé : il n'y a plus rien à résilier ni à reprendre de ce côté-là. Si tu " +
+  "veux revenir, ça se fait plus bas — c'est un nouvel abonnement, pas la reprise de l'ancien.";
+
 export const REFUS_CONTRAT_OUVERT =
   "Ton abonnement précédent court encore chez notre prestataire de paiement, même s'il ne te donne " +
   "plus accès : je ne peux pas t'en vendre un second par-dessus, tu paierais deux fois. Résilie " +

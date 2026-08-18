@@ -151,7 +151,10 @@ describe("[revue 1-4, #15] la projection est un CONFORT, jamais l'engagement", (
   it("aucun abonnement : ni Stripe ni projection ne sont touchés", async () => {
     lireAbonnement.mockResolvedValueOnce(null);
     const res = await POST(req());
-    expect(res.status).toBe(404);
+    // ⚠️ 303 ET PLUS 404 (revue adversariale, R2). Le refus rendait un corps JSON, que le navigateur
+    // affichait PLEIN ÉCRAN à la place de la page : ce POST vient d'un `<form>` sans JavaScript.
+    // Ce que ce test-ci mesure est inchangé — rien n'est appelé, rien n'est projeté.
+    expect(res.status).toBe(303);
     expect(resilier).not.toHaveBeenCalled();
     expect(traiterEvenement).not.toHaveBeenCalled();
   });

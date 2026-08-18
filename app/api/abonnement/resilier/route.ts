@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { lireAbonnement } from "@/lib/data/depot-resiliation";
 import { resilierEnFinDePeriode, annulerResiliation } from "@/lib/stripe/resiliation";
 import { creerDepotAbonnement } from "@/lib/data/depot-abonnement";
-import type { EtatAbonnement } from "@/lib/domain/abonnement";
+import { situationAbonnement, type EtatAbonnement } from "@/lib/domain/abonnement";
 
 /**
  * Route de RÉSILIATION (Story 3.5, AC1/AC3/AC7/AC8).
@@ -114,19 +114,53 @@ type Abonnement =
       readonly etat: EtatAbonnement;
     };
 
-async function abonnementDe(): Promise<Abonnement> {
+/**
+ * ══ AUCUNE SORTIE DE CETTE ROUTE NE REND UN CORPS MACHINE (revue adversariale, R2 · revue 1-4 #16)
+ *
+ * Les deux refus ci-dessous rendaient un `NextResponse.json(...)`. Ce POST vient d'un `<form>` HTML
+ * SANS JavaScript — c'est l'exigence même de la porte de sortie, écrite dans l'en-tête de la page —
+ * donc le navigateur REMPLACE la page par le texte du corps, plein écran, sans mise en forme :
+ *
+ *     {"code":"aucun_abonnement"}
+ *
+ * Et les deux cas s'atteignent sans rien forger : une page laissée ouverte dans un second onglet
+ * pendant qu'on résilie dans le premier, une session expirée entre l'affichage et le clic, un
+ * signet. C'est le défaut #16, sur la route jumelle de celle où il a été trouvé.
+ */
+async function abonnementDe(request: Request): Promise<Abonnement> {
+  const vers = (chemin: string) =>
+    ({ erreur: NextResponse.redirect(new URL(chemin, request.url), 303) }) as const;
+
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { erreur: NextResponse.json({ code: "non_authentifie" }, { status: 401 }) };
+  // Sans session : la porte, comme la page elle-même. Elle n'a rien à lire d'un 401 nu.
+  if (!user) return vers("/entrer");
 
   const abonnement = await lireAbonnement();
   if (!abonnement?.subscriptionId) {
-    // Rien à résilier : compte gratuit, ou abonnement jamais projeté. On répond 404 plutôt que 400 —
-    // il n'y a pas d'erreur de la part de l'appelante, il n'y a simplement pas d'objet.
-    return { erreur: NextResponse.json({ code: "aucun_abonnement" }, { status: 404 }) };
+    // Rien à résilier : compte gratuit, ou abonnement jamais projeté. On la renvoie SANS `etat` :
+    // la page dit alors « Tu n'as pas d'abonnement » et montre l'offre — ce qui est exactement vrai.
+    return vers("/abonnement");
   }
+
+  // ⚠️ LE CONTRAT EST-IL ENCORE VIVANT ? (revue adversariale du 2026-08-18, R2)
+  //
+  // Sur `etat = 'resilie'` — la résiliation ABOUTIE, `canceled` chez Stripe — les deux gestes de
+  // cette route échouent chez le prestataire : « a canceled subscription can only update its
+  // metadata ». La route tombait alors dans son `catch` et redirigeait vers `?etat=echec`, dont la
+  // phrase est « Je n'ai pas pu enregistrer ça. Tu peux réessayer. » — et réessayer se heurtait au
+  // même mur, indéfiniment. Le patron `REFUS_RAYONNEMENT` (4.7) : on ne promet pas un geste qu'on
+  // sait impossible.
+  //
+  // La garde lit `situationAbonnement`, LA MÊME que la page : les deux surfaces ne peuvent plus
+  // diverger sur ce qu'est un contrat mort. C'est aussi une vraie garde, pas un doublon d'affichage
+  // — la page ne montre plus le bouton, mais un onglet resté ouvert POSTe encore.
+  if (situationAbonnement(abonnement) === "termine") {
+    return vers("/abonnement?etat=contrat_clos");
+  }
+
   // `etat` remonte avec l'identifiant : la projection locale le REPROJETTE tel quel (voir ci-dessus).
   return {
     subscriptionId: abonnement.subscriptionId,
@@ -147,7 +181,7 @@ async function abonnementDe(): Promise<Abonnement> {
  * vérifie sur la source.
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  const r = await abonnementDe();
+  const r = await abonnementDe(request);
   if (r.erreur) return r.erreur;
 
   const reprendre = new URL(request.url).searchParams.get("reprendre") === "1";

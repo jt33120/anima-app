@@ -111,18 +111,43 @@ describe("[3.6/FR-060] La SORTIE n'hérite d'aucune garde de l'offre", () => {
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("[3.6/T2] Un compte gratuit a enfin un chemin", () => {
-  it("[LE CŒUR] l'offre est montée quand il n'y a AUCUN abonnement", () => {
-    const page = lire("app/abonnement/page.tsx");
-    // La condition est celle de l'ancienne impasse : `!abonnement || (!actif && !resiliationDemandee)`.
-    // C'était exactement la branche qui affichait « Ton abonnement n'est plus actif » et rien d'autre.
-    expect(page).toMatch(/\(!abonnement \|\| \(!actif && !resiliationDemandee\)\) && \(/);
+  /**
+   * ⚠️ CES DEUX GARDES ONT ÉTÉ RÉÉCRITES, ET LA RAISON VAUT D'ÊTRE ÉCRITE (revue adversariale, R2).
+   *
+   * Elles épinglaient la SYNTAXE de la page, au caractère près :
+   *
+   *     expect(page).toMatch(/\(!abonnement \|\| \(!actif && !resiliationDemandee\)\) && \(/)
+   *     expect(page).toMatch(/abonnement \? c\.ETAT_TERMINE : c\.ETAT_JAMAIS_ABONNEE/)
+   *
+   * Or `(!actif && !resiliationDemandee)` EST le défaut R2 : sur une résiliation aboutie
+   * (`etat = 'resilie'` AVEC `cancel_at`), il vaut faux, donc l'offre ne se montait pas — et cette
+   * garde-ci exigeait que la ligne reste écrite ainsi. Un test qui grave une expression grave aussi
+   * ses bogues, et rend le correctif rouge à la place du défaut.
+   *
+   * Ce qu'on garde ici est l'INTENTION — l'offre est gouvernée par une seule expression, nommée, et
+   * la page ne recombine plus d'états à la main. Le COMPORTEMENT, lui, se mesure au rendu, dans
+   * `tests/rendu/porte-de-sortie.test.tsx`, où les huit situations sont montées une par une.
+   */
+  it("[LE CŒUR] l'offre est gouvernée par une expression NOMMÉE, pas par une recombinaison", () => {
+    const page = sansCommentaires(lire("app/abonnement/page.tsx"));
+    expect(page, "l'offre doit être gardée par `etape === \"suite\"` ET par l'éligibilité").toMatch(
+      /\{etape === "suite" && offrable && \(/,
+    );
+    expect(page, "`offrable` doit se dériver de la SITUATION, jamais d'un état recombiné").toMatch(
+      /const offrable = situation !== /,
+    );
+    // Et la situation vient du domaine, pas d'une seconde définition écrite ici.
+    expect(page).toMatch(/situationAbonnement\(abonnement\)/);
   });
 
   it("[LE CŒUR] « jamais abonnée » et « abonnement terminé » ne disent plus la MÊME chose", () => {
     // Le mensonge d'origine : un compte gratuit lisait « ton abonnement n'est plus actif » à propos
-    // d'un abonnement qui n'a jamais existé.
-    const page = lire("app/abonnement/page.tsx");
-    expect(page).toMatch(/abonnement \? c\.ETAT_TERMINE : c\.ETAT_JAMAIS_ABONNEE/);
+    // d'un abonnement qui n'a jamais existé. Les deux phrases existent, et la page les distingue
+    // par la SITUATION — le rendu le prouve, cas par cas.
+    const page = sansCommentaires(lire("app/abonnement/page.tsx"));
+    expect(page).toMatch(/situation === "jamais_abonnee" \? \(/);
+    expect(page).toMatch(/c\.ETAT_JAMAIS_ABONNEE/);
+    expect(page).toMatch(/c\.ETAT_TERMINE/);
     const copie = lire("render/abonnement/copie-abonnement.ts");
     expect(copie).toMatch(/ETAT_JAMAIS_ABONNEE/);
   });

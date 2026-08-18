@@ -111,3 +111,64 @@ export function joursAvantEcheance(echeanceIso: string, maintenant: Date): numbe
   if (Number.isNaN(terme)) return null;
   return (terme - maintenant.getTime()) / 86_400_000;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// LA SITUATION — ce que la projection sait dire, nommé une fois pour toutes
+// (revue adversariale du 2026-08-18, R2)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ══ CE QUE TROIS BOOLÉENS INDÉPENDANTS ONT PRODUIT ═══════════════════════════════════════════════════
+//
+// `/abonnement` dérivait `actif`, `resiliationDemandee` et `contratOuvert`, puis les recombinait dans
+// QUATRE endroits : la phrase d'état, le geste, l'offre, la date. Huit combinaisons possibles, cinq
+// écrites — et celle que Stripe envoie à CHAQUE échéance n'était traitée nulle part :
+//
+//     etat = 'resilie'  ET  resiliation_demandee_le = <une date désormais passée>
+//
+// Les deux arrivent ENSEMBLE parce que `cancel_at_period_end` est le seul chemin de résiliation du
+// produit : `customer.subscription.deleted` porte `status = 'canceled'` sans effacer `cancel_at`. La
+// page lisait la date comme « résiliation en cours » et affichait un accès révolu, un bouton
+// « Reprendre » que Stripe refuse toujours, et aucune offre — sur la seule surface d'abonnement d'un
+// compte sans branche.
+//
+// Ajouter un quatrième booléen aurait fait seize combinaisons et le même défaut un cran plus loin. Une
+// UNION n'a pas de combinaison sans nom, et le rendu doit traiter chaque cas.
+//
+// ══ CE QUE CETTE FONCTION REFUSE DE PRÉTENDRE ════════════════════════════════════════════════════════
+//
+// Elle ne dit PAS si Stripe facture encore. `expire` confond `past_due` (vivant, relancé, qui finira
+// par encaisser) avec `incomplete_expired` (mort) — c'est écrit dans `STATUTS_CONTRAT_MORT` ci-dessus,
+// et c'est pour cela que la route Checkout INTERROGE Stripe au lieu de deviner. Un seul état projeté
+// est certain : `resilie` ⟺ `canceled`, le premier des deux statuts morts. Le reste est tenu pour
+// vivant tant qu'il porte un identifiant — le repli qui laisse la porte de sortie ouverte (M12).
+
+/** Ce que `/abonnement` lit d'elle-même. Aucun montant, aucune donnée de paiement. */
+export type ProjectionAbonnement = {
+  readonly etat: EtatAbonnement;
+  readonly resiliationDemandeeLe: string | null;
+  readonly subscriptionId: string | null;
+};
+
+export type SituationAbonnement =
+  /** Aucune ligne : compte gratuit. Ce n'est pas « terminé », et le lui dire serait un état inventé. */
+  | "jamais_abonnee"
+  /** Contrat vivant, aucune résiliation demandée. */
+  | "actif"
+  /** Résiliation demandée sur un contrat qui COURT ENCORE : l'accès va jusqu'à la date. */
+  | "resiliation_en_cours"
+  /** Accès éteint, contrat encore ouvert chez Stripe (`past_due` & co) : il reste à résilier (M12). */
+  | "sans_acces_contrat_ouvert"
+  /** Plus rien à résilier ni à reprendre. Elle peut se réabonner — et c'est le seul chemin. */
+  | "termine";
+
+export function situationAbonnement(
+  abonnement: ProjectionAbonnement | null | undefined,
+): SituationAbonnement {
+  if (!abonnement) return "jamais_abonnee";
+  // ⚠️ L'ÉTAT MORT SE LIT AVANT LA DATE, ET C'EST TOUT LE CORRECTIF. Inverser ces deux lignes rend
+  // `resiliation_en_cours` sur un contrat clos — le défaut R2, mot pour mot.
+  if (abonnement.etat === "resilie") return "termine";
+  if (abonnement.resiliationDemandeeLe != null) return "resiliation_en_cours";
+  if (abonnement.etat === "actif") return "actif";
+  return abonnement.subscriptionId != null ? "sans_acces_contrat_ouvert" : "termine";
+}

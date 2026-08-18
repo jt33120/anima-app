@@ -13,15 +13,23 @@ explicitement exclues.
 
 ## Où on en est (2026-08-18, fin de journée)
 
-**5 fermées sur 33** — R1, R5, R6, R7, R26. Les quatre trouvailles nommées de la revue des
+**7 fermées sur 33** — R1, R2, R3, R5, R6, R7, R26. Les quatre trouvailles nommées de la revue des
 Epics 1 à 4 (#8, #14, #15, #16) sont fermées elles aussi, dans d'autres commits.
 
-Restent **28**, dont **quatre hautes** : R2 (le cul-de-sac après résiliation aboutie), R3 (la
-garantie FR-089 refusée en silence à qui y a droit), R4 (la réserve du moteur de rétention plus
-courte que l'opération qu'elle protège), R8 (le gate d'allocation lit encore le plancher au tour
-qui éteint l'épisode), R9 (`personne_joignable` n'exige pas les CGU — la 0072 a corrigé ses deux
-sœurs et oublié celle-là), R11 (l'export désactivé sur l'écran de révocation) et R12 (le filet de
+Les trois qui coûtaient de l'argent à quelqu'un — R1 (69 € prélevés sur un compte effacé), R2
+(inencaissable à vie après une résiliation) et R3 (une fausse confirmation de virement) — sont
+toutes les trois fermées.
+
+Restent **26**, dont **cinq hautes** : R4 (la réserve du moteur de rétention plus courte que
+l'opération qu'elle protège), R8 (le gate d'allocation lit encore le plancher au tour qui éteint
+l'épisode), R9 (`personne_joignable` n'exige pas les CGU — la 0072 a corrigé ses deux sœurs et
+oublié celle-là), R11 (l'export désactivé sur l'écran de révocation) et R12 (le filet de
 ressources jeté sur un blocage d'egress).
+
+⚠️ **R13 CHANGE DE POIDS DEPUIS R3.** « Un remboursement intégral laisse l'accès premium ouvert
+jusqu'à la fin de la période payée » était une générosité isolée ; maintenant que la garantie se
+rouvre à chaque contrat, c'est le maillon d'une boucle. Le correctif de R3 nomme la conséquence et
+la laisse ouverte à dessein — la borner est une décision produit, pas une décision de code.
 
 ## En une ligne
 
@@ -69,7 +77,13 @@ SCÉNARIO CONCRET (état + entrées → tort)
 ```
 </details>
 
-### R2 — Une fois la résiliation ABOUTIE, /abonnement devient un cul-de-sac : plus aucune offre, un bouton « Reprendre » qui échoue systématiquement, et « actif jusqu'au <date passée> ».
+### ~~R2~~ ✅ — Une fois la résiliation ABOUTIE, /abonnement devient un cul-de-sac : plus aucune offre, un bouton « Reprendre » qui échoue systématiquement, et « actif jusqu'au <date passée> ».
+
+> **FERMÉE.** `5efd6df` : `situationAbonnement` (lib/domain) remplace la recombinaison de trois
+> booléens par une union de cinq situations — il n'existe plus de combinaison sans nom. La route de
+> résiliation lit la même et refuse un contrat clos avant d'appeler Stripe. Deux gardes de source
+> qui épinglaient la syntaxe fautive ont dû être réécrites : elles gravaient le défaut. 10 mutants,
+> 10 tués.
 
 - **Verdict** : CONFIRME · **angle** : 
 - **Où** : `app/abonnement/page.tsx:253`
@@ -99,7 +113,13 @@ Une abonnée dont `abonnement.etat = 'actif'`, `stripe_subscription_id = 'sub_X'
 ```
 </details>
 
-### R3 — La garantie FR-089 est refusée en silence à qui y a droit après un réabonnement — avec un faux « le remboursement arrive sur ton moyen de paiement ».
+### ~~R3~~ ✅ — La garantie FR-089 est refusée en silence à qui y a droit après un réabonnement — avec un faux « le remboursement arrive sur ton moyen de paiement ».
+
+> **FERMÉE.** `56e317f` (migration 0075) : la clé d'unicité passe de `utilisatrice_id` à
+> (utilisatrice, contrat), `nulls not distinct` pour tenir aussi le chemin minorité. La clé
+> d'idempotence voyage jusqu'à Stripe et revient, pour que la confirmation vise LA ligne et pas
+> toutes. L'éligibilité ne propose plus un geste déjà accompli, et l'état affiché est celui du
+> contrat courant. 11 mutants, 11 tués — les six SQL vérifiés dans `pg_proc`/`pg_index`.
 
 - **Verdict** : CONFIRME · **angle** : 
 - **Où** : `app/api/abonnement/remboursement/route.ts:66`

@@ -7,6 +7,23 @@ import {
   verifieLeLibelle,
 } from "@/lib/safety/ressources-aide";
 
+/**
+ * ⚠️ RENDUE À LA DEMANDE, ET C'EST LA SORTIE DE SECOURS QUI EN DÉPEND (revue adversariale, R5).
+ *
+ * Cette page était PRÉRENDUE au build — c'était même une propriété dont son en-tête se félicitait :
+ * elle ne lit aucune session, donc Next la figeait. Or `proxy.ts` pose un nonce NOUVEAU À CHAQUE
+ * REQUÊTE, et `'strict-dynamic'` fait IGNORER `'self'` en CSP niveau 3 : un HTML figé au build ne
+ * peut porter aucun nonce valide, donc AUCUN de ses scripts n'est chargé.
+ *
+ * Mesuré le 2026-08-18 sur `next start` : 16 balises `<script>`, 0 noncées, 16 refusées par le
+ * navigateur. React ne s'hydratait jamais. Le bouton « Quitter » — la sortie rapide de FR-077, sur la
+ * page qu'on atteint en détresse — était affiché et ne faisait rien. La même page rendue à la demande
+ * nonce 16 scripts sur 16.
+ *
+ * Le prérendu n'était pas une décision : c'était une CONSÉQUENCE, et personne ne l'avait choisie.
+ */
+export const dynamic = "force-dynamic";
+
 // NFR-015 / identité de route — « Anam » partout (garde : identite-route.test.ts).
 export const metadata = { title: "Anam" };
 

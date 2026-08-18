@@ -54,6 +54,23 @@ export function cspPageArt9(nonce: string, options: { dev: boolean }): string {
     "frame-ancestors 'none'",
     "base-uri 'none'",
     "object-src 'none'",
-    "form-action 'self'",
+    // ⚠️ `checkout.stripe.com` EST NOMMÉ ICI PARCE QUE SANS LUI LA VENTE N'ABOUTIT PAS
+    // (revue adversariale du 2026-08-18, R6).
+    //
+    // `form-action` s'applique à TOUTE LA CHAÎNE de redirection d'une soumission, pas seulement à sa
+    // première étape — Chromium et WebKit la suivent ; Firefox, non. Or `MontagePaywall` est un
+    // `<form>` SANS JavaScript qui POSTe vers `/api/stripe/checkout`, laquelle répond 303 vers la
+    // session hébergée. Le seul chemin d'abonnement du produit était donc mort sur deux moteurs sur
+    // trois, sans erreur visible : le bouton ne faisait rien.
+    //
+    // Mesuré, avec le contrôle qui sépare (`verif-csp-form-action.mjs`) : réponse 200 same-origin →
+    // la soumission aboutit, zéro refus ; réponse 303 vers un tiers → refus `form-action` et la page
+    // ne bouge pas. Le contrôle était nécessaire : le message du navigateur nomme l'URL du
+    // FORMULAIRE, pas celle de la redirection, et donne à croire que l'envoi same-origin est refusé.
+    //
+    // ⚠️ UN HÔTE, PAS UN JOKER, ET SURTOUT PAS DANS `connect-src`. Soumettre un formulaire et ouvrir
+    // une socket ne sont pas le même geste : élargir `connect-src` rouvrirait l'exfiltration d'art. 9
+    // vers un tiers, qui est ce que cette CSP existe pour fermer.
+    "form-action 'self' https://checkout.stripe.com",
   ].join("; ");
 }

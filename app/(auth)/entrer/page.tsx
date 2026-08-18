@@ -4,6 +4,23 @@ import { ADIEU } from "@/lib/domain/copie-mes-donnees";
 import { SESSION_FERMEE } from "@/lib/domain/copie-reglages";
 import s from "./entrer.module.css";
 
+/**
+ * ⚠️ RENDUE À LA DEMANDE, ET C'EST UNE GARDE (revue adversariale, R5).
+ *
+ * `proxy.ts` pose un nonce NOUVEAU À CHAQUE REQUÊTE, et `script-src` porte `'strict-dynamic'` — qui,
+ * en CSP niveau 3, fait IGNORER `'self'` et toutes les sources d'hôte. Une page PRÉRENDUE porte donc
+ * un HTML figé dont aucun `<script>` ne peut être noncé : le navigateur les refuse tous, React ne
+ * s'hydrate jamais, et les composants clients de la page sont à l'écran sans réagir.
+ *
+ * Cette page-ci l'était DÉJÀ par inférence — elle lit la session, donc Next la rend à la demande.
+ * C'est précisément l'inférence qui a piégé `/aide`, dont l'en-tête se félicitait de « ne lire aucune
+ * session » : le jour où elle a cessé d'en lire une, elle est devenue statique et muette, sans qu'une
+ * seule ligne de son code ne change. On le DÉCLARE donc, plutôt que de le déduire d'un détail
+ * d'implémentation qu'un correctif peut retirer.
+ */
+export const dynamic = "force-dynamic";
+
+
 // NFR-015 / AC7 (1.7) — identité uniforme : « Anam » sur toutes les routes.
 export const metadata = { title: "Anam" };
 

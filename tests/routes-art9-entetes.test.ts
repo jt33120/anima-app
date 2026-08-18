@@ -42,8 +42,30 @@ describe("Routes art. 9 — no-store + CSP stricte + zéro tiers (AC5)", () => {
     expect(s).toMatch(/connect-src 'self'/);
     expect(s).toMatch(/frame-ancestors 'none'/);
     expect(s).toMatch(/object-src 'none'/);
-    // aucune origine externe (http(s)://…) dans la CSP.
-    expect(s).not.toMatch(/https?:\/\//);
+    // ⚠️ AUCUNE ORIGINE EXTERNE DANS UNE DIRECTIVE QUI PORTE DE LA DONNÉE — et la garde a dû
+    // devenir PRÉCISE plutôt que de céder (revue adversariale, R6).
+    //
+    // Elle refusait tout `http(s)://` dans le fichier, ce qui était une bonne approximation tant
+    // qu'aucun hôte tiers n'y avait sa place. `form-action` en a désormais un : `form-action` suit
+    // TOUTE la chaîne de redirection d'une soumission, et le paiement redirige vers la session
+    // hébergée de Stripe — sans cet hôte, le seul chemin d'abonnement du produit est mort sur
+    // Chrome et Safari (mesuré le 2026-08-18).
+    //
+    // Ce qui compte n'a pas bougé d'un pouce : soumettre un formulaire ne transporte pas d'art. 9
+    // vers un tiers, ouvrir une socket, si. Les directives qui portent de la donnée restent
+    // hermétiques, une par une, et la seule ouverture est nommée et bornée à un hôte exact.
+    for (const directive of ["connect-src", "img-src", "script-src", "default-src", "style-src", "font-src"]) {
+      const lignes = s.split("\n").filter((l) => l.includes(`${directive} `));
+      expect(lignes.length, `la directive ${directive} doit exister pour être gardée`).toBeGreaterThan(0);
+      for (const l of lignes) {
+        expect(l, `origine externe dans ${directive}`).not.toMatch(/https?:\/\//);
+      }
+    }
+    // La seule ouverture tolérée, nommée : un hôte exact, aucun joker, et dans `form-action` seule.
+    const externes = [...s.matchAll(/https?:\/\/[^\s"'`,]+/g)].map((m) => m[0]);
+    expect(externes, "un seul hôte externe, et c'est celui du paiement").toEqual([
+      "https://checkout.stripe.com",
+    ]);
   });
 
   it("AUCUNE route API n'importe un SDK fournisseur ni un traceur/APM", () => {

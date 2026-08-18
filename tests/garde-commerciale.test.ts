@@ -183,6 +183,36 @@ describe("GardeCommerciale — invariants d'architecture (AD-7, AD-9)", () => {
     // Non-vacuité : depuis 3.1, la route Checkout EXISTE et doit être gardée (sinon la garde ne prouve rien).
     expect(routesCommerciales.length, "aucune route commerciale détectée — la garde serveur est vide").toBeGreaterThan(0);
 
+    // ── LA GARDE INDEXAIT LE CHEMIN, PAS LE CONTENU (revue Epic 5, R2) ──────────────────────────
+    //
+    // ⚠️ MESURÉ : `app/ancrages/page.tsx` rendait « Les ancrages font partie de l'offre complète.
+    // Tu peux la découvrir depuis ton abonnement. » + un lien vers la page de vente, SANS aucune
+    // garde AD-9 — pendant un épisode de détresse comme le reste du temps. Tout ce qui précède
+    // était vert : « ancrages » ne porte aucun des six marqueurs, donc le fichier n'était même pas
+    // regardé. La halte a été livrée en 5.9, la garde existe depuis la 2.5, et rien ne s'est croisé.
+    //
+    // La faute n'est pas d'avoir oublié un marqueur — c'est d'avoir mesuré le NOM DU DOSSIER pour
+    // décider si une surface vend. Toute future halte au nom innocent rouvrirait le même trou. Ce
+    // second passage mesure ce qui vend RÉELLEMENT : un chemin vers la page d'abonnement ou vers
+    // le Checkout. Les dérogations sont les MÊMES que ci-dessus — une seule doctrine, pas deux.
+    const SOLLICITE = /href=["'{`]\s*\/abonnement|action=["'{`]\s*\/api\/stripe/;
+    const solliciteuses = [...fichiersSource("app"), ...fichiersSource("render")]
+      .filter((f) => SOLLICITE.test(sansCommentaires(readFileSync(f, "utf-8"))))
+      .filter((f) => !estSortie(f))
+      .filter((f) => !estCarteGardeeParGateServeur(f));
+    for (const f of solliciteuses) {
+      expect(
+        sansCommentaires(readFileSync(f, "utf-8")),
+        `sollicitation commerciale sans <GardeCommerciale> (chemin sans marqueur) : ${f}`,
+      ).toMatch(/<GardeCommerciale/);
+    }
+    // Non-vacuité : au moins la halte qui a révélé le trou doit être VUE par ce passage — sinon la
+    // garde serait une boucle vide, exactement le défaut qu'elle vient de corriger.
+    expect(
+      solliciteuses.some((f) => /[/\\]app[/\\]ancrages[/\\]page\.tsx$/.test(f)),
+      "le second passage ne voit plus /ancrages : la garde est redevenue vide",
+    ).toBe(true);
+
     // Non-vacuité de la dérogation « sortie » (3.5). Deux conditions, et la seconde est la vraie : les
     // routes existent, ET une garde COMPORTEMENTALE prouve qu'elles restent ouvertes en détresse. Sans
     // elle, cette dérogation ne serait qu'une allowlist — c'est-à-dire un trou qu'on aurait documenté.

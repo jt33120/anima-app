@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import { listerLectures, type Lecture } from "@/lib/data/depot-lecture";
-import { lireDescriptionCarte } from "@/lib/corpus/description-cartes";
-import type { CleCarteJeu } from "@/lib/tirage/jeu";
+import { lireDescriptionCarteArchivee } from "@/lib/corpus/description-cartes";
 import CarteTiree from "@/render/lecture/CarteTiree";
 import Restitution from "@/render/lecture/Restitution";
 import LienEchangeSource from "@/render/lecture/LienEchangeSource";
@@ -115,7 +114,11 @@ export default async function Page() {
       )}
 
       {lectures.map((l) => {
-        const description = lireDescriptionCarte(l.carte as CleCarteJeu);
+        // ⚠️ LECTURE TOLÉRANTE, PAS STRICTE (revue Epic 5, R1). `lireDescriptionCarte` jette sur une
+        // clé hors du jeu COURANT — juste au dépôt, faux ici : la 5.10 a retiré des cartes, et une
+        // archive porte la carte de son jour. Le `as CleCarteJeu` d'avant affirmait au compilateur
+        // exactement ce qui était faux, et une seule ligne d'archive faisait tomber TOUTE la halte.
+        const description = lireDescriptionCarteArchivee(l.carte);
         const entreeId = l.cleTourSource ? entreeParCle.get(l.cleTourSource) : undefined;
         return (
           <Restitution

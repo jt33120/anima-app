@@ -1,9 +1,13 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { sansCommentaires } from "./_absence";
 import {
   CORPUS_DESCRIPTION_CARTES,
   chercherSensDansDescription,
   cleDescription,
   lireDescriptionCarte,
+  lireDescriptionCarteArchivee,
 } from "@/lib/corpus/description-cartes";
 import { clesEcrites, clesNonEcrites, textesEcrits, ecrit, corpus } from "@/lib/corpus/port";
 import { CLES_JEU } from "@/lib/tirage/jeu";
@@ -146,5 +150,45 @@ describe("[AC8] le corpus réel passe le balayage", () => {
     const fautifs = textesEcrits(faux).filter((t) => chercherSensDansDescription(t).length > 0);
     expect(fautifs).toHaveLength(1);
     expect(fautifs[0]).toContain("symbolise");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// RELIRE UNE ARCHIVE — une carte retirée d'un jeu n'est pas un défaut de code (revue Epic 5, R1)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[R1] une lecture close sur une carte RETIRÉE ne fait pas tomber la halte", () => {
+  // Les six cartes que la 5.10 a retirées en ramenant le jeu à 21. Une lecture close AVANT ce jour
+  // les porte toujours : c'est une trace qu'on a promis de garder, pas une clé invalide.
+  const RETIREES = ["puits", "corde", "fontaine", "nid", "metier-a-tisser", "orage"];
+
+  it("une carte hors du jeu courant rend NON_ECRIT — jamais une exception", () => {
+    for (const retiree of RETIREES) {
+      expect(RETIREES.includes(retiree) && !CLES_JEU.includes(retiree as never)).toBe(true);
+      expect(lireDescriptionCarteArchivee(retiree)).toEqual({ statut: "non_ecrit" });
+    }
+  });
+
+  it("le STRICT reste strict : au dépôt, une clé hors jeu est un défaut qui doit crier", () => {
+    // ⚠️ Le correctif n'a PAS élargi `lireDescriptionCarte`. Le tirage puise dans le jeu courant :
+    // une clé inconnue y est un bug, et un `NON_ECRIT` silencieux le cacherait. Deux lectures pour
+    // deux questions — c'est la seule chose qui empêche de retomber dans l'un ou l'autre travers.
+    expect(() => lireDescriptionCarte(RETIREES[0] as never)).toThrow(/non déclaré/);
+  });
+
+  it("une carte DU jeu courant passe par le chemin strict (le tolérant ne court-circuite rien)", () => {
+    for (const carte of CLES_JEU) {
+      expect(lireDescriptionCarteArchivee(carte)).toEqual(lireDescriptionCarte(carte));
+    }
+  });
+
+  it("[ANTI-VACUITÉ] la halte relit bien par le chemin TOLÉRANT, et n'a plus de transtypage", () => {
+    // La garde qui compte : le correctif vit dans `app/lectures/page.tsx`, pas dans ce module. Un
+    // `as CleCarteJeu` réintroduit ferait retomber la halte entière sur une seule ligne d'archive.
+    const src = sansCommentaires(
+      readFileSync(resolve(process.cwd(), "app/lectures/page.tsx"), "utf-8"),
+    );
+    expect(src).toMatch(/lireDescriptionCarteArchivee\(\s*l\.carte\s*\)/);
+    expect(src, "le transtypage qui masquait le défaut est revenu").not.toMatch(/as CleCarteJeu/);
   });
 });

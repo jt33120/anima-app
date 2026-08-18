@@ -36,6 +36,19 @@ export const REFUS_OFFRE =
   "Les ancrages font partie de l’offre complète. Tu peux la découvrir depuis ton abonnement.";
 
 /**
+ * ── CE QUI RESTE QUAND LE COMMERCE SE TAIT (revue Epic 5, R2 · FR-043, AD-9) ────────────────────
+ *
+ * `REFUS_OFFRE` INVITE — « tu peux la découvrir » — et pointe vers la page de vente. C'est une
+ * sollicitation commerciale, et FR-043 dit qu'aucune n'atteint quelqu'un en détresse. Elle passe
+ * donc désormais sous `GardeCommerciale`, comme le paywall et la carte du fil.
+ *
+ * ⚠️ MAIS UNE HALTE RÉDUITE À SON TITRE EST UNE PANNE, PAS UNE PROTECTION. Ce qu'on lui doit dans
+ * cette fenêtre est le FAIT, sans l'invitation : les ancrages ne sont pas ouverts sur son compte.
+ * Pas de cadenas, pas de compteur, pas de « découvre » — et surtout pas de porte fermée en silence.
+ */
+export const REFUS_SANS_OFFRE = "Les ancrages ne sont pas ouverts sur ton compte.";
+
+/**
  * L'état RÉEL du produit en v1 : les vingt-quatre créneaux sont déclarés, aucun n'est écrit.
  *
  * C'est la même phrase de fond que l'accueil (5.6) : elle nomme l'autrice, elle ne s'excuse pas, et

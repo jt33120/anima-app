@@ -9,10 +9,12 @@ import {
   AVANCER,
   INDISPONIBLE,
   REFUS_OFFRE,
+  REFUS_SANS_OFFRE,
   TERMINER,
   TITRE_HALTE,
   TRAVERSE,
 } from "@/lib/domain/copie-ancrage";
+import { GardeCommerciale } from "@/app/_commerce/GardeCommerciale";
 import Ancrage from "@/render/ancrage/Ancrage";
 import s from "@/render/ancrage/ancrage.module.css";
 import PiedHalte from "@/render/PiedHalte";
@@ -83,6 +85,17 @@ export default async function Page() {
       <main className={s.halte}>
         <h1 className="t-titre">{TITRE_HALTE}</h1>
         <p className="t-corps">{INDISPONIBLE}</p>
+      {/* ⚠️ LA PORTE DE SECOURS MANQUAIT SUR CE CHEMIN DE RETOUR (revue Epic 5, R2b · FR-077).
+          La garde de la 6.9 lit le FICHIER : elle voit `PiedHalte` et se déclare satisfaite, sans
+          savoir qu'une page a trois sorties et que deux d'entre elles n'en portaient pas. FR-077 dit
+          « toujours là, indépendante de toute détection » — donc sur la vue dégradée aussi, qui est
+          justement celle qu'on atteint quand quelque chose ne va pas. */}
+      <PiedHalte
+        mentionIA={piedPour("ancrages").mentionIA}
+        texteMention={MENTION_IA}
+        urlTransparence={URL_TRANSPARENCE}
+        urlAide={URL_AIDE}
+      />
       </main>
     );
   }
@@ -91,11 +104,33 @@ export default async function Page() {
     return (
       <main className={s.halte}>
         <h1 className="t-titre">{TITRE_HALTE}</h1>
-        {/* Un LIEN, pas une vitrine : on ne teaser pas ce qu'on n'a pas (FR-057), et il n'y a ni
+        {/* Le FAIT, toujours — il ne dépend d'aucune détection et ne vend rien. */}
+        <p className="t-corps">{REFUS_SANS_OFFRE}</p>
+        {/* ⚠️ CETTE HALTE SOLLICITAIT COMMERCIALEMENT PENDANT UN ÉPISODE DE DÉTRESSE (revue Epic 5,
+            R2 · FR-043, AD-9). La phrase invite — « tu peux la découvrir » — et pointe vers la page
+            de vente : c'est du commerce, et le commerce n'atteint pas quelqu'un en détresse. La
+            garde prospective ne l'avait pas vue parce qu'elle indexe le CHEMIN du fichier, et
+            « ancrages » ne porte aucun marqueur commercial. Le chemin de SORTIE, lui, reste ouvert
+            sans condition : ce qui est gardé ici est l'invitation à ENTRER dans le paiement.
+
+            Un LIEN, pas une vitrine : on ne teaser pas ce qu'on n'a pas (FR-057), et il n'y a ni
             cadenas, ni compteur de ce qui manque (FR-031). */}
-        <p className="t-corps">
-          {REFUS_OFFRE} <Link href="/abonnement">Mon abonnement</Link>
-        </p>
+        <GardeCommerciale utilisatriceId={auth.user.id}>
+          <p className="t-corps">
+            {REFUS_OFFRE} <Link href="/abonnement">Mon abonnement</Link>
+          </p>
+        </GardeCommerciale>
+      {/* ⚠️ LA PORTE DE SECOURS MANQUAIT SUR CE CHEMIN DE RETOUR (revue Epic 5, R2b · FR-077).
+          La garde de la 6.9 lit le FICHIER : elle voit `PiedHalte` et se déclare satisfaite, sans
+          savoir qu'une page a trois sorties et que deux d'entre elles n'en portaient pas. FR-077 dit
+          « toujours là, indépendante de toute détection » — donc sur la vue dégradée aussi, qui est
+          justement celle qu'on atteint quand quelque chose ne va pas. */}
+      <PiedHalte
+        mentionIA={piedPour("ancrages").mentionIA}
+        texteMention={MENTION_IA}
+        urlTransparence={URL_TRANSPARENCE}
+        urlAide={URL_AIDE}
+      />
       </main>
     );
   }

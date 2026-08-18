@@ -50,6 +50,30 @@ export function lireDescriptionCarte(carte: CleCarteJeu): TexteCorpus {
   return lireTexte(CORPUS_DESCRIPTION_CARTES, cleDescription(carte));
 }
 
+/**
+ * ── RELIRE UNE ARCHIVE (revue Epic 5, R1) ──────────────────────────────────────────────────────
+ *
+ * ⚠️ `lireDescriptionCarte` JETTE sur une clé non déclarée, et c'est juste AU DÉPÔT : le tirage
+ * puise dans le jeu courant, donc une clé inconnue y est un défaut de code qui doit crier. C'est
+ * FAUX à la RELECTURE : une lecture close en juillet porte la carte du jeu de juillet, et la 5.10
+ * a retiré des cartes du jeu. Le compilateur ne pouvait rien dire — `app/lectures/page.tsx` passait
+ * `l.carte as CleCarteJeu`, un transtypage qui affirme précisément ce qui est faux.
+ *
+ * Ce que ça donnait : UNE ligne d'archive sur une carte retirée, et la halte « Mes lectures »
+ * ENTIÈRE tombait — pas la ligne, la page. Toutes ses autres lectures avec elle.
+ *
+ * Une carte retirée d'un jeu n'est pas un défaut de code : c'est une décision de produit, prise
+ * après coup, sur une trace qu'on lui a promis de garder. Elle rend donc `NON_ECRIT` — exactement
+ * ce que rendent aujourd'hui les 21 cartes du jeu courant, dont aucune description n'est écrite.
+ * Le chemin est donc éprouvé à chaque affichage, et le rendu sait déjà le traverser sans inventer
+ * un visuel d'emprunt (FR-022) ni nommer la carte (FR-018).
+ */
+export function lireDescriptionCarteArchivee(carte: string): TexteCorpus {
+  return Object.hasOwn(CORPUS_DESCRIPTION_CARTES.textes, cleDescription(carte as CleCarteJeu))
+    ? lireDescriptionCarte(carte as CleCarteJeu)
+    : NON_ECRIT;
+}
+
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // La garde : une description décrit, elle ne signifie pas
 // ══════════════════════════════════════════════════════════════════════════════════════════════

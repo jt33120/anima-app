@@ -36,7 +36,7 @@ inatteignable, une casse la sortie de secours, et une laisse un compte en prendr
 
 ### ~~R1~~ ✅ — L'effacement total (art. 17) supprime le compte sans jamais annuler la souscription chez Stripe : la carte est débitée de 69 € pour un compte qui n'existe plus.
 
-> **FERMÉE.** 375afcd… non — `3a5b9a6` : la garde vit désormais dans `lib/data/arret-facturation.ts`, et un test refuse tout chemin d'effacement qui ne l'appelle pas.
+> **FERMÉE.** `3a5b9a6` : la garde vit désormais dans `lib/data/arret-facturation.ts`, et un test refuse tout chemin d'effacement qui ne l'appelle pas.
 
 - **Verdict** : CONFIRME · **angle** : 
 - **Où** : `app/mes-donnees/actions.ts:35`

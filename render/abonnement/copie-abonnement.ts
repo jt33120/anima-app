@@ -61,6 +61,17 @@ export const ETAT_TERMINE_LE = (date: string) => `Il s'est terminé le ${date}.`
  */
 export const ETAT_JAMAIS_ABONNEE = "Tu n'as pas d'abonnement.";
 
+/**
+ * L'ACCÈS OFFERT (migration 0077). Il est DIT, jamais tu : quelqu'un qui ne verrait ni geste de
+ * résiliation ni offre d'abonnement, sur une page qui parle d'argent, croirait à une panne.
+ *
+ * Et il est dit SANS ornement : ni « cadeau », ni « merci », ni exclamation. Cette page reste la
+ * page de l'argent — c'est l'endroit où l'on vient quand on veut partir.
+ */
+export const ETAT_OFFERT = "Ton accès est ouvert, sans abonnement et sans paiement.";
+export const ETAT_OFFERT_PRECISION =
+  "Rien n'est prélevé, et il n'y a rien à résilier. Il se referme quand nous le refermons.";
+
 /** Le titre de l'offre. Le MÊME que celui de la carte du fil : une seule offre, un seul nom. */
 export const TITRE_OFFRE = "Continuer avec Anam";
 /** Panne de lecture : ne jamais dire « tu n'as pas d'abonnement » à quelqu'un qui en a un (patron 4.6). */
@@ -144,6 +155,13 @@ export const REFUS_PAIEMENT_INJOIGNABLE =
 export const REFUS_CONTRAT_CLOS =
   "Ton abonnement est terminé : il n'y a plus rien à résilier ni à reprendre de ce côté-là. Si tu " +
   "veux revenir, ça se fait plus bas — c'est un nouvel abonnement, pas la reprise de l'ancien.";
+
+/**
+ * Le refus qui tombe sur un onglet resté ouvert quand l'accès a été OFFERT entre-temps. Il dit
+ * ce qui EST, pas ce qui a échoué : « rien à résilier » est un fait, pas une erreur.
+ */
+export const REFUS_RIEN_A_RESILIER =
+  "Ton accès est ouvert sans abonnement : il n'y a rien à résilier, et rien n'est prélevé.";
 
 export const REFUS_CONTRAT_OUVERT =
   "Ton abonnement précédent court encore chez notre prestataire de paiement, même s'il ne te donne " +

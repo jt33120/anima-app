@@ -54,7 +54,7 @@ beforeEach(() => {
 
 describe("[M3] le retry : tant que Stripe n'a pas confirmé, on RAPPELLE Stripe", () => {
   it("[CONTRÔLE POSITIF] première demande → Stripe est appelé avec la clé de la base", async () => {
-    reserver.mockResolvedValueOnce({ cle: "cle-base", subscriptionId: "sub_1", dejaDemande: false, confirmeLe: null });
+    reserver.mockResolvedValueOnce({ cle: "cle-base", subscriptionId: "sub_1", offertLe: null, dejaDemande: false, confirmeLe: null });
     const res = await POST(req());
     expect(rembourser).toHaveBeenCalledWith("sub_1", "u1", "cle-base");
     expect(etatDe(res)).toBe("rembourse");
@@ -64,7 +64,7 @@ describe("[M3] le retry : tant que Stripe n'a pas confirmé, on RAPPELLE Stripe"
     // C'est le scénario du premier appel échoué. Avant correctif, la route répondait « remboursée »
     // sans rien faire, à vie. L'`idempotencyKey` de Stripe est précisément ce qui rend ce rejeu sûr :
     // la même clé ne rembourse jamais deux fois.
-    reserver.mockResolvedValueOnce({ cle: "cle-base", subscriptionId: "sub_1", dejaDemande: true, confirmeLe: null });
+    reserver.mockResolvedValueOnce({ cle: "cle-base", subscriptionId: "sub_1", offertLe: null, dejaDemande: true, confirmeLe: null });
     const res = await POST(req());
     expect(rembourser, "un remboursement non confirmé doit être rejoué").toHaveBeenCalledWith(
       "sub_1",
@@ -78,7 +78,7 @@ describe("[M3] le retry : tant que Stripe n'a pas confirmé, on RAPPELLE Stripe"
     // L'autre bord : le double-clic légitime après un remboursement réussi ne doit pas retaper Stripe.
     reserver.mockResolvedValueOnce({
       cle: "cle-base",
-      subscriptionId: "sub_1",
+      subscriptionId: "sub_1", offertLe: null,
       dejaDemande: true,
       confirmeLe: "2026-08-01T10:00:00Z",
     });
@@ -92,14 +92,14 @@ describe("[M2] la route dit ce qui s'est réellement passé", () => {
   it("aucun paiement retrouvé → `sans_paiement`, JAMAIS « le remboursement arrive »", async () => {
     // `rien_a_rembourser` est exactement ce que rendait la fonction pendant toute la vie de la 3.5,
     // à cause de l'`expand` incomplet. La route l'a affiché comme un succès pendant tout ce temps.
-    reserver.mockResolvedValueOnce({ cle: "c", subscriptionId: "sub_1", dejaDemande: false, confirmeLe: null });
+    reserver.mockResolvedValueOnce({ cle: "c", subscriptionId: "sub_1", offertLe: null, dejaDemande: false, confirmeLe: null });
     rembourser.mockResolvedValueOnce("rien_a_rembourser");
     const res = await POST(req());
     expect(etatDe(res)).toBe("sans_paiement");
   });
 
   it("remboursement émis → `rembourse`", async () => {
-    reserver.mockResolvedValueOnce({ cle: "c", subscriptionId: "sub_1", dejaDemande: false, confirmeLe: null });
+    reserver.mockResolvedValueOnce({ cle: "c", subscriptionId: "sub_1", offertLe: null, dejaDemande: false, confirmeLe: null });
     rembourser.mockResolvedValueOnce("rembourse");
     expect(etatDe(await POST(req()))).toBe("rembourse");
   });
@@ -112,7 +112,7 @@ describe("[M2] la route dit ce qui s'est réellement passé", () => {
   });
 
   it("Stripe lève → `echec`, et la réservation n'est PAS effacée (elle porte la clé)", async () => {
-    reserver.mockResolvedValueOnce({ cle: "c", subscriptionId: "sub_1", dejaDemande: false, confirmeLe: null });
+    reserver.mockResolvedValueOnce({ cle: "c", subscriptionId: "sub_1", offertLe: null, dejaDemande: false, confirmeLe: null });
     rembourser.mockRejectedValueOnce(new Error("stripe down"));
     expect(etatDe(await POST(req()))).toBe("echec");
   });

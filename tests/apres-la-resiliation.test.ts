@@ -46,7 +46,7 @@ describe("[R2] `situationAbonnement` — la projection dit ce qu'elle sait, et r
 
   it("actif sans date de résiliation : actif", () => {
     expect(
-      situationAbonnement({ etat: "actif", resiliationDemandeeLe: null, subscriptionId: "sub_1" }),
+      situationAbonnement({ etat: "actif", resiliationDemandeeLe: null, subscriptionId: "sub_1", offertLe: null }),
     ).toBe("actif");
   });
 
@@ -55,7 +55,7 @@ describe("[R2] `situationAbonnement` — la projection dit ce qu'elle sait, et r
       situationAbonnement({
         etat: "actif",
         resiliationDemandeeLe: "2027-03-04T00:00:00Z",
-        subscriptionId: "sub_1",
+        subscriptionId: "sub_1", offertLe: null,
       }),
     ).toBe("resiliation_en_cours");
   });
@@ -68,14 +68,14 @@ describe("[R2] `situationAbonnement` — la projection dit ce qu'elle sait, et r
       situationAbonnement({
         etat: "resilie",
         resiliationDemandeeLe: "2027-03-04T00:00:00Z",
-        subscriptionId: "sub_1",
+        subscriptionId: "sub_1", offertLe: null,
       }),
     ).toBe("termine");
   });
 
   it("`resilie` sans date (résiliation immédiate côté Stripe) : terminé aussi", () => {
     expect(
-      situationAbonnement({ etat: "resilie", resiliationDemandeeLe: null, subscriptionId: "sub_1" }),
+      situationAbonnement({ etat: "resilie", resiliationDemandeeLe: null, subscriptionId: "sub_1", offertLe: null }),
     ).toBe("termine");
   });
 
@@ -84,13 +84,13 @@ describe("[R2] `situationAbonnement` — la projection dit ce qu'elle sait, et r
     // Stripe relance et finira par encaisser. Confondre ce cas avec « terminé » retirerait le bouton
     // de résiliation à la personne la plus coincée du produit — le défaut M12, repayé.
     expect(
-      situationAbonnement({ etat: "expire", resiliationDemandeeLe: null, subscriptionId: "sub_1" }),
+      situationAbonnement({ etat: "expire", resiliationDemandeeLe: null, subscriptionId: "sub_1", offertLe: null }),
     ).toBe("sans_acces_contrat_ouvert");
   });
 
   it("`expire` SANS identifiant : il n'y a plus rien à résilier", () => {
     expect(
-      situationAbonnement({ etat: "expire", resiliationDemandeeLe: null, subscriptionId: null }),
+      situationAbonnement({ etat: "expire", resiliationDemandeeLe: null, subscriptionId: null, offertLe: null }),
     ).toBe("termine");
   });
 
@@ -100,7 +100,7 @@ describe("[R2] `situationAbonnement` — la projection dit ce qu'elle sait, et r
       situationAbonnement({
         etat: "expire",
         resiliationDemandeeLe: "2027-03-04T00:00:00Z",
-        subscriptionId: "sub_1",
+        subscriptionId: "sub_1", offertLe: null,
       }),
     ).toBe("resiliation_en_cours");
   });
@@ -142,14 +142,14 @@ beforeEach(() => {
   annuler.mockReset();
   traiterEvenement.mockReset();
   getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
-  lireAbonnement.mockResolvedValue({ subscriptionId: "sub_1", etat: "actif", resiliationDemandeeLe: null });
+  lireAbonnement.mockResolvedValue({ subscriptionId: "sub_1", offertLe: null, etat: "actif", resiliationDemandeeLe: null });
   resilier.mockResolvedValue("2027-01-01T10:00:00.000Z");
   annuler.mockResolvedValue(undefined);
   traiterEvenement.mockResolvedValue("traite");
 });
 
 describe("[R2] la route refuse un contrat MORT au lieu de le faire refuser par Stripe", () => {
-  const mort = { subscriptionId: "sub_1", etat: "resilie", resiliationDemandeeLe: "2027-03-04T00:00:00Z" };
+  const mort = { subscriptionId: "sub_1", offertLe: null, etat: "resilie", resiliationDemandeeLe: "2027-03-04T00:00:00Z" };
 
   it("[LE CŒUR] « Reprendre » sur un contrat clos n'appelle PAS Stripe", async () => {
     lireAbonnement.mockResolvedValue(mort);
@@ -180,7 +180,7 @@ describe("[R2] la route refuse un contrat MORT au lieu de le faire refuser par S
 
   it("[CONTRÔLE POSITIF] et « Reprendre » sur une résiliation EN COURS marche encore", async () => {
     lireAbonnement.mockResolvedValue({
-      subscriptionId: "sub_1",
+      subscriptionId: "sub_1", offertLe: null,
       etat: "actif",
       resiliationDemandeeLe: "2027-03-04T00:00:00Z",
     });

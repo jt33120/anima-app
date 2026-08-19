@@ -133,8 +133,11 @@ describe("[3.6/T2] Un compte gratuit a enfin un chemin", () => {
     expect(page, "l'offre doit être gardée par `etape === \"suite\"` ET par l'éligibilité").toMatch(
       /\{etape === "suite" && offrable && \(/,
     );
+    // ⚠️ INSENSIBLE À LA MISE EN FORME. Écrite `/const offrable = situation !== /`, cette garde a
+    // rougi le jour où l'expression a gagné un troisième terme et tenu sur deux lignes — un
+    // changement qui ne touche en rien la règle gardée. Elle mesurait la position d'une espace.
     expect(page, "`offrable` doit se dériver de la SITUATION, jamais d'un état recombiné").toMatch(
-      /const offrable = situation !== /,
+      /const offrable =\s*situation !== /,
     );
     // Et la situation vient du domaine, pas d'une seconde définition écrite ici.
     expect(page).toMatch(/situationAbonnement\(abonnement\)/);

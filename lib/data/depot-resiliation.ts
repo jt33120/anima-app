@@ -37,6 +37,8 @@ export type AbonnementLu = {
   readonly periodeFin: string | null;
   readonly resiliationDemandeeLe: string | null;
   readonly subscriptionId: string | null;
+  /** Non nul : accès OFFERT, sans contrat Stripe derrière (migration 0077). */
+  readonly offertLe: string | null;
 };
 
 /**
@@ -54,7 +56,7 @@ export async function lireAbonnement(): Promise<AbonnementLu | null> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("abonnement")
-    .select("etat, periode_fin, resiliation_demandee_le, stripe_subscription_id")
+    .select("etat, periode_fin, resiliation_demandee_le, stripe_subscription_id, offert_le")
     .maybeSingle();
   if (error) throw new Error(`lecture abonnement a échoué (${error.code ?? "inconnu"}).`);
   if (!data) return null;
@@ -63,6 +65,7 @@ export async function lireAbonnement(): Promise<AbonnementLu | null> {
     periodeFin: data.periode_fin as string | null,
     resiliationDemandeeLe: data.resiliation_demandee_le as string | null,
     subscriptionId: data.stripe_subscription_id as string | null,
+    offertLe: data.offert_le as string | null,
   };
 }
 

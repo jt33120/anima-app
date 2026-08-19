@@ -146,11 +146,16 @@ export default async function PageAbonnement({
   // AUCUN bouton — pendant que Stripe poursuivait ses relances et finirait par encaisser. La
   // personne la plus coincée du produit était la seule sans porte. C'est la situation
   // `sans_acces_contrat_ouvert` : elle porte le geste, comme `actif`.
+  // ⚠️ « OFFERT » N'EST NI L'UN NI L'AUTRE, ET LES DEUX ERREURS SONT VISIBLES. Rangé avec
+  // `actif`, l'écran proposerait de résilier un contrat qui n'existe pas chez Stripe, et l'appel
+  // partirait avec un identifiant nul. Rangé avec `jamais_abonnee`, il proposerait de payer pour
+  // un accès déjà ouvert. Il ne porte donc NI le geste NI l'offre — et il le dit.
   const contratAResilier = situation === "actif" || situation === "sans_acces_contrat_ouvert";
   // L'OFFRE se monte partout où il n'y a PLUS de contrat vivant — y compris après une résiliation
   // aboutie (R2), et y compris sur un contrat coincé, que la route Checkout refusera avec une phrase
   // qui porte le chemin (`REFUS_CONTRAT_OUVERT`) plutôt qu'un mur.
-  const offrable = situation !== "actif" && situation !== "resiliation_en_cours";
+  const offrable =
+    situation !== "actif" && situation !== "resiliation_en_cours" && situation !== "offert";
 
   return (
     <main className={s.page}>
@@ -198,6 +203,13 @@ export default async function PageAbonnement({
           {c.REFUS_CONTRAT_CLOS}
         </p>
       )}
+      {/* Un onglet resté ouvert sur un compte à qui l'accès a été offert depuis. Il n'y a rien à
+          résilier, et le lui dire vaut mieux qu'une page d'erreur. */}
+      {retour === "rien_a_resilier" && (
+        <p className={`t-corps ${s.retour}`} role="status">
+          {c.REFUS_RIEN_A_RESILIER}
+        </p>
+      )}
       {retour === "contrat_ouvert" && (
         <p className={`t-corps ${s.retour}`} role="status">
           {c.REFUS_CONTRAT_OUVERT}
@@ -211,6 +223,11 @@ export default async function PageAbonnement({
           d'argent. Chaque situation a désormais sa phrase, et il n'en reste aucune sans nom (R2). */}
       {situation === "jamais_abonnee" ? (
         <p className="t-corps">{c.ETAT_JAMAIS_ABONNEE}</p>
+      ) : situation === "offert" ? (
+        <>
+          <p className="t-corps">{c.ETAT_OFFERT}</p>
+          <p className="t-meta">{c.ETAT_OFFERT_PRECISION}</p>
+        </>
       ) : situation === "actif" ? (
         <>
           <p className="t-corps">{c.ETAT_ACTIF}</p>

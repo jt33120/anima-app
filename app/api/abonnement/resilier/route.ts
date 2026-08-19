@@ -161,6 +161,19 @@ async function abonnementDe(request: Request): Promise<Abonnement> {
     return vers("/abonnement?etat=contrat_clos");
   }
 
+  // ⚠️ UN ACCÈS OFFERT N'A RIEN À RÉSILIER, ET L'APPEL PARTIRAIT AVEC UN IDENTIFIANT NUL.
+  //
+  // La page ne montre pas le geste (`contratAResilier` l'exclut), et ce n'est PAS une raison de
+  // l'omettre ici : un onglet resté ouvert POSTe encore, et la leçon est déjà écrite six lignes plus
+  // haut pour le contrat clos. Sans cette garde, `subscriptions.update(null)` partirait chez Stripe
+  // — au mieux une erreur, au pire une action sur un contrat qui n'est pas le nôtre.
+  //
+  // Elle tombe sur Anima, qui a l'accès offert : c'est exactement la personne à qui le produit ne
+  // doit pas rendre une page d'erreur.
+  if (situationAbonnement(abonnement) === "offert") {
+    return vers("/abonnement?etat=rien_a_resilier");
+  }
+
   // `etat` remonte avec l'identifiant : la projection locale le REPROJETTE tel quel (voir ci-dessus).
   return {
     subscriptionId: abonnement.subscriptionId,

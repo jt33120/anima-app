@@ -63,7 +63,7 @@ beforeEach(() => {
   traiterEvenement.mockReset();
 
   getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
-  lireAbonnement.mockResolvedValue({ subscriptionId: "sub_1", etat: "actif" });
+  lireAbonnement.mockResolvedValue({ subscriptionId: "sub_1", offertLe: null, etat: "actif" });
   resilier.mockResolvedValue("2027-01-01T10:00:00.000Z");
   annuler.mockResolvedValue(undefined);
   traiterEvenement.mockResolvedValue("traite");
@@ -83,7 +83,7 @@ describe("[revue 1-4, #15] résilier projette la date SANS attendre le webhook",
   });
 
   it("[LE CŒUR] reprendre EFFACE la date — sinon l'écran dirait « résilié » à quelqu'un revenu", async () => {
-    lireAbonnement.mockResolvedValueOnce({ subscriptionId: "sub_1", etat: "actif" });
+    lireAbonnement.mockResolvedValueOnce({ subscriptionId: "sub_1", offertLe: null, etat: "actif" });
     await POST(req("?reprendre=1"));
     expect(annuler).toHaveBeenCalledWith("sub_1");
     const e = traiterEvenement.mock.calls[0][0];
@@ -95,7 +95,7 @@ describe("[revue 1-4, #15] résilier projette la date SANS attendre le webhook",
     // pour un abonnement `past_due` (projeté `expire`) : résilier un contrat en échec de paiement
     // aurait alors RÉTABLI son accès à l'écran. Une résiliation ne change pas l'état d'accès — Stripe
     // garde `status = active` jusqu'à l'échéance — elle ne change que la DATE.
-    lireAbonnement.mockResolvedValueOnce({ subscriptionId: "sub_1", etat: "expire" });
+    lireAbonnement.mockResolvedValueOnce({ subscriptionId: "sub_1", offertLe: null, etat: "expire" });
     await POST(req());
     expect(traiterEvenement.mock.calls[0][0].etat).toBe("expire");
   });

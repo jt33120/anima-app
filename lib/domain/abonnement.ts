@@ -147,6 +147,8 @@ export type ProjectionAbonnement = {
   readonly etat: EtatAbonnement;
   readonly resiliationDemandeeLe: string | null;
   readonly subscriptionId: string | null;
+  /** Non nul : accès OFFERT, sans contrat Stripe derrière (migration 0077). */
+  readonly offertLe: string | null;
 };
 
 export type SituationAbonnement =
@@ -159,7 +161,16 @@ export type SituationAbonnement =
   /** Accès éteint, contrat encore ouvert chez Stripe (`past_due` & co) : il reste à résilier (M12). */
   | "sans_acces_contrat_ouvert"
   /** Plus rien à résilier ni à reprendre. Elle peut se réabonner — et c'est le seul chemin. */
-  | "termine";
+  | "termine"
+  /**
+   * Accès OFFERT (Anima, comptes de test) : premium plein, aucun contrat Stripe.
+   *
+   * ⚠️ IL LUI FAUT SA PROPRE SITUATION, ET CE N'EST PAS DU CONFORT. Confondu avec `actif`, l'écran
+   * proposerait « Résilier » sur un contrat qui n'existe pas chez Stripe, et l'appel partirait avec
+   * un identifiant nul. Confondu avec `jamais_abonnee`, il proposerait de payer pour un accès qu'on
+   * a déjà. Les deux erreurs sont visibles, et toutes deux tombent sur la co-autrice du produit.
+   */
+  | "offert";
 
 export function situationAbonnement(
   abonnement: ProjectionAbonnement | null | undefined,
@@ -168,6 +179,10 @@ export function situationAbonnement(
   // ⚠️ L'ÉTAT MORT SE LIT AVANT LA DATE, ET C'EST TOUT LE CORRECTIF. Inverser ces deux lignes rend
   // `resiliation_en_cours` sur un contrat clos — le défaut R2, mot pour mot.
   if (abonnement.etat === "resilie") return "termine";
+  // L'accès offert se lit APRÈS l'état mort et AVANT tout le reste : une marque reprise
+  // (`reprendre_acces_offert` pose `etat='expire'` et efface la marque) doit retomber dans les cas
+  // ordinaires, et un accès offert vivant ne doit jamais croiser un chemin qui parle à Stripe.
+  if (abonnement.offertLe != null && abonnement.etat === "actif") return "offert";
   if (abonnement.resiliationDemandeeLe != null) return "resiliation_en_cours";
   if (abonnement.etat === "actif") return "actif";
   return abonnement.subscriptionId != null ? "sans_acces_contrat_ouvert" : "termine";

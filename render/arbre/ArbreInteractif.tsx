@@ -408,6 +408,12 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
           tabIndex={0}
           role="group"
           aria-label={ARIA_ZONE_ARBRE}
+          /* ⚠️ LE GLISSEMENT ENTRE RÉGIONS S'ARRÊTE ICI, ET C'EST OBLIGATOIRE. Un doigt qui part
+             horizontalement sur ce canevas DÉPLACE L'ARBRE — c'est le geste propre de la région,
+             écrit bien avant celui de la scène. Sans cette marque, les deux gestes liraient le même
+             mouvement et le monde changerait de région pendant qu'on cadre une branche. La scène
+             lit cet attribut sur toute la chaîne d'ancêtres du point de contact. */
+          data-sans-glissement
           onKeyDown={onKeyDownZone}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -544,6 +550,11 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
         <div
           className={s.ficheCouche}
           data-couche-fiche=""
+          /* Une fiche ouverte OCCUPE le doigt : elle défile, et un tap à côté la ferme. Un
+             glissement latéral y ferait quitter la région en laissant la fiche ouverte derrière —
+             on la retrouverait au retour sans l'avoir jamais fermée. Voir `data-sans-glissement`
+             sur le canevas, plus haut, et `tests/rendu/geste-propre.test.tsx`. */
+          data-sans-glissement
           onPointerDown={(e) => {
             if (e.target === e.currentTarget) fermerFiche();
           }}
@@ -581,6 +592,11 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
         <div
           className={s.ficheCouche}
           data-couche-fiche=""
+          /* Une fiche ouverte OCCUPE le doigt : elle défile, et un tap à côté la ferme. Un
+             glissement latéral y ferait quitter la région en laissant la fiche ouverte derrière —
+             on la retrouverait au retour sans l'avoir jamais fermée. Voir `data-sans-glissement`
+             sur le canevas, plus haut, et `tests/rendu/geste-propre.test.tsx`. */
+          data-sans-glissement
           onPointerDown={(e) => {
             if (e.target === e.currentTarget) fermerFicheTronc();
           }}

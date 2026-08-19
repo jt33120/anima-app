@@ -176,6 +176,11 @@
      poussé en bas par margin-top:auto, et reste défilable s'il dépasse le viewport
      (zoom 200 %, paysage court — WCAG 1.4.10 Reflow). */
   overflow-y: auto;
+  /* ⚠️ `pan-y` DONNE LE DÉFILEMENT AU NAVIGATEUR ET L'HORIZONTAL À LA SCÈNE. Sans cette ligne, le
+     glissement latéral et le défilement vertical se disputent le même doigt : soit le geste
+     latéral fait aussi défiler, soit `preventDefault` gèle le défilement. Le navigateur tranche
+     bien mieux que nous, et gratuitement — à condition qu'on lui dise sur quel axe. */
+  touch-action: pan-y;
   /* Le haut réserve la hauteur de la surimpression persistante (~76px) comme le bas réserve
      la nav : en débordement (zoom 200 %/paysage court), l'entête focalisé ne passe pas sous
      la surimpression (revue 1.8, trouvaille [8]). */
@@ -203,6 +208,32 @@
       calc(var(--duree-longue) * 0.4),
     visibility 0ms;
 }
+/* ── LA RÉGION VOISINE PENDANT LE GESTE ────────────────────────────────────────────────────────
+   Elle est CÔTE À CÔTE avec la courante (les deux en `inset: 0`, décalées de ±100 %), jamais
+   superposée : les deux restent donc PLEINEMENT OPAQUES. C'est ce qui distingue un glissement d'un
+   fondu croisé, et ce qui évite de réintroduire les deux textes lisibles l'un à travers l'autre
+   que `.regionActive` vient d'éliminer.
+
+   ⚠️ APRÈS `.regionActive`, ET CE N'EST PAS DE LA MISE EN FORME. Les deux règles ont la même
+   spécificité (une classe) et portent les mêmes propriétés : c'est l'ORDRE DE SOURCE qui décide.
+   Déplacée au-dessus, elle ne gagnerait jamais, et la voisine resterait invisible pendant tout le
+   geste — sans qu'aucune ligne ne paraisse fausse. */
+.regionVoisine {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ── PAS DE RÈGLE « .enGlissement » ICI, ET C'EST UN MUTANT QUI L'A TRANCHÉ ────────────────────
+   Une règle `.enGlissement .region { transition: none }` a existé, pour empêcher un fondu de
+   croiser le glissement. Son mutant a SURVÉCU sur WebKit ET sur Chromium, et la raison est dans
+   la cascade : pendant tout le geste, les deux panneaux concernés portent un `transition` EN
+   STYLE EN LIGNE (posé par `positionDe()`), qui remplace le raccourci entier — leur opacité ne
+   peut donc pas se transitionner, règle ou pas. Les autres régions, elles, ne bougent ni ne
+   changent d'opacité. La règle ne protégeait rien : elle rassurait.
+
+   On la retire plutôt que de la garder « au cas où ». Une défense qu'aucune mutation ne peut tuer
+   est une défense dont on ne sait pas si elle existe. */
+
 @media (min-width: 1024px) {
   .region {
     /* ── DÉGAGE LE RAIL LATÉRAL GAUCHE (doublage non-spatial) ────────────────────────────────

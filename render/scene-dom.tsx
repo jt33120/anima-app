@@ -144,6 +144,40 @@ function Etoiles() {
   );
 }
 
+/* ══ LE GLISSEMENT LATÉRAL ENTRE RÉGIONS (QA manuelle du 2026-08-19) ═════════════════════════════
+ *
+ * « J'aimerais pouvoir swiper entre les trois écrans, une dynamique d'appli quoi. »
+ *
+ * ⚠️ LE DOIGT MÈNE, L'ANIMATION NE FAIT QUE FINIR SA PHRASE. Un geste qui se contente de
+ * DÉCLENCHER une transition à la fin n'est pas un glissement : c'est un bouton qu'on actionne
+ * bizarrement. Les régions sont toutes en `inset: 0` — la voisine est donc exactement à
+ * `translateX(±100%)`, et suivre le doigt ne demande aucune piste, aucun conteneur, aucune
+ * restructuration du DOM. C'est ce qui rend cette version-ci petite.
+ *
+ * ⚠️ ET LES DEUX RÉGIONS RESTENT OPAQUES PENDANT LE GESTE. Elles sont CÔTE À CÔTE, jamais
+ * superposées : on ne réintroduit pas la double exposition que le fondu de région vient d'éliminer
+ * (voir `.region` dans monde.module.css et `e2e/seuil.spec.ts`, [LE FONDU]).
+ */
+
+/** Le déplacement, en pixels, au-delà duquel on tranche l'axe du geste. */
+const AXE_TRANCHE = 12;
+/** Ce qu'il faut parcourir pour que la région change vraiment. En deçà, le monde revient. */
+const FRANCHISSEMENT = 56;
+/** La durée de la fin de geste. Le CSS ne la connaît pas : elle est posée en style en ligne, donc
+ *  déclarée UNE fois, ici — un jeton dupliqué finit toujours par diverger de l'autre. */
+const DUREE_FIN = 280;
+
+interface Glissement {
+  /** La région d'où l'on part. Indépendante de `regionCourante` : après la bascule, elle sert
+   *  encore à sortir l'ancienne région de l'écran sans qu'un fondu ne la ramène au centre. */
+  readonly de: IdRegion;
+  /** Celle vers laquelle on va, ou `null` en bout de course (le monde ne boucle pas). */
+  readonly vers: IdRegion | null;
+  readonly dx: number;
+  /** Le doigt est parti : le mouvement finit tout seul, avec une transition. */
+  readonly fin: boolean;
+}
+
 /**
  * Contenu PLACEHOLDER sobre par destination (le contenu réel = epics 2/4/5).
  * L'ORDRE et les LIBELLÉS viennent du modèle (REGIONS) ; ici, seule la copie
@@ -200,6 +234,126 @@ export default function SceneDom({
       franchissementSignale.current = true;
       onSeuilFranchi?.();
     }
+  };
+
+  /* ── LE GESTE : le doigt mène (voir le bloc « LE GLISSEMENT LATÉRAL » plus haut) ───────────── */
+  const ordre = useMemo(() => REGIONS.map((r) => r.id), []);
+  const rang = ordre.indexOf(region);
+  const [glisse, setGlisse] = useState<Glissement | null>(null);
+  /* Le geste en cours vit dans un `ref` : il change à chaque `pointermove` et ne doit RIEN
+     redessiner tant que l'axe n'est pas tranché. Un `useState` ici ferait un rendu par pixel. */
+  const geste = useRef<{ x0: number; y0: number; axe: "?" | "x" | "y"; largeur: number } | null>(null);
+
+  /** Le voisin dans la direction du doigt — `null` en bout de course : le monde ne boucle pas. */
+  const voisinPour = (dx: number): IdRegion | null =>
+    rang < 0 ? null : (ordre[rang + (dx < 0 ? 1 : -1)] ?? null);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    /* ⚠️ LA SOURIS EST EXCLUE, ET C'EST UNE DÉCISION. Un glissement à la souris avalerait la
+       SÉLECTION DE TEXTE — dans une conversation qu'on veut pouvoir citer, c'est une perte nette.
+       Le doublage non-spatial (la barre) reste le chemin de tout le monde : ce geste n'ouvre
+       aucune destination qui n'ait déjà un lien nommé (UX-DR-37). */
+    if (e.pointerType === "mouse" || !e.isPrimary) return;
+    /* Le seuil se franchit par sa porte. Le glisser reviendrait à rouvrir le contournement qu'on
+       vient de fermer : `rang < 0` là-bas, donc rien à faire. */
+    if (rang < 0) return;
+    if ((e.target as Element | null)?.closest?.("[data-sans-glissement]")) return;
+    geste.current = { x0: e.clientX, y0: e.clientY, axe: "?", largeur: window.innerWidth };
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const g = geste.current;
+    if (!g) return;
+    const dx = e.clientX - g.x0;
+    const dy = e.clientY - g.y0;
+    if (g.axe === "?") {
+      if (Math.abs(dx) < AXE_TRANCHE && Math.abs(dy) < AXE_TRANCHE) return;
+      /* ⚠️ L'AXE SE TRANCHE UNE FOIS, ET NE SE REJUGE PLUS. Sans ça, un défilement vertical un peu
+         oblique bascule la région au milieu d'une lecture. `touch-action: pan-y` laisse en plus le
+         navigateur faire défiler lui-même : les deux gestes ne se disputent jamais le même doigt. */
+      g.axe = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      if (g.axe === "y") {
+        geste.current = null;
+        return;
+      }
+    }
+    const vers = voisinPour(dx);
+    /* En bout de course, le monde RÉSISTE (quart de course) au lieu de boucler : le geste répond,
+       et il dit en même temps qu'il n'y a rien de ce côté. */
+    setGlisse({ de: region, vers, dx: vers ? dx : dx * 0.25, fin: false });
+  };
+
+  const onPointerFin = (e: React.PointerEvent) => {
+    const g = geste.current;
+    geste.current = null;
+    if (!g || g.axe !== "x") {
+      setGlisse(null);
+      return;
+    }
+    const dx = e.clientX - g.x0;
+    const vers = voisinPour(dx);
+    const franchi = vers !== null && Math.abs(dx) >= FRANCHISSEMENT;
+    const cote = vers && ordre.indexOf(vers) > rang ? 1 : -1;
+    setGlisse({ de: region, vers, dx: franchi ? -cote * g.largeur : 0, fin: true });
+  };
+
+  /**
+   * ── LA FIN DU GESTE, ET POURQUOI LA BASCULE ARRIVE EN DERNIER ────────────────────────────────
+   *
+   * ⚠️ BASCULER LA RÉGION AU RELÂCHEMENT FAISAIT DISPARAÎTRE D'UN COUP LE PANNEAU QUI PART. Dès
+   * que la destination devient la région courante, celle d'où l'on vient n'est plus
+   * `.regionActive` : son opacité tombe à 0 — instantanément, puisque `.enGlissement` coupe les
+   * transitions. On voyait donc l'écran quitté S'ÉTEINDRE sur place pendant que le nouveau
+   * terminait sa course tout seul. Le geste avait l'air de casser à l'endroit précis où il devait
+   * se conclure. Trouvé par le TÉMOIN d'une garde (« l'animation de fin n'a jamais été observée à
+   * deux panneaux »), pas par l'assertion qu'elle portait.
+   *
+   * La bascule attend donc la fin de la course. Pendant tout le mouvement, les deux panneaux sont
+   * pleinement opaques et collés ; à l'arrivée seulement, l'état change — sous `transition: none`,
+   * puis on laisse DEUX TRAMES au navigateur pour peindre cet état avant de retirer `.enGlissement`.
+   * Sans ces deux trames, la région quittée récupérerait sa transition d'opacité et se rallumerait
+   * une fraction de seconde au centre de l'écran.
+   */
+  useEffect(() => {
+    if (!glisse?.fin) return;
+    const bref = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let a = 0;
+    let b = 0;
+    const t = window.setTimeout(
+      () => {
+        if (glisse.vers && glisse.dx !== 0) aller(glisse.vers);
+        a = requestAnimationFrame(() => {
+          b = requestAnimationFrame(() => setGlisse(null));
+        });
+      },
+      bref ? 0 : DUREE_FIN,
+    );
+    return () => {
+      window.clearTimeout(t);
+      cancelAnimationFrame(a);
+      cancelAnimationFrame(b);
+    };
+    /* Dépendance sur `glisse` SEUL, délibérément : `aller` est recréé à chaque rendu, et le
+       mettre ici relancerait la minuterie à chaque frappe dans la conversation. */
+  }, [glisse]);
+
+  /**
+   * Où chaque région est peinte pendant le geste.
+   *
+   * ⚠️ CALCULÉ SUR `glisse.de`, JAMAIS SUR LA RÉGION COURANTE. La bascule a lieu AU RELÂCHEMENT,
+   * avant la fin de l'animation : à partir de cet instant, `region` vaut déjà la destination.
+   * Repartir de `region` ferait sauter les deux panneaux d'une largeur d'écran au milieu du
+   * mouvement — le défaut exact que ce champ existe pour éviter.
+   */
+  const positionDe = (id: IdRegion): CSSProperties | undefined => {
+    if (!glisse) return undefined;
+    const transition = glisse.fin ? `transform ${DUREE_FIN}ms var(--courbe)` : "none";
+    if (id === glisse.de) return { transform: `translateX(${glisse.dx}px)`, transition };
+    if (id === glisse.vers) {
+      const cote = ordre.indexOf(id) > ordre.indexOf(glisse.de) ? 1 : -1;
+      return { transform: `translateX(calc(${cote * 100}% + ${glisse.dx}px))`, transition };
+    }
+    return undefined;
   };
 
   // État « Anam prépare » (AC2) remonté de la conversation → épaissit le signe de la surimpression.
@@ -324,7 +478,13 @@ export default function SceneDom({
   const seuilActif = region === "seuil";
 
   return (
-    <main className={s.monde}>
+    <main
+      className={s.monde}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerFin}
+      onPointerCancel={onPointerFin}
+    >
       {/* Surimpression persistante (Story 1.8) — EN TÊTE du DOM (hors régions inert) : la porte
           de secours est parmi les tout premiers arrêts de tabulation (AC3). Couche constante,
           jamais dans une région → jamais masquée/dissoute au changement de région (AC1). Le
@@ -446,7 +606,10 @@ export default function SceneDom({
         return (
           <section
             key={r.id}
-            className={`${s.region} ${classe} ${actif ? s.regionActive : ""}`}
+            className={`${s.region} ${classe} ${actif ? s.regionActive : ""} ${
+              glisse && r.id === glisse.vers ? s.regionVoisine : ""
+            }`}
+            style={positionDe(r.id)}
             aria-label={r.nom}
             aria-hidden={actif ? undefined : true}
             inert={actif ? undefined : true}

@@ -152,8 +152,14 @@ describe("Surimpression — le RENDU obéit au MODÈLE (art. 50 / AD-7, revue 1.
 describe("Câblage scène (AC3, revue 1.8 [4]) — surimpression en tête, hors des régions inert", () => {
   it("<Surimpression> est rendue AVANT la première région ET avant tout inert", () => {
     const iSur = scene.indexOf("<Surimpression");
-    const iRegions = scene.indexOf("REGIONS.map");
+    /* ⚠️ ON CHERCHE LE JSX, PAS N'IMPORTE QUEL `REGIONS.map`. La première version repérait la
+       chaîne nue — et le jour où le composant a dérivé l'ORDRE des régions en tête de corps
+       (`useMemo(() => REGIONS.map((r) => r.id))`, pour le glissement latéral), le repère a sauté
+       55 lignes plus haut et la garde a rougi sur un câblage parfaitement juste. Une garde de
+       position doit viser ce qu'elle prétend situer : ici, l'ouverture du bloc JSX des régions. */
+    const iRegions = scene.indexOf("{REGIONS.map");
     const iInert = scene.indexOf("inert");
+    expect(iRegions, "le bloc JSX des régions est introuvable").toBeGreaterThan(-1);
     expect(iSur).toBeGreaterThan(-1);
     expect(iInert).toBeGreaterThan(-1);
     expect(iSur).toBeLessThan(iRegions);

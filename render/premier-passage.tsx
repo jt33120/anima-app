@@ -27,6 +27,8 @@
  */
 
 /** Le modèle de vue du premier passage. Miroir de `lib/domain/premier-passage.ts`. */
+import { URL_REPERES } from "@/lib/scene";
+
 export interface PremierPassageVue {
   readonly du: boolean;
   readonly desCartesAttendent: boolean;
@@ -38,6 +40,7 @@ export interface ProprietesPremierPassage {
   readonly classe: string;
   readonly classeListe: string;
   readonly classeNote: string;
+  readonly classeLien: string;
 }
 
 export default function PremierPassage({
@@ -45,6 +48,7 @@ export default function PremierPassage({
   classe,
   classeListe,
   classeNote,
+  classeLien,
 }: ProprietesPremierPassage) {
   if (!modele.du) return null;
 
@@ -88,6 +92,16 @@ export default function PremierPassage({
           il dit ce qui est le plus simple, et laisse le choix entier. */}
       <p className="t-corps">
         Commence par où tu veux. Le plus simple, c&rsquo;est de parler à Anam.
+      </p>
+
+      {/* ⚠️ CE BLOC SE DIT UNE FOIS, ET C'EST LÀ SA LIMITE. « Trois places » est court par
+          contrainte mesurée (voir plus haut) et ne paraît qu'au premier passage : quelqu'un qui
+          n'a pas tout saisi ce jour-là n'avait plus rien à relire — c'est exactement le constat de
+          la QA manuelle du 2026-08-19. Le lien mène à la version longue, qui, elle, reste. */}
+      <p className="t-meta">
+        <a className={classeLien} href={URL_REPERES}>
+          Le lieu en entier
+        </a>
       </p>
 
       {/*

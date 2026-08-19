@@ -517,6 +517,22 @@
   margin: 0;
   color: var(--texte);
 }
+/* Le chemin vers la version longue. Un lien de texte, souligné : sur une pile de cartes, un mot
+   sans soulignement ne se distingue de rien (la couleur seule ne suffit pas — WCAG 1.4.1). */
+.passageLien {
+  color: var(--texte);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cible-tactile);
+}
+.passageLien:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+  border-radius: var(--rayon-sm);
+}
+
 .passagePlaces {
   display: flex;
   flex-direction: column;
@@ -772,6 +788,38 @@
   color: inherit;
 }
 .cheminAbonnement:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+  border-radius: var(--rayon-sm);
+}
+
+/* « Repères » — MÊME grammaire que .cheminAbonnement et .porteSecours, délibérément : c'est un
+   chemin de service, pas une invitation. Aucun fond, aucun bord, aucune pastille, aucune icône.
+   `margin-left: auto` comme les deux autres : l'espace libre se répartit, et « Aide » reste à
+   droite, dernier. */
+.cheminReperes {
+  margin-left: auto;
+  flex: none;
+  pointer-events: auto;
+  min-height: var(--cible-tactile);
+  /* La largeur minimale vaut pour les trois liens flottants (QA du 2026-08-19 : « Aide » mesurait
+     43,7 px, sous le seuil d'un tiers de pixel). Ils partagent la grammaire, ils partagent la garde. */
+  min-width: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-1) var(--esp-2);
+  color: var(--texte-doux);
+  text-decoration: none;
+  transition: color var(--duree-standard) var(--courbe);
+}
+.cheminReperes:hover {
+  color: var(--texte);
+}
+.cheminReperes .t-meta {
+  color: inherit;
+}
+.cheminReperes:focus-visible {
   outline: 2px solid var(--bordure-forte);
   outline-offset: 2px;
   border-radius: var(--rayon-sm);

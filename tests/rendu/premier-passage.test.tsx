@@ -12,7 +12,7 @@ import type { PremierPassageVue } from "@/render/premier-passage";
  * rendrait quand même un `<section>` vide occupant de la hauteur au-dessus de la porte.
  */
 
-const classes = { classe: "c", classeListe: "l", classeNote: "n" };
+const classes = { classe: "c", classeListe: "l", classeNote: "n", classeLien: "a" };
 const monte = (modele: PremierPassageVue) => render(<PremierPassage modele={modele} {...classes} />);
 
 describe("[H4] quand le passage n'est PAS dû", () => {

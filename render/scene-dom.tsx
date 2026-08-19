@@ -701,6 +701,7 @@ export default function SceneDom({
                       classe={s.passage}
                       classeListe={s.passagePlaces}
                       classeNote={s.passageNote}
+                      classeLien={s.passageLien}
                     />
                     {bibliotheque ? (
                       <Bibliotheque bibliotheque={bibliotheque} />

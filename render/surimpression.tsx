@@ -19,6 +19,7 @@ import Link from "next/link";
 import {
   URL_AIDE,
   URL_ABONNEMENT,
+  URL_REPERES,
   MENTION_IA,
   URL_TRANSPARENCE,
   type Surimpression,
@@ -63,6 +64,20 @@ export default function Surimpression({
       {modele.mentionIA && (
         <Link className={s.mentionIa} href={URL_TRANSPARENCE}>
           <span className="t-meta">{MENTION_IA}</span>
+        </Link>
+      )}
+
+      {/* QA manuelle du 2026-08-19 — « on est lancé dans le grand bain, on comprend rien ». Le lieu
+          se présentait une fois, à l'accueil, et nulle part on ne pouvait le RELIRE. Ce mot-ci est
+          le seul chemin permanent vers cette relecture.
+
+          ⚠️ AVANT « AIDE », JAMAIS À SA PLACE. « Aide » mène à des personnes, pas à une
+          explication : ce sont deux besoins distincts, et les confondre les dessert tous les deux.
+          L'ordre du DOM est aussi l'ordre de tabulation — la porte de secours ne cède sa place à
+          rien, et reste le dernier arrêt (FR-077). */}
+      {modele.cheminReperes && (
+        <Link className={s.cheminReperes} href={URL_REPERES}>
+          <span className="t-meta">Repères</span>
         </Link>
       )}
 

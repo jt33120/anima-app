@@ -42,6 +42,7 @@ export type IdHalte =
   | "memoire"
   | "mes-donnees"
   | "reglages"
+  | "reperes"
   | "synthese";
 
 export interface PiedHalte {
@@ -86,6 +87,12 @@ const MENTION_DUE: Readonly<Record<IdHalte, { readonly mention: boolean; readonl
       motif: "l’exercice guidé est composé pour elle (5.9) — même régime que la restitution",
     },
     reglages: { mention: false, motif: "des cases à cocher et une adresse ; aucun texte produit" },
+    reperes: {
+      mention: false,
+      motif:
+        "un mode d’emploi écrit à la main ; aucun texte produit par un modèle — et la page DIT " +
+        "elle-même qu’Anam en est une, ce qui est plus fort qu’une mention en pied",
+    },
     "mes-donnees": {
       mention: false,
       motif: "un export de SES données et un effacement ; le contenu affiché est le sien",

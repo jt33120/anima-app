@@ -35,6 +35,17 @@ export const URL_TRANSPARENCE = `${URL_AIDE}#transparence`;
  */
 export const URL_ABONNEMENT = "/abonnement";
 
+/**
+ * QA manuelle du 2026-08-19 — LA HALTE « REPÈRES ».
+ *
+ * ⚠️ CE N'EST PAS `/aide`, ET LA DEMANDE DISAIT POURTANT « SUR AIDE ». `/aide` est la porte de
+ * secours : publique, sans session, atteinte en détresse, ouverte sur une sortie rapide et des
+ * lignes tenues par des personnes (FR-077, AD-9, AD-15). Y poser un mode d'emploi ferait tomber
+ * quelqu'un en danger sur « comment ça marche », et quelqu'un qui cherche à comprendre sur des
+ * numéros d'urgence. Les deux besoins sont réels ; ils ne partagent pas une porte.
+ */
+export const URL_REPERES = "/reperes";
+
 export interface Surimpression {
   /**
    * Toujours vraie, partout, indépendante de toute détection (FR-077, AD-9/AD-15).
@@ -63,6 +74,15 @@ export interface Surimpression {
    * se fait en une carte, en pleine conversation.
    */
   readonly cheminAbonnement: boolean;
+  /**
+   * Le chemin vers « Repères » — TOUJOURS, sur toutes les régions, seuil compris.
+   *
+   * ⚠️ TYPE LITTÉRAL `true`, comme la porte de secours, et pour une raison du même ordre : celui
+   * qui ne comprend pas où il est peut être n'importe où, et n'a par définition aucune idée de
+   * l'endroit où chercher. Une entrée conditionnelle serait absente précisément là où elle sert.
+   * Le rendre facultatif ne compile pas.
+   */
+  readonly cheminReperes: true;
 }
 
 /**
@@ -78,5 +98,6 @@ export function surimpressionPour(region: IdRegion, abonnee = false): Surimpress
     signeAnam: enConversation,
     mentionIA: enConversation,
     cheminAbonnement: abonnee,
+    cheminReperes: true,
   };
 }

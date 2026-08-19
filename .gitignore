@@ -44,3 +44,7 @@ QA_testing/*.zip
 
 # Sortie transitoire de scripts/appliquer-gabarits-auth.mjs
 .gabarits-auth.mjs
+
+# Sorties de la suite E2E (captures, traces) — jamais versionnées
+/test-results/
+/playwright-report/

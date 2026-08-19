@@ -207,6 +207,16 @@
 /* ── Bloc de texte d'une région (panneau placeholder / voix) ── */
 .panneau {
   align-items: center;
+  /* ⚠️ LA RÉSERVE DE LA BARRE MANQUAIT ICI (QA visuelle du 2026-08-19). `.regionConversation` la
+     posait depuis le tour 2 — « le composeur finissait 12 px DESSOUS, et la barre avalait le tap
+     sur Envoyer » — mais la correction n'avait été portée QUE sur la région de conversation. Les
+     autres régions, dont l'Accueil, laissaient leur dernier contenu passer sous une barre au
+     dégradé transparent : la phrase « Anima n'a pas encore écrit cette carte » de la dernière carte
+     était coupée en deux, lisible à moitié, sur le premier écran que voit une nouvelle venue.
+
+     C'est le patron de défaut le plus fréquent de ce dépôt : une règle vraie, corrigée à UN endroit,
+     et le jumeau qu'on n'a pas regardé. */
+  padding-bottom: var(--hauteur-nav);
 }
 .bloc {
   position: relative;

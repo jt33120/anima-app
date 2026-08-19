@@ -165,6 +165,17 @@ export default async function PageReglages() {
       <a className={s.lienHalte} href="/mes-donnees">
         {copieDonnees.TITRE_HALTE}
       </a>
+      {/* ⚠️ LES CONDITIONS REDEVIENNENT ATTEIGNABLES (QA visuelle du 2026-08-19, M6).
+          Mesuré : aucun lien vers `/cgu` sur les DIX écrans internes. Le seul chemin du produit
+          était le pied de `/entrer` et le texte de `/consentement` — deux écrans qu'on ne revoit
+          plus une fois entrée. On fait accepter un contrat, puis on le range hors de portée.
+
+          Ici plutôt qu'ailleurs, et pour la même raison que « Mes données » juste au-dessus : tant
+          qu'il n'existe pas de menu de compte, `/reglages` est ce qui s'en approche le plus. La
+          dette du menu reste inscrite. */}
+      <a className={s.lienHalte} href="/cgu">
+        Conditions d&apos;utilisation
+      </a>
       {/* QA tour 1 (T22) — REFERMER SA SESSION. Le produit n'en offrait aucun moyen : les seuls
           `signOut` du dépôt fermaient la session de quelqu'un que le produit REFUSE (minorité
           détectée), jamais de quelqu'un qui le demande.

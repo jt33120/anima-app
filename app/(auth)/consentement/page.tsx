@@ -61,7 +61,7 @@ export default async function PageConsentement({
         {/* Échec de suppression (AC6) : jamais silencieux — la session est restée ouverte. */}
         {erreur === "suppression" ? (
           <p className={s.erreur} role="alert">
-            La suppression n&apos;a pas pu aboutir. Ton compte est toujours là — tu peux
+            La suppression n&rsquo;a pas pu aboutir. Ton compte est toujours là — tu peux
             réessayer.
           </p>
         ) : null}
@@ -69,7 +69,7 @@ export default async function PageConsentement({
         {/* Déclaration IA — FR-013 / AI Act art. 50, en français courant */}
         <p className="t-anam">
           Tu vas parler à une <strong>intelligence artificielle</strong>. Pas à un être
-          humain, pas à une voyante. Anam lit, relie et te répond — mais elle n&apos;a ni
+          humain, pas à une voyante. Anam lit, relie et te répond — mais elle n&rsquo;a ni
           conscience ni intuition.
         </p>
         {/* ⚠️ « ET GARDÉ CHIFFRÉ » A ÉTÉ RETIRÉ D'ICI (revue Epic 6, R9).
@@ -81,9 +81,9 @@ export default async function PageConsentement({
             On dit donc ce qui EST, y compris la partie inconfortable : c'est la même règle que
             « les notifications ne partent pas encore » de la 6.2. */}
         <p className="t-corps">
-          Ce que tu lui confies est <strong>conservé</strong>, pour qu&apos;elle se
-          souvienne d&apos;une fois sur l&apos;autre. C&apos;est protégé quand ça circule et
-          quand c&apos;est rangé — mais pas au point que personne chez Anima ne puisse
+          Ce que tu lui confies est <strong>conservé</strong>, pour qu&rsquo;elle se
+          souvienne d&rsquo;une fois sur l&rsquo;autre. C&rsquo;est protégé quand ça circule et
+          quand c&rsquo;est rangé — mais pas au point que personne chez Anima ne puisse
           jamais le lire. Tu peux tout <strong>effacer</strong> quand tu veux : alors tout
           disparaît, chez elle comme chez ses prestataires techniques.
         </p>
@@ -95,14 +95,14 @@ export default async function PageConsentement({
           </summary>
           <div className={s.detailsCorps}>
             <p className="t-corps">
-              Anam s&apos;appuie sur un modèle d&apos;IA opéré par un prestataire
-              technique, encadré par contrat : il ne s&apos;entraîne pas sur tes données
+              Anam s&rsquo;appuie sur un modèle d&rsquo;IA opéré par un prestataire
+              technique, encadré par contrat : il ne s&rsquo;entraîne pas sur tes données
               et ne les conserve pas au-delà du traitement de ta demande.
             </p>
             <p className="t-corps">
               Les confidences que tu partages relèvent de tes{" "}
-              <strong>données sensibles</strong> au sens de l&apos;article&nbsp;9 du RGPD
-              (ta vie intérieure, tes croyances). Elles ne sont traitées qu&apos;avec ton
+              <strong>données sensibles</strong> au sens de l&rsquo;article&nbsp;9 du RGPD
+              (ta vie intérieure, tes croyances). Elles ne sont traitées qu&rsquo;avec ton
               consentement explicite, que tu peux retirer à tout moment.
             </p>
             {/* Story 5.5 (décision D12) — le détail de ce que « déduire » veut dire. La case dit
@@ -117,7 +117,7 @@ export default async function PageConsentement({
             </p>
             <p className="t-corps">
               À ta demande de suppression, ton compte et tes contenus sont effacés, et la
-              consigne d&apos;effacement est propagée aux prestataires concernés.
+              consigne d&rsquo;effacement est propagée aux prestataires concernés.
             </p>
           </div>
         </details>

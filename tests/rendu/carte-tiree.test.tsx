@@ -24,33 +24,33 @@ const vue = (o: Partial<CarteTireeVue> = {}): CarteTireeVue => ({
 
 const DESCRIPTION = "Une porte entrouverte dans un mur de pierre, au crépuscule.";
 
-describe("[AC5] tant que le visuel n'est pas dessiné, la carte le DIT", () => {
-  it("l'état réel du produit : aucun visuel, donc l'absence annoncée", () => {
+describe("[AC5] tant que le visuel n’est pas dessiné, la carte le DIT", () => {
+  it("l’état réel du produit : aucun visuel, donc l’absence annoncée", () => {
     render(<CarteTiree carte={vue()} />);
-    expect(screen.getByText(/n'est pas encore dessiné/)).toBeTruthy();
+    expect(screen.getByText(/n’est pas encore dessiné/)).toBeTruthy();
     // Pas d'image cassée, pas de dos de carte générique : il n'y a AUCUNE balise `img`. Un substitut
     // « en attendant » serait littéralement un visuel non créé pour Anima, à la place d'un visuel
     // d'Anima (FR-022).
     expect(document.querySelector("img")).toBeNull();
   });
 
-  it("l'absence est annoncée au lecteur d'écran, pas laissée en trou silencieux (NFR-016)", () => {
+  it("l’absence est annoncée au lecteur d’écran, pas laissée en trou silencieux (NFR-016)", () => {
     render(<CarteTiree carte={vue()} />);
-    expect(screen.getByRole("img", { name: /n'est pas encore dessiné/ })).toBeTruthy();
+    expect(screen.getByRole("img", { name: /n’est pas encore dessiné/ })).toBeTruthy();
   });
 
-  it("un visuel non déclaré NE S'AFFICHE PAS, même si la description est écrite", () => {
+  it("un visuel non déclaré NE S’AFFICHE PAS, même si la description est écrite", () => {
     // Le manifeste fait foi. Sans cette règle, une description écrite en avance ferait pointer une
     // balise `img` vers un fichier absent — l'icône d'image cassée du navigateur sur une carte de
     // tirage, c'est-à-dire un accident graphique là où le produit doit dire une vérité.
     render(<CarteTiree carte={vue({ description: { statut: "ecrit", texte: DESCRIPTION } })} />);
     expect(document.querySelector("img")).toBeNull();
-    expect(screen.getByText(/n'est pas encore dessiné/)).toBeTruthy();
+    expect(screen.getByText(/n’est pas encore dessiné/)).toBeTruthy();
   });
 });
 
 describe("[AC8] quand le visuel existe, son texte alternatif est la DESCRIPTION", () => {
-  it("le visuel déclaré s'affiche, avec la description littérale en `alt`", async () => {
+  it("le visuel déclaré s’affiche, avec la description littérale en `alt`", async () => {
     // On force le manifeste : l'ensemble réel est vide, donc sans ce montage, tout le chemin
     // « visuel dessiné » serait du code jamais exercé — et le mutant qui le casserait survivrait.
     vi.resetModules();
@@ -63,7 +63,7 @@ describe("[AC8] quand le visuel existe, son texte alternatif est la DESCRIPTION"
     render(<CarteAvecVisuel carte={vue({ description: { statut: "ecrit", texte: DESCRIPTION } })} />);
     const image = screen.getByRole("img", { name: DESCRIPTION });
     expect(image.getAttribute("src")).toBe("/jeu/porte-entrouverte.webp");
-    expect(screen.queryByText(/n'est pas encore dessiné/)).toBeNull();
+    expect(screen.queryByText(/n’est pas encore dessiné/)).toBeNull();
 
     vi.doUnmock("@/render/lecture/visuels");
     vi.resetModules();
@@ -71,7 +71,7 @@ describe("[AC8] quand le visuel existe, son texte alternatif est la DESCRIPTION"
 });
 
 describe("[AC4/AC5] rien de ce qui paraît ne nomme la carte ni ne dit son sens", () => {
-  it("le nom de la carte n'apparaît nulle part dans le DOM", () => {
+  it("le nom de la carte n’apparaît nulle part dans le DOM", () => {
     // L'UX interdit nommément de « nommer la carte avant la réponse ». La clé sert à désigner un
     // fichier ; elle ne doit pas se retrouver en texte, en `title`, ni en `aria-label`.
     render(<CarteTiree carte={vue({ cle: "porte-entrouverte" })} />);
@@ -90,7 +90,7 @@ describe("[AC4/AC5] rien de ce qui paraît ne nomme la carte ni ne dit son sens"
     }
   });
 
-  it("aucun `title` ni infobulle — l'UX les interdit nommément", () => {
+  it("aucun `title` ni infobulle — l’UX les interdit nommément", () => {
     render(<CarteTiree carte={vue({ description: { statut: "ecrit", texte: DESCRIPTION } })} />);
     expect(document.querySelector("[title]")).toBeNull();
   });

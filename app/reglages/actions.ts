@@ -97,7 +97,7 @@ export async function desabonnerAppareil(endpoint: string): Promise<EtatReglages
  * plutôt qu'une erreur de base.
  */
 export async function choisirHeure(heure: number): Promise<EtatReglages> {
-  if (!heureValide(heure)) return { statut: "erreur", message: "Cette heure n'existe pas." };
+  if (!heureValide(heure)) return { statut: "erreur", message: "Cette heure n’existe pas." };
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },

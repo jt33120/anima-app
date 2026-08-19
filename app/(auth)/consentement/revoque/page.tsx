@@ -43,18 +43,18 @@ export default async function PageRevoque({
 
         {erreur === "suppression" ? (
           <p className={s.erreur} role="alert">
-            La suppression n&apos;a pas pu aboutir. Ton compte est toujours là — tu peux
+            La suppression n&rsquo;a pas pu aboutir. Ton compte est toujours là — tu peux
             réessayer.
           </p>
         ) : null}
 
         <p className="t-corps">
-          Le traitement de tes données sensibles est suspendu. Plus rien n&apos;est analysé ni
+          Le traitement de tes données sensibles est suspendu. Plus rien n&rsquo;est analysé ni
           ajouté.
         </p>
         <p className="t-corps">
-          Il te reste deux choses à portée : récupérer ce qui t&apos;appartient, puis effacer ton
-          compte. Aucune donnée n&apos;est exploitée entre-temps.
+          Il te reste deux choses à portée : récupérer ce qui t&rsquo;appartient, puis effacer ton
+          compte. Aucune donnée n&rsquo;est exploitée entre-temps.
         </p>
 
         <div className={s.actions}>
@@ -73,7 +73,7 @@ export default async function PageRevoque({
             <span className="t-bouton">Exporter mes données</span>
           </a>
           <p className={s.motif}>
-            Tu emportes tout : ce que tu as écrit, ce qu&apos;Anam a retenu, ton arbre. Le
+            Tu emportes tout : ce que tu as écrit, ce qu&rsquo;Anam a retenu, ton arbre. Le
             traitement reste suspendu pendant ce temps.
           </p>
 

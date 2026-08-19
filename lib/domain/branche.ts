@@ -40,8 +40,8 @@ function deltaJoursParis(a: Date, b: Date): number {
 export function phraseProposition({ signalCreeLe, maintenant }: { signalCreeLe: Date; maintenant: Date }): string {
   // « hier » (delta 1) / « l'autre jour » (plus ancien) — sans jamais affirmer le MOMENT de la journée (revue 4.5
   // #5 : le signal de la veille peut dater du matin ; « hier soir » mentirait sur des heures qu'on n'a pas).
-  const quand = deltaJoursParis(signalCreeLe, maintenant) === 1 ? "hier" : "l'autre jour";
-  return `Il s'est passé quelque chose ${quand}. Tu veux en faire une branche ?`;
+  const quand = deltaJoursParis(signalCreeLe, maintenant) === 1 ? "hier" : "l’autre jour";
+  return `Il s’est passé quelque chose ${quand}. Tu veux en faire une branche ?`;
 }
 
 /**

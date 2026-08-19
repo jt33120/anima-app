@@ -78,7 +78,7 @@ export default function Hypothese({
   }
 
   return (
-    <section className={`${s.bloc} fondu-texte`} aria-label="Une idée d'Anam">
+    <section className={`${s.bloc} fondu-texte`} aria-label="Une idée d’Anam">
       <p className="t-anam">{phrase}</p>
       <ul className={s.reponses}>
         <li>
@@ -88,7 +88,7 @@ export default function Hypothese({
         </li>
         <li>
           <button type="button" className={s.reponse} disabled={envoi} onClick={() => repondre("refuser")}>
-            <span className="t-corps">Non, ce n'est pas moi</span>
+            <span className="t-corps">Non, ce n’est pas moi</span>
           </button>
         </li>
         <li>

@@ -36,9 +36,9 @@
  * de deux fois sur cinq. La phrase dit donc exactement ce que le calcul fait.
  */
 export const MESSAGE_SANS_HEURE =
-  "Il me manque ton heure de naissance. Sans elle, l'ascendant et les maisons ne se calculent " +
-  "pas, et certains jours la Lune change de signe sans qu'on puisse savoir de quel côté tu es " +
-  "née : je préfère ne pas te l'inventer. Tout le reste est là — ton soleil, tes planètes, ta " +
+  "Il me manque ton heure de naissance. Sans elle, l’ascendant et les maisons ne se calculent " +
+  "pas, et certains jours la Lune change de signe sans qu’on puisse savoir de quel côté tu es " +
+  "née : je préfère ne pas te l’inventer. Tout le reste est là — ton soleil, tes planètes, ta " +
   "numérologie. Tu peux ajouter ton heure quand tu veux ; rien ne se bloque sans elle.";
 
 /**
@@ -51,5 +51,5 @@ export const MESSAGE_SANS_HEURE =
  */
 export const OU_TROUVER_SON_HEURE =
   "Ton heure de naissance est écrite sur la copie intégrale de ton acte de naissance — pas sur " +
-  "l'extrait simple, ni sur le livret de famille. La mairie de ta commune de naissance la délivre " +
+  "l’extrait simple, ni sur le livret de famille. La mairie de ta commune de naissance la délivre " +
   "gratuitement, sur place ou par internet.";

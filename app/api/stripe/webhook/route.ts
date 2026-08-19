@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     // payé mais jamais projeté → signaler aux ops (ids Stripe non-art. 9, sûrs à logger). Le rejeu
     // Stripe ne servirait à rien (metadata resterait absente) → on garde le 200.
     if (estTypeEtatAbonnement(evenement.type)) {
-      console.error("[stripe/webhook] événement d'état sans mapping utilisatriceId", {
+      console.error("[stripe/webhook] événement d’état sans mapping utilisatriceId", {
         type: evenement.type,
         eventId: evenement.id,
       });

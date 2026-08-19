@@ -35,7 +35,7 @@ export default function HypotheseEnneagramme({
   onVoir?: () => void;
 }) {
   return (
-    <article className={`${s.bloc} fondu-texte`} aria-label="Une idée d'Anam">
+    <article className={`${s.bloc} fondu-texte`} aria-label="Une idée d’Anam">
       <p className="t-anam">{phrase}</p>
       {onVoir && (
         <div className={s.carteActions}>

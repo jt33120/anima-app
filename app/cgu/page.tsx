@@ -11,14 +11,14 @@ export default function PageCGU() {
     <main className={s.page}>
       <article className={s.contenu}>
         <p className="t-surtitre">Anam</p>
-        <h1 className="t-titre">Conditions d&apos;utilisation</h1>
+        <h1 className="t-titre">Conditions d&rsquo;utilisation</h1>
         <p className="t-meta">Version provisoire — à finaliser avant le lancement.</p>
 
-        <h2 className="t-titre-sm">Ce qu&apos;est Anam</h2>
+        <h2 className="t-titre-sm">Ce qu&rsquo;est Anam</h2>
         <p className="t-corps">
-          Anam est un accompagnement par intelligence artificielle. Ce n&apos;est ni un
+          Anam est un accompagnement par intelligence artificielle. Ce n&rsquo;est ni un
           service médical, ni psychologique, ni un avis professionnel. En cas de détresse,
-          adresse-toi à un professionnel ou à un service d&apos;urgence.
+          adresse-toi à un professionnel ou à un service d&rsquo;urgence.
         </p>
 
         <h2 className="t-titre-sm">Âge requis</h2>
@@ -27,7 +27,7 @@ export default function PageCGU() {
         <h2 className="t-titre-sm">Tes données</h2>
         <p className="t-corps">
           Tu gardes la main sur tes données : tu peux les exporter et les effacer à tout
-          moment. Le détail du traitement figure sur l&apos;écran de consentement.
+          moment. Le détail du traitement figure sur l&rsquo;écran de consentement.
         </p>
 
         {/*
@@ -38,20 +38,20 @@ export default function PageCGU() {
           à ligne — c'est le minimum honnête, pas la politique de confidentialité complète,
           qui reste une porte pré-lancement.
         */}
-        <h2 className="t-titre-sm">Qui d&apos;autre voit quoi</h2>
+        <h2 className="t-titre-sm">Qui d&rsquo;autre voit quoi</h2>
         <p className="t-corps">
           Trois prestataires interviennent, et chacun ne voit que ce dont il a besoin :
-          l&apos;hébergeur de la base de données et de l&apos;application ; le fournisseur du
-          modèle d&apos;intelligence artificielle, qui reçoit ce qui est nécessaire à la
-          conversation et s&apos;engage à ne pas s&apos;en servir pour entraîner ses modèles
-          ni à le conserver ; et un service d&apos;envoi de courriels, établi aux États-Unis,
-          qui reçoit <strong>ton adresse et la raison de l&apos;envoi — jamais un mot de ce
+          l&rsquo;hébergeur de la base de données et de l&rsquo;application ; le fournisseur du
+          modèle d&rsquo;intelligence artificielle, qui reçoit ce qui est nécessaire à la
+          conversation et s&rsquo;engage à ne pas s&rsquo;en servir pour entraîner ses modèles
+          ni à le conserver ; et un service d&rsquo;envoi de courriels, établi aux États-Unis,
+          qui reçoit <strong>ton adresse et la raison de l&rsquo;envoi — jamais un mot de ce
           que tu écris ni de ce qui est écrit pour toi</strong>.
         </p>
         <p className="t-corps">
           Ton adresse sert à te connecter, et à te prévenir quand une synthèse est prête. Tu
-          peux arrêter ces courriels à tout moment, par le lien qu&apos;ils contiennent, sans
-          rien changer d&apos;autre à ton compte.
+          peux arrêter ces courriels à tout moment, par le lien qu&rsquo;ils contiennent, sans
+          rien changer d&rsquo;autre à ton compte.
         </p>
       </article>
     </main>

@@ -181,12 +181,12 @@ export function ligneAnam(presents: readonly MotifAnamPresent[]): string | null 
       // (AC1 de la 4.10 : les deux moitiés, ou rien), et la carte la respecte plutôt que de la
       // paraphraser. Rien n'est ajouté à ce qu'elle a écrit ; on lui rappelle qu'elle l'a écrit.
       if (!p.titre || !p.detail) return null;
-      return rognerLigne(`Pour aujourd'hui : si ${p.titre}, alors ${p.detail}.`);
+      return rognerLigne(`Pour aujourd’hui : si ${p.titre}, alors ${p.detail}.`);
     }
     case "synthese_prete": {
       const date = p.jour && jourLisible(p.jour);
       if (!date) return null;
-      return `Ta synthèse est prête — elle va jusqu'au ${date}.`;
+      return `Ta synthèse est prête — elle va jusqu’au ${date}.`;
     }
     case "proposition_branche": {
       const date = p.jour && jourLisible(p.jour);
@@ -194,7 +194,7 @@ export function ligneAnam(presents: readonly MotifAnamPresent[]): string | null 
       // Aucun verbatim, et c'est la minimisation héritée de la 4.5. Ce qui est spécifique ici est le
       // JOUR : il varie d'une personne à l'autre et d'une fois à l'autre, donc la ligne n'est pas un
       // littéral identique pour tout le monde — ce qu'AC6 refuse.
-      return `Quelque chose est venu le ${date}, et n'a pas encore de nom.`;
+      return `Quelque chose est venu le ${date}, et n’a pas encore de nom.`;
     }
   }
 }

@@ -60,7 +60,7 @@ describe("[5.6/T4] le thème natal est lu UNE SEULE FOIS", () => {
     });
   });
 
-  it("[LE TEST QUI COMPTE] quand la PAGE l'a déjà lu, ZÉRO appel", async () => {
+  it("[LE TEST QUI COMPTE] quand la PAGE l’a déjà lu, ZÉRO appel", async () => {
     // C'est le cas réel depuis la 5.6 : `app/page.tsx` lit le thème une fois et le passe aux deux
     // consommateurs (`chargerProjectionArbre` et cette lecture), qui sont dans le même `Promise.all`.
     await lireBibliotheque(SUPABASE, UID, MAINTENANT, false, undefined, {
@@ -71,7 +71,7 @@ describe("[5.6/T4] le thème natal est lu UNE SEULE FOIS", () => {
   });
 });
 
-describe("[5.6/AC7] l'échec d'une lecture n'emporte jamais les autres", () => {
+describe("[5.6/AC7] l’échec d’une lecture n’emporte jamais les autres", () => {
   it("les cinq cartes sont là même quand TOUT est indisponible", async () => {
     const b = await lireBibliotheque(SUPABASE, UID, MAINTENANT, false);
     expect(b.cartes.map((c) => c.cle).sort()).toEqual([
@@ -85,7 +85,7 @@ describe("[5.6/AC7] l'échec d'une lecture n'emporte jamais les autres", () => {
     expect(b.enAvant).toBeNull();
   });
 
-  it("[LE TEST QUI COMPTE] une numérologie qui LÈVE ne fait pas disparaître l'ennéagramme", async () => {
+  it("[LE TEST QUI COMPTE] une numérologie qui LÈVE ne fait pas disparaître l’ennéagramme", async () => {
     lireNumerologie.mockRejectedValue(new Error("timeout"));
     lireEnneagramme.mockResolvedValue({
       statut: "calcule",
@@ -96,7 +96,7 @@ describe("[5.6/AC7] l'échec d'une lecture n'emporte jamais les autres", () => {
     const b = await lireBibliotheque(SUPABASE, UID, MAINTENANT, false);
     expect(b.cartes).toHaveLength(5);
     const e9 = b.cartes.find((c) => c.cle === "enneagramme");
-    expect(e9?.faits, "l'ennéagramme est tombé avec la numérologie").toEqual([
+    expect(e9?.faits, "l’ennéagramme est tombé avec la numérologie").toEqual([
       { intitule: "Type", valeur: "4" },
     ]);
     // Et c'est la seule carte présentable, donc c'est elle qui est mise en avant.
@@ -128,7 +128,7 @@ describe("[5.6/AC7] l'échec d'une lecture n'emporte jamais les autres", () => {
     expect(b.enAvant).toBe("nombres");
   });
 
-  it("[NFR-022] aucune donnée personnelle ne sort dans un log d'erreur", async () => {
+  it("[NFR-022] aucune donnée personnelle ne sort dans un log d’erreur", async () => {
     const espion = vi.spyOn(console, "error").mockImplementation(() => {});
     lireNumerologie.mockRejectedValue(new Error(`échec pour ${UID}`));
     await lireBibliotheque(SUPABASE, UID, MAINTENANT, false);
@@ -140,7 +140,7 @@ describe("[5.6/AC7] l'échec d'une lecture n'emporte jamais les autres", () => {
 });
 
 describe("[5.6/AC1] le jour porté par la bibliothèque est celui de Paris", () => {
-  it("le jour civil accompagne la bibliothèque jusqu'au rendu", async () => {
+  it("le jour civil accompagne la bibliothèque jusqu’au rendu", async () => {
     const b = await lireBibliotheque(SUPABASE, UID, MAINTENANT, false);
     // Sans lui, deux jours d'horoscope identiques (la Lune met ~2,5 jours à changer de signe) se
     // liraient comme une application bloquée — report explicite de la 5.4.
@@ -181,7 +181,7 @@ describe("[5.6/T8] `app/page.tsx` lit le thème UNE FOIS et le passe à ses DEUX
     expect(sansCommentaires.length).toBeGreaterThan(400);
   });
 
-  it("[LE TEST QUI COMPTE] `lireThemeNatal` n'est appelé qu'UNE fois dans la page", () => {
+  it("[LE TEST QUI COMPTE] `lireThemeNatal` n’est appelé qu’UNE fois dans la page", () => {
     const appels = [...sansCommentaires.matchAll(/lireThemeNatal\s*\(/g)];
     expect(
       appels.length,
@@ -200,7 +200,7 @@ describe("[5.6/T8] `app/page.tsx` lit le thème UNE FOIS et le passe à ses DEUX
     );
   });
 
-  it("[AC7] la bibliothèque a un repli sûr — une panne n'emporte pas la scène", () => {
+  it("[AC7] la bibliothèque a un repli sûr — une panne n’emporte pas la scène", () => {
     // L'accueil est une région parmi quatre. Une lecture de socle en échec ne doit fermer ni la
     // conversation ni l'arbre : la page rend `null` et la scène s'ouvre quand même.
     expect(sansCommentaires).toMatch(/lireBibliotheque[\s\S]{0,200}?\.catch\(/);
@@ -211,7 +211,7 @@ describe("[5.6/T8] `app/page.tsx` lit le thème UNE FOIS et le passe à ses DEUX
   });
 });
 
-describe("[6.3/AC6] la carte d'Anam est CÂBLÉE au dépôt, pas décorative", () => {
+describe("[6.3/AC6] la carte d’Anam est CÂBLÉE au dépôt, pas décorative", () => {
   it("aucun motif → carte NEUTRE, et la carte existe quand même", async () => {
     const b = await lireBibliotheque(SUPABASE, UID, MAINTENANT, false);
     expect(b.anam.ligne).toBeNull();
@@ -231,17 +231,17 @@ describe("[6.3/AC6] la carte d'Anam est CÂBLÉE au dépôt, pas décorative", (
     expect(b.anam.ligne).toContain("7 août 2026");
   });
 
-  it("l'ARBITRAGE traverse aussi : trois motifs présents, une seule ligne, la prioritaire", async () => {
+  it("l’ARBITRAGE traverse aussi : trois motifs présents, une seule ligne, la prioritaire", async () => {
     motifsAnam.mockResolvedValue([
       { motif: "synthese_prete", jour: "2026-08-07", titre: null, detail: null },
       { motif: "proposition_branche", jour: "2026-08-06", titre: null, detail: null },
-      { motif: "echeance_intention", jour: "2026-08-14", titre: "je bloque", detail: "j'écris" },
+      { motif: "echeance_intention", jour: "2026-08-14", titre: "je bloque", detail: "j’écris" },
     ]);
     const b = await lireBibliotheque(SUPABASE, UID, MAINTENANT, false);
-    expect(b.anam.ligne).toBe("Pour aujourd'hui : si je bloque, alors j'écris.");
+    expect(b.anam.ligne).toBe("Pour aujourd’hui : si je bloque, alors j’écris.");
   });
 
-  it("[AD-15] une panne du dépôt rend la carte NEUTRE — et n'emporte pas les cinq autres", async () => {
+  it("[AD-15] une panne du dépôt rend la carte NEUTRE — et n’emporte pas les cinq autres", async () => {
     // Le repli va vers MOINS d'effet : se taire à tort coûte un rappel différé ; parler à tort met
     // sur son accueil une phrase qui ne correspond à rien. Et le socle survit, comme les trois
     // autres lectures de ce module.

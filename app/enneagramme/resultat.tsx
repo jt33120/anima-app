@@ -71,8 +71,8 @@ export default function Resultat({
       <p className={`${s.type} t-titre`}>Type {type}</p>
       <p className="t-corps">
         {origine === "test"
-          ? "C'est ce qui ressort de tes réponses."
-          : "C'est l'idée d'Anam, que tu as reconnue."}
+          ? "C’est ce qui ressort de tes réponses."
+          : "C’est l’idée d’Anam, que tu as reconnue."}
       </p>
       {/* Le texte d'Anima quand il existe — dans SA voix. Le message d'absence, lui, est du produit :
           `t-corps`, jamais `t-anam`. Confondre les deux ferait parler Anima à sa place. */}

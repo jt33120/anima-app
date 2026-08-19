@@ -54,13 +54,13 @@ export default async function PageBarriere() {
         <h1 className="t-titre">Une pause</h1>
 
         <p className="t-corps">
-          Anam est réservée aux personnes majeures. Ce n&apos;est pas une sanction : c&apos;est
-          une limite qu&apos;on tient pour de bonnes raisons. Ton compte est suspendu.
+          Anam est réservée aux personnes majeures. Ce n&rsquo;est pas une sanction : c&rsquo;est
+          une limite qu&rsquo;on tient pour de bonnes raisons. Ton compte est suspendu.
         </p>
 
         <section className={s.section} aria-label="Ressources">
           <p className="t-corps">
-            Si tu as besoin de parler ou d&apos;aide, ces lignes sont faites pour toi et
+            Si tu as besoin de parler ou d&rsquo;aide, ces lignes sont faites pour toi et
             joignables directement.
           </p>
           <ul className={s.ressources}>
@@ -79,7 +79,7 @@ export default async function PageBarriere() {
 
         <section className={s.section} aria-label="Tes données">
           <p className="t-corps">
-            Tes données seront supprimées sous 30 jours. D&apos;ici là, elles ne sont exploitées
+            Tes données seront supprimées sous 30 jours. D&rsquo;ici là, elles ne sont exploitées
             à aucune fin. Tu peux en récupérer une copie avant leur suppression.
           </p>
           <a className={s.exporter} href="/api/export">

@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       // ne l'enferme pas dehors pour une ligne périmée. Tout autre échec est une IGNORANCE, et on
       // n'encaisse pas dans l'ignorance.
       contratCourt = (e as { code?: string })?.code !== "resource_missing";
-      if (contratCourt) console.error("[stripe/checkout] statut d'abonnement illisible");
+      if (contratCourt) console.error("[stripe/checkout] statut d’abonnement illisible");
     }
     if (contratCourt) {
       // Redirection, pas JSON : ce POST vient d'un `<form>` sans JavaScript (MontagePaywall), donc un

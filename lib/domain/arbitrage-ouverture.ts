@@ -101,7 +101,7 @@ export type Ouverture =
  * Le mot « encore » fait tout le travail que ferait un compte, sans compter.
  */
 export const PHRASE_INVITATION =
-  "Il y a quelque chose que tu as déjà nommé et qui attend encore. Tu veux le faire vivre d'abord ?";
+  "Il y a quelque chose que tu as déjà nommé et qui attend encore. Tu veux le faire vivre d’abord ?";
 
 /**
  * Story 5.3 (AC4) — la mention de complétion. Dite UNE FOIS, puis plus jamais.
@@ -122,7 +122,7 @@ export const PHRASE_INVITATION =
  * cette story) : « tu le verras » deviendrait une petite promesse, là où « il est là » est un fait.
  */
 export const PHRASE_SOCLE_COMPLETE =
-  "Ton heure de naissance est enregistrée. J'ai repris ton thème avec elle — l'ascendant et les " +
+  "Ton heure de naissance est enregistrée. J’ai repris ton thème avec elle — l’ascendant et les " +
   "maisons en font partie maintenant.";
 
 /**

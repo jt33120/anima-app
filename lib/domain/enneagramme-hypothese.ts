@@ -84,11 +84,11 @@ export function momentDeProposer(faits: FaitsHypothese): boolean {
  */
 export const INSTRUCTION_HYPOTHESE_ENNEAGRAMME = [
   "[PLACEHOLDER PRODUIT — À VALIDER AVANT MISE EN LIGNE SUR DONNÉES RÉELLES]",
-  "Tu observes un échange, et rien d'autre. La question posée est celle-ci : ce que cette personne",
-  "raconte d'elle-même — ce qui la met en mouvement, ce qu'elle évite, ce qu'elle répète — correspond-il",
-  "de façon MANIFESTE à l'un des neuf types de l'ennéagramme ?",
+  "Tu observes un échange, et rien d’autre. La question posée est celle-ci : ce que cette personne",
+  "raconte d’elle-même — ce qui la met en mouvement, ce qu’elle évite, ce qu’elle répète — correspond-il",
+  "de façon MANIFESTE à l’un des neuf types de l’ennéagramme ?",
   "Ne réponds par un numéro que si le motif est net et revient plusieurs fois. Un seul indice, une",
-  "émotion passagère, ou une situation qui pourrait se lire de trois façons : ce n'est pas manifeste.",
+  "émotion passagère, ou une situation qui pourrait se lire de trois façons : ce n’est pas manifeste.",
   "Réponds UNIQUEMENT par cette ligne, sans aucun autre mot :",
   "TYPE_HYPOTHESE: (un chiffre de 1 à 9, ou `aucun`)",
   "En cas de doute, réponds `aucun`.",
@@ -166,7 +166,7 @@ export const PHRASE_OUVERTURE_HYPOTHESE =
  */
 export function phraseHypothese(type: TypeEnneagramme): string {
   return (
-    `Ce qui revient chez toi ressemble à ce qu'on appelle le type ${type}. ` +
+    `Ce qui revient chez toi ressemble à ce qu’on appelle le type ${type}. ` +
     `Est-ce que ça te parle ?`
   );
 }

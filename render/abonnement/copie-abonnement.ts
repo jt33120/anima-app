@@ -24,15 +24,15 @@
  * rétention par l'angoisse, et ce serait la plus efficace de toutes.
  */
 
-export const TITRE = "L'abonnement";
+export const TITRE = "L’abonnement";
 
 /** L'état, en toutes lettres. Aucune date n'est écrite ici : elles sont interpolées par la page. */
 export const ETAT_ACTIF = "Ton abonnement est actif.";
 export const ETAT_ACTIF_JUSQU_AU = (date: string) => `Il se renouvellera le ${date}.`;
 /** Résiliée mais encore ouverte — l'accès court jusqu'au bout de ce qui est payé. */
 export const ETAT_RESILIE = "Ton abonnement est résilié.";
-export const ETAT_RESILIE_JUSQU_AU = (date: string) => `Tu y as accès jusqu'au ${date}.`;
-export const ETAT_TERMINE = "Ton abonnement n'est plus actif.";
+export const ETAT_RESILIE_JUSQU_AU = (date: string) => `Tu y as accès jusqu’au ${date}.`;
+export const ETAT_TERMINE = "Ton abonnement n’est plus actif.";
 /**
  * ── QUAND IL S'EST TERMINÉ (revue adversariale du 2026-08-18, R2) ──────────────────────────────
  *
@@ -45,7 +45,7 @@ export const ETAT_TERMINE = "Ton abonnement n'est plus actif.";
  * Elle reste FACTUELLE et ne vend rien : ni « reviens quand tu veux », ni « ton arbre t'attend ».
  * Ce qui vend est l'offre en dessous, et elle est nommée comme telle.
  */
-export const ETAT_TERMINE_LE = (date: string) => `Il s'est terminé le ${date}.`;
+export const ETAT_TERMINE_LE = (date: string) => `Il s’est terminé le ${date}.`;
 
 /**
  * ── STORY 3.6 (QA T2) — CE QU'ON DIT À QUELQU'UN QUI N'A JAMAIS EU D'ABONNEMENT ────────────────
@@ -59,7 +59,7 @@ export const ETAT_TERMINE_LE = (date: string) => `Il s'est terminé le ${date}.`
  * intention), ni « passe au premium » (qui vend dans une phrase d'état). Ce qui vend est l'offre
  * en dessous, et elle est nommée comme telle.
  */
-export const ETAT_JAMAIS_ABONNEE = "Tu n'as pas d'abonnement.";
+export const ETAT_JAMAIS_ABONNEE = "Tu n’as pas d’abonnement.";
 
 /**
  * L'ACCÈS OFFERT (migration 0077). Il est DIT, jamais tu : quelqu'un qui ne verrait ni geste de
@@ -70,19 +70,19 @@ export const ETAT_JAMAIS_ABONNEE = "Tu n'as pas d'abonnement.";
  */
 export const ETAT_OFFERT = "Ton accès est ouvert, sans abonnement et sans paiement.";
 export const ETAT_OFFERT_PRECISION =
-  "Rien n'est prélevé, et il n'y a rien à résilier. Il se referme quand nous le refermons.";
+  "Rien n’est prélevé, et il n’y a rien à résilier. Il se referme quand nous le refermons.";
 
 /** Le titre de l'offre. Le MÊME que celui de la carte du fil : une seule offre, un seul nom. */
 export const TITRE_OFFRE = "Continuer avec Anam";
 /** Panne de lecture : ne jamais dire « tu n'as pas d'abonnement » à quelqu'un qui en a un (patron 4.6). */
-export const ETAT_INDISPONIBLE = "Je n'arrive pas à afficher ton abonnement pour l'instant.";
+export const ETAT_INDISPONIBLE = "Je n’arrive pas à afficher ton abonnement pour l’instant.";
 export const ETAT_INDISPONIBLE_CORPS = "Il est là. Réessaie dans un moment.";
 
 export const ACTION_RESILIER = "Résilier mon abonnement";
 export const ACTION_REPRENDRE = "Reprendre mon abonnement";
-export const SUCCES_RESILIATION = "C'est fait. Tu gardes ton accès jusqu'à la fin de la période payée.";
-export const SUCCES_REPRISE = "C'est fait. Ton abonnement continue.";
-export const ECHEC = "Je n'ai pas pu enregistrer ça. Tu peux réessayer.";
+export const SUCCES_RESILIATION = "C’est fait. Tu gardes ton accès jusqu’à la fin de la période payée.";
+export const SUCCES_REPRISE = "C’est fait. Ton abonnement continue.";
+export const ECHEC = "Je n’ai pas pu enregistrer ça. Tu peux réessayer.";
 
 /**
  * Quand le paiement n'est pas configuré (porte pré-lancement §4).
@@ -92,8 +92,8 @@ export const ECHEC = "Je n'ai pas pu enregistrer ça. Tu peux réessayer.";
  * marche pas maintenant, ce n'est pas de son fait, rien n'a été débité — et s'arrête là.
  */
 export const REFUS_PAIEMENT_INDISPONIBLE =
-  "Je ne peux pas prendre ton abonnement en ce moment : quelque chose n'est pas en place de notre " +
-  "côté. Rien n'a été débité. Ça n'a rien à voir avec toi, et ça se règle sans toi.";
+  "Je ne peux pas prendre ton abonnement en ce moment : quelque chose n’est pas en place de notre " +
+  "côté. Rien n’a été débité. Ça n’a rien à voir avec toi, et ça se règle sans toi.";
 
 /**
  * ── QUAND LA VENTE EST FERMÉE (revue des Epics 1 à 4, #16) ─────────────────────────────────────────
@@ -111,7 +111,7 @@ export const REFUS_PAIEMENT_INDISPONIBLE =
  * promesse ni un rendez-vous.
  */
 export const REFUS_VENTE_FERMEE =
-  "Je ne peux pas prendre ton abonnement maintenant. Rien n'a été débité, et il n'y a rien à faire " +
+  "Je ne peux pas prendre ton abonnement maintenant. Rien n’a été débité, et il n’y a rien à faire " +
   "de ton côté.";
 
 /**
@@ -122,7 +122,7 @@ export const REFUS_VENTE_FERMEE =
  * sauvera pas — ou tairait le geste utile à quelqu'un pour qui il suffit.
  */
 export const REFUS_PAIEMENT_INJOIGNABLE =
-  "Je n'ai pas réussi à ouvrir la page de paiement — notre prestataire n'a pas répondu. Rien n'a été " +
+  "Je n’ai pas réussi à ouvrir la page de paiement — notre prestataire n’a pas répondu. Rien n’a été " +
   "débité. Tu peux réessayer dans un moment.";
 
 /**
@@ -153,26 +153,26 @@ export const REFUS_PAIEMENT_INJOIGNABLE =
  * mais un nouvel abonnement s'ouvre — et l'offre est sur cette page, juste en dessous.
  */
 export const REFUS_CONTRAT_CLOS =
-  "Ton abonnement est terminé : il n'y a plus rien à résilier ni à reprendre de ce côté-là. Si tu " +
-  "veux revenir, ça se fait plus bas — c'est un nouvel abonnement, pas la reprise de l'ancien.";
+  "Ton abonnement est terminé : il n’y a plus rien à résilier ni à reprendre de ce côté-là. Si tu " +
+  "veux revenir, ça se fait plus bas — c’est un nouvel abonnement, pas la reprise de l’ancien.";
 
 /**
  * Le refus qui tombe sur un onglet resté ouvert quand l'accès a été OFFERT entre-temps. Il dit
  * ce qui EST, pas ce qui a échoué : « rien à résilier » est un fait, pas une erreur.
  */
 export const REFUS_RIEN_A_RESILIER =
-  "Ton accès est ouvert sans abonnement : il n'y a rien à résilier, et rien n'est prélevé.";
+  "Ton accès est ouvert sans abonnement : il n’y a rien à résilier, et rien n’est prélevé.";
 
 export const REFUS_CONTRAT_OUVERT =
-  "Ton abonnement précédent court encore chez notre prestataire de paiement, même s'il ne te donne " +
-  "plus accès : je ne peux pas t'en vendre un second par-dessus, tu paierais deux fois. Résilie " +
-  "celui-là d'abord — le bouton est plus haut — puis reprends ici.";
+  "Ton abonnement précédent court encore chez notre prestataire de paiement, même s’il ne te donne " +
+  "plus accès : je ne peux pas t’en vendre un second par-dessus, tu paierais deux fois. Résilie " +
+  "celui-là d’abord — le bouton est plus haut — puis reprends ici.";
 
 /** La garantie (FR-089) — proposée SEULEMENT quand elle y a droit. Jamais annoncée comme un lot de consolation. */
 export const ACTION_REMBOURSEMENT = "Demander le remboursement";
 export const GARANTIE_DISPONIBLE =
-  "Aucune branche n'a été posée depuis trois mois. Tu peux demander le remboursement, sans avoir à te justifier.";
-export const SUCCES_REMBOURSEMENT = "C'est demandé. Le remboursement arrive sur ton moyen de paiement.";
+  "Aucune branche n’a été posée depuis trois mois. Tu peux demander le remboursement, sans avoir à te justifier.";
+export const SUCCES_REMBOURSEMENT = "C’est demandé. Le remboursement arrive sur ton moyen de paiement.";
 /**
  * Le cas où la résiliation a eu lieu mais qu'aucun paiement n'a été retrouvé à rembourser.
  *
@@ -182,14 +182,14 @@ export const SUCCES_REMBOURSEMENT = "C'est demandé. Le remboursement arrive sur
  * socle : une absence dite vaut mieux qu'une valeur qui a l'air juste.
  */
 export const REMBOURSEMENT_SANS_PAIEMENT =
-  "Ton abonnement est résilié. Mais je n'ai trouvé aucun paiement à te rembourser — je préfère te le dire plutôt que de te laisser attendre.";
+  "Ton abonnement est résilié. Mais je n’ai trouvé aucun paiement à te rembourser — je préfère te le dire plutôt que de te laisser attendre.";
 /**
  * REFUS : réessayer n'a PAS de sens ici, et le patron `REFUS_RAYONNEMENT` (4.7) s'applique — on ne
  * promet pas « tu peux réessayer » à quelqu'un qui se heurterait au même mur. On ne dit pas non plus
  * POURQUOI dans le détail : « tu as posé une branche » ou « il te manque trois semaines » seraient l'un
  * et l'autre un décompte (FR-031), et le second une invitation à revenir compter les jours.
  */
-export const REFUS_REMBOURSEMENT = "Cette demande n'est pas ouverte sur ton abonnement.";
+export const REFUS_REMBOURSEMENT = "Cette demande n’est pas ouverte sur ton abonnement.";
 
 /**
  * L'ÉTAT PERSISTANT d'un remboursement demandé (revue des Epics 1 à 4, trouvaille #4).
@@ -204,7 +204,7 @@ export const REFUS_REMBOURSEMENT = "Cette demande n'est pas ouverte sur ton abon
 export const REMBOURSEMENT_EN_COURS =
   "Ton remboursement est demandé. Il arrive sur ton moyen de paiement.";
 export const REMBOURSEMENT_CONFIRME =
-  "Ton remboursement est parti sur ton moyen de paiement. Il peut mettre quelques jours à s'afficher.";
+  "Ton remboursement est parti sur ton moyen de paiement. Il peut mettre quelques jours à s’afficher.";
 /**
  * ⚠️ ELLE N'A RIEN À RÉPARER, ET LA PHRASE DOIT LE DIRE. Un remboursement refusé l'est presque
  * toujours pour une raison qui lui appartient (compte clos, carte expirée) — mais la formuler comme
@@ -214,7 +214,7 @@ export const REMBOURSEMENT_CONFIRME =
  */
 export const REMBOURSEMENT_ECHOUE =
   "Ta banque a refusé le remboursement — cela arrive quand un compte a été clos ou une carte remplacée. " +
-  "Ta demande reste ouverte : écris-moi depuis l'aide et on le refait sur un autre moyen de paiement.";
+  "Ta demande reste ouverte : écris-moi depuis l’aide et on le refait sur un autre moyen de paiement.";
 
 /** L'arbre ne recule pas — dit une fois, platement, pour retirer la peur du geste (FR-029). */
 export const RIEN_NE_DISPARAIT =

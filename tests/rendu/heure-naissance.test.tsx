@@ -41,23 +41,23 @@ function envoi(): FormData {
   return new FormData(form);
 }
 
-describe("[A2] la commune se demande même quand l'heure manque", () => {
+describe("[A2] la commune se demande même quand l’heure manque", () => {
   it("[CONTRÔLE POSITIF] par défaut, les deux sont demandés", () => {
     render(<FormulaireHeure deja={RIEN} />);
-    expect(screen.getByLabelText(/l'heure de ta naissance/i)).toBeTruthy();
+    expect(screen.getByLabelText(/l’heure de ta naissance/i)).toBeTruthy();
     expect(screen.getByLabelText(/ta commune de naissance/i)).toBeTruthy();
   });
 
-  it("l'heure est `required` tant qu'on ne déclare pas ne pas la connaître", () => {
+  it("l’heure est `required` tant qu’on ne déclare pas ne pas la connaître", () => {
     render(<FormulaireHeure deja={RIEN} />);
-    expect((screen.getByLabelText(/l'heure de ta naissance/i) as HTMLInputElement).required).toBe(true);
+    expect((screen.getByLabelText(/l’heure de ta naissance/i) as HTMLInputElement).required).toBe(true);
   });
 
   it("[LE TEST QUI COMPTE] cocher « je ne connais pas mon heure » libère le champ", async () => {
     render(<FormulaireHeure deja={RIEN} />);
     await userEvent.click(screen.getByLabelText(/je ne connais pas mon heure/i));
-    const champ = screen.getByLabelText(/l'heure de ta naissance/i) as HTMLInputElement;
-    expect(champ.required, "un champ obligatoire bloquerait l'envoi côté navigateur").toBe(false);
+    const champ = screen.getByLabelText(/l’heure de ta naissance/i) as HTMLInputElement;
+    expect(champ.required, "un champ obligatoire bloquerait l’envoi côté navigateur").toBe(false);
     expect(champ.disabled).toBe(true);
   });
 
@@ -66,17 +66,17 @@ describe("[A2] la commune se demande même quand l'heure manque", () => {
     // raison. Mais lui faire rencontrer ce refus serait un cul-de-sac fabriqué par l'écran : c'est
     // au formulaire de rendre la contradiction impossible, pas à elle de la démêler.
     render(<FormulaireHeure deja={RIEN} />);
-    await userEvent.type(screen.getByLabelText(/l'heure de ta naissance/i), "07:15");
+    await userEvent.type(screen.getByLabelText(/l’heure de ta naissance/i), "07:15");
     expect(envoi().get("heure_naissance")).toBe("07:15");
 
     await userEvent.click(screen.getByLabelText(/je ne connais pas mon heure/i));
-    expect(envoi().get("heure_naissance"), "un champ désactivé ne fait pas partie de l'envoi").toBeNull();
+    expect(envoi().get("heure_naissance"), "un champ désactivé ne fait pas partie de l’envoi").toBeNull();
     expect(envoi().get("sans_heure")).toBe("oui");
   });
 
   it("décocher la case rend le champ, et son contenu repart", async () => {
     render(<FormulaireHeure deja={RIEN} />);
-    await userEvent.type(screen.getByLabelText(/l'heure de ta naissance/i), "07:15");
+    await userEvent.type(screen.getByLabelText(/l’heure de ta naissance/i), "07:15");
     const case_ = screen.getByLabelText(/je ne connais pas mon heure/i);
     await userEvent.click(case_);
     await userEvent.click(case_);
@@ -91,18 +91,18 @@ describe("[A2] on ne redemande pas ce qui est déjà gravé", () => {
     expect(screen.queryByLabelText(/ta commune de naissance/i)).toBeNull();
     expect(screen.getByText(/Bordeaux \(33\)/)).toBeTruthy();
     // L'heure, elle, reste demandée : c'est exactement le parcours qu'ouvre le découplage.
-    expect(screen.getByLabelText(/l'heure de ta naissance/i)).toBeTruthy();
+    expect(screen.getByLabelText(/l’heure de ta naissance/i)).toBeTruthy();
   });
 
-  it("heure déjà enregistrée : ni le champ, ni la case de déclaration d'absence", () => {
+  it("heure déjà enregistrée : ni le champ, ni la case de déclaration d’absence", () => {
     render(<FormulaireHeure deja={{ heure: "07:15:00", lieu: null }} />);
-    expect(screen.queryByLabelText(/l'heure de ta naissance/i)).toBeNull();
+    expect(screen.queryByLabelText(/l’heure de ta naissance/i)).toBeNull();
     expect(screen.queryByLabelText(/je ne connais pas mon heure/i)).toBeNull();
     expect(screen.getByLabelText(/ta commune de naissance/i)).toBeTruthy();
   });
 });
 
-describe("[A2] le bouton ne s'ouvre que sur un envoi qui a quelque chose à écrire", () => {
+describe("[A2] le bouton ne s’ouvre que sur un envoi qui a quelque chose à écrire", () => {
   const bouton = () => screen.getByRole("button", { name: /enregistrer/i }) as HTMLButtonElement;
 
   it("aucune commune choisie : fermé", () => {
@@ -112,7 +112,7 @@ describe("[A2] le bouton ne s'ouvre que sur un envoi qui a quelque chose à écr
 
   it("commune déjà gravée, heure encore à donner : OUVERT sans rien choisir", () => {
     render(<FormulaireHeure deja={{ heure: null, lieu: "Bordeaux (33)" }} />);
-    expect(bouton().disabled, "elle revient avec son heure : il n'y a plus de commune à choisir").toBe(false);
+    expect(bouton().disabled, "elle revient avec son heure : il n’y a plus de commune à choisir").toBe(false);
   });
 
   it("[LE BORD] tout est déjà gravé : fermé — un bouton ouvert promettrait un geste sans effet", () => {

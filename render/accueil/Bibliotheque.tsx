@@ -81,7 +81,7 @@ function Carte({ carte, enAvant }: { carte: CarteVue; enAvant: boolean }) {
 
       {/* La mise en avant est ANNONCÉE, pas seulement plus grande : sans ça, la seule différence
           serait visuelle, et l'information n'existerait pas pour qui n'y a pas accès. */}
-      {enAvant && <p className={`t-meta ${s.mention}`}>Mise en avant aujourd&apos;hui</p>}
+      {enAvant && <p className={`t-meta ${s.mention}`}>Mise en avant aujourd&rsquo;hui</p>}
 
       {carte.faits.length > 0 && (
         <dl className={s.faits}>
@@ -110,8 +110,8 @@ function Carte({ carte, enAvant }: { carte: CarteVue; enAvant: boolean }) {
       ) : (
         <p className={`t-meta ${s.nonEcrit}`}>
           {carte.faits.length > 0
-            ? "Anima n'a pas encore écrit ce texte."
-            : "Anima n'a pas encore écrit cette carte."}
+            ? "Anima n’a pas encore écrit ce texte."
+            : "Anima n’a pas encore écrit cette carte."}
         </p>
       )}
     </article>

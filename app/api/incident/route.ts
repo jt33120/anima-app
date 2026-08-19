@@ -59,7 +59,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // Libellé PROPRE à l'anomalie d'affichage (≠ incident de sécurité), sans aucune donnée art. 9.
-  console.warn("arbre: régression d'affichage détectée au rendu — état supérieur conservé (AC2, Story 4.6)", {
+  console.warn("arbre: régression d’affichage détectée au rendu — état supérieur conservé (AC2, Story 4.6)", {
     champs: surs,
   });
   return NextResponse.json({ ok: true });

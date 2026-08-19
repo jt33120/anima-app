@@ -174,7 +174,7 @@ export default async function PageReglages() {
           qu'il n'existe pas de menu de compte, `/reglages` est ce qui s'en approche le plus. La
           dette du menu reste inscrite. */}
       <a className={s.lienHalte} href="/cgu">
-        Conditions d&apos;utilisation
+        Conditions d&rsquo;utilisation
       </a>
       {/* QA tour 1 (T22) — REFERMER SA SESSION. Le produit n'en offrait aucun moyen : les seuls
           `signOut` du dépôt fermaient la session de quelqu'un que le produit REFUSE (minorité

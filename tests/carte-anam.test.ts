@@ -57,7 +57,7 @@ describe("[AC6] neutre par défaut", () => {
 
   it("la phrase invariante est identique pour tout le monde — elle ne peut rien laisser fuir", () => {
     // Trois états radicalement différents, une seule et même phrase de présence.
-    const etats = [[], [synthese("2026-08-15")], [echeance("j'ouvre l'app", "j'écris trois lignes")]];
+    const etats = [[], [synthese("2026-08-15")], [echeance("j’ouvre l’app", "j’écris trois lignes")]];
     expect(new Set(etats.map((e) => carteAnam(e).presence)).size).toBe(1);
   });
 
@@ -75,12 +75,12 @@ describe("[AC6] neutre par défaut", () => {
 });
 
 describe("[AC6] la ligne est SPÉCIFIQUE, jamais un littéral identique pour tout le monde", () => {
-  it("l'échéance porte SES MOTS, dans la forme « si … alors … »", () => {
+  it("l’échéance porte SES MOTS, dans la forme « si … alors … »", () => {
     // Mutation-cible : remplacer les deux moitiés par une phrase générique (« Tu as une échéance
     // aujourd'hui. »). C'est exactement ce que l'AC3 interdit : la spécificité doit vivre dans l'app.
-    const l = ligneAnam([echeance("je sens que je me ferme", "j'écris une phrase dans la conversation")])!;
+    const l = ligneAnam([echeance("je sens que je me ferme", "j’écris une phrase dans la conversation")])!;
     expect(l).toContain("je sens que je me ferme");
-    expect(l).toContain("j'écris une phrase dans la conversation");
+    expect(l).toContain("j’écris une phrase dans la conversation");
     expect(l).toContain("si ");
     expect(l).toContain("alors ");
   });
@@ -104,11 +104,11 @@ describe("[AC6] la ligne est SPÉCIFIQUE, jamais un littéral identique pour tou
     expect(ligneAnam([synthese("2026-08-15")])).not.toBe(ligneAnam([synthese("2026-08-16")]));
   });
 
-  it("[AC8] c'est le motif PRIORITAIRE qui parle, et lui seul", () => {
+  it("[AC8] c’est le motif PRIORITAIRE qui parle, et lui seul", () => {
     // Les trois motifs présents en même temps : l'échéance gagne (rang 1). La ligne ne dit rien des
     // deux autres — le rendu ne reçoit jamais « 3 choses », parce qu'il ne reçoit jamais de 3.
     const l = ligneAnam([synthese("2026-08-15"), proposition("2026-08-14"), echeance("A", "B")])!;
-    expect(l).toBe("Pour aujourd'hui : si A, alors B.");
+    expect(l).toBe("Pour aujourd’hui : si A, alors B.");
   });
 });
 
@@ -116,7 +116,7 @@ describe("[AD-15] fail-closed : une charge utile incomplète rend une carte NEUT
   it("une échéance sans ses mots ne produit rien", () => {
     // Mutation-cible : retirer `if (!p.titre || !p.detail) return null;`. La carte afficherait alors
     // « Pour aujourd'hui : si null, alors undefined. » — et un build vert.
-    expect(ligneAnam([echeance(null, "j'écris")])).toBeNull();
+    expect(ligneAnam([echeance(null, "j’écris")])).toBeNull();
     expect(ligneAnam([echeance("je bloque", null)])).toBeNull();
     expect(ligneAnam([echeance(null, null)])).toBeNull();
   });
@@ -135,7 +135,7 @@ describe("[AD-15] fail-closed : une charge utile incomplète rend une carte NEUT
     expect(ligneAnam([echeance(null, null), synthese("2026-08-15")])).toBeNull();
   });
 
-  it("un motif hors de l'ensemble fermé ne produit rien, et n'écrase pas un motif légitime", () => {
+  it("un motif hors de l’ensemble fermé ne produit rien, et n’écrase pas un motif légitime", () => {
     expect(ligneAnam([{ motif: "reengagement", jour: "2026-08-15", titre: "reviens", detail: "!" }])).toBeNull();
     expect(
       ligneAnam([{ motif: "reengagement", jour: "2026-08-15", titre: null, detail: null }, synthese("2026-08-15")]),
@@ -144,13 +144,13 @@ describe("[AD-15] fail-closed : une charge utile incomplète rend une carte NEUT
 });
 
 describe("jourLisible — une date CIVILE, sans instant et sans fuseau", () => {
-  it("écrit le jour, le mois en toutes lettres et l'année", () => {
+  it("écrit le jour, le mois en toutes lettres et l’année", () => {
     expect(jourLisible("2026-01-01")).toBe("1 janvier 2026");
     expect(jourLisible("2026-12-31")).toBe("31 décembre 2026");
     expect(jourLisible("2026-08-05")).toBe("5 août 2026");
   });
 
-  it("[LE CŒUR] les douze mois sont dans l'ordre, sans décalage", () => {
+  it("[LE CŒUR] les douze mois sont dans l’ordre, sans décalage", () => {
     // Mutation-cible : `MOIS[Number(mois)]` au lieu de `- 1`. Un seul mois testé laisserait passer
     // la moitié des décalages ; les douze d'un coup n'en laissent passer aucun.
     const mois = Array.from({ length: 12 }, (_, i) => jourLisible(`2026-${String(i + 1).padStart(2, "0")}-10`));
@@ -170,21 +170,21 @@ describe("jourLisible — une date CIVILE, sans instant et sans fuseau", () => {
     ]);
   });
 
-  it("le premier jour d'un mois ne bascule PAS sur la veille", () => {
+  it("le premier jour d’un mois ne bascule PAS sur la veille", () => {
     // La panne qu'aucune ancre à midi n'aurait à corriger, parce qu'il n'y a pas d'instant du tout :
     // le 1er août reste le 1er août, quel que soit le fuseau de la machine qui l'affiche.
     expect(jourLisible("2026-08-01")).toBe("1 août 2026");
     expect(jourLisible("2026-03-01")).toBe("1 mars 2026");
   });
 
-  it("refuse tout ce qui n'est pas une date civile", () => {
+  it("refuse tout ce qui n’est pas une date civile", () => {
     for (const mauvais of ["", "hier", "2026-08", "26-08-05", "2026-08-05T00:00:00Z", "2026-00-05", "2026-13-05"]) {
       expect(jourLisible(mauvais), `« ${mauvais} »`).toBeNull();
     }
   });
 });
 
-describe("rognerLigne — ses mots, bornés pour l'affichage", () => {
+describe("rognerLigne — ses mots, bornés pour l’affichage", () => {
   it("en dessous de la borne, le texte est rendu INTACT", () => {
     expect(rognerLigne("court")).toBe("court");
     expect(rognerLigne("a".repeat(LIGNE_ANAM_MAX))).toBe("a".repeat(LIGNE_ANAM_MAX));

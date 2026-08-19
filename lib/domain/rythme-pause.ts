@@ -148,5 +148,5 @@ export function seuilFranchi(mesure: MesureRythme): boolean {
  */
 export const PHRASE_PAUSE =
   "Tu es venue souvent ces jours-ci. " +
-  "Ce que tu as déposé reste là, et rien ne se perd si tu t'éloignes un moment. " +
+  "Ce que tu as déposé reste là, et rien ne se perd si tu t’éloignes un moment. " +
   "Tu peux laisser reposer, ou continuer — les deux se valent.";

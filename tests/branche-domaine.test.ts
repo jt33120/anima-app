@@ -10,7 +10,7 @@ import { REPONSE_REFUS, INVITE_NOMMAGE, SOUS_TITRE_NOMMAGE } from "@/render/conv
  */
 
 describe("phraseProposition — proposition déterministe, jamais un décret (AC1)", () => {
-  it("un signal de la veille → « hier » (jamais « hier soir » : on n'affirme pas l'heure, revue #5) + question fermée-douce", () => {
+  it("un signal de la veille → « hier » (jamais « hier soir » : on n’affirme pas l’heure, revue #5) + question fermée-douce", () => {
     const maintenant = new Date("2026-03-15T10:00:00+01:00");
     const signalCreeLe = new Date("2026-03-14T08:00:00+01:00"); // la veille, le MATIN → « hier soir » mentirait
     const p = phraseProposition({ signalCreeLe, maintenant });
@@ -19,11 +19,11 @@ describe("phraseProposition — proposition déterministe, jamais un décret (AC
     expect(p).toContain("Tu veux en faire une branche ?");
   });
 
-  it("un signal plus ancien → « l'autre jour » (le délai peut dépasser un jour si elle n'est pas revenue)", () => {
+  it("un signal plus ancien → « l’autre jour » (le délai peut dépasser un jour si elle n’est pas revenue)", () => {
     const maintenant = new Date("2026-03-15T10:00:00+01:00");
     const signalCreeLe = new Date("2026-03-12T22:00:00+01:00"); // 3 jours civils avant
     const p = phraseProposition({ signalCreeLe, maintenant });
-    expect(p).toContain("l'autre jour");
+    expect(p).toContain("l’autre jour");
     expect(p).not.toContain("hier");
     expect(p).toContain("Tu veux en faire une branche ?");
   });
@@ -41,8 +41,8 @@ describe("phraseProposition — proposition déterministe, jamais un décret (AC
   });
 });
 
-describe("nomValide — le doute n'est pas un nom (AC2 [DUR], miroir du garde-fou serveur)", () => {
-  it("vide / espaces → invalide (une branche sans nom n'existe pas)", () => {
+describe("nomValide — le doute n’est pas un nom (AC2 [DUR], miroir du garde-fou serveur)", () => {
+  it("vide / espaces → invalide (une branche sans nom n’existe pas)", () => {
     expect(nomValide("")).toBe(false);
     expect(nomValide("   ")).toBe(false);
     expect(nomValide("\t\n")).toBe(false);
@@ -54,11 +54,11 @@ describe("nomValide — le doute n'est pas un nom (AC2 [DUR], miroir du garde-fo
 });
 
 describe("constantes de voix (charte §6.3)", () => {
-  it("le refus est « Ok. » exactement — rien d'autre, aucun point d'exclamation (AC4)", () => {
+  it("le refus est « Ok. » exactement — rien d’autre, aucun point d’exclamation (AC4)", () => {
     expect(REPONSE_REFUS).toBe("Ok.");
   });
   it("le nommage invite avec ses mots, sans suggérer (AC2)", () => {
-    expect(INVITE_NOMMAGE).toBe("Comment tu l'appelles ?");
+    expect(INVITE_NOMMAGE).toBe("Comment tu l’appelles ?");
     expect(SOUS_TITRE_NOMMAGE).toBe("Tes mots, pas les miens.");
   });
 });

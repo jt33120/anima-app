@@ -30,7 +30,7 @@
  */
 
 /** FR-017. Rien avant, rien après, rien autour. */
-export const QUESTION_LECTURE = "Qu'est-ce que tu vois ?";
+export const QUESTION_LECTURE = "Qu’est-ce que tu vois ?";
 
 /**
  * Détresse (AD-17). Anam reste — aucune carte, aucune offre, aucune promesse de report.
@@ -45,7 +45,7 @@ export const REFUS_MINORITE = "Je ne peux pas ouvrir ce moment ici.";
  * et celle-ci se rouvre d'un geste.
  */
 export const REFUS_CONSENTEMENT =
-  "Ce moment demande ton accord pour que je travaille avec ce que tu me confies. Tu peux le redonner dans « Ce que j'ai accepté ».";
+  "Ce moment demande ton accord pour que je travaille avec ce que tu me confies. Tu peux le redonner dans « Ce que j’ai accepté ».";
 
 /**
  * Hors détresse et non premium. L'offre, sans urgence fabriquée : aucun prix barré, aucun compte à
@@ -53,4 +53,4 @@ export const REFUS_CONSENTEMENT =
  * croire.
  */
 export const OFFRE_LECTURE =
-  "Les lectures font partie de l'abonnement. Le reste de ce que tu as ici ne change pas.";
+  "Les lectures font partie de l’abonnement. Le reste de ce que tu as ici ne change pas.";

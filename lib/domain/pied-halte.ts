@@ -75,15 +75,15 @@ const MENTION_DUE: Readonly<Record<IdHalte, { readonly mention: boolean; readonl
     },
     enneagramme: {
       mention: true,
-      motif: "l'hypothèse de type est formulée par Anam (5.5) ; le texte du type, lui, vient du corpus",
+      motif: "l’hypothèse de type est formulée par Anam (5.5) ; le texte du type, lui, vient du corpus",
     },
     lectures: {
       mention: true,
-      motif: "la restitution écrite d'une lecture est produite par le modèle (5.8)",
+      motif: "la restitution écrite d’une lecture est produite par le modèle (5.8)",
     },
     ancrages: {
       mention: true,
-      motif: "l'exercice guidé est composé pour elle (5.9) — même régime que la restitution",
+      motif: "l’exercice guidé est composé pour elle (5.9) — même régime que la restitution",
     },
     reglages: { mention: false, motif: "des cases à cocher et une adresse ; aucun texte produit" },
     "mes-donnees": {
@@ -116,16 +116,16 @@ export const HALTES: readonly IdHalte[] = Object.freeze(
  * exactement l'union des deux listes.
  */
 export const HORS_HALTE: Readonly<Record<string, string>> = Object.freeze({
-  ".": "la scène elle-même — elle porte la surimpression persistante (1.8), qui est l'original de ce pied",
-  aide: "c'est la destination : la porte de secours ne se renvoie pas à elle-même, et la mention y est déjà (ancre #transparence)",
+  ".": "la scène elle-même — elle porte la surimpression persistante (1.8), qui est l’original de ce pied",
+  aide: "c’est la destination : la porte de secours ne se renvoie pas à elle-même, et la mention y est déjà (ancre #transparence)",
   barriere:
-    "sortie d'un compte barré-minorité — elle porte DÉJÀ son propre lien vers /aide, et rien d'autre ne doit s'y ajouter",
+    "sortie d’un compte barré-minorité — elle porte DÉJÀ son propre lien vers /aide, et rien d’autre ne doit s’y ajouter",
   cgu: "document contractuel, hors session",
-  desabonnement: "atteinte depuis un pied de courriel, SANS session — aucune halte n'y est due",
-  "(auth)/entrer": "avant toute session — il n'y a encore ni contenu ni interlocuteur",
-  "(auth)/naissance": "parcours d'entrée, avant le consentement art. 9",
-  "(auth)/consentement": "l'écran qui DÉCLARE l'IA — y remettre la mention serait la répéter à elle-même",
+  desabonnement: "atteinte depuis un pied de courriel, SANS session — aucune halte n’y est due",
+  "(auth)/entrer": "avant toute session — il n’y a encore ni contenu ni interlocuteur",
+  "(auth)/naissance": "parcours d’entrée, avant le consentement art. 9",
+  "(auth)/consentement": "l’écran qui DÉCLARE l’IA — y remettre la mention serait la répéter à elle-même",
   "(auth)/consentement/revoque": "impasse volontaire après révocation",
   "(auth)/consentement/revoquer":
-    "le geste de révocation lui-même — un écran d'action, rien n'y est affiché ni produit",
+    "le geste de révocation lui-même — un écran d’action, rien n’y est affiché ni produit",
 });

@@ -154,14 +154,14 @@ export function preselectionner(
  */
 export const INSTRUCTION_RETOUR_THEME = [
   "[PLACEHOLDER PRODUIT — À VALIDER AVANT MISE EN LIGNE SUR DONNÉES RÉELLES]",
-  "Tu observes le DERNIER message de l'utilisatrice, puis une liste numérotée de moments plus anciens",
+  "Tu observes le DERNIER message de l’utilisatrice, puis une liste numérotée de moments plus anciens",
   "de sa propre vie. Pour chaque moment, dis si le dernier message REVIENT SUR LE MÊME SUJET DE FOND —",
   "la même situation, la même relation, la même question ouverte — même si les mots sont différents.",
-  "Ce n'est PAS un retour si le lien est seulement une émotion partagée, un mot commun, ou un thème",
+  "Ce n’est PAS un retour si le lien est seulement une émotion partagée, un mot commun, ou un thème",
   "général (le travail, la famille) sans que ce soit la MÊME chose qui revienne.",
   "Réponds UNIQUEMENT par cette ligne, avec les numéros concernés séparés par des virgules, ou `aucun` :",
   "RETOURS: (numéros des moments sur lesquels ce message revient)",
-  "En cas de doute, réponds `aucun` : ne retiens un retour que s'il est MANIFESTE — jamais inféré.",
+  "En cas de doute, réponds `aucun` : ne retiens un retour que s’il est MANIFESTE — jamais inféré.",
 ].join("\n");
 
 export interface DecisionRetour {

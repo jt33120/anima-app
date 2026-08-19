@@ -44,7 +44,7 @@ const FormulaireEntree = (await import("@/app/(auth)/entrer/formulaire-entree"))
 const champ = (nom: string) => document.querySelector(`input[name="${nom}"]`) as HTMLInputElement;
 const formulaire = () => document.querySelector("form") as HTMLFormElement;
 
-describe("[QA T19] une date refusée n'efface plus ce qui était déjà tapé", () => {
+describe("[QA T19] une date refusée n’efface plus ce qui était déjà tapé", () => {
   it("le prénom, la date et le nom complet reviennent après un refus", async () => {
     // ⚠️ CE QUE MESURE CE TEST. `useActionState` réinitialise un formulaire non contrôlé après
     // chaque action : une date au futur effaçait AUSSI le prénom et le nom, et tout était à
@@ -65,7 +65,7 @@ describe("[QA T19] une date refusée n'efface plus ce qui était déjà tapé", 
     expect(champ("nom_complet").value, "le nom complet était perdu").toBe("Camille Perrin");
   });
 
-  it("sur le chemin MINEUR, rien ne revient — l'écran de refus remplace le formulaire", async () => {
+  it("sur le chemin MINEUR, rien ne revient — l’écran de refus remplace le formulaire", async () => {
     // La branche < 18 ans n'écrit rien, pas même en mémoire de formulaire (AD-14, FR-071).
     // Repeupler un écran qu'on vient de refuser serait une invitation à retenter avec une
     // autre date.
@@ -79,7 +79,7 @@ describe("[QA T19] une date refusée n'efface plus ce qui était déjà tapé", 
   });
 });
 
-describe("[QA T31] l'erreur de consentement s'efface dès qu'on touche à quelque chose", () => {
+describe("[QA T31] l’erreur de consentement s’efface dès qu’on touche à quelque chose", () => {
   const cases = () =>
     Array.from(document.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
 
@@ -98,11 +98,11 @@ describe("[QA T31] l'erreur de consentement s'efface dès qu'on touche à quelqu
     fireEvent.click(cases()[0]);
     expect(
       screen.queryByText("Coche les deux accords pour continuer."),
-      "le message périmé cohabitait avec l'indication permanente, deux phrases quasi identiques",
+      "le message périmé cohabitait avec l’indication permanente, deux phrases quasi identiques",
     ).toBeNull();
   });
 
-  it("⚠️ un message qui n'est PAS périmé survit à l'état « prêt »", async () => {
+  it("⚠️ un message qui n’est PAS périmé survit à l’état « prêt »", async () => {
     // LE MUTANT QUI COMPTE : masquer l'erreur sur `pret` (les deux cases cochées). Ce serait plus
     // simple et FAUX — « Enregistrement impossible. Réessaie. » survient précisément quand les deux
     // cases SONT cochées. Le masquer ferait disparaître le seul message qui dit que rien n'a été
@@ -126,7 +126,7 @@ describe("[QA T31] l'erreur de consentement s'efface dès qu'on touche à quelqu
   });
 });
 
-describe("[QA T31-bis] l'écran de consentement n'affiche pas le contraire de ce qu'il croit", () => {
+describe("[QA T31-bis] l’écran de consentement n’affiche pas le contraire de ce qu’il croit", () => {
   const cases = () =>
     Array.from(document.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
 
@@ -154,11 +154,11 @@ describe("[QA T31-bis] l'écran de consentement n'affiche pas le contraire de ce
     );
     expect(
       cases().map((c) => c.checked),
-      "l'écran doit montrer ce que l'état croit",
+      "l’écran doit montrer ce que l’état croit",
     ).toEqual([true, true]);
   });
 
-  it("et l'état « prêt » reste cohérent : aucun motif de blocage ne s'affiche", async () => {
+  it("et l’état « prêt » reste cohérent : aucun motif de blocage ne s’affiche", async () => {
     // Le motif « Coche les deux accords ci-dessus pour commencer. » ne paraît que si `pret` est
     // faux. Son absence, cases cochées, prouve que l'affichage et l'état disent la même chose.
     donnerConsentement.mockResolvedValue({ statut: "erreur", message: "Enregistrement impossible. Réessaie." });
@@ -174,7 +174,7 @@ describe("[QA T31-bis] l'écran de consentement n'affiche pas le contraire de ce
 });
 
 describe("[QA T28] le produit porte ses propres messages, en français", () => {
-  it("les deux formulaires du chemin d'entrée coupent la validation NATIVE", () => {
+  it("les deux formulaires du chemin d’entrée coupent la validation NATIVE", () => {
     // Sans ça, le navigateur affiche « Please fill in this field. » à quiconque ne l'a pas en
     // français — sur le premier écran d'un produit qui ne parle que français. Ce texte suit la
     // langue DU NAVIGATEUR : le produit ne peut pas le traduire, il peut seulement cesser de s'en
@@ -187,7 +187,7 @@ describe("[QA T28] le produit porte ses propres messages, en français", () => {
     }
   });
 
-  it("⚠️ mais `required` RESTE — il n'était pas là pour la bulle", () => {
+  it("⚠️ mais `required` RESTE — il n’était pas là pour la bulle", () => {
     // MUTATION-CIBLE : retirer `required` en même temps que la bulle. Ce serait plus simple et
     // FAUX : `required` est annoncé par les lecteurs d'écran (« obligatoire »), et c'est sa vraie
     // fonction. La bulle n'en était qu'un effet de bord du navigateur.
@@ -207,7 +207,7 @@ describe("[QA T28] le produit porte ses propres messages, en français", () => {
 // LA SECONDE PORTE — l'écran de saisie du code (2026-08-18)
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[entrée] l'écran du code à six chiffres", () => {
+describe("[entrée] l’écran du code à six chiffres", () => {
   /**
    * Le test d'intégration prouve que le code OUVRE une session ; il ne monte aucun écran. Or ce
    * qui décide qu'on tapera le bon code au bon endroit se joue ici — et deux attributs font
@@ -221,7 +221,7 @@ describe("[entrée] l'écran du code à six chiffres", () => {
     await screen.findByLabelText(/le code reçu/i);
   }
 
-  it("[LE CŒUR] l'adresse visée est AFFICHÉE — c'est ce qui rend la fixation visible", async () => {
+  it("[LE CŒUR] l’adresse visée est AFFICHÉE — c’est ce qui rend la fixation visible", async () => {
     // L'adresse vérifiée vient d'un cookie, jamais du formulaire. L'écrire ici est ce qui permet
     // de voir, AVANT de taper, qu'un code demandé ne concerne pas son adresse.
     await apresEnvoi();
@@ -241,11 +241,11 @@ describe("[entrée] l'écran du code à six chiffres", () => {
     expect(champ.getAttribute("maxLength")).toBe("8");
   });
 
-  it("l'écran dit que le LIEN est lié à ce navigateur — sinon le code paraît redondant", async () => {
+  it("l’écran dit que le LIEN est lié à ce navigateur — sinon le code paraît redondant", async () => {
     // Sans cette phrase, quelqu'un qui a le courriel sous les yeux clique le lien (le geste court)
     // et se heurte au mur PKCE. Le code n'existe que parce que ce mur existe : il faut le dire.
     await apresEnvoi();
-    expect(screen.getByText(/n'ouvre que dans ce navigateur/i)).toBeTruthy();
+    expect(screen.getByText(/n’ouvre que dans ce navigateur/i)).toBeTruthy();
   });
 
   it("le champ de code coupe aussi la validation native (même règle que les autres)", async () => {

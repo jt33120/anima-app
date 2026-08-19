@@ -27,7 +27,7 @@ export async function etapeOnboardingPour(
   // (transitoire) avec « pas de ligne ». Sinon on renverrait une adulte déjà consentante vers
   // /naissance, ensuite bloquée par l'immutabilité de la date (revue 1.5).
   if (erreurLigne) {
-    throw new Error(`Lecture de l'état d'onboarding impossible : ${erreurLigne.message}`);
+    throw new Error(`Lecture de l’état d’onboarding impossible : ${erreurLigne.message}`);
   }
 
   const { data: consentement, error: erreurConsentement } = await supabase

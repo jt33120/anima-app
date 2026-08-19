@@ -35,15 +35,15 @@ export interface EntreeEffacement {
 export const INVENTAIRE_EFFACEMENT: readonly EntreeEffacement[] = [
   // ── Tout ce qui la nomme part. La cascade du schéma le fait ; l'inventaire le DÉCLARE, et le
   //    test le MESURE ligne à ligne après un effacement réel.
-  { table: "utilisatrice", verdict: "efface", motif: "l'identité elle-même, jusqu'à la ligne d'auth" },
+  { table: "utilisatrice", verdict: "efface", motif: "l’identité elle-même, jusqu’à la ligne d’auth" },
   { table: "consentement", verdict: "efface", motif: "ce à quoi elle a consenti, et sa révocation" },
-  { table: "entree_journal", verdict: "efface", motif: "le verbatim — effaçable au titre de l'art. 17, malgré son immuabilité d'écriture (AD-8)" },
+  { table: "entree_journal", verdict: "efface", motif: "le verbatim — effaçable au titre de l’art. 17, malgré son immuabilité d’écriture (AD-8)" },
   { table: "fait_extrait", verdict: "efface", motif: "le profil vivant, tombstones compris" },
-  { table: "branche", verdict: "efface", motif: "l'arbre. RETIRÉ EN PREMIER par le moteur : seule clé « restrict » du schéma" },
+  { table: "branche", verdict: "efface", motif: "l’arbre. RETIRÉ EN PREMIER par le moteur : seule clé « restrict » du schéma" },
   { table: "branche_retour", verdict: "efface", motif: "les jours où elle est revenue sur une branche" },
-  { table: "resume_glissant", verdict: "efface", motif: "la mémoire de travail d'Anam" },
+  { table: "resume_glissant", verdict: "efface", motif: "la mémoire de travail d’Anam" },
   { table: "synthese", verdict: "efface", motif: "les bilans périodiques écrits sur elle" },
-  { table: "intention", verdict: "efface", motif: "les plans d'étapes posés sur une branche" },
+  { table: "intention", verdict: "efface", motif: "les plans d’étapes posés sur une branche" },
   { table: "signal_reconceptualisation", verdict: "efface", motif: "les bascules repérées" },
   { table: "theme_natal", verdict: "efface", motif: "le socle calculé, gravé une fois" },
   { table: "enneagramme", verdict: "efface", motif: "le type retenu et son origine" },
@@ -55,13 +55,13 @@ export const INVENTAIRE_EFFACEMENT: readonly EntreeEffacement[] = [
   { table: "usage_ia", verdict: "efface", motif: "le métrage des appels au modèle" },
   { table: "episode_detresse", verdict: "efface", motif: "les épisodes de détresse ouverts ou clos" },
   { table: "audit_securite", verdict: "efface", motif: "les classifications de sécurité la concernant" },
-  { table: "pause_rythme", verdict: "efface", motif: "les pauses qu'Anam lui a proposées" },
+  { table: "pause_rythme", verdict: "efface", motif: "les pauses qu’Anam lui a proposées" },
   { table: "invitation_integration", verdict: "efface", motif: "les invitations à intégrer une branche" },
   { table: "notification_envoyee", verdict: "efface", motif: "les notifications qui lui ont été envoyées" },
-  { table: "abonnement", verdict: "efface", motif: "l'abonnement (la pièce comptable, elle, reste chez le prestataire)" },
+  { table: "abonnement", verdict: "efface", motif: "l’abonnement (la pièce comptable, elle, reste chez le prestataire)" },
   { table: "remboursement", verdict: "efface", motif: "les remboursements demandés" },
   { table: "information_reconduction", verdict: "efface", motif: "les avis de reconduction" },
-  { table: "preference_socle", verdict: "efface", motif: "l'heure choisie pour le rendez-vous quotidien" },
+  { table: "preference_socle", verdict: "efface", motif: "l’heure choisie pour le rendez-vous quotidien" },
   { table: "preference_courriel", verdict: "efface", motif: "les préférences de courriel" },
   { table: "abonnement_poussee", verdict: "efface", motif: "les appareils abonnés, clés comprises" },
   {
@@ -75,17 +75,17 @@ export const INVENTAIRE_EFFACEMENT: readonly EntreeEffacement[] = [
 
   // ── Rien à effacer : aucune colonne ne rattache ces lignes à quelqu'un ─────────────────────────
   { table: "environnement", verdict: "sans_objet", motif: "une seule ligne pour tout le déploiement" },
-  { table: "probe", verdict: "sans_objet", motif: "témoin d'isolation RLS, sans propriétaire" },
-  { table: "evenements_traites", verdict: "sans_objet", motif: "registre d'idempotence clé sur l'évènement du prestataire" },
-  { table: "incident_systeme", verdict: "sans_objet", motif: "incidents d'exploitation, sans rattachement à une personne" },
+  { table: "probe", verdict: "sans_objet", motif: "témoin d’isolation RLS, sans propriétaire" },
+  { table: "evenements_traites", verdict: "sans_objet", motif: "registre d’idempotence clé sur l’évènement du prestataire" },
+  { table: "incident_systeme", verdict: "sans_objet", motif: "incidents d’exploitation, sans rattachement à une personne" },
 
   // ── Survit, et c'est la raison d'être de la story ──────────────────────────────────────────────
   {
     table: "effacement",
     verdict: "survit",
     motif:
-      "la trace du geste. Sans clé étrangère vers `utilisatrice`, donc elle ne s'efface pas avec " +
-      "elle ; elle ne porte qu'une empreinte, qui ne se remonte plus une fois l'identifiant disparu.",
+      "la trace du geste. Sans clé étrangère vers `utilisatrice`, donc elle ne s’efface pas avec " +
+      "elle ; elle ne porte qu’une empreinte, qui ne se remonte plus une fois l’identifiant disparu.",
   },
 ];
 

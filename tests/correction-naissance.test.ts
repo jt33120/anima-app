@@ -44,7 +44,7 @@ describe("[6.5b] `normaliserHeure` — on refuse, on ne devine pas", () => {
     }
   });
 
-  it("une heure qui n'existe pas est refusée par un motif DISTINCT du format", () => {
+  it("une heure qui n’existe pas est refusée par un motif DISTINCT du format", () => {
     // Deux motifs, deux messages : « entre une heure au format 07:15 » n'a aucun sens face à
     // « 25:00 », qui est au bon format. Un seul motif ferait dire au produit une bêtise.
     expect(normaliserHeure("25:00", null)).toEqual({ ok: false, refus: "inexistante" });
@@ -131,7 +131,7 @@ describe("[6.5b] `comparerThemes` — la comparaison dit les gains ET les pertes
     expect(c.corpsRegagnes).toBeGreaterThan(0);
   });
 
-  it("[LE CŒUR] l'inverse est une PERTE, et `corpsRegagnes` devient NÉGATIF", () => {
+  it("[LE CŒUR] l’inverse est une PERTE, et `corpsRegagnes` devient NÉGATIF", () => {
     // ⚠️ C'est la propriété qui compte le plus de tout ce fichier. Un aperçu qui ne saurait annoncer
     // que des gains mentirait exactement dans le cas où elle a le plus besoin de la vérité avant de
     // valider. Un `Math.max(0, …)` posé « par propreté » ferait rougir ici.
@@ -153,7 +153,7 @@ describe("[6.5b] `comparerThemes` — la comparaison dit les gains ET les pertes
     expect(c.sansChangementVisible, "la perte de précision est passée inaperçue").toBe(false);
   });
 
-  it("`ascendantDe` rend `null` quand les angles n'ont pas pu être calculés", () => {
+  it("`ascendantDe` rend `null` quand les angles n’ont pas pu être calculés", () => {
     const sansAngles = calculerThemeNatal({ date: "1990-06-15" }, portFige(12.5, 6));
     expect(sansAngles.angles.statut).toBe("non_calcule");
     expect(ascendantDe(sansAngles)).toBeNull();
@@ -174,7 +174,7 @@ describe("[6.5b] `phrasesApercu` — mettre en mots sans jamais compter", () => 
       ...p,
     });
 
-  it("[LE CŒUR] un changement d'ascendant est nommé, dans les DEUX signes", () => {
+  it("[LE CŒUR] un changement d’ascendant est nommé, dans les DEUX signes", () => {
     const phrases = apercuDe({ ascendantApres: "balance", sansChangementVisible: false });
     expect(phrases.join(" ")).toMatch(/Verseau/);
     expect(phrases.join(" ")).toMatch(/Balance/);
@@ -182,13 +182,13 @@ describe("[6.5b] `phrasesApercu` — mettre en mots sans jamais compter", () => 
 
   it("[LE CŒUR] une PERTE est dite comme une perte", () => {
     const perte = apercuDe({ corpsRegagnes: -2, sansChangementVisible: false }).join(" ");
-    expect(perte).toMatch(/cessent d'être calculables/);
+    expect(perte).toMatch(/cessent d’être calculables/);
     expect(perte).toMatch(/2/);
     const gain = apercuDe({ corpsRegagnes: 3, sansChangementVisible: false }).join(" ");
     expect(gain).toMatch(/deviennent calculables/);
   });
 
-  it("l'ascendant qui DISPARAÎT est annoncé, pas passé sous silence", () => {
+  it("l’ascendant qui DISPARAÎT est annoncé, pas passé sous silence", () => {
     const phrases = apercuDe({ ascendantApres: null, sansChangementVisible: false }).join(" ");
     expect(phrases).toMatch(/ne sera plus calculable/);
   });
@@ -221,7 +221,7 @@ describe("[6.5b] `phrasesApercu` — mettre en mots sans jamais compter", () => 
     expect(copie.dateLisible(new Date("2026-08-16T10:00:00Z"))).toBe("16 août 2026");
   });
 
-  it("[GARDE STRUCTURELLE] le fuseau de la date est ÉCRIT, parce qu'aucun comportement ne peut le dire", () => {
+  it("[GARDE STRUCTURELLE] le fuseau de la date est ÉCRIT, parce qu’aucun comportement ne peut le dire", () => {
     // ⚠️ NÉ D'UN SURVIVANT (M23), ET LE SURVIVANT AVAIT RAISON. Retirer `timeZone: "Europe/Paris"`
     // ne change RIEN sur une machine réglée sur Europe/Paris — c'est-à-dire la machine de
     // développement et, potentiellement, celle d'intégration. Aucune assertion de comportement ne
@@ -243,7 +243,7 @@ describe("[6.5b] `phrasesApercu` — mettre en mots sans jamais compter", () => 
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[6.5b] La copie tient le registre de l'écran, pas celui d'Anam", () => {
+describe("[6.5b] La copie tient le registre de l’écran, pas celui d’Anam", () => {
   const tout = [
     copie.TITRE_SECTION,
     copie.INTRODUCTION,
@@ -252,12 +252,12 @@ describe("[6.5b] La copie tient le registre de l'écran, pas celui d'Anam", () =
     copie.CORRECTION_APRES_REVOCATION,
   ].join(" ");
 
-  it("elle n'est pas signée d'Anam et ne lui prête aucune parole", () => {
+  it("elle n’est pas signée d’Anam et ne lui prête aucune parole", () => {
     expect(tout).not.toMatch(/—\s*Anam/);
     expect(tout).not.toMatch(/\bAnam (dit|pense|sent|trouve)\b/);
   });
 
-  it("[LE CŒUR] elle dit que l'ancien thème ne sera PAS conservé", () => {
+  it("[LE CŒUR] elle dit que l’ancien thème ne sera PAS conservé", () => {
     // Sans cette phrase, quelqu'un corrige « pour voir » et découvre après coup que son horoscope
     // du jour a changé de fond en comble. C'est la troisième chose vraie de l'introduction, et
     // c'est celle qu'on oublie.

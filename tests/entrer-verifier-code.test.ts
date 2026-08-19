@@ -58,8 +58,8 @@ beforeEach(() => {
   signInWithOtp.mockResolvedValue({ error: null });
 });
 
-describe("[entrée] `verifierCode` — l'adresse ne vient QUE du cookie", () => {
-  it("[LE CŒUR] elle vérifie l'adresse du cookie, avec le type mesuré", async () => {
+describe("[entrée] `verifierCode` — l’adresse ne vient QUE du cookie", () => {
+  it("[LE CŒUR] elle vérifie l’adresse du cookie, avec le type mesuré", async () => {
     await expect(verifierCode({}, donnees("123456"))).rejects.toThrow(/redirect:/);
     expect(verifyOtp).toHaveBeenCalledWith({
       email: "toi@exemple.fr",
@@ -68,13 +68,13 @@ describe("[entrée] `verifierCode` — l'adresse ne vient QUE du cookie", () => 
     });
   });
 
-  it("[L'EXPLOIT] une adresse GLISSÉE DANS LE FORMULAIRE est ignorée", async () => {
+  it("[L’EXPLOIT] une adresse GLISSÉE DANS LE FORMULAIRE est ignorée", async () => {
     // C'est la forme qu'aurait pris ici la fixation de session retirée le 2026-08-13 : faire
     // vérifier le code de l'attaquant contre une adresse qu'il désigne.
     const f = donnees("123456");
     f.set("email", "attaquant@exemple.fr");
     await expect(verifierCode({}, f)).rejects.toThrow(/redirect:/);
-    expect(verifyOtp.mock.calls[0]?.[0]?.email, "l'adresse du formulaire a été suivie").toBe(
+    expect(verifyOtp.mock.calls[0]?.[0]?.email, "l’adresse du formulaire a été suivie").toBe(
       "toi@exemple.fr",
     );
   });
@@ -93,15 +93,15 @@ describe("[entrée] `verifierCode` — l'adresse ne vient QUE du cookie", () => 
     expect(r.message).toMatch(/expiré/i);
   });
 
-  it("un cookie sans « @ » est refusé — on n'envoie pas n'importe quoi à Supabase", async () => {
+  it("un cookie sans « @ » est refusé — on n’envoie pas n’importe quoi à Supabase", async () => {
     cookieGet.mockReturnValue({ value: JSON.stringify({ adresse: "pasuneadresse", essais: 0 }) });
     expect((await verifierCode({}, donnees("123456"))).message).toMatch(/expiré/i);
     expect(verifyOtp).not.toHaveBeenCalled();
   });
 });
 
-describe("[entrée] ce qu'elle fait du code lui-même", () => {
-  it("un code trop court n'atteint jamais Supabase", async () => {
+describe("[entrée] ce qu’elle fait du code lui-même", () => {
+  it("un code trop court n’atteint jamais Supabase", async () => {
     const r = await verifierCode({}, donnees("1234"));
     expect(verifyOtp).not.toHaveBeenCalled();
     expect(r.message).toMatch(/six chiffres/i);
@@ -130,25 +130,25 @@ describe("[entrée] ce qu'elle fait du code lui-même", () => {
     expect(verifyOtp.mock.calls[0]?.[0]?.token).toBe("123456");
   });
 
-  it("un code refusé incrémente les essais et NE consomme pas l'attente", async () => {
+  it("un code refusé incrémente les essais et NE consomme pas l’attente", async () => {
     verifyOtp.mockResolvedValue({ error: { message: "invalid" } });
     const r = await verifierCode({}, donnees("000000"));
     expect(r.message).toMatch(/ne correspond pas/i);
-    expect(cookieDelete, "une erreur de frappe a effacé l'attente").not.toHaveBeenCalled();
+    expect(cookieDelete, "une erreur de frappe a effacé l’attente").not.toHaveBeenCalled();
     expect(JSON.parse(cookieSet.mock.calls[0]?.[1] ?? "{}").essais).toBe(1);
   });
 
-  it("au cinquième essai, l'attente est EFFACÉE et on renvoie demander", async () => {
+  it("au cinquième essai, l’attente est EFFACÉE et on renvoie demander", async () => {
     verifyOtp.mockResolvedValue({ error: { message: "invalid" } });
     cookieGet.mockReturnValue(attente("toi@exemple.fr", 4));
     const r = await verifierCode({}, donnees("000000"));
-    expect(r.message).toMatch(/trop d'essais/i);
+    expect(r.message).toMatch(/trop d’essais/i);
     expect(cookieDelete).toHaveBeenCalledWith(COOKIE);
   });
 });
 
-describe("[entrée] après le succès : une seule machine d'état, et rien qui traîne", () => {
-  it("[LE CŒUR] elle redirige là où LA MACHINE PARTAGÉE l'envoie, jamais vers « / » en dur", async () => {
+describe("[entrée] après le succès : une seule machine d’état, et rien qui traîne", () => {
+  it("[LE CŒUR] elle redirige là où LA MACHINE PARTAGÉE l’envoie, jamais vers « / » en dur", async () => {
     destination.mockResolvedValue("/naissance");
     await expect(verifierCode({}, donnees("123456"))).rejects.toThrow("redirect:/naissance");
   });
@@ -158,14 +158,14 @@ describe("[entrée] après le succès : une seule machine d'état, et rien qui t
     await expect(verifierCode({}, donnees("123456"))).rejects.toThrow("redirect:/barriere");
   });
 
-  it("l'attente est effacée au succès — un cookie qui survit est un code qu'on croit encore valide", async () => {
+  it("l’attente est effacée au succès — un cookie qui survit est un code qu’on croit encore valide", async () => {
     await expect(verifierCode({}, donnees("123456"))).rejects.toThrow(/redirect:/);
     expect(cookieDelete).toHaveBeenCalledWith(COOKIE);
   });
 });
 
-describe("[entrée] `envoyerLien` pose l'attente, et seulement quand le courriel est parti", () => {
-  it("un envoi réussi note l'adresse et la rend à l'écran", async () => {
+describe("[entrée] `envoyerLien` pose l’attente, et seulement quand le courriel est parti", () => {
+  it("un envoi réussi note l’adresse et la rend à l’écran", async () => {
     const f = new FormData();
     f.set("email", "toi@exemple.fr");
     const r = await envoyerLien({ ok: false }, f);

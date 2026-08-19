@@ -55,10 +55,10 @@ export async function declarerAge(
   const saisie: SaisieNaissance = { prenom, date: valeur, nomComplet: nomCompletBrut };
 
   if (prenom.length === 0) {
-    return { statut: "erreur", message: "Dis-moi comment t'appeler.", saisie };
+    return { statut: "erreur", message: "Dis-moi comment t’appeler.", saisie };
   }
   if (prenom.length > MAX_PRENOM || nomCompletBrut.length > MAX_NOM_COMPLET) {
-    return { statut: "erreur", message: "C'est un peu long — raccourcis.", saisie };
+    return { statut: "erreur", message: "C’est un peu long — raccourcis.", saisie };
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(valeur)) {
     return { statut: "erreur", message: "Entre une date valide.", saisie };

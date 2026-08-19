@@ -20,21 +20,21 @@ import type { SignauxTour } from "./arc-seance";
 /** PLACEHOLDER PRODUIT — À VALIDER AVANT MISE EN LIGNE. Sortie STRUCTURÉE demandée (patron détecteur). */
 export const INSTRUCTION_EXTRACTION_ARC = [
   "[PLACEHOLDER PRODUIT — À VALIDER AVANT MISE EN LIGNE SUR DONNÉES RÉELLES]",
-  "Tu observes le DERNIER échange d'une séance (le tour de l'utilisatrice et, s'il existe, la dernière",
-  "réponse d'Anam). Repère, SANS jamais nommer d'observation ni relancer, la présence des signaux",
+  "Tu observes le DERNIER échange d’une séance (le tour de l’utilisatrice et, s’il existe, la dernière",
+  "réponse d’Anam). Repère, SANS jamais nommer d’observation ni relancer, la présence des signaux",
   "suivants dans CE dernier échange. Réponds UNIQUEMENT par ces six lignes, chacune `oui` ou `non` :",
-  "ELEMENT_PERSONNEL: (l'utilisatrice a livré un élément personnel qu'Anam n'avait pas sollicité)",
+  "ELEMENT_PERSONNEL: (l’utilisatrice a livré un élément personnel qu’Anam n’avait pas sollicité)",
   "SUJET_NOUVEAU: (un sujet de vie distinct, pas encore abordé, apparaît)",
-  "REFORMULATION: (Anam a reformulé ce que l'utilisatrice a dit)",
-  "CONFIRMATION: (l'utilisatrice a confirmé explicitement une reformulation d'Anam)",
-  "REJET: (l'utilisatrice a rejeté une proposition ou une interprétation d'Anam)",
+  "REFORMULATION: (Anam a reformulé ce que l’utilisatrice a dit)",
+  "CONFIRMATION: (l’utilisatrice a confirmé explicitement une reformulation d’Anam)",
+  "REJET: (l’utilisatrice a rejeté une proposition ou une interprétation d’Anam)",
   "RESTITUTION: (ce tour relie et restitue un fil déjà tissé plus tôt dans la séance)",
   // Story 5.8 — la DEMANDE DE LECTURE. Ce n'est pas un signal d'arc (la machine ne la consomme
   // jamais) : c'est un passager de la même passe, pour la raison écrite dans `extraireDemandeLecture`.
-  "DEMANDE_LECTURE: (l'utilisatrice demande explicitement une lecture, c'est-à-dire le rituel où une",
+  "DEMANDE_LECTURE: (l’utilisatrice demande explicitement une lecture, c’est-à-dire le rituel où une",
   "  carte est tirée — pas un livre, pas une lecture au sens de lire un texte, pas un simple souhait",
-  "  d'être comprise. `non` si elle parle de lire, de relire, ou de ce qu'elle a lu.)",
-  "En cas de doute, réponds `non` : ne fais jamais franchir un seuil qui n'est pas manifeste.",
+  "  d’être comprise. `non` si elle parle de lire, de relire, ou de ce qu’elle a lu.)",
+  "En cas de doute, réponds `non` : ne fais jamais franchir un seuil qui n’est pas manifeste.",
 ].join("\n");
 
 /**

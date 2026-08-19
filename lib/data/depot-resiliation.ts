@@ -105,7 +105,7 @@ export async function reserverRemboursement(
       confirme_le: string | null;
     }>
   )[0];
-  if (!ligne) throw new Error("demander_remboursement n'a rien rendu.");
+  if (!ligne) throw new Error("demander_remboursement n’a rien rendu.");
   return {
     cle: ligne.cle,
     subscriptionId: ligne.subscription_id,

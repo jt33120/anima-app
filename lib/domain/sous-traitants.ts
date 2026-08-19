@@ -49,8 +49,8 @@ export const SOUS_TRAITANTS: readonly SousTraitant[] = [
     role: "le modèle qui fait parler Anam",
     verdict: "rien_retenu",
     motif:
-      "endpoints sans état et zéro-rétention : rien n'est conservé chez lui, donc il n'y a rien à " +
-      "lui demander d'effacer. Un adaptateur qui ne le prouve pas ne démarre pas.",
+      "endpoints sans état et zéro-rétention : rien n’est conservé chez lui, donc il n’y a rien à " +
+      "lui demander d’effacer. Un adaptateur qui ne le prouve pas ne démarre pas.",
     garde: "lib/ai/egress-guard.ts",
   },
   {
@@ -59,7 +59,7 @@ export const SOUS_TRAITANTS: readonly SousTraitant[] = [
     verdict: "fenetre_bornee",
     motif:
       "les lignes partent tout de suite ; les sauvegardes et le point de restauration expirent " +
-      "d'eux-mêmes dans la fenêtre inscrite sur la trace d'effacement.",
+      "d’eux-mêmes dans la fenêtre inscrite sur la trace d’effacement.",
     garde: "supabase/migrations/0058_effacement_total.sql",
   },
   {
@@ -73,22 +73,22 @@ export const SOUS_TRAITANTS: readonly SousTraitant[] = [
     // lecture factuellement fausse. Les mots « prestataire » et « paiement » n'apparaissaient nulle
     // part sur la page, ni sur /aide, ni sur /cgu : l'acteur n'était récupérable d'aucun chemin.
     motif:
-      "garde les factures déjà émises — une pièce comptable relève d'une obligation légale de " +
-      "conservation, pas d'un consentement qu'on retire.",
+      "garde les factures déjà émises — une pièce comptable relève d’une obligation légale de " +
+      "conservation, pas d’un consentement qu’on retire.",
     garde: "porte:conservation-comptable",
   },
   {
     cle: "courriel",
-    role: "l'envoi des courriels",
+    role: "l’envoi des courriels",
     verdict: "aucun_art9",
     motif:
       "aucun courriel ne porte de contenu sensible — ni un extrait, ni un titre qui en dirait un. " +
-      "Ce qui subsiste chez lui est une adresse dans un journal d'envoi, borné par son contrat.",
+      "Ce qui subsiste chez lui est une adresse dans un journal d’envoi, borné par son contrat.",
     garde: "tests/courriel-origine.test.ts",
   },
   {
     cle: "hebergement",
-    role: "l'hébergement du site",
+    role: "l’hébergement du site",
     verdict: "aucun_art9",
     motif: "aucun contenu sensible ne part dans les journaux, ni en clair ni en extrait (NFR-022).",
     garde: "tests/routes-art9-entetes.test.ts",
@@ -97,7 +97,7 @@ export const SOUS_TRAITANTS: readonly SousTraitant[] = [
     cle: "transcription",
     role: "la transcription de la voix",
     verdict: "non_lie",
-    motif: "aucun prestataire n'est lié à ce jour ; la voix n'est pas encore une entrée du produit.",
+    motif: "aucun prestataire n’est lié à ce jour ; la voix n’est pas encore une entrée du produit.",
     garde: "porte:sous-traitant-transcription",
   },
 ];

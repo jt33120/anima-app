@@ -108,7 +108,7 @@ export async function envoyerLien(
 
   if (error) {
     // Enveloppe neutre, jamais signée Anam (Conventions).
-    return { ok: false, message: "L'envoi a échoué. Réessaie dans un instant." };
+    return { ok: false, message: "L’envoi a échoué. Réessaie dans un instant." };
   }
   // Le courriel porte DEUX portes : le lien (PKCE, ce navigateur-ci) et le code (n'importe quel
   // appareil pour le LIRE, ce navigateur-ci pour le TAPER). On note l'adresse visée.
@@ -130,7 +130,7 @@ export async function verifierCode(_prev: EtatCode, formData: FormData): Promise
   // Le cookie a expiré, ou on arrive ici sans être passée par la demande. On ne devine pas une
   // adresse : sans elle, il n'y a rien à vérifier, et le formulaire repart de zéro.
   if (!attente) {
-    return { message: "Ta demande a expiré. Redemande un code, il n'y a rien d'autre à faire." };
+    return { message: "Ta demande a expiré. Redemande un code, il n’y a rien d’autre à faire." };
   }
 
   // ⚠️ UNE PLAGE, PAS UN NOMBRE — ET ÇA VIENT D'UN VRAI COURRIEL (2026-08-18).
@@ -146,7 +146,7 @@ export async function verifierCode(_prev: EtatCode, formData: FormData): Promise
   // qu'un code PLUS difficile à deviner — au lieu de fermer la porte à tout le monde (AD-15).
   const code = String(formData.get("code") ?? "").replace(/\D/g, "");
   if (code.length < 6 || code.length > 8) {
-    return { message: "Le code fait six chiffres. Recopie-le tel qu'il est dans le message." };
+    return { message: "Le code fait six chiffres. Recopie-le tel qu’il est dans le message." };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -160,7 +160,7 @@ export async function verifierCode(_prev: EtatCode, formData: FormData): Promise
     const essais = attente.essais + 1;
     if (essais >= ESSAIS_MAX) {
       await poserAttente(null);
-      return { message: "Trop d'essais. Redemande un code — celui-là ne sert plus." };
+      return { message: "Trop d’essais. Redemande un code — celui-là ne sert plus." };
     }
     await poserAttente({ ...attente, essais });
     return { message: "Ce code ne correspond pas. Vérifie-le, ou redemande-en un." };

@@ -86,8 +86,8 @@ export default function FormulaireConsentement() {
           Ces accords sont nécessaires pour utiliser Anam
         </h2>
         <p className="t-corps">
-          Sans eux, il n&apos;y a pas de séance possible. Si tu confirmes, ton compte et
-          tout ce qui s&apos;y rattache sont supprimés maintenant.
+          Sans eux, il n&rsquo;y a pas de séance possible. Si tu confirmes, ton compte et
+          tout ce qui s&rsquo;y rattache sont supprimés maintenant.
         </p>
         <div className={s.actions}>
           <form action={refuser}>
@@ -139,10 +139,10 @@ export default function FormulaireConsentement() {
               nommait pas — une conformité d'apparence, exactement ce que FR-072 refuse. C'est donc
               le LIBELLÉ qui doit rattraper ce que la 5.5 ajoute, et avant toute écriture. */}
           <span className="t-corps">
-            Je consens à ce qu&apos;Anam traite mes <strong>données sensibles</strong> —
+            Je consens à ce qu&rsquo;Anam traite mes <strong>données sensibles</strong> —
             ce que je partage sur mon intériorité, mes croyances, mon vécu, et{" "}
-            <strong>ce qu&apos;elle en déduit</strong> sur ma façon de fonctionner — pour
-            m&apos;accompagner. C&apos;est le consentement « article&nbsp;9 » du RGPD.
+            <strong>ce qu&rsquo;elle en déduit</strong> sur ma façon de fonctionner — pour
+            m&rsquo;accompagner. C&rsquo;est le consentement « article&nbsp;9 » du RGPD.
           </span>
         </label>
 
@@ -155,14 +155,14 @@ export default function FormulaireConsentement() {
             className={s.checkbox}
           />
           <span className="t-corps">
-            J&apos;accepte les{" "}
+            J&rsquo;accepte les{" "}
             <a
               href="/cgu"
               target="_blank"
               rel="noopener noreferrer"
               className={s.lienTexte}
             >
-              conditions d&apos;utilisation
+              conditions d&rsquo;utilisation
             </a>{" "}
             et je confirme avoir <strong>18&nbsp;ans ou plus</strong>.
           </span>

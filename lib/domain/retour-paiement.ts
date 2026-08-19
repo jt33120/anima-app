@@ -12,7 +12,7 @@ export type ResultatPaiement = "succes" | "echec" | "annule";
 
 const LIGNES: Record<ResultatPaiement, string> = {
   succes: "Ton abonnement est actif.",
-  echec: "Le paiement n'a pas abouti.",
+  echec: "Le paiement n’a pas abouti.",
   annule: "Paiement interrompu.",
 };
 

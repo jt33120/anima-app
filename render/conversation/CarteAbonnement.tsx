@@ -35,7 +35,7 @@ import {
  */
 export default function CarteAbonnement({ onRefuser }: { onRefuser: () => void }) {
   return (
-    <article className={`${s.bloc} fondu-texte`} aria-label="Proposition d'abonnement">
+    <article className={`${s.bloc} fondu-texte`} aria-label="Proposition d’abonnement">
       <h2 className="t-titre-sm">{TITRE_CARTE}</h2>
 
       {/* Prix unique + garantie, sur la carte (AC2/AC3). Pas de prix barré. */}

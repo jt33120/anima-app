@@ -77,7 +77,7 @@ const monterTest = (deja: Record<string, number> = {}) =>
 // FR-031 — aucun compteur, aucune jauge, aucun score
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[5.5/AC1 DUR] rien ne compte à l'écran (FR-031)", () => {
+describe("[5.5/AC1 DUR] rien ne compte à l’écran (FR-031)", () => {
   it("[LE CŒUR] AUCUN chiffre nulle part, même à mi-parcours", () => {
     // Mutation-cible : afficher « 10 sur 18 », une barre, un anneau, un pourcentage. Rien dans le
     // type ne l'empêche — un compteur se dérive de la longueur d'un tableau. Dix-huit questions sur
@@ -115,7 +115,7 @@ describe("[5.5/AC1 DUR] rien ne compte à l'écran (FR-031)", () => {
 // Une question à la fois, la reprise, le focus
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[5.5/AC1] une question à la fois, reprise là où elle s'était arrêtée", () => {
+describe("[5.5/AC1] une question à la fois, reprise là où elle s’était arrêtée", () => {
   it("un seul énoncé est affiché, avec ses quatre degrés", () => {
     monterTest();
     expect(screen.getByText(ITEMS[0].texte)).toBeTruthy();
@@ -162,7 +162,7 @@ describe("[5.5/AC1] une question à la fois, reprise là où elle s'était arrê
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("[5.5/AC1] deux clics ne font pas deux envois", () => {
-  it("[LE CŒUR] le verrou est SYNCHRONE — le dernier énoncé ne conclut qu'une fois", async () => {
+  it("[LE CŒUR] le verrou est SYNCHRONE — le dernier énoncé ne conclut qu’une fois", async () => {
     // Mutation-cible : remplacer le `useRef` par un `useState`. L'état ne se met à jour qu'au rendu
     // suivant : deux clics rapides enverraient deux conclusions, et la seconde rendrait `false` —
     // un état parfaitement correct annoncé comme un échec.
@@ -184,7 +184,7 @@ describe("[5.5/AC1] deux clics ne font pas deux envois", () => {
     expect(conclureTest).toHaveBeenCalledTimes(1);
   });
 
-  it("un enregistrement qui échoue se DIT, et ne perd rien à l'écran", async () => {
+  it("un enregistrement qui échoue se DIT, et ne perd rien à l’écran", async () => {
     enregistrerReponses.mockResolvedValue({ ok: false });
     monterTest();
     await userEvent.click(screen.getByRole("button", { name: LIBELLES[0] }));
@@ -199,7 +199,7 @@ describe("[5.5/AC1] deux clics ne font pas deux envois", () => {
 // L'ex æquo — le produit refuse de trancher
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[5.5/AC1] à égalité, c'est elle qui tranche", () => {
+describe("[5.5/AC1] à égalité, c’est elle qui tranche", () => {
   it("[LE CŒUR] les types à égalité sont NOMMÉS, et le produit ne choisit pas", async () => {
     // Départager par « le plus petit numéro » aurait biaisé silencieusement vers le type 1 — faux,
     // parfaitement déterministe, donc invisible à tout test de reproductibilité.
@@ -231,7 +231,7 @@ describe("[5.5/AC1] à égalité, c'est elle qui tranche", () => {
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("[5.5/AC2 DUR] accepter, refuser, corriger — strictement à égalité", () => {
-  const PHRASE = "Ce qui revient chez toi ressemble à ce qu'on appelle le type 4. Est-ce que ça te parle ?";
+  const PHRASE = "Ce qui revient chez toi ressemble à ce qu’on appelle le type 4. Est-ce que ça te parle ?";
 
   it("[LE CŒUR] les trois boutons ont le MÊME dessin", () => {
     // Mutation-cible : donner à « Oui » la classe du bouton d'accent et aux deux autres celle des
@@ -246,18 +246,18 @@ describe("[5.5/AC2 DUR] accepter, refuser, corriger — strictement à égalité
     expect(new Set(spans).size).toBe(1);
   });
 
-  it("« oui » écrit le type de la LIGNE — l'identifiant, jamais un numéro", async () => {
+  it("« oui » écrit le type de la LIGNE — l’identifiant, jamais un numéro", async () => {
     render(<Hypothese hypotheseId="h-1" phrase={PHRASE} />);
     await userEvent.click(screen.getByRole("button", { name: /ça me parle/i }));
     expect(accepterHypothese).toHaveBeenCalledWith("h-1");
     expect(refresh).toHaveBeenCalled();
   });
 
-  it("[LE CŒUR] refuser et corriger écrivent pareil, mais N'EMMÈNENT PAS AU MÊME ENDROIT", async () => {
+  it("[LE CŒUR] refuser et corriger écrivent pareil, mais N’EMMÈNENT PAS AU MÊME ENDROIT", async () => {
     // Sans cette différence, le troisième bouton serait un doublon — et un doublon présenté comme
     // un choix est une fausse liberté.
     const { unmount } = render(<Hypothese hypotheseId="h-1" phrase={PHRASE} />);
-    await userEvent.click(screen.getByRole("button", { name: /ce n'est pas moi/i }));
+    await userEvent.click(screen.getByRole("button", { name: /ce n’est pas moi/i }));
     expect(refuserHypothese).toHaveBeenCalledWith("h-1");
     expect(push, "refuser ramène à la scène : on ne lui demande rien de plus").toHaveBeenCalledWith("/");
     unmount();
@@ -271,9 +271,9 @@ describe("[5.5/AC2 DUR] accepter, refuser, corriger — strictement à égalité
   });
 
   it("un refus qui échoue se DIT — jamais un silence", async () => {
-    refuserHypothese.mockResolvedValue({ statut: "erreur", message: "Je n'ai pas pu enregistrer ça." });
+    refuserHypothese.mockResolvedValue({ statut: "erreur", message: "Je n’ai pas pu enregistrer ça." });
     render(<Hypothese hypotheseId="h-1" phrase={PHRASE} />);
-    await userEvent.click(screen.getByRole("button", { name: /ce n'est pas moi/i }));
+    await userEvent.click(screen.getByRole("button", { name: /ce n’est pas moi/i }));
     expect((await screen.findByRole("alert")).textContent).toContain("pas pu");
   });
 
@@ -294,7 +294,7 @@ describe("[5.5/AC2 DUR] accepter, refuser, corriger — strictement à égalité
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("[5.5/AC1/AC3] le résultat : un type, jamais un score", () => {
-  const SANS_TEXTE = "Anima n'a pas encore écrit ce qu'elle voit dans ce type. Son texte se posera ici.";
+  const SANS_TEXTE = "Anima n’a pas encore écrit ce qu’elle voit dans ce type. Son texte se posera ici.";
 
   it("le créneau vide est dit HONNÊTEMENT, dans la voix du produit", () => {
     // `TexteCorpus` n'a que deux états : il n'existe pas de « texte par défaut ». Combler le vide
@@ -307,14 +307,14 @@ describe("[5.5/AC1/AC3] le résultat : un type, jamais un score", () => {
     expect(container.querySelector(".t-anam"), "Anam ne parle pas sur cet écran").toBeNull();
   });
 
-  it("un texte d'Anima, lui, paraît dans SA voix", () => {
+  it("un texte d’Anima, lui, paraît dans SA voix", () => {
     render(
-      <Resultat type={4} origine="test" texte="Un texte d'Anima." messageSansTexte={SANS_TEXTE} />,
+      <Resultat type={4} origine="test" texte="Un texte d’Anima." messageSansTexte={SANS_TEXTE} />,
     );
-    expect(screen.getByText("Un texte d'Anima.").className).toContain("t-anam");
+    expect(screen.getByText("Un texte d’Anima.").className).toContain("t-anam");
   });
 
-  it("le seul chiffre à l'écran est le TYPE — jamais un total ni un pourcentage", () => {
+  it("le seul chiffre à l’écran est le TYPE — jamais un total ni un pourcentage", () => {
     const { container } = render(
       <Resultat type={7} origine="hypothese" texte={null} messageSansTexte={SANS_TEXTE} />,
     );
@@ -328,13 +328,13 @@ describe("[5.5/AC1/AC3] le résultat : un type, jamais un score", () => {
     expect(effacerType).toHaveBeenCalledTimes(1);
   });
 
-  it("[LE CŒUR] « Refaire » n'efface PAS son type — il ouvre le test", async () => {
+  it("[LE CŒUR] « Refaire » n’efface PAS son type — il ouvre le test", async () => {
     // Le réflexe serait de repartir d'une page blanche. Il la laisserait SANS TYPE si elle
     // abandonne au huitième énoncé — pour avoir voulu vérifier son résultat.
     render(<Resultat type={4} origine="test" texte={null} messageSansTexte={SANS_TEXTE} />);
     await userEvent.click(screen.getByRole("button", { name: /Refaire/i }));
     expect(recommencerTest).toHaveBeenCalledTimes(1);
-    expect(effacerType, "son type reste jusqu'à ce qu'un nouveau le remplace").not.toHaveBeenCalled();
+    expect(effacerType, "son type reste jusqu’à ce qu’un nouveau le remplace").not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/enneagramme?refaire=1");
   });
 });

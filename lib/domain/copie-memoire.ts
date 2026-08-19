@@ -11,7 +11,7 @@
  * passer un registre d'intimité sur un écran dont l'objet est l'exercice d'un droit.
  */
 
-export const TITRE_HALTE = "Ce qu'Anam retient";
+export const TITRE_HALTE = "Ce qu’Anam retient";
 
 /**
  * ⚠️ Cette introduction est CONTRAIGNANTE : elle est la seule explication de ce qu'est cette liste,
@@ -19,8 +19,8 @@ export const TITRE_HALTE = "Ce qu'Anam retient";
  * pas le journal. Sans la troisième, quelqu'un qui supprime tout croirait avoir effacé ses messages.
  */
 export const INTRODUCTION =
-  "Voici ce qu'Anam a retenu de tes échanges, dans ses mots. Tu peux corriger ou supprimer chaque " +
-  "ligne. Tes messages, eux, ne bougent pas : ils sont ailleurs, et c'est d'eux que ces phrases sont " +
+  "Voici ce qu’Anam a retenu de tes échanges, dans ses mots. Tu peux corriger ou supprimer chaque " +
+  "ligne. Tes messages, eux, ne bougent pas : ils sont ailleurs, et c’est d’eux que ces phrases sont " +
   "tirées.";
 
 /** AC5, au littéral de l'énoncé. */
@@ -32,8 +32,8 @@ export const ACTION_ENREGISTRER = "Enregistrer";
 export const ACTION_RENONCER = "Renoncer";
 export const ACTION_ANNULER = "Annuler la suppression";
 
-export const VOIR_SOURCE = "D'où vient cette phrase";
-export const SOURCE_ABSENTE = "Le message d'origine n'est plus dans ton journal.";
+export const VOIR_SOURCE = "D’où vient cette phrase";
+export const SOURCE_ABSENTE = "Le message d’origine n’est plus dans ton journal.";
 
 /**
  * D6 — une correction est une DONNÉE, donc elle se voit.
@@ -60,6 +60,6 @@ export const CORRECTION_APRES_REVOCATION =
 
 /** Les trois refus de `validerCorrection`, dits sans reproche. */
 export const REFUS_VIDE =
-  "Une phrase vide effacerait la ligne sans le dire. Si c'est ce que tu veux, utilise Supprimer.";
-export const REFUS_TROP_LONGUE = "C'est trop long pour une ligne. Une phrase suffit.";
-export const REFUS_INCHANGEE = "C'est la même phrase — il n'y a rien à enregistrer.";
+  "Une phrase vide effacerait la ligne sans le dire. Si c’est ce que tu veux, utilise Supprimer.";
+export const REFUS_TROP_LONGUE = "C’est trop long pour une ligne. Une phrase suffit.";
+export const REFUS_INCHANGEE = "C’est la même phrase — il n’y a rien à enregistrer.";

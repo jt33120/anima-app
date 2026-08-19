@@ -33,13 +33,13 @@ export default function PageIntrouvable() {
     <main className={s.page}>
       <article className={s.contenu}>
         <p className="t-surtitre">Anam</p>
-        <h1 className="t-titre">Il n&apos;y a rien ici</h1>
+        <h1 className="t-titre">Il n&rsquo;y a rien ici</h1>
         <p className="t-corps">
-          Cette adresse ne mène nulle part. Ce n&apos;est pas toi&nbsp;: la page n&apos;existe pas,
+          Cette adresse ne mène nulle part. Ce n&rsquo;est pas toi&nbsp;: la page n&rsquo;existe pas,
           ou elle a changé de place.
         </p>
         <p className="t-corps">
-          <Link href="/">Revenir à l&apos;accueil</Link>
+          <Link href="/">Revenir à l&rsquo;accueil</Link>
           {" · "}
           <Link href="/aide">Aide et ressources</Link>
         </p>

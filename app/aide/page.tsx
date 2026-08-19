@@ -56,7 +56,7 @@ export default function PageAide() {
 
         <section className={s.section} aria-label="Ressources">
           <p className="t-corps">
-            Si tu es en danger ou en détresse, tu n&apos;as pas à passer par Anam. Ces lignes
+            Si tu es en danger ou en détresse, tu n&rsquo;as pas à passer par Anam. Ces lignes
             sont tenues par des personnes, joignables directement.
           </p>
           <p className={`t-meta ${s.verifie}`}>Vérifié le {verifieLeLibelle()}</p>
@@ -94,13 +94,13 @@ export default function PageAide() {
           <h2 className="t-titre-sm">Anam est une IA</h2>
           <p className="t-anam">
             Tu parles à une <strong>intelligence artificielle</strong>. Pas à un être humain,
-            pas à une voyante. Anam lit, relie et te répond — mais elle n&apos;a ni conscience
+            pas à une voyante. Anam lit, relie et te répond — mais elle n&rsquo;a ni conscience
             ni intuition.
           </p>
           <p className="t-corps">
-            Elle s&apos;appuie sur un modèle d&apos;IA opéré par un prestataire technique,
-            encadré par contrat : il ne s&apos;entraîne pas sur tes données et ne les conserve
-            pas au-delà du traitement de ta demande. Anam n&apos;est ni un service médical, ni
+            Elle s&rsquo;appuie sur un modèle d&rsquo;IA opéré par un prestataire technique,
+            encadré par contrat : il ne s&rsquo;entraîne pas sur tes données et ne les conserve
+            pas au-delà du traitement de ta demande. Anam n&rsquo;est ni un service médical, ni
             psychologique, ni un avis professionnel.
           </p>
         </section>

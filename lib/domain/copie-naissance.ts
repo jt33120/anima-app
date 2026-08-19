@@ -25,24 +25,24 @@ export const TITRE_SECTION = "Ton heure de naissance";
  * horoscope du jour a changé de fond en comble.
  */
 export const INTRODUCTION =
-  "L'heure inscrite sur ton acte de naissance décide de ton ascendant et de tes maisons. Si celle " +
-  "qui est enregistrée est fausse, tu peux la corriger — autant de fois qu'il le faut. Ton thème " +
-  "sera recalculé à partir de la nouvelle, et l'ancien ne sera pas conservé.";
+  "L’heure inscrite sur ton acte de naissance décide de ton ascendant et de tes maisons. Si celle " +
+  "qui est enregistrée est fausse, tu peux la corriger — autant de fois qu’il le faut. Ton thème " +
+  "sera recalculé à partir de la nouvelle, et l’ancien ne sera pas conservé.";
 
 export const HEURE_ABSENTE =
-  "Aucune heure n'est enregistrée pour l'instant. Il n'y a donc rien à corriger : il y a à ajouter.";
+  "Aucune heure n’est enregistrée pour l’instant. Il n’y a donc rien à corriger : il y a à ajouter.";
 
 export const LIEN_AJOUTER = "Ajouter mon heure de naissance";
 
 export const ETIQUETTE_NOUVELLE_HEURE = "La bonne heure";
 export const AIDE_NOUVELLE_HEURE =
-  "Telle qu'elle est écrite sur ta copie intégrale d'acte de naissance.";
+  "Telle qu’elle est écrite sur ta copie intégrale d’acte de naissance.";
 
 export const ACTION_VOIR = "Voir ce que ça change";
 export const ACTION_CONFIRMER = "Corriger mon heure";
 export const ACTION_RENONCER = "Renoncer";
 
-export const CORRIGE = "C'est corrigé. Ton thème se recalcule à ta prochaine ouverture d'Anima.";
+export const CORRIGE = "C’est corrigé. Ton thème se recalcule à ta prochaine ouverture d’Anima.";
 
 /**
  * Le refus après révocation.
@@ -57,8 +57,8 @@ export const CORRECTION_APRES_REVOCATION =
 
 const REFUS: Readonly<Record<RefusHeure, string>> = Object.freeze({
   format: "Entre une heure au format 07:15.",
-  inexistante: "Cette heure n'existe pas.",
-  inchangee: "C'est déjà l'heure enregistrée.",
+  inexistante: "Cette heure n’existe pas.",
+  inchangee: "C’est déjà l’heure enregistrée.",
 });
 
 export function messageDeRefus(refus: RefusHeure): string {
@@ -105,13 +105,13 @@ export function phrasesApercu(apercu: ApercuCorrection): readonly string[] {
   } else if (avant === null && apres !== null) {
     phrases.push(`Ton ascendant devient calculable : ${apres}.`);
   } else if (avant !== null && apres === null) {
-    phrases.push(`Ton ascendant ne sera plus calculable, alors qu'il l'est aujourd'hui (${avant}).`);
+    phrases.push(`Ton ascendant ne sera plus calculable, alors qu’il l’est aujourd’hui (${avant}).`);
   }
 
   if (apercu.precisionAvant === "midi_par_defaut" && apercu.precisionApres === "heure_connue") {
-    phrases.push("Ton thème cesse d'être calculé depuis midi par défaut.");
+    phrases.push("Ton thème cesse d’être calculé depuis midi par défaut.");
   } else if (apercu.precisionAvant === "heure_connue" && apercu.precisionApres === "midi_par_defaut") {
-    phrases.push("Ton thème repasse à midi par défaut : l'heure ne serait plus exploitable.");
+    phrases.push("Ton thème repasse à midi par défaut : l’heure ne serait plus exploitable.");
   }
 
   if (apercu.corpsRegagnes > 0) {
@@ -124,8 +124,8 @@ export function phrasesApercu(apercu: ApercuCorrection): readonly string[] {
     const perdus = -apercu.corpsRegagnes;
     phrases.push(
       perdus === 1
-        ? "Un corps cesse d'être calculable."
-        : `${perdus} corps cessent d'être calculables.`,
+        ? "Un corps cesse d’être calculable."
+        : `${perdus} corps cessent d’être calculables.`,
     );
   }
 

@@ -50,8 +50,8 @@ const REELLE: BibliothequeVue = {
   ],
 };
 
-describe("[5.6/AC1] l'ordre du DOM est EXACTEMENT celui reçu — le rendu ne trie rien", () => {
-  it("les titres paraissent dans l'ordre des cartes", () => {
+describe("[5.6/AC1] l’ordre du DOM est EXACTEMENT celui reçu — le rendu ne trie rien", () => {
+  it("les titres paraissent dans l’ordre des cartes", () => {
     render(<Bibliotheque bibliotheque={REELLE} />);
     const titres = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     // « Anam » ferme la liste et n'entre PAS dans la rotation du jour (Story 6.3, D8) : elle est
@@ -66,7 +66,7 @@ describe("[5.6/AC1] l'ordre du DOM est EXACTEMENT celui reçu — le rendu ne tr
     ]);
   });
 
-  it("[LE TEST QUI COMPTE] inverser l'ordre reçu inverse l'ordre affiché", () => {
+  it("[LE TEST QUI COMPTE] inverser l’ordre reçu inverse l’ordre affiché", () => {
     // Sans cette assertion, un tri caché dans le composant passerait inaperçu : les deux ordres
     // coïncideraient par hasard sur le jeu ci-dessus. C'est le pouvoir que `lib/domain` retire au
     // rendu exprès (FR-033 : « jamais algorithmique »).
@@ -81,43 +81,43 @@ describe("[5.6/AC1] la carte du jour est ANNONCÉE, pas seulement plus grande", 
   it("la mise en avant est dite en toutes lettres", () => {
     render(<Bibliotheque bibliotheque={REELLE} />);
     // Une différence purement visuelle n'existe pas pour qui n'y a pas accès.
-    expect(screen.getByText(/mise en avant aujourd'hui/i)).toBeTruthy();
+    expect(screen.getByText(/mise en avant aujourd’hui/i)).toBeTruthy();
   });
 
   it("UNE SEULE carte est mise en avant", () => {
     render(<Bibliotheque bibliotheque={REELLE} />);
-    expect(screen.getAllByText(/mise en avant aujourd'hui/i)).toHaveLength(1);
+    expect(screen.getAllByText(/mise en avant aujourd’hui/i)).toHaveLength(1);
   });
 
-  it("aucune mise en avant quand aucune carte n'a rien à montrer", () => {
+  it("aucune mise en avant quand aucune carte n’a rien à montrer", () => {
     render(<Bibliotheque bibliotheque={{ ...REELLE, enAvant: null }} />);
-    expect(screen.queryByText(/mise en avant aujourd'hui/i)).toBeNull();
+    expect(screen.queryByText(/mise en avant aujourd’hui/i)).toBeNull();
   });
 });
 
-describe("[5.6/AC5] l'absence est DITE — jamais un vide, jamais un « bientôt »", () => {
+describe("[5.6/AC5] l’absence est DITE — jamais un vide, jamais un « bientôt »", () => {
   it("une carte sans fait ni texte le dit honnêtement", () => {
     render(<Bibliotheque bibliotheque={REELLE} />);
     const mantra = screen.getByRole("article", { name: "Le mantra du jour" });
-    expect(within(mantra).getByText(/n'a pas encore écrit/i)).toBeTruthy();
+    expect(within(mantra).getByText(/n’a pas encore écrit/i)).toBeTruthy();
   });
 
   it("une carte qui a des faits mais pas de texte le dit AUSSI, et garde ses faits", () => {
     render(<Bibliotheque bibliotheque={REELLE} />);
     const theme = screen.getByRole("article", { name: "Ton thème" });
     expect(within(theme).getByText("Balance")).toBeTruthy();
-    expect(within(theme).getByText(/n'a pas encore écrit/i)).toBeTruthy();
+    expect(within(theme).getByText(/n’a pas encore écrit/i)).toBeTruthy();
   });
 
   it("[FR-057] aucun « bientôt », aucun compte à rebours, aucune excuse", () => {
     const { container } = render(<Bibliotheque bibliotheque={REELLE} />);
     const texte = container.textContent ?? "";
     for (const interdit of ["bientôt", "prochainement", "à venir", "désolé", "excuse", "patience"]) {
-      expect(texte.toLowerCase(), `« ${interdit} » teaser ce qu'on n'a pas`).not.toContain(interdit);
+      expect(texte.toLowerCase(), `« ${interdit} » teaser ce qu’on n’a pas`).not.toContain(interdit);
     }
   });
 
-  it("le texte d'Anima paraît tel quel quand il est écrit", () => {
+  it("le texte d’Anima paraît tel quel quand il est écrit", () => {
     const ecrite: BibliothequeVue = {
       ...REELLE,
       cartes: [carte("mantra", { titre: "Le mantra du jour", texte: { statut: "ecrit", texte: "Remarque ce qui tient." } })],
@@ -125,11 +125,11 @@ describe("[5.6/AC5] l'absence est DITE — jamais un vide, jamais un « bientôt
     };
     render(<Bibliotheque bibliotheque={ecrite} />);
     expect(screen.getByText("Remarque ce qui tient.")).toBeTruthy();
-    expect(screen.queryByText(/n'a pas encore écrit/i)).toBeNull();
+    expect(screen.queryByText(/n’a pas encore écrit/i)).toBeNull();
   });
 });
 
-describe("[5.6/AC2 DUR · FR-031] aucun compte n'atteint l'écran, par AUCUN chemin", () => {
+describe("[5.6/AC2 DUR · FR-031] aucun compte n’atteint l’écran, par AUCUN chemin", () => {
   /**
    * ⚠️ LE CHEMIN DE FUITE OUBLIÉ, celui que la 4.10 a trouvé après coup : un compte n'a pas besoin
    * d'être VISIBLE pour exister. Il peut vivre dans un `aria-label`, un `title`, un `alt`. Ces
@@ -138,7 +138,7 @@ describe("[5.6/AC2 DUR · FR-031] aucun compte n'atteint l'écran, par AUCUN che
    * Et elles ne peuvent pas refuser « tout chiffre » : « 7 » (chemin de vie) et « 4 » (type) sont
    * des faits du socle, pas des mesures. Ce qu'on refuse, c'est un compte D'OBJETS.
    */
-  it("aucun attribut d'accessibilité ne porte un compte", () => {
+  it("aucun attribut d’accessibilité ne porte un compte", () => {
     const { container } = render(<Bibliotheque bibliotheque={REELLE} />);
     for (const el of Array.from(container.querySelectorAll("*"))) {
       for (const attr of ["aria-label", "title", "alt", "aria-description"]) {
@@ -158,7 +158,7 @@ describe("[5.6/AC2 DUR · FR-031] aucun compte n'atteint l'écran, par AUCUN che
     expect(texte).not.toMatch(/\b\d+\s*\/\s*\d+\b/);
   });
 
-  it("aucun mot de verrou n'apparaît nulle part", () => {
+  it("aucun mot de verrou n’apparaît nulle part", () => {
     const { container } = render(<Bibliotheque bibliotheque={REELLE} />);
     const texte = (container.textContent ?? "").toLowerCase();
     for (const mot of ["verrouill", "débloqu", "cadenas", "premium", "réservé aux"]) {

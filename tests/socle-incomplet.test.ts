@@ -39,7 +39,7 @@ const theme = (e: EntreesNaissance) => calculerThemeNatal(e, ephemeride);
 // L'inventaire
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[T3 / AC1] manquantsDuSocle — l'inventaire est complet et jamais silencieux", () => {
+describe("[T3 / AC1] manquantsDuSocle — l’inventaire est complet et jamais silencieux", () => {
   it("[PRÉSENCE AVANT ABSENCE] un thème complet ne manque QUE de Chiron", () => {
     // Condition de validité de tout ce fichier : si l'inventaire rendait toujours `[]`, chaque
     // assertion d'absence ci-dessous serait vraie pour rien.
@@ -58,14 +58,14 @@ describe("[T3 / AC1] manquantsDuSocle — l'inventaire est complet et jamais sil
     expect(m).toContainEqual({ quoi: "angles", raison: "coordonnees_absentes" });
   });
 
-  it("un corps au signe indéterminable figure à l'inventaire avec sa propre raison", () => {
+  it("un corps au signe indéterminable figure à l’inventaire avec sa propre raison", () => {
     // 14 juin 1990 à Paris : la Lune passe du verseau aux poissons dans la journée (fait vérifié
     // dans `tests/theme-natal.test.ts`).
     const m = manquantsDuSocle(theme({ date: "1990-06-14", fuseau: "Europe/Paris" }));
     expect(m).toContainEqual({ quoi: "corps", corps: "lune", raison: "signe_ambigu_sans_heure" });
   });
 
-  it("l'inventaire est GELÉ — personne ne le complète après coup", () => {
+  it("l’inventaire est GELÉ — personne ne le complète après coup", () => {
     expect(Object.isFrozen(manquantsDuSocle(theme(AVEC_HEURE)))).toBe(true);
   });
 });
@@ -74,30 +74,30 @@ describe("[T3 / AC1] manquantsDuSocle — l'inventaire est complet et jamais sil
 // « Son heure réparerait-elle ça ? »
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[T3/DUR] reparableParLHeure — ne jamais envoyer quelqu'un à la mairie pour rien", () => {
+describe("[T3/DUR] reparableParLHeure — ne jamais envoyer quelqu’un à la mairie pour rien", () => {
   const cas: readonly [string, Manquant, boolean][] = [
-    ["l'heure manque", { quoi: "angles", raison: "heure_absente" }, true],
+    ["l’heure manque", { quoi: "angles", raison: "heure_absente" }, true],
     ["le fuseau manque (donc le lieu)", { quoi: "angles", raison: "fuseau_absent" }, true],
     ["les coordonnées manquent", { quoi: "angles", raison: "coordonnees_absentes" }, true],
     [
-      "un signe indéterminable sans l'heure",
+      "un signe indéterminable sans l’heure",
       { quoi: "corps", corps: "lune", raison: "signe_ambigu_sans_heure" },
       true,
     ],
     // ── et tout ce qu'aucune heure au monde ne réparera ──
-    ["le pôle géographique — l'ascendant n'y EXISTE pas", { quoi: "angles", raison: "latitude_polaire" }, false],
+    ["le pôle géographique — l’ascendant n’y EXISTE pas", { quoi: "angles", raison: "latitude_polaire" }, false],
     [
       "Chiron — aucune source ne le calcule",
       { quoi: "corps", corps: "chiron", raison: "ephemeride_sans_asteroides" },
       false,
     ],
     [
-      "une date hors plage d'éphéméride",
+      "une date hors plage d’éphéméride",
       { quoi: "corps", corps: "mars", raison: "hors_plage_ephemeride" },
       false,
     ],
     [
-      "un fuseau invalide en base — un bogue, pas une info qu'elle n'a jamais donnée",
+      "un fuseau invalide en base — un bogue, pas une info qu’elle n’a jamais donnée",
       { quoi: "angles", raison: "fuseau_invalide" },
       false,
     ],
@@ -109,7 +109,7 @@ describe("[T3/DUR] reparableParLHeure — ne jamais envoyer quelqu'un à la mair
 });
 
 describe("[T3 / AC3 / P8] manqueLHeure — le prédicat du tronc", () => {
-  it("thème complet : le tronc n'est PAS incomplet (Chiron ne compte pas)", () => {
+  it("thème complet : le tronc n’est PAS incomplet (Chiron ne compte pas)", () => {
     // Mutation-cible : `manqueLHeure = manquantsDuSocle(t).length > 0`. Chiron manque TOUJOURS —
     // le tronc serait incomplet pour tout le monde, à jamais, et la fiche inviterait chacune à
     // fournir une heure qu'elle a déjà donnée.
@@ -159,19 +159,19 @@ describe("[T3 / AC2 / FR-050] les phrases disent CE QUI MANQUE, POURQUOI, et OÙ
     expect(OU_TROUVER_SON_HEURE.length).toBeGreaterThan(80);
   });
 
-  it("l'aveu nomme ce qui manque ET ce qui reste", () => {
+  it("l’aveu nomme ce qui manque ET ce qui reste", () => {
     expect(MESSAGE_SANS_HEURE).toMatch(/heure de naissance/i);
     expect(MESSAGE_SANS_HEURE).toMatch(/ascendant/i);
     expect(MESSAGE_SANS_HEURE).toMatch(/maisons/i);
     expect(MESSAGE_SANS_HEURE).toMatch(/lune/i);
-    expect(MESSAGE_SANS_HEURE, "ne pas laisser quelqu'un sur un manque").toMatch(/soleil|numérolog/i);
+    expect(MESSAGE_SANS_HEURE, "ne pas laisser quelqu’un sur un manque").toMatch(/soleil|numérolog/i);
   });
 
-  it("[FR-050 mot pour mot] elle dit POURQUOI : « je préfère ne pas te l'inventer »", () => {
-    expect(MESSAGE_SANS_HEURE).toMatch(/je préfère ne pas te l'inventer/i);
+  it("[FR-050 mot pour mot] elle dit POURQUOI : « je préfère ne pas te l’inventer »", () => {
+    expect(MESSAGE_SANS_HEURE).toMatch(/je préfère ne pas te l’inventer/i);
   });
 
-  it("[FR-050] rien ne se bloque — l'absence n'est pas une porte fermée", () => {
+  it("[FR-050] rien ne se bloque — l’absence n’est pas une porte fermée", () => {
     expect(MESSAGE_SANS_HEURE).toMatch(/rien ne se bloque/i);
   });
 
@@ -182,7 +182,7 @@ describe("[T3 / AC2 / FR-050] les phrases disent CE QUI MANQUE, POURQUOI, et OÙ
     expect(OU_TROUVER_SON_HEURE).toMatch(/mairie/i);
   });
 
-  it("elle prévient que l'EXTRAIT SIMPLE ne suffit pas — sinon la démarche échoue", () => {
+  it("elle prévient que l’EXTRAIT SIMPLE ne suffit pas — sinon la démarche échoue", () => {
     // L'heure ne figure que sur la copie intégrale. Sans cette précision, elle fait la queue à la
     // mairie, obtient un extrait, et revient sans son heure.
     expect(OU_TROUVER_SON_HEURE).toMatch(/extrait|livret/i);
@@ -203,7 +203,7 @@ describe("[T3 / AC2 / FR-050] les phrases disent CE QUI MANQUE, POURQUOI, et OÙ
 
   it("[CONTRÔLE DU CONTRÔLE] le détecteur mordrait sur la version rejetée", () => {
     // Sans ça, l'assertion précédente serait satisfaite par un détecteur en panne.
-    expect(chercherPredictions("Tu pourras l'ajouter plus tard.").length).toBeGreaterThan(0);
+    expect(chercherPredictions("Tu pourras l’ajouter plus tard.").length).toBeGreaterThan(0);
   });
 });
 
@@ -211,7 +211,7 @@ describe("[T3 / AC2 / FR-050] les phrases disent CE QUI MANQUE, POURQUOI, et OÙ
 // B6 (revue du 2026-08-12) — FR-053 S'APPLIQUE AUX ÉCRANS DU SOCLE, PAS SEULEMENT AU CORPUS
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[B6/FR-053] aucune surface du socle ne s'adresse à elle au futur", () => {
+describe("[B6/FR-053] aucune surface du socle ne s’adresse à elle au futur", () => {
   /**
    * ══ LE DÉFAUT ═════════════════════════════════════════════════════════════════════════════════
    *
@@ -252,7 +252,7 @@ describe("[B6/FR-053] aucune surface du socle ne s'adresse à elle au futur", ()
 
   const lire = (f: string) => sansCommentaires(readFileSync(resolve(process.cwd(), f), "utf-8"));
 
-  it("[PRÉSENCE AVANT ABSENCE] les surfaces existent et portent bien du texte d'Anam", () => {
+  it("[PRÉSENCE AVANT ABSENCE] les surfaces existent et portent bien du texte d’Anam", () => {
     // Sans ce témoin, « aucune prédiction » serait vrai d'un fichier renommé ou vidé — le mode
     // d'échec silencieux de toute garde d'absence.
     for (const f of SURFACES_DU_SOCLE) {
@@ -262,7 +262,7 @@ describe("[B6/FR-053] aucune surface du socle ne s'adresse à elle au futur", ()
     expect(SURFACES_DU_SOCLE.length).toBeGreaterThan(3);
   });
 
-  it("[CONTRÔLE DU CONTRÔLE] la phrase RETIRÉE serait bien attrapée aujourd'hui", () => {
+  it("[CONTRÔLE DU CONTRÔLE] la phrase RETIRÉE serait bien attrapée aujourd’hui", () => {
     // C'est le texte exact qui vivait dans `formulaire-heure.tsx`. S'il ne rougissait pas ici, cette
     // garde ne protégerait de rien — et c'est précisément le défaut qu'elle est censée fermer.
     expect(
@@ -276,7 +276,7 @@ describe("[B6/FR-053] aucune surface du socle ne s'adresse à elle au futur", ()
       const trouvees = chercherPredictions(lire(f));
       expect(
         trouvees.map((t) => `${t.famille}:${t.terme}`),
-        `${f} s'adresse à elle au futur — FR-053`,
+        `${f} s’adresse à elle au futur — FR-053`,
       ).toEqual([]);
     }
   });

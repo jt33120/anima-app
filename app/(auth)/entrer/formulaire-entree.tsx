@@ -32,9 +32,9 @@ export default function FormulaireEntree({ adresseEnAttente }: { adresseEnAttent
     return (
       <div className={s.form}>
         <p className="t-anam" role="status">
-          C&apos;est parti{etat.adresse ? <> vers {etat.adresse}</> : null}. Le message contient un
-          lien — il n&apos;ouvre que dans ce navigateur-ci — et un code à six chiffres, qui marche
-          depuis n&apos;importe où.
+          C&rsquo;est parti{etat.adresse ? <> vers {etat.adresse}</> : null}. Le message contient un
+          lien — il n&rsquo;ouvre que dans ce navigateur-ci — et un code à six chiffres, qui marche
+          depuis n&rsquo;importe où.
         </p>
         {/* ⚠️ L'ADRESSE EST AFFICHÉE, ET CE N'EST PAS DE L'ORNEMENT. L'adresse vérifiée vient d'un
             cookie posé à la demande, jamais de ce formulaire. L'écrire ici est ce qui permet à
@@ -68,7 +68,7 @@ export default function FormulaireEntree({ adresseEnAttente }: { adresseEnAttent
             n'arrivera jamais. Formulaire distinct — imbriquer deux <form> est invalide en HTML. */}
         <form action={recommencer}>
           <button type="submit" className={s.lienSecondaire}>
-            <span className="t-meta">Ce n&apos;est pas la bonne adresse ? Recommencer</span>
+            <span className="t-meta">Ce n&rsquo;est pas la bonne adresse ? Recommencer</span>
           </button>
         </form>
       </div>

@@ -16,7 +16,7 @@ import { RETENUS_PAR_LA_LOI } from "./sous-traitants";
 export const TITRE_HALTE = "Mes données";
 
 export const INTRODUCTION =
-  "Tout ce qu'Anam a de toi tient dans un fichier. Tu peux le prendre quand tu veux, autant de fois que tu veux.";
+  "Tout ce qu’Anam a de toi tient dans un fichier. Tu peux le prendre quand tu veux, autant de fois que tu veux.";
 
 export const ACTION_EXPORTER = "Télécharger mes données";
 
@@ -25,30 +25,30 @@ export const ACTION_EXPORTER = "Télécharger mes données";
  * c'est ce qu'elle est en droit de savoir de ce qu'elle emporte.
  */
 export const CE_QUE_TU_EMPORTES =
-  "Le fichier contient tes conversations mot pour mot, ce qu'Anam retient de toi, tes branches, " +
-  "tes lectures, ton thème natal, ton abonnement et tout le reste. Il s'ouvre dans n'importe quel " +
+  "Le fichier contient tes conversations mot pour mot, ce qu’Anam retient de toi, tes branches, " +
+  "tes lectures, ton thème natal, ton abonnement et tout le reste. Il s’ouvre dans n’importe quel " +
   "navigateur, hors ligne, et il porte aussi tes données en format machine si tu veux les reprendre ailleurs.";
 
 /** Rien ne se ferme, rien ne se perd : la phrase qui dit que l'export ne coûte rien (AC2). */
 export const RIEN_NE_CHANGE = "Télécharger ne change rien : ton compte, tes branches et tes conversations restent là.";
 
 export const ECHEC =
-  "Le fichier n'a pas pu être fabriqué. Rien n'a été touché — réessaie dans un moment.";
+  "Le fichier n’a pas pu être fabriqué. Rien n’a été touché — réessaie dans un moment.";
 
 // ── Le document lui-même ────────────────────────────────────────────────────────────────────────
 
-export const DOCUMENT_TITRE = "Tout ce qu'Anam a de toi";
+export const DOCUMENT_TITRE = "Tout ce qu’Anam a de toi";
 
 export const DOCUMENT_GENERE_LE = "Fichier établi le";
 
 export const DOCUMENT_PREAMBULE =
-  "Ce fichier est complet : il porte toutes les couches, y compris celles que l'application ne " +
-  "montre nulle part. Tu peux le garder, l'ouvrir hors ligne, le transmettre à qui tu veux.";
+  "Ce fichier est complet : il porte toutes les couches, y compris celles que l’application ne " +
+  "montre nulle part. Tu peux le garder, l’ouvrir hors ligne, le transmettre à qui tu veux.";
 
 export const DOCUMENT_TITRE_RETRAITS = "Deux choses ne sont pas dans ce fichier, et voici lesquelles :";
 
 export const DOCUMENT_ANNEXE =
-  "Les mêmes données, en format machine, sont dans ce fichier sous l'identifiant « donnees-brutes » — " +
+  "Les mêmes données, en format machine, sont dans ce fichier sous l’identifiant « donnees-brutes » — " +
   "de quoi les reprendre ailleurs sans rien retaper.";
 
 /** Le nom du fichier téléchargé. Sobre : il finira dans un dossier de téléchargements partagé. */
@@ -63,8 +63,8 @@ export const NOM_FICHIER_PREFIXE = "anam-mes-donnees";
 export const SECTION_EFFACEMENT = "Tout effacer";
 
 export const EFFACEMENT_CE_QUI_PART =
-  "Tes conversations, tes branches, ce qu'Anam retient, ton thème natal, ton compte : tout part " +
-  "d'un coup, et rien ne revient.";
+  "Tes conversations, tes branches, ce qu’Anam retient, ton thème natal, ton compte : tout part " +
+  "d’un coup, et rien ne revient.";
 
 /** Ce que l'effacement ne peut pas retirer. Le sujet est DÉRIVÉ de `sous-traitants.ts`. */
 export const EFFACEMENT_CE_QUI_RESTE_PREFIXE = "Une seule chose ne peut pas partir :";
@@ -94,20 +94,20 @@ export function phraseCeQuiReste(): string {
 
 export function effacementFenetre(jours: number): string {
   if (jours <= 0) return "Aucune copie de sauvegarde ne subsiste.";
-  return `Les copies de sauvegarde s'effacent d'elles-mêmes sous ${jours} jours.`;
+  return `Les copies de sauvegarde s’effacent d’elles-mêmes sous ${jours} jours.`;
 }
 
 export const EFFACEMENT_EXPORT_DABORD =
-  "Si tu veux garder une trace, télécharge d'abord — le bouton est juste au-dessus.";
+  "Si tu veux garder une trace, télécharge d’abord — le bouton est juste au-dessus.";
 
-export const EFFACEMENT_CONFIRMATION = "J'ai compris que tout disparaît et que rien ne revient.";
+export const EFFACEMENT_CONFIRMATION = "J’ai compris que tout disparaît et que rien ne revient.";
 
 export const ACTION_EFFACER = "Tout effacer";
 
 export const EFFACEMENT_ECHEC =
-  "L'effacement n'a pas abouti. Rien n'a été touché — tu peux recommencer.";
+  "L’effacement n’a pas abouti. Rien n’a été touché — tu peux recommencer.";
 
-export const EFFACEMENT_SANS_CONFIRMATION = "Coche la case pour que l'effacement puisse partir.";
+export const EFFACEMENT_SANS_CONFIRMATION = "Coche la case pour que l’effacement puisse partir.";
 
 /** Sur `/entrer`, après l'effacement. Registre PRODUIT — jamais la voix d'Anam. */
 export const ADIEU = "Tout a été effacé. Il ne reste rien de toi ici.";

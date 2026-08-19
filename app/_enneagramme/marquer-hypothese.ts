@@ -44,7 +44,7 @@ export async function marquerHypotheseDite(hypotheseId: string): Promise<void> {
     });
   } catch (e) {
     // NFR-022 : ni le type, ni l'identifiant ne sortent dans le log — seulement le nom de l'erreur.
-    console.error("[enneagramme] marquage de l'hypothèse impossible — elle reste à dire", {
+    console.error("[enneagramme] marquage de l’hypothèse impossible — elle reste à dire", {
       nom: e instanceof Error ? e.name : "inconnu",
     });
   }

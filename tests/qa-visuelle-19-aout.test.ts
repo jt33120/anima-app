@@ -107,6 +107,93 @@ describe("[QA 19/08] le produit tutoie, et ne se reprend pas en cours de phrase"
 // LA PORTE DE SECOURS — une cible, pas une hauteur
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// L'APOSTROPHE — typographique à l'écran, droite dans les détecteurs
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+describe("[QA 19/08] le produit n'écrit qu'une sorte d'apostrophe", () => {
+  /**
+   * ⚠️ TROIS FICHIERS GARDENT L'APOSTROPHE DROITE, ET LES EXEMPTER N'EST PAS UNE COMMODITÉ.
+   *
+   * Leurs motifs s'appliquent à du texte NORMALISÉ, où `normaliserTexte` a déjà ramené « ’ » à
+   * « ' ». Les convertir rendrait `/\bt'[a-z]+(?:ra|ront)\b/` incapable de reconnaître « il
+   * t'arrivera » — un détecteur de tournure prédictive mort en silence, sur un produit qui promet
+   * de ne jamais prédire. Aucun test ne rougirait : le motif serait juste devenu inutile.
+   *
+   * J'ai d'abord ANNULÉ toute la conversion en croyant ce risque réel, avant de lire le
+   * normaliseur et de voir qu'il unifiait déjà les deux formes. Le risque n'existait que pour ces
+   * trois fichiers-là, et il est nommé ici pour qu'on n'ait plus à le redécouvrir.
+   */
+  const DETECTEURS = [
+    "lib/domain/lexique-interdit.ts",
+    "lib/domain/marqueurs-prediction.ts",
+    "lib/domain/normalisation-texte.ts",
+  ];
+
+  it("[LE CŒUR] aucune apostrophe droite dans une chaîne affichée", () => {
+    // Neuf écrans écrivaient « ' », deux écrivaient « ’ ». Ça ne se voit pas dans un fichier ; ça
+    // se voit en passant d'un écran à l'autre, et c'est ce qui donne l'impression d'un produit
+    // assemblé de plusieurs mains.
+    const fautives: string[] = [];
+    const sources = fichiers(".tsx")
+      .concat(fichiers(".ts"))
+      .concat(
+        (readdirSync(resolve(RACINE, "lib/domain"), { encoding: "utf-8" }) as string[])
+          .filter((f) => f.endsWith(".ts"))
+          .map((f) => `lib/domain/${f}`),
+      );
+    for (const f of sources) {
+      if (f.includes(".test.") || DETECTEURS.includes(f)) continue;
+      const src = sansCommentaires(lire(f));
+      // ⚠️ LES GUILLEMETS DOUBLES ET LES GABARITS SEULEMENT, ET C'EST LE CORRECTIF D'UN MUTANT
+      // SURVIVANT. La première version cherchait `["'`]([^"'`]…)["'`]` : en excluant `'` du CONTENU,
+      // elle ne pouvait STRUCTURELLEMENT pas voir une apostrophe droite dans une chaîne — le
+      // caractère cherché servait de délimiteur. Elle était verte, et aveugle à ce qu'elle gardait.
+      for (const m of src.matchAll(/(?:"([^"\n]{8,})"|`([^`\n]{8,})`)/g)) {
+        const texte = m[1] ?? m[2] ?? "";
+        if (/[\\/{}<>|]/.test(texte)) continue; // ni motif, ni fragment de code
+        if (/[a-zà-ÿA-ZÀ-Ý]'[a-zà-ÿA-ZÀ-Ý]/.test(texte)) fautives.push(`${f} → « ${texte.slice(0, 80)} »`);
+      }
+    }
+    expect(fautives, `apostrophes droites affichées :\n${fautives.join("\n")}`).toEqual([]);
+  });
+
+  it("plus aucune entité `&apos;` en JSX — `&rsquo;` est la typographique", () => {
+    const fautifs = fichiers(".tsx").filter((f) => lire(f).includes("&apos;"));
+    expect(fautifs, `entités droites :\n${fautifs.join("\n")}`).toEqual([]);
+  });
+
+  it("[LA GARDE DE LA GARDE] les détecteurs, EUX, gardent l'apostrophe droite", () => {
+    // Sans ce contrôle, un balayage bien intentionné les convertirait un jour, et les motifs
+    // cesseraient de reconnaître ce qu'ils cherchent — sans qu'une seule ligne ne rougisse.
+    for (const f of ["lib/domain/lexique-interdit.ts", "lib/domain/marqueurs-prediction.ts"]) {
+      expect(
+        /[a-z]'[a-z]/.test(sansCommentaires(lire(f))),
+        `${f} a perdu ses apostrophes droites : ses motifs ne matchent plus le texte normalisé`,
+      ).toBe(true);
+    }
+  });
+
+  it("[LE PIVOT] le normaliseur ramène TOUTES les formes à la droite", () => {
+    // ⚠️ C'EST CETTE LIGNE QUI REND TOUT LE RESTE POSSIBLE. Les détecteurs peuvent garder
+    // l'apostrophe droite parce qu'ils ne voient jamais que du texte normalisé. Retirer cette
+    // substitution ferait échouer toute détection sur une phrase écrite avec « ’ » — c'est-à-dire
+    // sur tout ce que le produit affiche depuis la conversion. La garde vit ici, pas dans un
+    // commentaire, précisément parce que le lien n'est pas visible depuis les détecteurs.
+    //
+    // ⚠️ ET `normalisation-texte.ts` N'A AUCUNE APOSTROPHE ENTRE LETTRES : la sienne est seule dans
+    // une chaîne de remplacement. Le contrôle ci-dessus, appliqué à ce fichier, rougissait à tort —
+    // il mesurait la mauvaise chose. Ici on mesure la RÈGLE.
+    const src = sansCommentaires(lire("lib/domain/normalisation-texte.ts"));
+    // ⚠️ ON EXIGE « ’ » NOMMÉMENT, PAS « L'UN DES TROIS ». Écrite `[‘’ʼ]`, la garde restait verte
+    // quand on retirait les deux guillemets courbes en laissant `ʼ` — or « ’ » est précisément la
+    // forme que le produit affiche depuis la conversion. Un mutant survivant l'a montré.
+    expect(src, "le normaliseur n'unifie plus l'apostrophe typographique « ’ »").toMatch(
+      /replace\(\s*\/\[[^\]]*’[^\]]*\]\/g\s*,\s*["']'["']\s*\)/,
+    );
+  });
+});
+
 describe("[QA 19/08] la porte de secours est une cible dans les DEUX dimensions", () => {
   it("[LE CŒUR] le lien du pied de halte borne sa largeur autant que sa hauteur", () => {
     // Mesuré à 27,7 px de LARGE — la largeur du mot « Aide ». `min-height` était bien là depuis le

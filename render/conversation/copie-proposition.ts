@@ -7,13 +7,13 @@
  * Source : charte §6.3 — « Comment tu l'appelles ? » / « Tes mots, pas les miens. » / le refus « Ok. »
  * (rien d'autre, aucune insistance, aucun « ! »).
  */
-export const INVITE_NOMMAGE = "Comment tu l'appelles ?";
+export const INVITE_NOMMAGE = "Comment tu l’appelles ?";
 export const SOUS_TITRE_NOMMAGE = "Tes mots, pas les miens.";
 export const REPONSE_REFUS = "Ok.";
 export const ACTION_NOMMER = "Nommer";
 export const CONFIRME_NAISSANCE = "Ta branche existe.";
 /** Échec de création (réseau / garde serveur) — neutre, sans dramatiser, retryable (revue 4.5, #3). */
-export const ECHEC_NAISSANCE = "Je n'ai pas pu créer cette branche. Tu peux réessayer.";
+export const ECHEC_NAISSANCE = "Je n’ai pas pu créer cette branche. Tu peux réessayer.";
 
 /**
  * Story 4.10 (AC4) — le geste de l'invitation. « La voir » et rien de plus : ni « Y aller maintenant »

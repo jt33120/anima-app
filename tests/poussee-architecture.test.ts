@@ -42,7 +42,7 @@ describe("[6.2/AC7] le service worker ne fait QUE la poussée", () => {
     expect(sw, "un gestionnaire `fetch` est apparu dans le service worker").not.toMatch(
       /addEventListener\s*\(\s*["']fetch["']/,
     );
-    expect(sw, "l'API `caches` est apparue dans le service worker").not.toMatch(/\bcaches\s*\./);
+    expect(sw, "l’API `caches` est apparue dans le service worker").not.toMatch(/\bcaches\s*\./);
     expect(sw).not.toMatch(/\bimportScripts\s*\(/);
   });
 
@@ -52,20 +52,20 @@ describe("[6.2/AC7] le service worker ne fait QUE la poussée", () => {
     expect(sw).toMatch(/addEventListener\s*\(\s*["']notificationclick["']/);
   });
 
-  it("[LE CŒUR] l'ensemble fini du service worker est le MIROIR EXACT du domaine", () => {
+  it("[LE CŒUR] l’ensemble fini du service worker est le MIROIR EXACT du domaine", () => {
     // ⚠️ C'est la couture la plus fragile de la story : le texte relu vit dans `lib/domain/`, où trois
     // détecteurs le passent au crible (prédiction, lexique interdit, lexique d'aperçu) ; le texte
     // AFFICHÉ vit ici, dans un fichier que rien ne compile. Sans ce test, corriger une virgule d'un
     // côté ferait diverger les deux — et c'est l'ensemble NON RELU qui s'afficherait sur un écran
     // verrouillé.
     const bloc = sw.match(/const CORPS_POUSSEE = \[([\s\S]*?)\];/);
-    expect(bloc, "l'ensemble n'est plus déclaré sous la forme attendue").not.toBeNull();
+    expect(bloc, "l’ensemble n’est plus déclaré sous la forme attendue").not.toBeNull();
     const lignes = [...bloc![1].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => JSON.parse(`"${m[1]}"`));
     expect(lignes).toEqual([...CORPS_POUSSEE]);
     expect(sw).toContain(`const TITRE_POUSSEE = ${JSON.stringify(TITRE_POUSSEE)};`);
   });
 
-  it("[LE CŒUR] l'index du jour est le même calcul des deux côtés", () => {
+  it("[LE CŒUR] l’index du jour est le même calcul des deux côtés", () => {
     // Deux listes identiques parcourues par deux formules différentes afficheraient quand même deux
     // textes différents. On compare donc aussi la FORMULE — le compte absolu de jours, et jamais un
     // jour de l'année (qui retombe à 0 le 1er janvier).
@@ -104,7 +104,7 @@ describe("[6.2/D1] la poussée sans charge utile a une DATE DE PÉREMPTION, et e
     expect(MOTIFS_POUSSEE[0]).toBe("socle_quotidien");
   });
 
-  it("l'adaptateur ne poste aucun corps, et ne connaît aucun chiffrement", () => {
+  it("l’adaptateur ne poste aucun corps, et ne connaît aucun chiffrement", () => {
     const adaptateur = sansCommentaires(lire("lib/poussee/adaptateurs/web-push.ts"));
     expect(adaptateur).not.toMatch(/body\s*:/);
     expect(adaptateur).not.toMatch(/Content-Encoding|aes128gcm|deriveBits/);
@@ -112,7 +112,7 @@ describe("[6.2/D1] la poussée sans charge utile a une DATE DE PÉREMPTION, et e
 });
 
 describe("[6.2/AC8] la cadence déclarée est celle que le palier autorise", () => {
-  it("[LE CŒUR] `vercel.json` ne déclare pas plus de ticks que le palier n'en accepte", () => {
+  it("[LE CŒUR] `vercel.json` ne déclare pas plus de ticks que le palier n’en accepte", () => {
     // ⚠️ Sur `hobby`, une expression cron plus fréquente qu'une fois par jour FAIT ÉCHOUER LE
     // DÉPLOIEMENT — pas de dégradation silencieuse, un refus. Cette garde amène ce refus en CI,
     // c'est-à-dire avant que la branche ne parte, et surtout avant qu'un déploiement raté ne laisse
@@ -122,14 +122,14 @@ describe("[6.2/AC8] la cadence déclarée est celle que le palier autorise", () 
     // si l'expression devient horaire. Un palier acheté sans changer le cron ne changerait rien.
     const vercel = JSON.parse(lire("vercel.json")) as { crons: { path: string; schedule: string }[] };
     const cron = vercel.crons.find((c) => c.path === "/api/ordonnanceur");
-    expect(cron, "l'ordonnanceur n'est plus déclaré dans vercel.json").toBeDefined();
+    expect(cron, "l’ordonnanceur n’est plus déclaré dans vercel.json").toBeDefined();
 
     const [minute, heure] = cron!.schedule.split(" ");
     const ticksParJour =
       (heure === "*" ? 24 : heure.split(",").length) * (minute === "*" ? 60 : minute.split(",").length);
     expect(
       ticksParJour,
-      `l'expression « ${cron!.schedule} » demande ${ticksParJour} ticks/jour, le palier ${PALIER} en accepte ${TICKS_MAX_PAR_JOUR[PALIER]}`,
+      `l’expression « ${cron!.schedule} » demande ${ticksParJour} ticks/jour, le palier ${PALIER} en accepte ${TICKS_MAX_PAR_JOUR[PALIER]}`,
     ).toBeLessThanOrEqual(TICKS_MAX_PAR_JOUR[PALIER]);
   });
 
@@ -147,7 +147,7 @@ describe("[6.2/AC8] la cadence déclarée est celle que le palier autorise", () 
   });
 });
 
-describe("[6.2/AC4] le manifeste est neutre, et l'icône ne trahit rien", () => {
+describe("[6.2/AC4] le manifeste est neutre, et l’icône ne trahit rien", () => {
   const manifeste = JSON.parse(lire("public/manifest.webmanifest")) as Record<string, unknown>;
 
   it("le nom exposé est le même mot que partout ailleurs", () => {
@@ -175,7 +175,7 @@ describe("[6.2/AC4] le manifeste est neutre, et l'icône ne trahit rien", () => 
     expect(icones.some((i) => i.sizes === "192x192")).toBe(true);
     expect(icones.some((i) => i.sizes === "512x512")).toBe(true);
     // iOS ignore le manifeste pour l'icône d'accueil et lit `apple-touch-icon` : elle doit exister.
-    expect(fichiers.has("icone-apple-180.png"), "l'icône Apple 180 manque — iOS prendrait une capture").toBe(
+    expect(fichiers.has("icone-apple-180.png"), "l’icône Apple 180 manque — iOS prendrait une capture").toBe(
       true,
     );
   });

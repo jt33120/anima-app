@@ -72,10 +72,10 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
   const bloque = lieuManquant || (!demanderLieu && !demanderHeure);
   const motifBlocage = lieuManquant
     ? requete.trim().length > 0
-      ? "Choisis ta commune dans la liste qui s'ouvre sous le champ — je ne reconnais pas encore ce que tu as tapé."
+      ? "Choisis ta commune dans la liste qui s’ouvre sous le champ — je ne reconnais pas encore ce que tu as tapé."
       : "Indique ta commune de naissance pour que je puisse enregistrer."
     : bloque
-      ? "Tout est déjà enregistré : il n'y a rien à écrire ici."
+      ? "Tout est déjà enregistré : il n’y a rien à écrire ici."
       : null;
 
   // Recherche différée : on n'interroge pas le serveur à chaque frappe. 250 ms est le seuil
@@ -112,7 +112,7 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
               l'écran même du socle — exactement ce que FR-053 interdit. Et c'était une promesse que
               le code ne peut pas tenir : le recalcul a lieu à la prochaine LECTURE, et il peut
               échouer. Le présent dit la même chose, et il est vrai. */}
-          C'est enregistré. Ton thème se recalcule tout seul, la prochaine fois que tu ouvres Anima.
+          C’est enregistré. Ton thème se recalcule tout seul, la prochaine fois que tu ouvres Anima.
         </p>
         {/* Un chemin de retour, jamais un cul-de-sac. */}
         <a className={s.bouton} href="/">
@@ -127,7 +127,7 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
       {demanderHeure ? (
         <>
           <label htmlFor="heure_naissance" className={s.etiquette}>
-            <span className="t-meta">L'heure de ta naissance</span>
+            <span className="t-meta">L’heure de ta naissance</span>
             <input
               id="heure_naissance"
               name="heure_naissance"
@@ -138,7 +138,7 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
               aria-describedby="heure_aide"
             />
             <span id="heure_aide" className="t-meta">
-              Telle qu'elle est écrite sur ta copie intégrale d'acte de naissance.
+              Telle qu’elle est écrite sur ta copie intégrale d’acte de naissance.
             </span>
           </label>
 
@@ -155,13 +155,13 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
               onChange={(e) => setSansHeure(e.target.checked)}
             />
             <span className="t-corps">
-              Je ne connais pas mon heure de naissance. Ma commune suffit pour l'instant.
+              Je ne connais pas mon heure de naissance. Ma commune suffit pour l’instant.
             </span>
           </label>
         </>
       ) : (
         <p className="t-meta">
-          Ton heure de naissance est déjà enregistrée. Tu peux la corriger depuis « Ce qu'Anam
+          Ton heure de naissance est déjà enregistrée. Tu peux la corriger depuis « Ce qu’Anam
           retient » : <a href="/memoire">/memoire</a>.
         </p>
       )}
@@ -186,7 +186,7 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
             }}
           />
           <span id="lieu_aide" className="t-meta">
-            Sans le lieu, l'heure seule ne permet pas de calculer l'ascendant : c'est le lieu qui dit à
+            Sans le lieu, l’heure seule ne permet pas de calculer l’ascendant : c’est le lieu qui dit à
             quel instant « {"07:15"} » correspond. Le référentiel couvre la France.
           </span>
         </label>
@@ -235,8 +235,8 @@ export default function FormulaireHeure({ deja }: { deja: DejaGrave }) {
           className={s.checkbox}
         />
         <span className="t-corps">
-          J'ai vérifié. Ma commune de naissance ne pourra plus être changée ; mon heure, elle, restera
-          corrigeable depuis « Ce qu'Anam retient ».
+          J’ai vérifié. Ma commune de naissance ne pourra plus être changée ; mon heure, elle, restera
+          corrigeable depuis « Ce qu’Anam retient ».
         </span>
       </label>
 

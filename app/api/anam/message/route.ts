@@ -445,7 +445,7 @@ export async function POST(request: NextRequest) {
           await metrerUsageIa({ utilisatriceId: user.id, cleIdempotence: `${cleIdempotence}:hypothese_enn`, ...hypothese.usage });
         }
       } catch (e) {
-        console.error("anam/message : étage hypothèse d'ennéagramme en repli", { nom: e instanceof Error ? e.name : "inconnu" });
+        console.error("anam/message : étage hypothèse d’ennéagramme en repli", { nom: e instanceof Error ? e.name : "inconnu" });
       }
     });
   }
@@ -713,7 +713,7 @@ export async function POST(request: NextRequest) {
     const requete: RequeteIa = { capacite: capaciteGeneration, messages: messagesReponse, contientArt9: true, niveauSecurite };
     egress = await diffuserSousEgressArt9({ supabase, adaptateur, requete });
   } catch (e) {
-    console.error("anam/message : échec d'ouverture du flux", { nom: e instanceof Error ? e.name : "inconnu" });
+    console.error("anam/message : échec d’ouverture du flux", { nom: e instanceof Error ? e.name : "inconnu" });
     // ⚠️ ON REND UN FLUX, PAS UN JSON NU (revue des Epics 1 à 4). Le bloc de ressources a déjà été
     // DÉCIDÉ ci-dessus, par une classification qui a bien eu lieu : c'est le flux de RÉPONSE qui n'a
     // pas pu s'ouvrir, pas la détection. Un `NextResponse.json` jetait ce bloc à la poubelle — le
@@ -924,7 +924,7 @@ export async function POST(request: NextRequest) {
               await consignerTourAnam(user.id, cleIdempotence, ditParAnam);
             } catch (e) {
               // Jamais une panne de tour : la réponse a déjà été lue (voir `depot-tour-anam.ts`).
-              console.error("anam/message : tour d'Anam non gravé", { nom: e instanceof Error ? e.name : "inconnu" });
+              console.error("anam/message : tour d’Anam non gravé", { nom: e instanceof Error ? e.name : "inconnu" });
             }
           }
         }

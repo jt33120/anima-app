@@ -49,8 +49,8 @@ export default function CarteTiree({ carte }: ProprietesCarteTiree) {
       ) : (
         // `role="img"` + `aria-label` : le lecteur d'écran annonce l'absence au lieu de sauter un
         // trou silencieux. Ce qui est dit est ce qui est vrai — il n'y a pas encore d'image.
-        <div className={s.nonDessine} role="img" aria-label="Le visuel de cette carte n'est pas encore dessiné.">
-          <p className="t-meta">Le visuel de cette carte n&apos;est pas encore dessiné.</p>
+        <div className={s.nonDessine} role="img" aria-label="Le visuel de cette carte n’est pas encore dessiné.">
+          <p className="t-meta">Le visuel de cette carte n&rsquo;est pas encore dessiné.</p>
         </div>
       )}
     </figure>

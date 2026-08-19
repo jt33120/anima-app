@@ -54,7 +54,7 @@ describe("[AC2 DUR] la trame `carte` ne peut pas transporter une signification",
     expect(bloc).not.toMatch(CHAMPS_DE_SENS);
   });
 
-  it("le modèle de vue de la carte (5.7) n'a pas gagné de champ de signification", () => {
+  it("le modèle de vue de la carte (5.7) n’a pas gagné de champ de signification", () => {
     // Reprise de la garde de la 5.7 : elle protégeait un composant isolé, elle protège désormais un
     // composant MONTÉ. C'est le moment où elle sert vraiment.
     const src = lire("render/lecture/types.ts");
@@ -62,7 +62,7 @@ describe("[AC2 DUR] la trame `carte` ne peut pas transporter une signification",
     expect(bloc).not.toMatch(CHAMPS_DE_SENS);
   });
 
-  it("`analyserTrame` RECONSTRUIT la trame champ par champ — un `sens` émis par erreur n'arrive pas", () => {
+  it("`analyserTrame` RECONSTRUIT la trame champ par champ — un `sens` émis par erreur n’arrive pas", () => {
     // La dernière ligne de défense, et la seule qui tienne au RUNTIME : même si le serveur émettait un
     // jour un champ de signification (refactor, zèle, accident), le client ne le laisserait pas passer.
     //
@@ -84,13 +84,13 @@ describe("[AC2 DUR] la trame `carte` ne peut pas transporter une signification",
     });
   });
 
-  it("une trame `carte` sans clé est REFUSÉE — une carte sans identité n'a pas de visuel", () => {
+  it("une trame `carte` sans clé est REFUSÉE — une carte sans identité n’a pas de visuel", () => {
     expect(analyserTrame(JSON.stringify({ t: "carte", cle: "" }))).toBeNull();
   });
 });
 
 describe("[AC2 DUR] le catalogue de sens ne traverse jamais", () => {
-  it("aucun fichier de `render/` n'importe `lib/lecture/`", () => {
+  it("aucun fichier de `render/` n’importe `lib/lecture/`", () => {
     // `lib/lecture/sens-cartes.ts` porte `server-only` : l'import échouerait au build. Cette garde
     // le dit AVANT, et surtout elle le dit pour un futur module de `lib/lecture/` qui l'oublierait.
     for (const f of ["render/conversation/Fil.tsx", "render/lecture/CarteTiree.tsx", "render/lecture/Restitution.tsx"]) {
@@ -117,11 +117,11 @@ describe("[AC2 DUR] le catalogue de sens ne traverse jamais", () => {
 });
 
 describe("[AC3] la question est une CONSTANTE, jamais une génération", () => {
-  it("elle est exactement « Qu'est-ce que tu vois ? »", () => {
-    expect(QUESTION_LECTURE).toBe("Qu'est-ce que tu vois ?");
+  it("elle est exactement « Qu’est-ce que tu vois ? »", () => {
+    expect(QUESTION_LECTURE).toBe("Qu’est-ce que tu vois ?");
   });
 
-  it("elle ne dit RIEN D'AUTRE — pas d'accompagnement, pas d'indice, pas de relance", () => {
+  it("elle ne dit RIEN D’AUTRE — pas d’accompagnement, pas d’indice, pas de relance", () => {
     // FR-017 : « et rien d'autre ». Une seule phrase interrogative, et elle tient en cinq mots.
     expect(QUESTION_LECTURE.split("?").filter((p) => p.trim().length > 0)).toHaveLength(1);
     expect(QUESTION_LECTURE.length).toBeLessThan(40);
@@ -132,12 +132,12 @@ describe("[AC3] la question est une CONSTANTE, jamais une génération", () => {
     // les deux phrases se ressembleraient encore.
     const route = lire("app/api/anam/message/route.ts");
     expect(route).toContain("QUESTION_LECTURE");
-    expect(route).not.toContain("Qu'est-ce que tu vois");
+    expect(route).not.toContain("Qu’est-ce que tu vois");
   });
 });
 
-describe("[AC5] la carte n'est jamais purgée par « Réessayer »", () => {
-  it("le tour `carte` n'a PAS d'`ancreId` — la purge est impossible, pas seulement interdite", () => {
+describe("[AC5] la carte n’est jamais purgée par « Réessayer »", () => {
+  it("le tour `carte` n’a PAS d'`ancreId` — la purge est impossible, pas seulement interdite", () => {
     const src = lire("render/conversation/types.ts");
     const bloc = src.slice(src.indexOf('readonly role: "carte"'), src.indexOf('readonly role: "lecture"'));
     expect(bloc, "un `ancreId` sur la carte la rendrait purgeable au « Réessayer »").not.toContain("ancreId");

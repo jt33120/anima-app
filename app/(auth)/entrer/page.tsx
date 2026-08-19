@@ -72,7 +72,7 @@ export default async function PageEntrer({
                 de « c'est parti vers toi@… » ferait se contredire l'écran. */}
             {!attente && (
               <p className="t-anam">
-                Laisse-moi ton adresse. Je t&apos;enverrai un lien — pas de mot de
+                Laisse-moi ton adresse. Je t&rsquo;enverrai un lien — pas de mot de
                 passe à retenir, rien à perdre.
               </p>
             )}
@@ -90,7 +90,7 @@ export default async function PageEntrer({
                 Deux liens nus, pas un pied de site. Le reste — dire ce qu'est Anam avant de
                 demander une adresse — demande la voix d'Anima, et elle relit toute la copie. */}
             <p className={s.mentions}>
-              <a href="/cgu">Conditions d&apos;utilisation</a>
+              <a href="/cgu">Conditions d&rsquo;utilisation</a>
               <span aria-hidden="true"> · </span>
               <a href="/aide">Aide</a>
             </p>
@@ -99,7 +99,7 @@ export default async function PageEntrer({
         {process.env.NODE_ENV === "development" && (
           <div style={{ marginTop: "var(--esp-7)" }}>
             <p className="t-meta" style={{ marginBottom: "var(--esp-2)" }}>
-              Dev — accès sans email (n&apos;existe pas en production)
+              Dev — accès sans email (n&rsquo;existe pas en production)
             </p>
             <form action={entreeDemo}>
               <button type="submit" className={s.bouton}>

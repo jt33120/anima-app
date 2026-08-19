@@ -73,7 +73,7 @@ export default function Surimpression({
           à droite — la porte de secours ne cède sa place à rien. */}
       {modele.cheminAbonnement && (
         <Link className={s.cheminAbonnement} href={URL_ABONNEMENT}>
-          <span className="t-meta">L&apos;abonnement</span>
+          <span className="t-meta">L&rsquo;abonnement</span>
         </Link>
       )}
 

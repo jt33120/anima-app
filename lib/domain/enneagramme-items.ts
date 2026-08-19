@@ -57,23 +57,23 @@ export interface ItemTest extends ItemBareme {
  * apparaître un écart.
  */
 export const ITEMS: readonly ItemTest[] = Object.freeze([
-  { id: "e1a", type: 1, texte: "Je repère tout de suite ce qui n'est pas à sa place." },
-  { id: "e2a", type: 2, texte: "Je sais souvent ce dont les autres ont besoin avant qu'ils le disent." },
-  { id: "e3a", type: 3, texte: "J'avance plus vite quand il y a un résultat à montrer." },
+  { id: "e1a", type: 1, texte: "Je repère tout de suite ce qui n’est pas à sa place." },
+  { id: "e2a", type: 2, texte: "Je sais souvent ce dont les autres ont besoin avant qu’ils le disent." },
+  { id: "e3a", type: 3, texte: "J’avance plus vite quand il y a un résultat à montrer." },
   { id: "e4a", type: 4, texte: "Ce qui est ordinaire me laisse à distance." },
   { id: "e5a", type: 5, texte: "Je préfère observer un moment avant de participer." },
-  { id: "e6a", type: 6, texte: "J'envisage ce qui pourrait mal tourner, par réflexe." },
+  { id: "e6a", type: 6, texte: "J’envisage ce qui pourrait mal tourner, par réflexe." },
   { id: "e7a", type: 7, texte: "Je garde plusieurs portes ouvertes." },
   { id: "e8a", type: 8, texte: "Je dis les choses franchement, quitte à bousculer." },
   { id: "e9a", type: 9, texte: "Je cède facilement pour que le calme revienne." },
-  { id: "e1b", type: 1, texte: "Il y a une bonne façon de faire, et je m'y tiens." },
-  { id: "e2b", type: 2, texte: "J'ai du mal à demander quelque chose pour moi." },
-  { id: "e3b", type: 3, texte: "Je m'adapte à ce qu'on attend de moi, presque sans y penser." },
+  { id: "e1b", type: 1, texte: "Il y a une bonne façon de faire, et je m’y tiens." },
+  { id: "e2b", type: 2, texte: "J’ai du mal à demander quelque chose pour moi." },
+  { id: "e3b", type: 3, texte: "Je m’adapte à ce qu’on attend de moi, presque sans y penser." },
   { id: "e4b", type: 4, texte: "Il me manque souvent quelque chose que les autres semblent avoir." },
   { id: "e5b", type: 5, texte: "Je garde mon énergie, et je choisis où la dépenser." },
-  { id: "e6b", type: 6, texte: "Je fais confiance lentement, et rarement d'un coup." },
+  { id: "e6b", type: 6, texte: "Je fais confiance lentement, et rarement d’un coup." },
   { id: "e7b", type: 7, texte: "Quand quelque chose pèse, je passe à la suite." },
-  { id: "e8b", type: 8, texte: "Je supporte mal qu'on décide à ma place." },
+  { id: "e8b", type: 8, texte: "Je supporte mal qu’on décide à ma place." },
   { id: "e9b", type: 9, texte: "Mes propres envies mettent du temps à me parvenir." },
 ] as const);
 
@@ -124,4 +124,4 @@ export function itemsPourAffichage(): readonly ItemAffiche[] {
  * Aucun futur adressé (« tu le liras bientôt ») : ce serait une promesse que le code ne tient pas.
  */
 export const MESSAGE_TYPE_SANS_TEXTE =
-  "Anima n'a pas encore écrit ce qu'elle voit dans ce type. Son texte se posera ici.";
+  "Anima n’a pas encore écrit ce qu’elle voit dans ce type. Son texte se posera ici.";

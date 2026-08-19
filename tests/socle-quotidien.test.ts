@@ -31,7 +31,7 @@ import * as COPIE_REGLAGES from "@/lib/domain/copie-reglages";
  * est ce tableau — d'où le fait que chaque ligne passe ici trois détecteurs plutôt qu'une relecture.
  */
 
-describe("[6.2/AC2] chaque corps d'aperçu tient dans six mots", () => {
+describe("[6.2/AC2] chaque corps d’aperçu tient dans six mots", () => {
   it.each(CORPS_POUSSEE.map((c) => [c] as const))("« %s »", (corps) => {
     expect(compterMots(corps), `« ${corps} » compte ${compterMots(corps)} mots`).toBeLessThanOrEqual(
       MOTS_MAX_APERCU,
@@ -44,11 +44,11 @@ describe("[6.2/AC2] chaque corps d'aperçu tient dans six mots", () => {
     expect(compterMots("un deux trois quatre cinq six sept")).toBe(7);
     expect(compterMots("  espaces   multiples  ")).toBe(2);
     expect(compterMots("")).toBe(0);
-    expect(compterMots("aujourd'hui")).toBe(1);
+    expect(compterMots("aujourd’hui")).toBe(1);
   });
 });
 
-describe("[6.2/AC2] rien de ce qui s'affiche verrouillé ne trahit le produit", () => {
+describe("[6.2/AC2] rien de ce qui s’affiche verrouillé ne trahit le produit", () => {
   it.each(CORPS_POUSSEE.map((c) => [c] as const))("aucune racine ésotérique dans « %s »", (corps) => {
     expect(chercherFuitesApercu(corps)).toEqual([]);
   });
@@ -84,7 +84,7 @@ describe("[6.2/AC2] rien de ce qui s'affiche verrouillé ne trahit le produit", 
       /\bça fait longtemps\b/i,
       /\btu nous manques\b/i,
       /\bconnecte-toi\b/i,
-      /\bouvre l'app/i,
+      /\bouvre l’app/i,
       /\bne rate pas\b/i,
       /\bderni[eè]re chance\b/i,
       /\bd[eé]j[aà] \d+ jours?\b/i,
@@ -103,7 +103,7 @@ describe("[6.2/AC2] rien de ce qui s'affiche verrouillé ne trahit le produit", 
     expect(chercherFuitesApercu("La Lune entre en Bélier")).toContain("lune");
     // Accents pliés : « énergie » ne doit pas passer devant la racine sans accent.
     expect(chercherFuitesApercu("Ton énergie remonte")).toContain("energie");
-    expect(chercherPredictions("Demain tu vas rencontrer quelqu'un").length).toBeGreaterThan(0);
+    expect(chercherPredictions("Demain tu vas rencontrer quelqu’un").length).toBeGreaterThan(0);
     expect(CORPS_POUSSEE.length).toBeGreaterThan(0);
     expect(CORPS_POUSSEE.every((c) => c.trim().length > 0)).toBe(true);
   });
@@ -120,7 +120,7 @@ describe("[6.2/AC2] rien de ce qui s'affiche verrouillé ne trahit le produit", 
 });
 
 describe("[6.2/AC1] le corps du jour est CALCULÉ, et déterministe", () => {
-  it("le même jour rend le même corps, et il vient de l'ensemble fini", () => {
+  it("le même jour rend le même corps, et il vient de l’ensemble fini", () => {
     for (const jour of ["2026-08-15", "2027-01-01", "1999-12-31"]) {
       const corps = corpsDuJour(jour);
       expect(corpsDuJour(jour)).toBe(corps);
@@ -128,7 +128,7 @@ describe("[6.2/AC1] le corps du jour est CALCULÉ, et déterministe", () => {
     }
   });
 
-  it("[LE CŒUR] l'index NE SE RÉINITIALISE PAS au 1er janvier", () => {
+  it("[LE CŒUR] l’index NE SE RÉINITIALISE PAS au 1er janvier", () => {
     // ⚠️ Mutation-cible : `jourDeLAnnee % n`. Elle est tentante, plus courte, et fausse — au
     // 31 décembre l'index vaut (365 % 7) et au 1er janvier il retombe à 0, ce qui répète ou saute
     // une ligne chaque année. Le compte absolu de jours n'a pas de bord.
@@ -149,7 +149,7 @@ describe("[6.2/AC1] le corps du jour est CALCULÉ, et déterministe", () => {
     }
   });
 
-  it("[ANTI-VACUITÉ] TOUTES les lignes de l'ensemble sont atteignables", () => {
+  it("[ANTI-VACUITÉ] TOUTES les lignes de l’ensemble sont atteignables", () => {
     // Sans ça, une erreur d'index (`% (n - 1)`, un `slice` de trop) laisserait une ligne relue mais
     // jamais affichée — un test de couverture qui n'existe nulle part ailleurs.
     const vus = new Set<string>();
@@ -160,14 +160,14 @@ describe("[6.2/AC1] le corps du jour est CALCULÉ, et déterministe", () => {
     expect(vus.size).toBe(CORPS_POUSSEE.length);
   });
 
-  it("l'index reste positif avant l'époque — un modulo négatif planterait l'accès au tableau", () => {
+  it("l’index reste positif avant l’époque — un modulo négatif planterait l’accès au tableau", () => {
     expect(indexDuJour("1965-03-04", CORPS_POUSSEE.length)).toBeGreaterThanOrEqual(0);
     expect(CORPS_POUSSEE[indexDuJour("1965-03-04", CORPS_POUSSEE.length)]).toBeTypeOf("string");
   });
 });
 
 describe("[6.2/AC8] le palier décide si une heure choisie peut être honorée", () => {
-  it("[R3] l'heure par défaut est 8 h, et la validation est bornée au CRÉNEAU DIURNE", () => {
+  it("[R3] l’heure par défaut est 8 h, et la validation est bornée au CRÉNEAU DIURNE", () => {
     // ⚠️ LA BORNE ÉTAIT « UN JOUR CIVIL » (0 à 23), ET C'ÉTAIT LE DÉFAUT (revue Epic 6, R3).
     // `creneauDiurneOuvert` (6 h ≤ h < 21 h) n'était appliqué que par les deux jobs de COURRIEL ; le
     // canal de POUSSÉE — le seul qui allume un écran verrouillé — l'ignorait. Inerte sur `hobby`, et
@@ -195,7 +195,7 @@ describe("[6.2/AC8] le palier décide si une heure choisie peut être honorée",
     expect(HEURES_CHOISISSABLES.length).toBe(DERNIERE_HEURE_POUSSABLE - PREMIERE_HEURE_POUSSABLE + 1);
   });
 
-  it("[LE CŒUR] `hobby` n'honore AUCUNE heure — un tick par jour ne couvre pas vingt-quatre heures", () => {
+  it("[LE CŒUR] `hobby` n’honore AUCUNE heure — un tick par jour ne couvre pas vingt-quatre heures", () => {
     // C'est toute la story dans une assertion. Le repli est le refus, pas « à peu près 8 h ».
     expect(heuresHonorables("hobby")).toEqual([]);
     // ⚠️ PLUS 24 (R3) : la cadence et le créneau diurne sont deux conditions indépendantes, et
@@ -203,7 +203,7 @@ describe("[6.2/AC8] le palier décide si une heure choisie peut être honorée",
     expect(heuresHonorables("pro")).toEqual([...HEURES_CHOISISSABLES]);
   });
 
-  it("[LE CŒUR] la DÉRIVE compte autant que la cadence — et c'est le terme qu'on oublie", () => {
+  it("[LE CŒUR] la DÉRIVE compte autant que la cadence — et c’est le terme qu’on oublie", () => {
     // ⚠️ Mutation-cible : ne garder que `ticksParJour >= 24`. Un palier qui déclencherait 24 fois par
     // jour à ±59 minutes passerait alors la garde — et déplacerait la notification de 8 h à 8 h 58 un
     // jour, 6 h 04 le lendemain. « L'heure choisie » deviendrait un mot pour « à peu près ».
@@ -217,8 +217,8 @@ describe("[6.2/AC8] le palier décide si une heure choisie peut être honorée",
     // On avait d'abord écrit que 59 minutes de dérive disqualifiaient : c'est FAUX. Sur une cadence
     // horaire déclenchée à la minute 0, une dérive de 59 minutes fait partir à 8 h 59 — toujours dans
     // l'heure choisie. Ce qui la fait sortir, c'est une dérive d'une heure ou plus.
-    expect(heureHonorable(24, 59 * 60_000), "59 min restent DANS l'heure choisie").toBe(true);
-    expect(heureHonorable(24, 3_600_000), "une heure pleine de dérive fait sortir de l'heure").toBe(false);
+    expect(heureHonorable(24, 59 * 60_000), "59 min restent DANS l’heure choisie").toBe(true);
+    expect(heureHonorable(24, 3_600_000), "une heure pleine de dérive fait sortir de l’heure").toBe(false);
     // Le mutant que ces deux lignes tuent : supprimer le second terme du prédicat. Il rendrait `true`
     // sur la ligne du dessus.
     expect(heureHonorable(1, 60_000), "la cadence ne compte plus").toBe(false);
@@ -248,7 +248,7 @@ describe("[6.2/AC8] le palier décide si une heure choisie peut être honorée",
   });
 });
 
-describe("[6.2/AC4] la copie des réglages n'invente jamais une perte pour vendre une permission", () => {
+describe("[6.2/AC4] la copie des réglages n’invente jamais une perte pour vendre une permission", () => {
   const copie = Object.entries(COPIE_REGLAGES).filter(([, v]) => typeof v === "string") as [string, string][];
 
   it.each(copie)("« %s » ne convoque pas, ne culpabilise pas, ne promet pas", (nom, texte) => {
@@ -282,10 +282,10 @@ describe("[6.2/AC4] la copie des réglages n'invente jamais une perte pour vendr
     // C'est la seule promesse faite AVANT de demander la permission du navigateur — donc la seule
     // chose sur laquelle son consentement porte réellement.
     expect(COPIE_REGLAGES.DESCRIPTION_SOCLE).toMatch(/une fois par jour/i);
-    expect(COPIE_REGLAGES.DESCRIPTION_SOCLE).toMatch(/l'heure que tu choisis/i);
-    expect(COPIE_REGLAGES.DESCRIPTION_SOCLE, "elle doit dire que l'aperçu ne trahit rien").toMatch(
+    expect(COPIE_REGLAGES.DESCRIPTION_SOCLE).toMatch(/l’heure que tu choisis/i);
+    expect(COPIE_REGLAGES.DESCRIPTION_SOCLE, "elle doit dire que l’aperçu ne trahit rien").toMatch(
       /ne dit jamais/i,
     );
-    expect(COPIE_REGLAGES.DESCRIPTION_SOCLE, "et que ça s'arrête quand elle veut").toMatch(/arrêter/i);
+    expect(COPIE_REGLAGES.DESCRIPTION_SOCLE, "et que ça s’arrête quand elle veut").toMatch(/arrêter/i);
   });
 });

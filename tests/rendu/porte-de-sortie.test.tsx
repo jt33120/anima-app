@@ -130,15 +130,15 @@ describe("[revue 1-4, #16] un compte RÉVOQUÉ ne voit pas un bouton qui ne peut
    *
    * Montrer la sortie sans montrer l'entrée est exactement la distinction que cette page tient déjà.
    */
-  it("[LE TEST QUI COMPTE] « revoque » : la SORTIE reste, l'OFFRE disparaît", async () => {
+  it("[LE TEST QUI COMPTE] « revoque » : la SORTIE reste, l’OFFRE disparaît", async () => {
     etapeOnboarding.mockResolvedValue("revoque");
     await monter({ abonnement: abonnement({ etat: "expire" }) });
-    expect(screen.queryByText("[offre montée]"), "l'offre ne doit pas se monter").toBeNull();
+    expect(screen.queryByText("[offre montée]"), "l’offre ne doit pas se monter").toBeNull();
     // La porte, elle, est toujours là — c'est la moitié qu'on ne ferme jamais.
     expect(screen.getByRole("link", { name: /résilier/i })).toBeTruthy();
   });
 
-  it("[CONTRÔLE POSITIF] « suite » : l'offre se monte — la garde ne ferme pas tout", async () => {
+  it("[CONTRÔLE POSITIF] « suite » : l’offre se monte — la garde ne ferme pas tout", async () => {
     etapeOnboarding.mockResolvedValue("suite");
     await monter({ abonnement: abonnement({ etat: "expire" }) });
     expect(screen.getByText("[offre montée]")).toBeTruthy();
@@ -168,7 +168,7 @@ describe("[QA tour 1, T15] la page commerciale est GARDÉE — sauf pour qui doi
     });
   }
 
-  it("[LE TEST QUI COMPTE] « revoque » N'EST PAS redirigé — la sortie ne doit pas être une impasse", async () => {
+  it("[LE TEST QUI COMPTE] « revoque » N’EST PAS redirigé — la sortie ne doit pas être une impasse", async () => {
     // ⚠️ LE RÉFLEXE D'HARMONISATION EST LE PIÈGE ICI. Toutes les autres pages renvoient `revoque`
     // sur l'écran de révocation ; celle-ci ne le peut pas. Quelqu'un qui a retiré son consentement
     // garde un abonnement à résilier — l'enfermer ferait de la porte de sortie une impasse, soit
@@ -196,24 +196,24 @@ describe("[M12] le geste de résiliation survit à un paiement en échec", () =>
     await monter({ abonnement: abonnement({ etat: "expire" }) });
     expect(
       screen.getByRole("link", { name: /résilier mon abonnement/i }),
-      "un contrat ouvert doit TOUJOURS pouvoir se fermer, quel que soit l'état d'accès",
+      "un contrat ouvert doit TOUJOURS pouvoir se fermer, quel que soit l’état d’accès",
     ).toBeTruthy();
   });
 
-  it("`etat = expire` : l'écran dit la vérité sur l'accès SANS retirer la porte", async () => {
+  it("`etat = expire` : l’écran dit la vérité sur l’accès SANS retirer la porte", async () => {
     // Les deux choses sont vraies en même temps et doivent coexister : l'accès n'est plus actif,
     // et le contrat est encore résiliable. Dire l'un en taisant l'autre est ce qui coinçait.
     await monter({ abonnement: abonnement({ etat: "expire" }) });
-    expect(screen.getByText(/n'est plus actif/i)).toBeTruthy();
+    expect(screen.getByText(/n’est plus actif/i)).toBeTruthy();
     expect(screen.getByRole("link", { name: /résilier mon abonnement/i })).toBeTruthy();
   });
 
-  it("[LE BORD] plus AUCUN contrat chez Stripe : pas de bouton — il n'y a rien à résilier", async () => {
+  it("[LE BORD] plus AUCUN contrat chez Stripe : pas de bouton — il n’y a rien à résilier", async () => {
     // Sans ce test, `contratOuvert = true` en dur passerait le test précédent. La garde doit
     // distinguer « accès fermé, contrat ouvert » de « tout est terminé ».
     await monter({ abonnement: abonnement({ etat: "expire", subscriptionId: null }) });
     expect(screen.queryByRole("link", { name: /résilier mon abonnement/i })).toBeNull();
-    expect(screen.getByText(/n'est plus actif/i)).toBeTruthy();
+    expect(screen.getByText(/n’est plus actif/i)).toBeTruthy();
   });
 
   it("aucun abonnement du tout : aucun geste, aucune promesse", async () => {
@@ -222,7 +222,7 @@ describe("[M12] le geste de résiliation survit à un paiement en échec", () =>
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("résiliation déjà demandée : c'est REPRENDRE qui est proposé, jamais résilier deux fois", async () => {
+  it("résiliation déjà demandée : c’est REPRENDRE qui est proposé, jamais résilier deux fois", async () => {
     await monter({ abonnement: abonnement({ resiliationDemandeeLe: "2027-01-01T10:00:00Z" }) });
     expect(screen.getByRole("button", { name: /reprendre mon abonnement/i })).toBeTruthy();
     expect(screen.queryByRole("link", { name: /résilier/i })).toBeNull();
@@ -241,7 +241,7 @@ describe("[M12] le geste de résiliation survit à un paiement en échec", () =>
 // LE FUSEAU — une date légale rendue dans le bon pays
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("les dates sont rendues à l'heure de Paris, pas à celle du serveur", () => {
+describe("les dates sont rendues à l’heure de Paris, pas à celle du serveur", () => {
   // ⚠️ ON SE MET À LA PLACE DE VERCEL, QUI TOURNE EN UTC.
   //
   // Sans ça, cette garde ne vaudrait rien : ma machine est déjà à Paris, donc RETIRER le
@@ -289,7 +289,7 @@ describe("les dates sont rendues à l'heure de Paris, pas à celle du serveur", 
     expect(screen.queryByText(/6 mars 2027/)).toBeNull();
   });
 
-  it("la date de FIN D'ACCÈS après résiliation suit la même règle", async () => {
+  it("la date de FIN D’ACCÈS après résiliation suit la même règle", async () => {
     await monter({ abonnement: abonnement({ resiliationDemandeeLe: "2027-03-05T23:30:00Z" }) });
     expect(screen.getByText(/6 mars 2027/)).toBeTruthy();
   });
@@ -303,7 +303,7 @@ describe("[M2] « aucun paiement retrouvé » a sa propre phrase", () => {
   it("`etat=sans_paiement` ne promet AUCUN virement", async () => {
     await monter({ retour: "sans_paiement" });
     const message = screen.getByText(/aucun paiement à te rembourser/i);
-    expect(message.getAttribute("role"), "un retour d'action doit être annoncé, pas seulement affiché").toBe("status");
+    expect(message.getAttribute("role"), "un retour d’action doit être annoncé, pas seulement affiché").toBe("status");
     expect(screen.queryByText(/arrive sur ton moyen de paiement/i)).toBeNull();
   });
 
@@ -313,7 +313,7 @@ describe("[M2] « aucun paiement retrouvé » a sa propre phrase", () => {
   });
 });
 
-describe("[revue 1-4, #4] l'état du remboursement VIT sur la page", () => {
+describe("[revue 1-4, #4] l’état du remboursement VIT sur la page", () => {
   /**
    * `SUCCES_REMBOURSEMENT` ne paraît qu'une fois, au retour de l'action. `confirme_le` était écrite
    * par le webhook et lue par PERSONNE : un remboursement refusé par la banque (compte clos, carte
@@ -321,10 +321,10 @@ describe("[revue 1-4, #4] l'état du remboursement VIT sur la page", () => {
    * n'avions aucun signal. Ces trois lignes vivent sur la page, tant qu'il y a à dire.
    */
 
-  it("⚠️ un remboursement en ÉCHEC est DIT — c'est tout l'objet de la trouvaille", async () => {
+  it("⚠️ un remboursement en ÉCHEC est DIT — c’est tout l’objet de la trouvaille", async () => {
     await monter({ remboursement: "echec" });
     const ligne = screen.getByText(/ta banque a refusé le remboursement/i);
-    expect(ligne.getAttribute("role"), "un état doit être annoncé au lecteur d'écran").toBe("status");
+    expect(ligne.getAttribute("role"), "un état doit être annoncé au lecteur d’écran").toBe("status");
     // Et surtout : plus aucune promesse de virement à l'écran.
     expect(screen.queryByText(/arrive sur ton moyen de paiement/i)).toBeNull();
   });
@@ -334,21 +334,21 @@ describe("[revue 1-4, #4] l'état du remboursement VIT sur la page", () => {
     expect(screen.getByText(/ta demande reste ouverte/i)).toBeTruthy();
   });
 
-  it("un remboursement CONFIRMÉ est dit aussi — et il ne se confond pas avec l'échec", async () => {
+  it("un remboursement CONFIRMÉ est dit aussi — et il ne se confond pas avec l’échec", async () => {
     await monter({ remboursement: "confirme" });
     expect(screen.getByText(/est parti sur ton moyen de paiement/i)).toBeTruthy();
     expect(screen.queryByText(/ta banque a refusé/i)).toBeNull();
   });
 
-  it("en cours : on dit qu'il arrive, sans prétendre qu'il est arrivé", async () => {
+  it("en cours : on dit qu’il arrive, sans prétendre qu’il est arrivé", async () => {
     await monter({ remboursement: "en_cours" });
     expect(screen.getByText(/est demandé/i)).toBeTruthy();
     expect(screen.queryByText(/est parti sur/i)).toBeNull();
   });
 
-  it("aucune demande : AUCUNE de ces trois lignes — on ne parle pas d'un remboursement qui n'existe pas", async () => {
+  it("aucune demande : AUCUNE de ces trois lignes — on ne parle pas d’un remboursement qui n’existe pas", async () => {
     await monter({ remboursement: null });
-    expect(screen.queryByText(/remboursement/i), "une ligne d'état sans demande").toBeNull();
+    expect(screen.queryByText(/remboursement/i), "une ligne d’état sans demande").toBeNull();
   });
 
   it("⚠️ et une PANNE de cette lecture retire la ligne, jamais la page de sortie", async () => {
@@ -358,8 +358,8 @@ describe("[revue 1-4, #4] l'état du remboursement VIT sur la page", () => {
     etatRemboursement.mockRejectedValue(new Error("timeout"));
     await monter({});
     expect(
-      screen.queryByText(/je n'arrive pas à afficher ton abonnement/i),
-      "une panne de la ligne d'état a emporté la page entière",
+      screen.queryByText(/je n’arrive pas à afficher ton abonnement/i),
+      "une panne de la ligne d’état a emporté la page entière",
     ).toBeNull();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("abonnement");
   });
@@ -370,7 +370,7 @@ describe("[revue 1-4, #4] l'état du remboursement VIT sur la page", () => {
 // R2 — la résiliation ABOUTIE (revue adversariale du 2026-08-18)
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[R2] une fois la résiliation ABOUTIE, la page n'est plus un cul-de-sac", () => {
+describe("[R2] une fois la résiliation ABOUTIE, la page n’est plus un cul-de-sac", () => {
   /**
    * À l'échéance, Stripe émet `customer.subscription.deleted` : `status = 'canceled'` ET `cancel_at`
    * toujours renseigné — c'est ainsi qu'elle a résilié, il n'y a pas d'autre chemin dans le produit.
@@ -382,11 +382,11 @@ describe("[R2] une fois la résiliation ABOUTIE, la page n'est plus un cul-de-sa
   const aboutie = () =>
     abonnement({ etat: "resilie", resiliationDemandeeLe: "2026-03-04T10:00:00Z" });
 
-  it("[LE TEST QUI COMPTE] l'OFFRE se monte — sinon elle est inencaissable à vie", async () => {
+  it("[LE TEST QUI COMPTE] l’OFFRE se monte — sinon elle est inencaissable à vie", async () => {
     await monter({ abonnement: aboutie() });
     expect(
       screen.getByText("[offre montée]"),
-      "la seule surface d'abonnement du produit reste fermée après une résiliation",
+      "la seule surface d’abonnement du produit reste fermée après une résiliation",
     ).toBeTruthy();
   });
 
@@ -394,36 +394,36 @@ describe("[R2] une fois la résiliation ABOUTIE, la page n'est plus un cul-de-sa
     await monter({ abonnement: aboutie() });
     expect(
       screen.queryByRole("button", { name: /reprendre/i }),
-      "un bouton qui ne peut pas marcher, sur la page qui parle d'argent",
+      "un bouton qui ne peut pas marcher, sur la page qui parle d’argent",
     ).toBeNull();
   });
 
-  it("plus de bouton « Résilier » non plus — il n'y a plus rien à résilier", async () => {
+  it("plus de bouton « Résilier » non plus — il n’y a plus rien à résilier", async () => {
     await monter({ abonnement: aboutie() });
     expect(screen.queryByRole("link", { name: /résilier/i })).toBeNull();
   });
 
-  it("[LE MENSONGE] l'écran ne promet plus un accès jusqu'à une date RÉVOLUE", async () => {
+  it("[LE MENSONGE] l’écran ne promet plus un accès jusqu’à une date RÉVOLUE", async () => {
     await monter({ abonnement: aboutie() });
     expect(
-      screen.queryByText(/tu y as accès jusqu'au/i),
-      "la page annonce un accès qui n'existe plus",
+      screen.queryByText(/tu y as accès jusqu’au/i),
+      "la page annonce un accès qui n’existe plus",
     ).toBeNull();
-    expect(screen.getByText(/n'est plus actif/i)).toBeTruthy();
+    expect(screen.getByText(/n’est plus actif/i)).toBeTruthy();
   });
 
-  it("elle dit QUAND il s'est terminé — la date est vraie, c'est son libellé qui mentait", async () => {
+  it("elle dit QUAND il s’est terminé — la date est vraie, c’est son libellé qui mentait", async () => {
     await monter({ abonnement: aboutie() });
     expect(screen.getByText(/4 mars 2026/)).toBeTruthy();
   });
 
-  it("[CONTRÔLE QUI SÉPARE] résiliation EN COURS : « Reprendre » est là, l'offre non", async () => {
+  it("[CONTRÔLE QUI SÉPARE] résiliation EN COURS : « Reprendre » est là, l’offre non", async () => {
     // Sans ce contrôle, rendre `termine` partout passerait le test ci-dessus. Les deux situations
     // portent la MÊME date en base : seul `etat` les distingue.
     await monter({ abonnement: abonnement({ etat: "actif", resiliationDemandeeLe: "2027-03-04T10:00:00Z" }) });
     expect(screen.getByRole("button", { name: /reprendre/i })).toBeTruthy();
     expect(screen.queryByText("[offre montée]"), "on ne vend pas à qui a encore son accès").toBeNull();
-    expect(screen.getByText(/tu y as accès jusqu'au/i)).toBeTruthy();
+    expect(screen.getByText(/tu y as accès jusqu’au/i)).toBeTruthy();
   });
 
   it("[CONTRÔLE] un abonnement ACTIF ne voit toujours aucune offre", async () => {
@@ -432,49 +432,49 @@ describe("[R2] une fois la résiliation ABOUTIE, la page n'est plus un cul-de-sa
   });
 });
 
-describe("[R2] chaque situation a SA phrase — aucune n'en emprunte une autre", () => {
+describe("[R2] chaque situation a SA phrase — aucune n’en emprunte une autre", () => {
   /**
    * Le comportement que `tests/offre-gardee.test.ts` gravait dans la syntaxe de la page, mesuré ici
    * là où il compte : à l'écran. Une phrase par situation, et jamais deux situations sous la même.
    */
   const cas = [
-    { nom: "jamais abonnée", ab: null, dit: /tu n'as pas d'abonnement/i, pasDit: /n'est plus actif/i },
+    { nom: "jamais abonnée", ab: null, dit: /tu n’as pas d’abonnement/i, pasDit: /n’est plus actif/i },
     {
       nom: "actif",
       ab: abonnement({ etat: "actif" }),
       dit: /ton abonnement est actif/i,
-      pasDit: /n'est plus actif/i,
+      pasDit: /n’est plus actif/i,
     },
     {
       nom: "résiliation en cours",
       ab: abonnement({ etat: "actif", resiliationDemandeeLe: "2027-03-04T10:00:00Z" }),
       dit: /ton abonnement est résilié/i,
-      pasDit: /n'est plus actif/i,
+      pasDit: /n’est plus actif/i,
     },
     {
       nom: "contrat coincé (past_due)",
       ab: abonnement({ etat: "expire" }),
-      dit: /n'est plus actif/i,
-      pasDit: /il s'est terminé le/i,
+      dit: /n’est plus actif/i,
+      pasDit: /il s’est terminé le/i,
     },
     {
       nom: "résiliation aboutie",
       ab: abonnement({ etat: "resilie", resiliationDemandeeLe: "2026-03-04T10:00:00Z" }),
-      dit: /il s'est terminé le/i,
-      pasDit: /tu y as accès jusqu'au/i,
+      dit: /il s’est terminé le/i,
+      pasDit: /tu y as accès jusqu’au/i,
     },
   ] as const;
 
   for (const { nom, ab, dit, pasDit } of cas) {
-    it(`« ${nom} » : sa phrase, et pas celle d'à côté`, async () => {
+    it(`« ${nom} » : sa phrase, et pas celle d’à côté`, async () => {
       await monter({ abonnement: ab });
       expect(screen.getByText(dit)).toBeTruthy();
-      expect(screen.queryByText(pasDit), `« ${nom} » emprunte la phrase d'une autre situation`).toBeNull();
+      expect(screen.queryByText(pasDit), `« ${nom} » emprunte la phrase d’une autre situation`).toBeNull();
     });
   }
 });
 
-describe("[R3] l'état affiché est celui du contrat COURANT, pas d'un remboursement d'il y a un an", () => {
+describe("[R3] l’état affiché est celui du contrat COURANT, pas d’un remboursement d’il y a un an", () => {
   /**
    * `remboursement` n'est jamais purgée, et la lecture ne visait aucun contrat : après un
    * réabonnement, la page affichait EN PERMANENCE « Ton remboursement est parti sur ton moyen de
@@ -482,12 +482,12 @@ describe("[R3] l'état affiché est celui du contrat COURANT, pas d'un rembourse
    * par contrat (0075), un compte peut porter plusieurs lignes : un `.maybeSingle()` non ciblé ne
    * rend même plus une réponse, il rend une erreur — donc la ligne d'état disparaît en silence.
    */
-  it("[LE CŒUR] la page passe le contrat courant à la lecture d'état", async () => {
+  it("[LE CŒUR] la page passe le contrat courant à la lecture d’état", async () => {
     await monter({ abonnement: abonnement({ subscriptionId: "sub_neuf" }) });
     expect(etatRemboursement).toHaveBeenCalledWith("sub_neuf");
   });
 
-  it("aucun contrat : elle passe `null` — c'est la ligne du chemin minorité (FR-071)", async () => {
+  it("aucun contrat : elle passe `null` — c’est la ligne du chemin minorité (FR-071)", async () => {
     // Un compte détecté mineur qui n'a JAMAIS payé a bien une ligne de remboursement, sans
     // souscription. Ne rien lire du tout la priverait de l'état de son propre remboursement.
     await monter({ abonnement: abonnement({ subscriptionId: null, etat: "expire" }) });

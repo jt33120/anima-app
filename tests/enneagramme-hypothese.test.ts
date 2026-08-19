@@ -33,12 +33,12 @@ const lire = (chemin: string) => readFileSync(resolve(racine, chemin), "utf8");
 // Le parser strict
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("[5.5/AC2] `lireTypeHypothese` — le doute n'étiquette personne", () => {
+describe("[5.5/AC2] `lireTypeHypothese` — le doute n’étiquette personne", () => {
   it("lit une ligne conforme, pour les neuf types", () => {
     for (const t of TYPES) expect(lireTypeHypothese(`TYPE_HYPOTHESE: ${t}`), `type ${t}`).toBe(t);
   });
 
-  it("accepte les variations d'espacement et le `=`", () => {
+  it("accepte les variations d’espacement et le `=`", () => {
     expect(lireTypeHypothese("TYPE_HYPOTHESE:4")).toBe(4);
     expect(lireTypeHypothese("type_hypothese =  7  ")).toBe(7);
   });
@@ -92,7 +92,7 @@ describe("[5.5/AC2] `lireTypeHypothese` — le doute n'étiquette personne", () 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("[5.5/AC2] `momentDeProposer` — une seule fois, jamais deux", () => {
-  it("propose quand elle n'a ni type ni hypothèse passée", () => {
+  it("propose quand elle n’a ni type ni hypothèse passée", () => {
     expect(momentDeProposer({ aUnType: false, aDejaEteProposee: false })).toBe(true);
   });
 
@@ -116,7 +116,7 @@ describe("[5.5/AC2] `momentDeProposer` — une seule fois, jamais deux", () => {
 describe("[5.5/AC2] la requête part sous egress art. 9, au tier FORT", () => {
   const r = requeteHypotheseEnneagramme([{ role: "user", content: "je dis toujours oui" }]);
 
-  it("`contientArt9` est vrai — l'egress-guard s'applique (AD-4)", () => {
+  it("`contientArt9` est vrai — l’egress-guard s’applique (AD-4)", () => {
     expect(r.contientArt9).toBe(true);
   });
 
@@ -125,11 +125,11 @@ describe("[5.5/AC2] la requête part sous egress art. 9, au tier FORT", () => {
     expect(r.capacite).toBe("hypothese_enneagramme");
   });
 
-  it("l'instruction est PRÉFIXÉE côté serveur, en `system`", () => {
+  it("l’instruction est PRÉFIXÉE côté serveur, en `system`", () => {
     expect(r.messages[0]).toEqual({ role: "system", content: INSTRUCTION_HYPOTHESE_ENNEAGRAMME });
   });
 
-  it("[AC8] AUCUNE donnée de socle n'entre dans la charge utile", () => {
+  it("[AC8] AUCUNE donnée de socle n’entre dans la charge utile", () => {
     // Le type déjà retenu, le thème natal, la numérologie, le nom d'une branche : rien de tout cela
     // n'a de raison d'aider le modèle, et tout cela grossirait l'art. 9 exposé. La garde est ici
     // parce que l'erreur inverse — « ajouter le contexte pour aider » — est une régression invisible.
@@ -139,7 +139,7 @@ describe("[5.5/AC2] la requête part sous egress art. 9, au tier FORT", () => {
     }
   });
 
-  it("l'instruction porte le marqueur de placeholder produit", () => {
+  it("l’instruction porte le marqueur de placeholder produit", () => {
     expect(INSTRUCTION_HYPOTHESE_ENNEAGRAMME).toContain("[PLACEHOLDER PRODUIT");
     expect(INSTRUCTION_HYPOTHESE_ENNEAGRAMME).toContain("TYPE_HYPOTHESE:");
     expect(INSTRUCTION_HYPOTHESE_ENNEAGRAMME).toMatch(/aucun/);
@@ -165,8 +165,8 @@ function manquements(phrase: string): string[] {
   if (chercherInterdits(phrase).length > 0) m.push("lexique interdit détecté");
   // Le verdict d'identité : « tu es un N », « ton type », « ta blessure ». C'est exactement la forme
   // que les deux détecteurs laissent passer, et c'est la seule chose que l'AC2 interdit nommément.
-  if (/\b(?:tu es|t'es|vous êtes)\b/i.test(phrase)) m.push("affirme ce qu'elle EST");
-  if (/\bton (?:type|profil|enneatype)\b/i.test(phrase)) m.push("s'approprie le type (« ton type »)");
+  if (/\b(?:tu es|t’es|vous êtes)\b/i.test(phrase)) m.push("affirme ce qu’elle EST");
+  if (/\bton (?:type|profil|enneatype)\b/i.test(phrase)) m.push("s’approprie le type (« ton type »)");
   if (/\bta (?:blessure|peur|passion) (?:fondamentale|de base|profonde)\b/i.test(phrase)) {
     m.push("décrète un trait de fond");
   }
@@ -179,9 +179,9 @@ describe("[5.5/AC2 DUR] les constantes ne peuvent pas asséner", () => {
     // par celles-ci, qui passent les DEUX détecteurs du produit. C'est mesuré, pas supposé.
     for (const verdict of [
       "Tu es un 4.",
-      "Ton type 2 t'empêche de dire non.",
-      "Ta blessure fondamentale est l'abandon.",
-      "Tu es quelqu'un qui fuit le conflit.",
+      "Ton type 2 t’empêche de dire non.",
+      "Ta blessure fondamentale est l’abandon.",
+      "Tu es quelqu’un qui fuit le conflit.",
     ]) {
       expect(manquements(verdict), verdict).not.toEqual([]);
     }
@@ -190,7 +190,7 @@ describe("[5.5/AC2 DUR] les constantes ne peuvent pas asséner", () => {
   it("[CONTRÔLE DU CONTRÔLE] et les deux détecteurs, eux, les laissent TOUS passer", () => {
     // La mesure qui justifie l'existence de ce fichier. Le jour où un détecteur apprendra à voir
     // l'assènement, ce test rougira — et ce sera une bonne nouvelle à consigner, pas une régression.
-    for (const verdict of ["Tu es un 4.", "Ta blessure fondamentale est l'abandon."]) {
+    for (const verdict of ["Tu es un 4.", "Ta blessure fondamentale est l’abandon."]) {
       expect(chercherPredictions(verdict), verdict).toEqual([]);
       expect(chercherInterdits(verdict), verdict).toEqual([]);
     }
@@ -218,8 +218,8 @@ describe("[5.5/AC2 DUR] les constantes ne peuvent pas asséner", () => {
     }
   });
 
-  it("le type est présenté comme un NOM EXTÉRIEUR, jamais comme une propriété d'elle", () => {
-    for (const t of TYPES) expect(phraseHypothese(t)).toContain("ce qu'on appelle");
+  it("le type est présenté comme un NOM EXTÉRIEUR, jamais comme une propriété d’elle", () => {
+    for (const t of TYPES) expect(phraseHypothese(t)).toContain("ce qu’on appelle");
   });
 });
 
@@ -230,7 +230,7 @@ describe("[5.5/AC2 DUR] les constantes ne peuvent pas asséner", () => {
 describe("[5.5/AC2 DUR] la sortie brute du modèle ne franchit AUCUNE frontière", () => {
   const PIPELINE = "lib/safety/hypothese-enneagramme-pipeline.ts";
 
-  it("[LE CŒUR] le texte du modèle n'est lu QUE par le parser", () => {
+  it("[LE CŒUR] le texte du modèle n’est lu QUE par le parser", () => {
     // Mutation-cible : `germeId: res.reponse.texte`, ou un champ `phrase` alimenté par le modèle. La
     // phrase deviendrait alors celle du modèle — et « jamais assénée » redeviendrait une intention.
     const source = lire(PIPELINE);
@@ -250,12 +250,12 @@ describe("[5.5/AC2 DUR] la sortie brute du modèle ne franchit AUCUNE frontière
     expect(corps).not.toMatch(/\btexte\b/);
   });
 
-  it("la phrase de l'ouverture vient de la CONSTANTE, jamais d'ailleurs", () => {
+  it("la phrase de l’ouverture vient de la CONSTANTE, jamais d’ailleurs", () => {
     const source = lire("lib/safety/ouverture-branche.ts");
     expect(source).toContain("phrase: PHRASE_OUVERTURE_HYPOTHESE");
   });
 
-  it("[LE CŒUR] `chargerOuverture` ne MARQUE rien — elle part d'un rendu serveur", () => {
+  it("[LE CŒUR] `chargerOuverture` ne MARQUE rien — elle part d’un rendu serveur", () => {
     // Mutation-cible : poser `dite_le` ici. Ce chemin part d'`app/page.tsx`, qui se ré-exécute à
     // chaque rafraîchissement, et la scène monte ses trois régions en permanence (`inert` sauf
     // l'active) : la parole se dépenserait sans avoir jamais atteint un écran. La faute a été payée
@@ -267,7 +267,7 @@ describe("[5.5/AC2 DUR] la sortie brute du modèle ne franchit AUCUNE frontière
     // explication pousserait à effacer l'explication.
     const source = lire("lib/safety/ouverture-branche.ts");
     expect(source, "aucun appel de marquage").not.toMatch(/marquerHypotheseDite\s*\(/);
-    expect(source, "aucun dépôt d'écriture importé").not.toMatch(/from\s*["']@\/lib\/data\/depot-enneagramme/);
+    expect(source, "aucun dépôt d’écriture importé").not.toMatch(/from\s*["']@\/lib\/data\/depot-enneagramme/);
     expect(source, "aucune construction de dépôt").not.toMatch(/creerDepotEnneagramme\s*\(/);
     // Le témoin : elle LIT bien quelque chose (sinon la garde d'absence serait vraie du vide).
     expect(source).toContain("chargerHypotheseADire");
@@ -287,7 +287,7 @@ describe("[5.5/AC2 DUR] la sortie brute du modèle ne franchit AUCUNE frontière
     );
   });
 
-  it("[COÛT] l'étage ne tourne QU'À LA CLÔTURE, et dans `after()`", () => {
+  it("[COÛT] l’étage ne tourne QU’À LA CLÔTURE, et dans `after()`", () => {
     // Deux propriétés dans une seule lecture de source, parce qu'aucun test de comportement ne peut
     // les voir : la route n'est pas montable hors Next.
     //
@@ -297,7 +297,7 @@ describe("[5.5/AC2 DUR] la sortie brute du modèle ne franchit AUCUNE frontière
     //     d'un compte sans type, et `momentDeProposer` ne l'aurait bornée qu'APRÈS le premier germe.
     const source = lire("app/api/anam/message/route.ts");
     const bloc = source.match(/if \(arc\?\.beat === "cloture"\) \{[\s\S]*?evaluerHypotheseEnneagramme/);
-    expect(bloc, "l'étage doit être gardé par le beat de clôture").not.toBeNull();
+    expect(bloc, "l’étage doit être gardé par le beat de clôture").not.toBeNull();
     expect(source, "et tourner dans after(), jamais dans le flux").toMatch(
       /if \(arc\?\.beat === "cloture"\) \{\s*\n\s*after\(async \(\) => \{/,
     );
@@ -306,7 +306,7 @@ describe("[5.5/AC2 DUR] la sortie brute du modèle ne franchit AUCUNE frontière
     expect(source).toContain(":hypothese_enn");
   });
 
-  it("[AC8 DUR] AUCUN autre constructeur de requête ne connaît l'ennéagramme", () => {
+  it("[AC8 DUR] AUCUN autre constructeur de requête ne connaît l’ennéagramme", () => {
     /*
      * ⚠️ LA GARDE LA PLUS IMPORTANTE DE CETTE STORY POUR L'AVENIR, et elle vise une régression qui
      * s'écrit avec les meilleures intentions : « ajoutons son type au contexte, Anam répondra
@@ -326,7 +326,7 @@ describe("[5.5/AC2 DUR] la sortie brute du modèle ne franchit AUCUNE frontière
     // PRÉSENCE D'ABORD : sans témoin, une liste de chemins fautifs rendrait la garde vide.
     for (const f of CONSTRUCTEURS) {
       expect(lire(f), `${f} ne construit plus de requête — la liste a vieilli`).toContain("capacite:");
-      expect(lire(f), `${f} s'est mis à connaître l'ennéagramme`).not.toMatch(/enn[ée]agramme/i);
+      expect(lire(f), `${f} s’est mis à connaître l’ennéagramme`).not.toMatch(/enn[ée]agramme/i);
     }
   });
 

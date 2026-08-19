@@ -26,14 +26,14 @@ const HYPOTHESE = {
   hypotheseId: "h-42",
 };
 
-describe("[5.5/AC2] ce qui atteint l'écran, et rien d'autre", () => {
+describe("[5.5/AC2] ce qui atteint l’écran, et rien d’autre", () => {
   it("la phrase est un TOUR DU FIL, jamais un bandeau", async () => {
     render(<Conversation ouverture={HYPOTHESE} />);
-    const bloc = await screen.findByRole("article", { name: /idée d'Anam/i });
+    const bloc = await screen.findByRole("article", { name: /idée d’Anam/i });
     expect(bloc.textContent).toContain(PHRASE_OUVERTURE_HYPOTHESE);
   });
 
-  it("[LE CŒUR] AUCUN chiffre à l'écran — le numéro n'est pas dans le contrat", async () => {
+  it("[LE CŒUR] AUCUN chiffre à l’écran — le numéro n’est pas dans le contrat", async () => {
     // Mutation-cible : afficher « type 4 » à côté de la phrase. Le type l'interdit déjà (aucun champ
     // ne le porte) ; ceci attrape la dérivation à partir de rien. Asséner un numéro au milieu d'une
     // conversation, sans le contexte ni la place de répondre autrement que par oui, est exactement
@@ -50,14 +50,14 @@ describe("[5.5/AC2] ce qui atteint l'écran, et rien d'autre", () => {
     expect(onVoir).toHaveBeenCalledTimes(1);
   });
 
-  it("aucun « Non » : refuser une hypothèse, c'est ne pas aller la voir", async () => {
+  it("aucun « Non » : refuser une hypothèse, c’est ne pas aller la voir", async () => {
     // Les trois vraies réponses (accepter, refuser, corriger) vivent à la halte, où le type est sous
     // ses yeux. Un « Non » ici la ferait trancher sur un numéro qu'elle n'a même pas lu.
     render(<Conversation ouverture={HYPOTHESE} onAllerVersHypothese={vi.fn()} />);
     await screen.findByText(PHRASE_OUVERTURE_HYPOTHESE);
     const boutons = screen.getAllByRole("button").map((b) => b.textContent ?? "");
     for (const mot of ["Non", "Plus tard", "Fermer", "Ignorer"]) {
-      expect(boutons, `« ${mot} » n'a rien à faire ici`).not.toContain(mot);
+      expect(boutons, `« ${mot} » n’a rien à faire ici`).not.toContain(mot);
     }
   });
 });
@@ -76,7 +76,7 @@ describe("[5.5/AC2 DUR] la parole se dépense quand elle est LUE, pas quand elle
     expect(onDite).toHaveBeenCalledWith("h-42");
   });
 
-  it("[LE CŒUR] région INERTE → RIEN n'est dépensé", async () => {
+  it("[LE CŒUR] région INERTE → RIEN n’est dépensé", async () => {
     // Mutation-cible : retirer `regionActive` de la condition. La scène monte ses trois régions en
     // permanence, `inert` sauf l'active : une phrase rendue là n'est annoncée par aucun lecteur
     // d'écran et vue par personne. La faute a été payée en revue 4.10 puis en migration 0045.

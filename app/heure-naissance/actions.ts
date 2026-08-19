@@ -91,7 +91,7 @@ export async function enregistrerHeureEtLieu(
   if (sansHeure && heure) {
     return {
       statut: "erreur",
-      message: "Tu as coché « je ne connais pas mon heure » et rempli le champ. Choisis l'un ou l'autre.",
+      message: "Tu as coché « je ne connais pas mon heure » et rempli le champ. Choisis l’un ou l’autre.",
     };
   }
 
@@ -125,7 +125,7 @@ export async function enregistrerHeureEtLieu(
     return {
       statut: "erreur",
       message:
-        "Ton heure de naissance est déjà enregistrée. Pour la corriger, va sur « Ce qu'Anam retient » (/memoire) : tu y verras ce que le changement modifie avant de valider.",
+        "Ton heure de naissance est déjà enregistrée. Pour la corriger, va sur « Ce qu’Anam retient » (/memoire) : tu y verras ce que le changement modifie avant de valider.",
     };
   }
 
@@ -138,7 +138,7 @@ export async function enregistrerHeureEtLieu(
     }
     const [hh, mm] = heure.split(":").map(Number);
     if (hh > 23 || mm > 59) {
-      return { statut: "erreur", message: "Cette heure n'existe pas." };
+      return { statut: "erreur", message: "Cette heure n’existe pas." };
     }
   }
 
@@ -149,13 +149,13 @@ export async function enregistrerHeureEtLieu(
   if (code && !lieu) {
     return {
       statut: "erreur",
-      message: "Je n'ai pas retrouvé cette commune. Choisis-la dans la liste proposée.",
+      message: "Je n’ai pas retrouvé cette commune. Choisis-la dans la liste proposée.",
     };
   }
   if (!lieu && !lieuDejaGrave) {
     return {
       statut: "erreur",
-      message: "Choisis ta commune de naissance dans la liste : c'est elle qui dit à quel instant ton jour de naissance correspond.",
+      message: "Choisis ta commune de naissance dans la liste : c’est elle qui dit à quel instant ton jour de naissance correspond.",
     };
   }
   // Une commune DIFFÉRENTE de celle déjà gravée : le trigger la refuserait par une erreur brute.
@@ -179,7 +179,7 @@ export async function enregistrerHeureEtLieu(
   if (!confirme) {
     return {
       statut: "erreur",
-      message: "Coche la case : ce que tu enregistres ici s'enregistre une fois et ne se modifie pas.",
+      message: "Coche la case : ce que tu enregistres ici s’enregistre une fois et ne se modifie pas.",
     };
   }
 

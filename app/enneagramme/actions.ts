@@ -45,7 +45,7 @@ export type EtatTest =
   /** Deux lectures à égalité — le produit REFUSE de trancher et lui rend la main (voir plus bas). */
   | { readonly statut: "indecis"; readonly exaequo: readonly number[] };
 
-const ERREUR_GENERIQUE = "Je n'ai pas pu enregistrer. Réessaie.";
+const ERREUR_GENERIQUE = "Je n’ai pas pu enregistrer. Réessaie.";
 
 /** Le client sous JWT + son identifiant, ou `null` si la session est tombée. */
 async function session() {
@@ -184,7 +184,7 @@ export async function accepterHypothese(hypotheseId: string): Promise<EtatHypoth
   } catch {
     // Cas réel : le consentement a été révoqué entre la proposition et l'acceptation. La RPC lève,
     // toute la transaction est annulée, et l'hypothèse RESTE en attente — l'état est cohérent.
-    return { statut: "erreur", message: "Je n'ai pas pu enregistrer ça. Réessaie." };
+    return { statut: "erreur", message: "Je n’ai pas pu enregistrer ça. Réessaie." };
   }
 }
 
@@ -199,7 +199,7 @@ export async function refuserHypothese(hypotheseId: string): Promise<EtatHypothe
     await creerDepotEnneagramme(s.utilisatriceId, s.supabase).refuserHypothese({ hypotheseId });
     return { statut: "repondu" };
   } catch {
-    return { statut: "erreur", message: "Je n'ai pas pu enregistrer ça. Réessaie." };
+    return { statut: "erreur", message: "Je n’ai pas pu enregistrer ça. Réessaie." };
   }
 }
 

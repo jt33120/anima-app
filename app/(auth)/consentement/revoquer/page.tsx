@@ -45,16 +45,16 @@ export default async function PageRevoquer({
 
         {erreur === "revocation" ? (
           <p className={s.erreur} role="alert">
-            La révocation n&apos;a pas pu aboutir. Réessaie.
+            La révocation n&rsquo;a pas pu aboutir. Réessaie.
           </p>
         ) : null}
 
         <p className="t-corps">
           Tu peux retirer ton consentement au traitement de tes données sensibles quand tu
-          veux. C&apos;est ton droit, et il n&apos;a pas à se justifier.
+          veux. C&rsquo;est ton droit, et il n&rsquo;a pas à se justifier.
         </p>
         <p className="t-corps">
-          Si tu le retires, le traitement s&apos;arrête : tu ne pourras plus tenir de séance.
+          Si tu le retires, le traitement s&rsquo;arrête : tu ne pourras plus tenir de séance.
           Tu pourras alors exporter tes données, puis supprimer ton compte.
         </p>
 

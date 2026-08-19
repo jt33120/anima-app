@@ -36,7 +36,7 @@ export const TITRE_CARTE = "Continuer avec Anam";
  * en termes d'état ou de résultat personnel.
  */
 export const GARANTIE_REMBOURSEMENT =
-  "Si aucune branche n'a été posée au bout de trois mois, remboursement sur simple demande.";
+  "Si aucune branche n’a été posée au bout de trois mois, remboursement sur simple demande.";
 
 /**
  * ── LA RECONDUCTION, DITE AU MOMENT OÙ ON DEMANDE L'ARGENT (Story 3.6, art. L215-1) ────────────
@@ -57,15 +57,15 @@ export const GARANTIE_REMBOURSEMENT =
  * derrière elle.
  */
 export const RECONDUCTION =
-  "L'abonnement dure un an, puis se reconduit chaque année. Tu es prévenue par courriel avant " +
-  "chaque reconduction, et tu peux l'arrêter à tout moment, en trois clics.";
+  "L’abonnement dure un an, puis se reconduit chaque année. Tu es prévenue par courriel avant " +
+  "chaque reconduction, et tu peux l’arrêter à tout moment, en trois clics.";
 
 /** Ce qui reste gratuit, pour toujours (FR-055) — sur la même surface (AC4). */
 export const PERIMETRE_GRATUIT_TITRE = "Gratuit, pour toujours";
 export const PERIMETRE_GRATUIT: readonly string[] = [
   "Ta numérologie, ton thème natal, ton horoscope et ton mantra du jour",
-  "Ta première séance en entier, jusqu'au bilan",
-  "Le tronc de ton arbre et les ressources d'aide",
+  "Ta première séance en entier, jusqu’au bilan",
+  "Le tronc de ton arbre et les ressources d’aide",
 ];
 
 /** Ce que le premium ajoute (FR-056) — sur la même surface (AC4). */
@@ -73,9 +73,9 @@ export const PERIMETRE_PREMIUM_TITRE = "Avec le premium";
 export const PERIMETRE_PREMIUM: readonly string[] = [
   "La conversation avec Anam, sans limite",
   "Les branches de ton arbre et leur mémoire dans la durée",
-  "Les lectures, les ancrages et les plans d'étapes",
+  "Les lectures, les ancrages et les plans d’étapes",
 ];
 
 /** Libellés des deux actions — d'ÉGALE lisibilité (AC2). */
-export const ACTION_ABONNER = "M'abonner";
+export const ACTION_ABONNER = "M’abonner";
 export const ACTION_PAS_MAINTENANT = "Pas maintenant";

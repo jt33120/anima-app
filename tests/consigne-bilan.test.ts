@@ -20,16 +20,16 @@ describe("Story 2.9 — consigne de bilan : contrat + invariants du registre doc
     expect(c.content.length).toBeGreaterThan(80);
   });
 
-  it("REGISTRE DOCUMENT : titres et listes explicitement AUTORISÉS (l'inverse de la voix)", () => {
+  it("REGISTRE DOCUMENT : titres et listes explicitement AUTORISÉS (l’inverse de la voix)", () => {
     expect(c.content).toMatch(/titre/i);
     expect(c.content).toMatch(/liste/i);
     expect(c.content, "le bilan est un document, pas un tour de conversation").toMatch(/document/i);
   });
 
-  it("REPREND LES MOTS de l'utilisatrice, sans inventer ni ajouter (jamais un verdict)", () => {
+  it("REPREND LES MOTS de l’utilisatrice, sans inventer ni ajouter (jamais un verdict)", () => {
     expect(c.content).toMatch(/mot/i);
     // Revue : « invent »/« ajout » portent l'interdit de fabrication → verrou strict (pas « jamais »).
-    expect(c.content, "l'interdit d'inventer/ajouter au-delà de ce qui a été dit").toMatch(/invent|ajout/i);
+    expect(c.content, "l’interdit d’inventer/ajouter au-delà de ce qui a été dit").toMatch(/invent|ajout/i);
   });
 
   it("interdit le lexique médical / « soin » et la conclusion enveloppante (registre non clinique)", () => {
@@ -38,7 +38,7 @@ describe("Story 2.9 — consigne de bilan : contrat + invariants du registre doc
     expect(c.content).toMatch(/enveloppante|r[ée]capitulatif/i);
   });
 
-  it("jamais signé d'un affect (FR-087) et corpus Anima (FR-086)", () => {
+  it("jamais signé d’un affect (FR-087) et corpus Anima (FR-086)", () => {
     expect(c.content).toMatch(/affect|touch|ressens/i);
     expect(c.content).toMatch(/Anima/);
   });
@@ -53,7 +53,7 @@ describe("Story 2.9 — consigne de phase « clore » : Anam clôt elle-même (F
     expect((clore?.content.length ?? 0)).toBeGreaterThan(40);
   });
 
-  it("dit que c'est ANAM qui clôt, sans récapitulatif ni conclusion enveloppante", () => {
+  it("dit que c’est ANAM qui clôt, sans récapitulatif ni conclusion enveloppante", () => {
     // C'est elle qui clôt (l'utilisatrice n'a jamais à s'extraire), sans récapituler ni envelopper.
     expect(clore?.content).toMatch(/clos|referme|fin/i);
     expect(clore?.content, "pas de récapitulatif / pas de conclusion enveloppante").toMatch(
@@ -62,7 +62,7 @@ describe("Story 2.9 — consigne de phase « clore » : Anam clôt elle-même (F
   });
 });
 
-describe("[revue 1-4] la consigne de clôture vaut pour LE tour qui clôt, pas pour tous ceux d'après", () => {
+describe("[revue 1-4] la consigne de clôture vaut pour LE tour qui clôt, pas pour tous ceux d’après", () => {
   /**
    * ══ LE DÉFAUT ═════════════════════════════════════════════════════════════════════════════════
    *
@@ -82,13 +82,13 @@ describe("[revue 1-4] la consigne de clôture vaut pour LE tour qui clôt, pas p
     expect(consignePhaseDuTour(enClore(null), true)).toBeNull();
   });
 
-  it("mais LE tour qui clôt la reçoit — c'est lui qui porte le beat `cloture`", () => {
+  it("mais LE tour qui clôt la reçoit — c’est lui qui porte le beat `cloture`", () => {
     const c = consignePhaseDuTour(enClore("cloture"), true);
     expect(c?.role).toBe("system");
-    expect(c?.content).toContain("C'est TOI qui clos la séance");
+    expect(c?.content).toContain("C’est TOI qui clos la séance");
   });
 
-  it("et en détresse, même ce tour-là ne l'a pas : la séance cesse d'être une séance (AD-9, AC5)", () => {
+  it("et en détresse, même ce tour-là ne l’a pas : la séance cesse d’être une séance (AD-9, AC5)", () => {
     expect(consignePhaseDuTour(enClore("cloture"), false)).toBeNull();
   });
 
@@ -97,14 +97,14 @@ describe("[revue 1-4] la consigne de clôture vaut pour LE tour qui clôt, pas p
     // en détresse ferait exactement le contraire de ce qu'il faut.
     for (const autorisee of [true, false]) {
       const c = consignePhaseDuTour({ etat: { phase: "observer" }, beat: null }, autorisee);
-      expect(c?.content, "le gate d'observation prématurée a disparu").toContain("NE DÉLIVRE PAS");
+      expect(c?.content, "le gate d’observation prématurée a disparu").toContain("NE DÉLIVRE PAS");
     }
     expect(consignePhaseDuTour({ etat: { phase: "nommer" }, beat: "nommer" }, true)?.content).toContain(
       "NOMMER",
     );
   });
 
-  it("`construire` n'a rien à contraindre, et l'absence d'arc non plus", () => {
+  it("`construire` n’a rien à contraindre, et l’absence d’arc non plus", () => {
     expect(consignePhaseDuTour({ etat: { phase: "construire" }, beat: null }, true)).toBeNull();
     expect(consignePhaseDuTour(null, true)).toBeNull();
   });

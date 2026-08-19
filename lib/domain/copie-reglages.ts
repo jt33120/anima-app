@@ -21,8 +21,8 @@ export const SECTION_SOCLE = "Le rythme quotidien";
  * rien vendre. Une fois par jour, quelques mots, rien qui dise ce qu'il y a dedans.
  */
 export const DESCRIPTION_SOCLE =
-  "Une fois par jour, à l'heure que tu choisis, ton téléphone peut afficher quelques mots. " +
-  "L'aperçu ne dit jamais ce qu'il y a dans l'application. Tu peux l'arrêter quand tu veux.";
+  "Une fois par jour, à l’heure que tu choisis, ton téléphone peut afficher quelques mots. " +
+  "L’aperçu ne dit jamais ce qu’il y a dans l’application. Tu peux l’arrêter quand tu veux.";
 
 export const ACTIVER = "Recevoir le rythme quotidien";
 export const DESACTIVER = "Ne plus rien recevoir sur cet appareil";
@@ -47,7 +47,7 @@ export const ETAT_INACTIF = "Cet appareil ne reçoit rien.";
  * s'il se heurte à un refus définitif, `PERMISSION_REFUSEE` prend le relais avec le bon chemin.
  */
 export const AUTORISATION_RETIREE =
-  "Cet appareil ne reçoit plus rien : l'autorisation n'est plus accordée dans ton navigateur.";
+  "Cet appareil ne reçoit plus rien : l’autorisation n’est plus accordée dans ton navigateur.";
 
 /**
  * ⚠️ LE REFUS DE PERMISSION NE SE REPROPOSE PAS, et ce texte est ce qui le rend acceptable. Une fois
@@ -55,8 +55,8 @@ export const AUTORISATION_RETIREE =
  * serait de toute façon impossible. On explique donc où ça se répare, et on n'en reparle plus (AC4).
  */
 export const PERMISSION_REFUSEE =
-  "Ton navigateur a refusé les notifications pour ce site. Rien ne se passera, et c'est très bien : " +
-  "le rythme quotidien vit aussi dans l'application. Si tu changes d'avis, ça se règle dans les " +
+  "Ton navigateur a refusé les notifications pour ce site. Rien ne se passera, et c’est très bien : " +
+  "le rythme quotidien vit aussi dans l’application. Si tu changes d’avis, ça se règle dans les " +
   "réglages du navigateur, pas ici.";
 
 /**
@@ -71,7 +71,7 @@ export const PERMISSION_REFUSEE =
  * pas à elle.
  */
 export const PERMISSION_SANS_REPONSE =
-  "Le navigateur a posé sa question et elle est restée sans réponse — rien n'a été refusé. " +
+  "Le navigateur a posé sa question et elle est restée sans réponse — rien n’a été refusé. " +
   "Le bouton la repose si tu veux ; sinon tout fonctionne pareil.";
 
 /**
@@ -80,11 +80,11 @@ export const PERMISSION_SANS_REPONSE =
  * ça se dit comme tel.
  */
 export const INDISPONIBLE =
-  "Ce navigateur ne sait pas afficher de notifications. Sur iPhone, il faut d'abord ajouter Anam à " +
-  "l'écran d'accueil. Sans ça, tout fonctionne pareil — simplement, rien ne s'affichera en dehors de " +
-  "l'application.";
+  "Ce navigateur ne sait pas afficher de notifications. Sur iPhone, il faut d’abord ajouter Anam à " +
+  "l’écran d’accueil. Sans ça, tout fonctionne pareil — simplement, rien ne s’affichera en dehors de " +
+  "l’application.";
 
-export const ECHEC = "Ça n'a pas marché. Tu peux réessayer.";
+export const ECHEC = "Ça n’a pas marché. Tu peux réessayer.";
 
 /**
  * L'unique mention du palier, côté produit.
@@ -95,7 +95,7 @@ export const ECHEC = "Ça n'a pas marché. Tu peux réessayer.";
  */
 export const PAS_ENCORE_ACTIF =
   "Ton choix est enregistré. Les notifications ne partent pas encore : elles attendent une mise en " +
-  "service qui n'est pas de ton ressort.";
+  "service qui n’est pas de ton ressort.";
 
 /**
  * ── LES COURRIELS D'ANAM (revue Epic 6, R7 · art. 21) ──────────────────────────────────────────
@@ -113,14 +113,14 @@ export const PAS_ENCORE_ACTIF =
  * d'Anam » sans dire lesquels laisserait croire à une correspondance qui n'a pas lieu — et le jour où
  * un troisième naîtrait, cette phrase deviendrait fausse toute seule.
  */
-export const SECTION_COURRIELS = "Les courriels d'Anam";
+export const SECTION_COURRIELS = "Les courriels d’Anam";
 
 export const DESCRIPTION_COURRIELS =
-  "Anam t'écrit deux fois : quand une échéance que tu as posée arrive, et quand une synthèse est " +
-  "prête. Rien d'autre. Tu peux arrêter, et reprendre, quand tu veux.";
+  "Anam t’écrit deux fois : quand une échéance que tu as posée arrive, et quand une synthèse est " +
+  "prête. Rien d’autre. Tu peux arrêter, et reprendre, quand tu veux.";
 
-export const ETAT_COURRIELS_RECUS = "Tu reçois les courriels d'Anam.";
-export const ETAT_COURRIELS_ARRETES = "Tu ne reçois aucun courriel d'Anam.";
+export const ETAT_COURRIELS_RECUS = "Tu reçois les courriels d’Anam.";
+export const ETAT_COURRIELS_ARRETES = "Tu ne reçois aucun courriel d’Anam.";
 
 export const ARRETER_COURRIELS = "Ne plus recevoir de courriels";
 export const REPRENDRE_COURRIELS = "Recevoir à nouveau les courriels";
@@ -131,7 +131,7 @@ export const REPRENDRE_COURRIELS = "Recevoir à nouveau les courriels";
  * d'un courriel reçu après l'arrêt une promesse rompue.
  */
 export const COURRIELS_QUI_RESTENT =
-  "Les courriels qui servent à te connecter continuent d'arriver : sans eux, tu ne pourrais plus " +
+  "Les courriels qui servent à te connecter continuent d’arriver : sans eux, tu ne pourrais plus " +
   "entrer.";
 
 /**
@@ -152,8 +152,8 @@ export const SECTION_SESSION = "Cette session";
  * exactement le reproche fait à l'écran de résiliation qu'on a refusé d'écrire (3.5).
  */
 export const DESCRIPTION_SESSION =
-  "Sur un appareil que tu partages, c'est ce qui referme ta session. Pour revenir, tu redemanderas " +
-  "un lien — il n'y a pas de mot de passe à retenir.";
+  "Sur un appareil que tu partages, c’est ce qui referme ta session. Pour revenir, tu redemanderas " +
+  "un lien — il n’y a pas de mot de passe à retenir.";
 
 /** Le mot que les gens cherchent, pas celui qui décrit le mécanisme. */
 export const SE_DECONNECTER = "Me déconnecter";

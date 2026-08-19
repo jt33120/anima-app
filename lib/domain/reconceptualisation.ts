@@ -23,14 +23,14 @@ import type { MessageIa, RequeteIa } from "@/lib/ai/port";
 /** PLACEHOLDER PRODUIT — À VALIDER AVANT MISE EN LIGNE SUR DONNÉES RÉELLES. Sortie STRUCTURÉE (patron détecteur). */
 export const INSTRUCTION_RECONCEPTUALISATION = [
   "[PLACEHOLDER PRODUIT — À VALIDER AVANT MISE EN LIGNE SUR DONNÉES RÉELLES]",
-  "Tu observes le DERNIER échange d'une conversation. Repère, SANS jamais le nommer ni relancer, si",
-  "l'utilisatrice vit dans CE dernier échange un moment de RECONCEPTUALISATION — un changement de regard",
-  "sur elle-même : « avant je pensais X, maintenant Y », une prise de distance vis-à-vis d'un récit qu'elle",
-  "se répétait, la rupture manifeste d'une croyance ancienne sur elle-même.",
-  "Ce N'EST PAS un simple sujet nouveau, une émotion, ni une détresse (ça, c'est une autre évaluation).",
+  "Tu observes le DERNIER échange d’une conversation. Repère, SANS jamais le nommer ni relancer, si",
+  "l’utilisatrice vit dans CE dernier échange un moment de RECONCEPTUALISATION — un changement de regard",
+  "sur elle-même : « avant je pensais X, maintenant Y », une prise de distance vis-à-vis d’un récit qu’elle",
+  "se répétait, la rupture manifeste d’une croyance ancienne sur elle-même.",
+  "Ce N’EST PAS un simple sujet nouveau, une émotion, ni une détresse (ça, c’est une autre évaluation).",
   "Réponds UNIQUEMENT par cette ligne, `oui` ou `non` :",
-  "RECONCEPTUALISATION: (l'utilisatrice manifeste un tel changement de regard sur elle-même dans ce tour)",
-  "En cas de doute, réponds `non` : ne retiens un marqueur que s'il est MANIFESTE — jamais inféré.",
+  "RECONCEPTUALISATION: (l’utilisatrice manifeste un tel changement de regard sur elle-même dans ce tour)",
+  "En cas de doute, réponds `non` : ne retiens un marqueur que s’il est MANIFESTE — jamais inféré.",
 ].join("\n");
 
 export interface DecisionReconcept {

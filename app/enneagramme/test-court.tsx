@@ -100,7 +100,7 @@ export default function TestCourt({
       if (reste) {
         // Persistance de reprise, en tâche de fond. Un échec ne perd rien à l'écran — il se DIT.
         const { ok } = await enregistrerReponses(suivantes);
-        if (!ok) setEtat({ statut: "erreur", message: "Ta réponse n'est pas encore enregistrée." });
+        if (!ok) setEtat({ statut: "erreur", message: "Ta réponse n’est pas encore enregistrée." });
       } else {
         setEnvoi(true);
         const r = await conclureTest(suivantes);

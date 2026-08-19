@@ -62,15 +62,15 @@ describe("chargerProjectionArbre — composition & repli sûr", () => {
     });
   });
 
-  it("repli sûr : une panne du dépôt → arbre marqué INDISPONIBLE (jamais « rien n'a été nommé »), incident journalisé", async () => {
+  it("repli sûr : une panne du dépôt → arbre marqué INDISPONIBLE (jamais « rien n’a été nommé »), incident journalisé", async () => {
     chargerBranches.mockResolvedValue(null); // `null.map` lève DANS le try → exerce le catch proprement
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const projection = await chargerProjectionArbre(supa, "11111111-1111-4111-8111-111111111111");
     // [AC2 / revue 4.6] Une PANNE doit être distinguable d'un arbre vide : sans ce marqueur, l'écran
     // affichait « Rien n'a encore été nommé » à quelqu'un qui a des branches — la pire régression (FR-029).
-    expect(projection.indisponible, "une panne n'est pas un arbre vide").toBe(true);
+    expect(projection.indisponible, "une panne n’est pas un arbre vide").toBe(true);
     expect(projection.branches).toEqual([]);
-    expect(spy, "l'incident est journalisé (repli AD-15)").toHaveBeenCalled();
+    expect(spy, "l’incident est journalisé (repli AD-15)").toHaveBeenCalled();
     spy.mockRestore();
   });
 
@@ -82,7 +82,7 @@ describe("chargerProjectionArbre — composition & repli sûr", () => {
     const dedans = await chargerProjectionArbre(supaFenetre(true), "11111111-1111-4111-8111-111111111111");
     expect(dedans.gestesSuspendus).toBe(true);
     const dehors = await chargerProjectionArbre(supaFenetre(false), "11111111-1111-4111-8111-111111111111");
-    expect(dehors.gestesSuspendus, "hors fenêtre, rien n'est suspendu").toBeUndefined();
+    expect(dehors.gestesSuspendus, "hors fenêtre, rien n’est suspendu").toBeUndefined();
   });
 
   it("[REVUE] le repli de la fenêtre est PROTECTEUR : le doute suspend", async () => {
@@ -97,7 +97,7 @@ describe("chargerProjectionArbre — composition & repli sûr", () => {
     spy.mockRestore();
   });
 
-  it("[NFR-022] le code Postgres est PRÉSERVÉ pour le journal (un refus RLS reste distinguable d'une panne)", () => {
+  it("[NFR-022] le code Postgres est PRÉSERVÉ pour le journal (un refus RLS reste distinguable d’une panne)", () => {
     // (voir plus bas pour l'état du tronc, Story 5.3)
     // Le dépôt lève une Error dont le message ne porte QUE le code Postgres. Sans extraction, le
     // journaliseur (qui ne lit que `.code`) jetait l'information : tout devenait « panne inconnue ».
@@ -136,25 +136,25 @@ describe("[5.3 / AC3] le tronc est marqué incomplet — et JAMAIS par erreur", 
   it("sans heure de naissance : le drapeau est posé", async () => {
     lireThemeNatal.mockResolvedValue(theme({ statut: "non_calcule", raison: "heure_absente" }));
     const t = (await chargerProjectionArbre(supa, ID)).tronc;
-    expect(t.incomplet?.phrase, "l'aveu ne voyage pas avec le drapeau").toMatch(/heure de naissance/i);
+    expect(t.incomplet?.phrase, "l’aveu ne voyage pas avec le drapeau").toMatch(/heure de naissance/i);
     expect(t.incomplet?.ouTrouver, "où la trouver ne voyage pas").toMatch(/mairie/i);
   });
 
-  it("[PRÉSENCE AVANT ABSENCE] socle complet : AUCUN drapeau, et rien d'autre ne bouge", async () => {
+  it("[PRÉSENCE AVANT ABSENCE] socle complet : AUCUN drapeau, et rien d’autre ne bouge", async () => {
     // Le tronc « complet » n'est pas un état spécial : c'est le tronc. Sans cette assertion, un
     // drapeau posé en permanence passerait le test précédent.
     lireThemeNatal.mockResolvedValue(theme({ statut: "calcule", ascendant: 12, milieuDuCiel: 3, maisons: [], systeme: "signes_entiers" }));
     expect((await chargerProjectionArbre(supa, ID)).tronc).toEqual({ present: true });
   });
 
-  it("[D6/DUR] socle ILLISIBLE : aucun drapeau — on n'annonce pas un manque qu'on n'a pas constaté", async () => {
+  it("[D6/DUR] socle ILLISIBLE : aucun drapeau — on n’annonce pas un manque qu’on n’a pas constaté", async () => {
     // Mutation-cible : `incomplet: r.statut !== "calcule"`. On dirait « il me manque ton heure » à
     // quelqu'un qui vient de la donner, juste après le geste qu'on lui avait demandé.
     lireThemeNatal.mockResolvedValue({ statut: "indisponible", raison: "lecture_impossible" });
     expect((await chargerProjectionArbre(supa, ID)).tronc).toEqual({ present: true });
   });
 
-  it("[DUR] une PANNE du socle ne fait pas tomber l'arbre — les branches restent affichées", async () => {
+  it("[DUR] une PANNE du socle ne fait pas tomber l’arbre — les branches restent affichées", async () => {
     // C'est la raison du `try/catch` INTERNE. Sous le `try` global, une panne de lecture du thème
     // aurait remplacé des branches RÉELLES par « je n'arrive pas à afficher ton arbre » — pour un
     // drapeau décoratif. La revue 4.6 a déjà payé ce mensonge une fois.
@@ -164,14 +164,14 @@ describe("[5.3 / AC3] le tronc est marqué incomplet — et JAMAIS par erreur", 
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     lireThemeNatal.mockRejectedValue(new Error("socle: 42501"));
     const p = await chargerProjectionArbre(supa, ID);
-    expect(p.indisponible, "l'arbre entier est tombé pour une panne du socle").toBeUndefined();
+    expect(p.indisponible, "l’arbre entier est tombé pour une panne du socle").toBeUndefined();
     expect(p.branches).toHaveLength(1);
     expect(p.tronc).toEqual({ present: true });
-    expect(spy, "l'incident est journalisé").toHaveBeenCalled();
+    expect(spy, "l’incident est journalisé").toHaveBeenCalled();
     spy.mockRestore();
   });
 
-  it("une Lune indéterminable suffit, même sans problème d'angles", async () => {
+  it("une Lune indéterminable suffit, même sans problème d’angles", async () => {
     lireThemeNatal.mockResolvedValue(
       theme({ statut: "calcule", ascendant: 12, milieuDuCiel: 3, maisons: [], systeme: "signes_entiers" }, [
         { corps: "lune", raison: "signe_ambigu_sans_heure" },
@@ -191,14 +191,14 @@ describe("[5.3 / AC3] le tronc est marqué incomplet — et JAMAIS par erreur", 
     expect((await chargerProjectionArbre(supa, ID)).tronc).toEqual({ present: true });
   });
 
-  it("l'identifiant reçu est bien celui transmis au socle (jamais un autre compte)", async () => {
+  it("l’identifiant reçu est bien celui transmis au socle (jamais un autre compte)", async () => {
     lireThemeNatal.mockResolvedValue({ statut: "indisponible", raison: "naissance_absente" });
     await chargerProjectionArbre(supa, ID);
     expect(lireThemeNatal).toHaveBeenCalledWith(supa, ID);
   });
 });
 
-describe("POST /api/incident — régression d'affichage signalée par le client (AC2)", () => {
+describe("POST /api/incident — régression d’affichage signalée par le client (AC2)", () => {
   beforeEach(() => getUser.mockReset());
 
   function req(body: unknown): Request {
@@ -214,7 +214,7 @@ describe("POST /api/incident — régression d'affichage signalée par le client
     expect((await incident(req({ champ: "etat" }))).status).toBe(401);
   });
 
-  it("journalise le TYPE d'anomalie et renvoie ok — jamais d'id/nom en clair", async () => {
+  it("journalise le TYPE d’anomalie et renvoie ok — jamais d’id/nom en clair", async () => {
     getUser.mockResolvedValue({ data: { user: { id: `u-${Math.random()}` } } });
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const r = await incident(req({ champ: "etat", id: "BRANCHE_ID_SECRET" }));
@@ -223,12 +223,12 @@ describe("POST /api/incident — régression d'affichage signalée par le client
     expect(dump).toContain("etat");
     // [revue 4.6] Le libellé décrit une ANOMALIE D'AFFICHAGE, pas une « indisponibilité de RPC de sécurité »
     // (le message mentait sur la nature de l'événement et noyait les vrais incidents de sûreté).
-    expect(dump).toMatch(/régression d'affichage/);
-    expect(dump, "l'id de branche ne fuit pas dans le log").not.toContain("BRANCHE_ID_SECRET");
+    expect(dump).toMatch(/régression d’affichage/);
+    expect(dump, "l’id de branche ne fuit pas dans le log").not.toContain("BRANCHE_ID_SECRET");
     spy.mockRestore();
   });
 
-  it("« disparition » est un type d'anomalie reconnu (la pire régression : une branche connue s'efface)", async () => {
+  it("« disparition » est un type d’anomalie reconnu (la pire régression : une branche connue s’efface)", async () => {
     getUser.mockResolvedValue({ data: { user: { id: `u-${Math.random()}` } } });
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     await incident(req({ champ: "disparition" }));
@@ -251,7 +251,7 @@ describe("POST /api/incident — régression d'affichage signalée par le client
     spy.mockRestore();
   });
 
-  it("[re-revue] un type inconnu est neutralisé, jamais rendu tel quel (pas d'injection dans le journal)", async () => {
+  it("[re-revue] un type inconnu est neutralisé, jamais rendu tel quel (pas d’injection dans le journal)", async () => {
     getUser.mockResolvedValue({ data: { user: { id: `u-inconnu-${Math.random()}` } } });
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     await incident(req({ champs: ["etat", "MON_NOM_DE_BRANCHE_SECRET"] }));

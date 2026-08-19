@@ -66,11 +66,11 @@ export const MOTS_MAX_APERCU = 6;
  */
 export const CORPS_POUSSEE: readonly string[] = Object.freeze([
   "Le jour a tourné.",
-  "Rien d'urgent, comme toujours.",
-  "C'est là, quand tu veux.",
+  "Rien d’urgent, comme toujours.",
+  "C’est là, quand tu veux.",
   "Un moment calme est disponible.",
   "Le jour commence, sans hâte.",
-  "Rien à faire aujourd'hui non plus.",
+  "Rien à faire aujourd’hui non plus.",
   "La journée est ouverte.",
 ]);
 

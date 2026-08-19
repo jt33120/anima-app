@@ -27,7 +27,7 @@ function clientFactice(reponse: { data?: unknown; error?: { code?: string } | nu
   return { client, appels };
 }
 
-describe("[6.3] le dépôt lit `motifs_anam_du`, et rien d'autre", () => {
+describe("[6.3] le dépôt lit `motifs_anam_du`, et rien d’autre", () => {
   it("il appelle LA fonction, sans paramètre", async () => {
     // Mutation-cible : lui passer un `p_utilisatrice`. La fonction est `security invoker` et se
     // borne à `auth.uid()` — un paramètre serait la porte par laquelle un job pourrait s'en servir.
@@ -45,7 +45,7 @@ describe("[6.3] le dépôt lit `motifs_anam_du`, et rien d'autre", () => {
     await expect(creerDepotMotifsAnam(client).motifs()).rejects.toThrow(/motifs_anam/);
   });
 
-  it("une réponse qui n'est pas une liste devient une liste VIDE, jamais un plantage", async () => {
+  it("une réponse qui n’est pas une liste devient une liste VIDE, jamais un plantage", async () => {
     for (const data of [null, undefined, {}, "rien", 42]) {
       const { client } = clientFactice({ data });
       expect(await creerDepotMotifsAnam(client).motifs(), `data = ${JSON.stringify(data)}`).toEqual([]);
@@ -77,7 +77,7 @@ describe("[6.3, AD-15] « pas de mots » ne devient JAMAIS « des mots vides »"
     // La chaîne complète, depuis la réponse de la base jusqu'à la ligne affichée. C'est ce que ni
     // le test du domaine ni celui du SQL ne couvrent : chacun prouve son bout.
     const { client } = clientFactice({
-      data: [{ motif: "echeance_intention", jour: "2026-08-14", titre: null, detail: "j'écris" }],
+      data: [{ motif: "echeance_intention", jour: "2026-08-14", titre: null, detail: "j’écris" }],
     });
     expect(ligneAnam(await creerDepotMotifsAnam(client).motifs())).toBeNull();
   });
@@ -85,10 +85,10 @@ describe("[6.3, AD-15] « pas de mots » ne devient JAMAIS « des mots vides »"
   it("…et elle porte bien la ligne quand la base rend une ligne complète", async () => {
     // Le contrôle positif : sans lui, un dépôt qui rendrait toujours `[]` passerait tout ce fichier.
     const { client } = clientFactice({
-      data: [{ motif: "echeance_intention", jour: "2026-08-14", titre: "je bloque", detail: "j'écris" }],
+      data: [{ motif: "echeance_intention", jour: "2026-08-14", titre: "je bloque", detail: "j’écris" }],
     });
     expect(ligneAnam(await creerDepotMotifsAnam(client).motifs())).toBe(
-      "Pour aujourd'hui : si je bloque, alors j'écris.",
+      "Pour aujourd’hui : si je bloque, alors j’écris.",
     );
   });
 

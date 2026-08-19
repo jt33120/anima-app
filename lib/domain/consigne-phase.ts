@@ -15,17 +15,17 @@ const CONSIGNES: Record<Phase, string | null> = {
   // Accueil ordinaire (échange courant) — aucune contrainte de phase à injecter.
   construire: null,
   observer:
-    "[Consigne de phase — PROVISOIRE] Tu es en phase d'OBSERVATION : tu reformules et tu relies ce que " +
-    "dit l'utilisatrice. NE DÉLIVRE PAS encore d'observation nommée ni d'interprétation tranchée — ce " +
+    "[Consigne de phase — PROVISOIRE] Tu es en phase d’OBSERVATION : tu reformules et tu relies ce que " +
+    "dit l’utilisatrice. NE DÉLIVRE PAS encore d’observation nommée ni d’interprétation tranchée — ce " +
     "serait prématuré. Tu poursuis et tu tisses ; tu ne nommes pas.",
   nommer:
-    "[Consigne de phase — PROVISOIRE] C'est le moment de NOMMER : délivre une observation juste et " +
+    "[Consigne de phase — PROVISOIRE] C’est le moment de NOMMER : délivre une observation juste et " +
     "légèrement inconfortable, ce que la personne est prête à entendre. (La forme complète — hypothèse " +
     "réfutable, brièveté — relève de la voix, Story 2.8.)",
   clore:
-    "[Consigne de phase — PROVISOIRE] C'est TOI qui clos la séance, en un seul tour, dans ton registre " +
-    "normal — l'utilisatrice n'a jamais à s'extraire (FR-008). Pas de récapitulatif, pas de conclusion " +
-    "enveloppante : tu proposes simplement d'en rester là, sans dramatiser. Repère de ton : « on en a " +
+    "[Consigne de phase — PROVISOIRE] C’est TOI qui clos la séance, en un seul tour, dans ton registre " +
+    "normal — l’utilisatrice n’a jamais à s’extraire (FR-008). Pas de récapitulatif, pas de conclusion " +
+    "enveloppante : tu proposes simplement d’en rester là, sans dramatiser. Repère de ton : « on en a " +
     "assez fait pour ce soir ». Le bilan est posé séparément, comme un document — ne le rédige pas ici.",
 };
 

@@ -43,7 +43,7 @@ describe("[6.8/AC2] Le gabarit de l'avis — émis par le PRODUIT, jamais signé
 
   it("[LE CŒUR] il dit ce qui va se passer, et où aller pour l'empêcher", () => {
     expect(avis.texte).toMatch(/supprimé/);
-    expect(avis.texte).toMatch(/rien n'en reviendra/);
+    expect(avis.texte).toMatch(/rien n’en reviendra/);
     // L'export est nommé AVANT la suppression — AD-14 l'exige, et prévenir quelqu'un sans lui dire
     // où récupérer ses données serait le respect de la lettre contre l'esprit.
     expect(avis.texte).toContain(`${ORIGINE}/mes-donnees`);

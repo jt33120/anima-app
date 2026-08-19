@@ -11,6 +11,9 @@ import { ephemerideAstronomyEngine } from "@/lib/astro/adapters/astronomy-engine
 import SceneDom from "@/render/scene-dom";
 import { marquerAnnonceSocleDite } from "@/app/_socle/marquer-annonce";
 import { marquerHypotheseDite } from "@/app/_enneagramme/marquer-hypothese";
+import { marquerSeuilFranchi } from "@/app/_seuil/marquer-franchissement";
+import { creerDepotSeuil } from "@/lib/data/depot-seuil";
+import { premierPassage } from "@/lib/domain/premier-passage";
 
 /**
  * ⚠️ RENDUE À LA DEMANDE, ET C'EST UNE GARDE (revue adversariale, R5).
@@ -84,7 +87,7 @@ export default async function Page() {
   // RÉELLE de l'arbre. Story 5.6 : la bibliothèque du socle. Les trois sous JWT, en parallèle ;
   // jamais un 500 qui bloquerait l'ouverture de la scène — chacune a son repli sûr.
   const maintenant = new Date();
-  const [ouverture, projection, bibliotheque, historique] = await Promise.all([
+  const [ouverture, projection, bibliotheque, historique, seuilFranchiLe] = await Promise.all([
     chargerOuverture(supabase, user.id),
     chargerProjectionArbre(supabase, user.id, theme),
     // La bibliothèque n'est pas un chemin critique : une panne rend `null`, et la scène s'ouvre
@@ -98,6 +101,10 @@ export default async function Page() {
     // Repli sûr → fil vide : mieux vaut un fil qu'on retrouvera au prochain chargement qu'une scène
     // qui ne s'ouvre pas.
     lireFilRecent(supabase, maintenant).catch(() => []),
+    // H4 — le seuil a-t-il DÉJÀ été franchi ? Une seule colonne, dans le même aller-retour que le
+    // reste. Repli sur `null` (donc « jamais franchi », donc le texte est redit) : se répéter est
+    // un accroc, ne jamais présenter le lieu est le constat H4 qui revient.
+    creerDepotSeuil(supabase).lireFranchiLe().catch(() => null),
   ]);
   return (
     <SceneDom
@@ -107,6 +114,10 @@ export default async function Page() {
       historique={historique}
       onSocleAnnonce={marquerAnnonceSocleDite}
       onHypotheseDite={marquerHypotheseDite}
+      // H4 — la DÉCISION est ici (domaine pur), jamais dans le rendu : `render/` n'a le droit de
+      // connaître ni la date, ni la session, ni `lib/domain` (AD-7/AD-10).
+      premierPassage={premierPassage(seuilFranchiLe, bibliotheque?.cartes ?? null)}
+      onSeuilFranchi={marquerSeuilFranchi}
     />
   );
 }

@@ -4,28 +4,28 @@ import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
 /**
  * rpc-repli.ts — Le squelette « appeler une RPC de sécurité sous le client admin, RETOMBER sur un
  * défaut SÛR à la moindre panne » (Story 2.5, extrait de `depot-episode` 2.4 — DRY, AD-15).
- * Partagé par le dépôt d'épisode (`depot-episode.ts`) ET la garde de montage (`limites-commerciales.ts`).
+ * Partagé par le dépôt d’épisode (`depot-episode.ts`) ET la garde de montage (`limites-commerciales.ts`).
  *
- * L'incident est journalisé SANS art. 9 (motif + nom d'exception seuls, NFR-022) : jamais de contenu
- * sensible en log. Le repli sûr penche TOUJOURS vers la protection — c'est l'appelant qui choisit le
+ * L’incident est journalisé SANS art. 9 (motif + nom d’exception seuls, NFR-022) : jamais de contenu
+ * sensible en log. Le repli sûr penche TOUJOURS vers la protection — c’est l’appelant qui choisit le
  * `defautSurEchec` protecteur (ex. « limites levées = true » : le doute suspend le commerce).
  */
 
 /**
- * Forme d'un code d'erreur exploitable : SQLSTATE Postgres (`42501`, `22P02`) ou code PostgREST (`PGRST116`).
- * On ne journalise QUE ce qui ressemble à ça — c'est ce qui rend l'extraction ci-dessous sûre par
- * CONSTRUCTION plutôt que par convention. NFR-022 : du texte libre pourrait porter de l'art. 9.
+ * Forme d’un code d’erreur exploitable : SQLSTATE Postgres (`42501`, `22P02`) ou code PostgREST (`PGRST116`).
+ * On ne journalise QUE ce qui ressemble à ça — c’est ce qui rend l’extraction ci-dessous sûre par
+ * CONSTRUCTION plutôt que par convention. NFR-022 : du texte libre pourrait porter de l’art. 9.
  */
 const FORME_CODE = /^[A-Z0-9]{5,10}$/i;
 
 /**
- * Le code diagnosticable d'une erreur, ou `undefined`. Exporté pour être testé DIRECTEMENT (un test qui
+ * Le code diagnosticable d’une erreur, ou `undefined`. Exporté pour être testé DIRECTEMENT (un test qui
  * passe par un mock qui jette prouve moins et casse plus).
  *
- * RE-REVUE — l'extraction vivait dans `lib/safety/projection-arbre.ts` et n'était appliquée QU'À un seul
+ * RE-REVUE — l’extraction vivait dans `lib/safety/projection-arbre.ts` et n’était appliquée QU’À un seul
  * appelant : les deux routes de 4.6 passaient l'`Error` brute et journalisaient toutes `code: "Error"`,
- * c'est-à-dire rien. Un refus RLS art. 9 y était indiscernable d'une panne réseau. L'extraction est donc
- * remontée DANS le journaliseur : plus personne ne peut l'oublier. Et le filtre `FORME_CODE` ferme du même
+ * c’est-à-dire rien. Un refus RLS art. 9 y était indiscernable d’une panne réseau. L’extraction est donc
+ * remontée DANS le journaliseur : plus personne ne peut l’oublier. Et le filtre `FORME_CODE` ferme du même
  * coup le repli qui journalisait le message entier quand il ne contenait pas « : ».
  */
 export function codeJournalisable(detail?: unknown): string | undefined {
@@ -34,16 +34,16 @@ export function codeJournalisable(detail?: unknown): string | undefined {
   if (!(detail instanceof Error)) return undefined;
   const queue = detail.message.split(": ").pop()?.trim();
   if (queue && FORME_CODE.test(queue)) return queue; // « branche.chargerBranches: 42501 » → « 42501 »
-  return detail.name; // sinon le NOM de l'exception seul : jamais le message (il pourrait porter de l'art. 9)
+  return detail.name; // sinon le NOM de l’exception seul : jamais le message (il pourrait porter de l’art. 9)
 }
 
 /**
  * Codes Postgres qui veulent dire « une GARDE A REFUSÉ », pas « le système est en panne » :
- * 42501 (RLS/privilège), 23514 (CHECK), 23503 (clé étrangère), 22P02 (uuid mal formé), P0001 (`raise` d'un
- * trigger — c'est ainsi que parlent nos gardes AD-17 et d'immuabilité).
+ * 42501 (RLS/privilège), 23514 (CHECK), 23503 (clé étrangère), 22P02 (uuid mal formé), P0001 (`raise` d’un
+ * trigger — c’est ainsi que parlent nos gardes AD-17 et d’immuabilité).
  *
  * RE-REVUE — sans cette distinction, TOUT refus métier était journalisé par `journaliserIncidentSecurite`,
- * dont le libellé annonce « indisponibilité d'une RPC de sécurité » : un observateur cherchait une panne de
+ * dont le libellé annonce « indisponibilité d’une RPC de sécurité » : un observateur cherchait une panne de
  * RPC là où une utilisatrice avait simplement demandé quelque chose qui ne lui est pas permis. Le canal
  * réservé aux vrais incidents (celui où vivent les alertes de détresse) était noyé par du bruit ordinaire.
  */
@@ -63,25 +63,25 @@ export function journaliserRefusGarde(motif: string, detail?: unknown): void {
 }
 
 /**
- * Un fait d'EXPLOITATION : ni un refus de garde, ni un incident de sécurité. Un courriel qui n'est pas
- * parti, un lot qui n'a pas eu le temps de tout servir.
+ * Un fait d’EXPLOITATION : ni un refus de garde, ni un incident de sécurité. Un courriel qui n’est pas
+ * parti, un lot qui n’a pas eu le temps de tout servir.
  *
  * Troisième canal ajouté par la revue 4.9 (T6-10), et pour la même raison qui avait fait naître le
- * deuxième : le job de synthèse journalisait ses échecs d'envoi par `journaliserIncidentSecurite`, dont
- * le libellé annonce « indisponibilité d'une RPC de sécurité ». Un 5xx de Resend se lisait donc dans les
- * journaux comme une panne de garde de sécurité — et c'était sa seule trace. Le canal réservé aux vrais
+ * deuxième : le job de synthèse journalisait ses échecs d’envoi par `journaliserIncidentSecurite`, dont
+ * le libellé annonce « indisponibilité d’une RPC de sécurité ». Un 5xx de Resend se lisait donc dans les
+ * journaux comme une panne de garde de sécurité — et c’était sa seule trace. Le canal réservé aux vrais
  * incidents, celui où vivent les alertes de détresse, se retrouvait repollué là où la revue précédente
  * venait tout juste de le nettoyer.
  */
 export function journaliserExploitation(motif: string, detail?: unknown): void {
-  console.warn("exploitation: un effet secondaire n'a pas abouti — le travail principal, lui, a été fait", {
+  console.warn("exploitation: un effet secondaire n’a pas abouti — le travail principal, lui, a été fait", {
     motif,
     code: codeJournalisable(detail),
   });
 }
 
 export function journaliserIncidentSecurite(motif: string, detail?: unknown): void {
-  console.error("securite: indisponibilité d'une RPC de sécurité — repli sûr (AD-15)", {
+  console.error("securite: indisponibilité d’une RPC de sécurité — repli sûr (AD-15)", {
     motif,
     code: codeJournalisable(detail),
   });

@@ -327,6 +327,61 @@
   text-align: left;
 }
 
+/* ══ LE PREMIER PASSAGE (QA visuelle du 2026-08-19, H4) ═══════════════════════════════════════
+   Le seuil parle un peu plus longtemps, UNE fois. Aucune surface propre : ni carte, ni encadré,
+   ni fond — ce bloc vit DANS la bande de voile du seuil, comme la phrase qui le précède. Lui
+   donner une boîte en ferait un objet posé sur le seuil au lieu du seuil lui-même, et la scène
+   n'a pas de bord franc (AC1).
+
+   ⚠️ ET IL NE DOIT PAS POUSSER LA PORTE HORS DE L'ÉCRAN. Le seuil est aligné en bas
+   (`margin-top: auto`) : un bloc trop haut remonte tout et le bouton sort du viewport sur un
+   téléphone court. `.region` défile (`overflow-y: auto`), donc rien n'est perdu — mais quelqu'un
+   qui arrive doit VOIR la porte sans avoir à chercher. D'où une copie tenue courte, et rien ici
+   qui ajoute de la hauteur pour décorer. */
+.passage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  width: 100%;
+  /* ⚠️ `.bloc` centre son texte ; une présentation en trois entrées centrées se lit comme un
+     faire-part. Le bloc reprend l'alignement du texte courant, comme les cartes en dessous. */
+  text-align: left;
+}
+.passage h2 {
+  margin: 0;
+  color: var(--texte);
+}
+.passagePlaces {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  margin: 0;
+}
+/* ⚠️ LE NOM ET SA PHRASE SUR LA MÊME LIGNE — 78 px repris sur un seuil qui débordait de 468.
+   Le `<dl>` reste un `<dl>` : c'est la SÉMANTIQUE qui porte « ce nom désigne ceci », pas la mise
+   en page. Le tiret est décoratif et vit en CSS, là où il ne peut pas être lu deux fois. */
+.passagePlaces div {
+  margin: 0;
+}
+.passagePlaces dt {
+  display: inline;
+  margin: 0;
+  color: var(--texte);
+}
+.passagePlaces dt::after {
+  content: " — ";
+}
+.passagePlaces dd {
+  display: inline;
+  margin: 0;
+  color: var(--texte-doux);
+}
+/* La note sur les cartes encore vides : discrète, jamais une alerte — c'est un fait, pas un
+   incident. Même grammaire que `.nonEcrit` de la bibliothèque, qui dit la même absence. */
+.passageNote {
+  font-style: italic;
+}
+
 /* ── Affordance : jamais un bouton criard, une invitation basse ── */
 .affordance {
   align-self: flex-start;

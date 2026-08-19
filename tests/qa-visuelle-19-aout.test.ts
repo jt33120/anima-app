@@ -128,6 +128,18 @@ describe("[QA 19/08] le produit n'écrit qu'une sorte d'apostrophe", () => {
     "lib/domain/lexique-interdit.ts",
     "lib/domain/marqueurs-prediction.ts",
     "lib/domain/normalisation-texte.ts",
+    // ⚠️ DEUX AUTRES, DÉCOUVERTS EN ÉLARGISSANT LE BALAYAGE À TOUT `lib/`, ET POUR D'AUTRES RAISONS.
+    //
+    // `corpus-detresse.ts` n'est pas de la copie : ce sont 26 messages SIMULÉS, les entrées sur
+    // lesquelles le détecteur de détresse est éprouvé. Une personne qui écrit à Anam depuis un
+    // téléphone tape « j'ai » avec l'apostrophe droite du clavier — c'est précisément ce que ce
+    // corpus doit reproduire. Le convertir rendrait le corpus moins fidèle à ce qui arrive
+    // vraiment, sur la garde qui compte le plus du produit.
+    "lib/safety/corpus-detresse.ts",
+    // `detecteur-detresse.ts` porte le PROMPT envoyé au modèle. Personne ne le lit à l'écran, et
+    // on ne retouche pas la typographie d'une consigne de sécurité pour une raison esthétique :
+    // le bénéfice est nul et le risque n'est pas nul.
+    "lib/safety/detecteur-detresse.ts",
   ];
 
   it("[LE CŒUR] aucune apostrophe droite dans une chaîne affichée", () => {
@@ -135,12 +147,18 @@ describe("[QA 19/08] le produit n'écrit qu'une sorte d'apostrophe", () => {
     // se voit en passant d'un écran à l'autre, et c'est ce qui donne l'impression d'un produit
     // assemblé de plusieurs mains.
     const fautives: string[] = [];
+    // ⚠️ `lib/domain` SEUL NE SUFFISAIT PAS, ET C'EST UN NAVIGATEUR QUI L'A DIT. La barre de
+    // régions écrit son libellé depuis `lib/scene/regions.ts` — jamais balayé — et disait
+    // « L'arbre » à l'apostrophe droite, à quelques pixels d'une présentation qui écrivait
+    // « L’arbre ». Aucune lecture de source ne pouvait voir la différence : les deux fichiers
+    // sont justes séparément. On balaie donc TOUT `lib/`, qui est l'autre endroit où des mots
+    // affichés sont écrits.
     const sources = fichiers(".tsx")
       .concat(fichiers(".ts"))
       .concat(
-        (readdirSync(resolve(RACINE, "lib/domain"), { encoding: "utf-8" }) as string[])
+        (readdirSync(resolve(RACINE, "lib"), { recursive: true, encoding: "utf-8" }) as string[])
           .filter((f) => f.endsWith(".ts"))
-          .map((f) => `lib/domain/${f}`),
+          .map((f) => `lib/${f}`),
       );
     for (const f of sources) {
       if (f.includes(".test.") || DETECTEURS.includes(f)) continue;
@@ -149,7 +167,11 @@ describe("[QA 19/08] le produit n'écrit qu'une sorte d'apostrophe", () => {
       // SURVIVANT. La première version cherchait `["'`]([^"'`]…)["'`]` : en excluant `'` du CONTENU,
       // elle ne pouvait STRUCTURELLEMENT pas voir une apostrophe droite dans une chaîne — le
       // caractère cherché servait de délimiteur. Elle était verte, et aveugle à ce qu'elle gardait.
-      for (const m of src.matchAll(/(?:"([^"\n]{8,})"|`([^`\n]{8,})`)/g)) {
+      // ⚠️ ET LE SEUIL DE 8 CARACTÈRES ÉTAIT LE TROU. « L'arbre » en fait SEPT : le libellé le plus
+      // visible du produit, présent sur les quatre régions, passait sous la garde qui prétendait
+      // le couvrir. Le seuil ne discriminait rien — c'est le motif d'élision (une apostrophe ENTRE
+      // deux lettres) qui fait tout le travail, et il n'a pas besoin de longueur pour être sûr.
+      for (const m of src.matchAll(/(?:"([^"\n]{3,})"|`([^`\n]{3,})`)/g)) {
         const texte = m[1] ?? m[2] ?? "";
         if (/[\\/{}<>|]/.test(texte)) continue; // ni motif, ni fragment de code
         if (/[a-zà-ÿA-ZÀ-Ý]'[a-zà-ÿA-ZÀ-Ý]/.test(texte)) fautives.push(`${f} → « ${texte.slice(0, 80)} »`);

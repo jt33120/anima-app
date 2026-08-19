@@ -35,6 +35,7 @@ import Surimpression from "./surimpression";
 import Conversation from "./conversation/Conversation";
 import EchangeSource from "./conversation/EchangeSource";
 import Bibliotheque from "./accueil/Bibliotheque";
+import PremierPassage, { type PremierPassageVue } from "./premier-passage";
 import type { BibliothequeVue } from "./accueil/types";
 import type { TourHistorique } from "./conversation/types";
 import type { OuvertureData } from "./conversation/types";
@@ -74,6 +75,24 @@ export interface ProprietesSceneRendue {
   bibliotheque?: BibliothequeVue | null;
   /** QA tour 1 (T3) — le fil déjà écrit, pour que le rechargement ne l\u2019efface plus. */
   historique?: readonly TourHistorique[];
+  /**
+   * H4 (QA visuelle du 2026-08-19) — le seuil parle-t-il un peu plus longtemps cette fois ?
+   *
+   * Absent = non, et c'est le repli de tous les tests de rendu qui montent la scène sans base.
+   * Le rendu ne DÉCIDE pas s'il est dû : `lib/domain/premier-passage.ts` le décide, la page le lui
+   * passe. Lui donner ce pouvoir demanderait de lui donner la date, donc la session (AD-7).
+   */
+  premierPassage?: PremierPassageVue;
+  /**
+   * Le seuil vient d'être FRANCHI — le geste, pas le rendu.
+   *
+   * ⚠️ CETTE DISTINCTION EST TOUTE LA CORRECTION. Le seuil est rendu à chaque chargement : marquer
+   * au rendu poserait la date à la première ouverture, y compris pour quelqu'un qui referme
+   * l'onglet sans avoir rien lu — le texte serait perdu sans avoir jamais été vu. C'est le défaut
+   * exact que la 0045 a corrigé pour la mention du socle. Le rendu SIGNALE, la page appelle la
+   * Server Action.
+   */
+  onSeuilFranchi?: () => void;
 }
 
 /* Étoiles générées côté client APRÈS montage → aucun décalage d'hydratation. */
@@ -134,14 +153,34 @@ export default function SceneDom({
   onHypotheseDite,
   bibliotheque,
   historique,
+  premierPassage,
+  onSeuilFranchi,
 }: ProprietesSceneRendue) {
   const [etat, dispatch] = useReducer(reducteurVue, etatInitial);
   const region = etat.regionCourante;
   /* Naviguer par la barre ANNULE le rejeu de l'échange source : sans ça, `echangeExtrait` restait collé et
      la région Anam demeurait bloquée sur l'ancien extrait, sans composeur (piège de navigation, revue 4.6). */
+  /**
+   * H4 — le seuil est FRANCHI quand on arrive à l'accueil, par la porte ou par la barre.
+   *
+   * ⚠️ AU GESTE, JAMAIS AU RENDU, et ce n'est pas un détail de style. Le seuil et l'accueil sont
+   * rendus à CHAQUE chargement (toutes les régions sont montées, une seule est active) : marquer
+   * au rendu poserait la date à la première ouverture, y compris pour quelqu'un qui referme
+   * l'onglet sans avoir rien lu — la présentation serait perdue sans avoir jamais été vue. C'est
+   * exactement le défaut que la 0045 a corrigé pour la mention du socle.
+   *
+   * Le `ref` évite d'appeler la Server Action à chaque aller-retour vers l'accueil dans la même
+   * page : la RPC est idempotente (`where seuil_franchi_le is null`), donc ce n'est pas une garde
+   * — c'est de la politesse envers le réseau. La garde, elle, est en SQL.
+   */
+  const franchissementSignale = useRef(false);
   const aller = (cible: IdRegion) => {
     setEchangeExtrait(null);
     dispatch({ type: "aller", cible });
+    if (cible === "accueil" && premierPassage?.du && !franchissementSignale.current) {
+      franchissementSignale.current = true;
+      onSeuilFranchi?.();
+    }
   };
 
   // État « Anam prépare » (AC2) remonté de la conversation → épaissit le signe de la surimpression.
@@ -329,6 +368,17 @@ export default function SceneDom({
                 donnée à faire descendre. En attendant, la phrase ne ment plus. */}
             Ce lieu ne te jugera pas — et ne te flattera pas non plus.
           </p>
+
+          {/* ⚠️ LE SEUIL NE PRÉSENTE PAS LE LIEU, ET C'EST UNE MESURE QUI L'A DÉCIDÉ. La première
+              version de H4 posait la présentation ICI, entre la phrase et la porte. Sur iPhone 14
+              (390 × 664), le seuil dispose de 512 px utiles une fois les réserves de surimpression
+              et de barre retirées ; l'identité et la porte en prennent déjà 300. Mesuré : contenu
+              à 894 px pour 664, et « entrer dans le monde » ENTIÈREMENT hors du viewport — ratio 0.
+              Quelqu'un qui arrivait voyait une présentation et aucune porte.
+
+              La contrainte n'était pas un accident de copie : un seuil est fait pour être
+              traversé, pas lu. La présentation vit donc dans l'accueil, où elle est lue avec les
+              trois noms visibles dans la barre juste en dessous — et où l'on peut y aller. */}
           <button className={s.affordance} type="button" onClick={() => aller("accueil")}>
             <span className="t-bouton">entrer dans le monde</span>
           </button>
@@ -407,9 +457,20 @@ export default function SceneDom({
                 {/* Story 5.6 — la bibliothèque remplace le texte d'attente. Une lecture en panne
                     (`null`) laisse la région vide plutôt que de fermer la scène (AC7). */}
                 {r.id === "accueil" ? (
-                  bibliotheque ? (
-                    <Bibliotheque bibliotheque={bibliotheque} />
-                  ) : null
+                  <>
+                    {/* H4 — la présentation du lieu, en tête et une seule fois. Au-dessus des
+                        cartes parce que c'est ce qu'elle explique : quatre d'entre elles sont
+                        encore vides, et sans un mot ça se lit comme une panne. Ce n'est PAS une
+                        carte — elle n'entre pas dans la grille et ne compte pas dans UX-DR-30,
+                        qui borne les objets de bibliothèque. */}
+                    <PremierPassage
+                      modele={premierPassage ?? { du: false, desCartesAttendent: false }}
+                      classe={s.passage}
+                      classeListe={s.passagePlaces}
+                      classeNote={s.passageNote}
+                    />
+                    {bibliotheque ? <Bibliotheque bibliotheque={bibliotheque} /> : null}
+                  </>
                 ) : (
                   <p className="t-corps">{CORPS[r.id]}</p>
                 )}

@@ -10,8 +10,9 @@ quel ordre. Un constat qu'on ne tranche pas est un constat perdu.
 
 ## 1. Ce qui est fermé, et gardé
 
-Chaque ligne a une garde qui **rougit** quand on réintroduit le défaut. Campagne de mutation :
-6 mutants sur les gardes de source, 6 tués ; 1 mutant sur la garde E2E, tué.
+Chaque ligne a une garde qui **rougit** quand on réintroduit le défaut. Campagnes de mutation :
+6 mutants sur les gardes de source, 6 tués ; 1 sur la garde E2E, tué ; 4 sur B4, tués ; 4 sur B2,
+tués (deux ont d'abord SURVÉCU, voir plus bas) ; 6 sur H4, tués.
 
 | # | Défaut mesuré | Où vit la garde |
 |---|---|---|
@@ -27,6 +28,12 @@ Chaque ligne a une garde qui **rougit** quand on réintroduit le défaut. Campag
 | B3 | La racine du document en noir pur | idem |
 | M6 | Les CGU inatteignables une fois connectée | lien posé dans `/reglages` |
 | Barre | La barre du bas coupait le texte des régions autres que la conversation | `render/monde.module.css` |
+| Clavier | **Aucune case à cocher du produit n'avait d'anneau de focus** — les trois peignaient celui du navigateur | `e2e/clavier.spec.ts` |
+| B2 | Deux familles d'apostrophes selon l'écran (438 converties, 3 détecteurs épargnés) | `tests/qa-visuelle-19-aout.test.ts` |
+| B4 | La cime de l'arbre traverse l'interstice entre deux cartes | `e2e/scene-imagerie.spec.ts` |
+| B4-bis | **`--imagerie-opacite` était un jeton MORT sur le décor de l'arbre** — `fill: both` l'emportait sur la déclaration ; en contraste renforcé la lune disparaissait et l'arbre restait | idem |
+| B2-bis | **« L'arbre », 7 caractères, passait sous le seuil de 8 de ma propre garde** — le libellé le plus visible du produit, sur les quatre régions | idem, seuil abaissé à 3 et balayage étendu à tout `lib/` |
+| H4 | Pas de passage « je viens de m'inscrire » → « je sais quoi faire » | `e2e/premier-passage.spec.ts` + `tests/seuil-franchi.test.ts` |
 
 ---
 
@@ -73,9 +80,24 @@ conclure par la négative.** Elle prouve ce qu'elle a vu, jamais ce qu'elle n'a 
 | # | Constat | Coût | Note |
 |---|---|---|---|
 | M5 | Cinq échelles de titre (40/28/24/18 px) | moyen | Demande de trancher l'échelle, pas seulement de l'appliquer. |
-| B2 | Deux familles d'apostrophes selon l'écran | mécanique | La dette T21, connue : 486 droites contre 13 typographiques. |
-| B4 | La cime de l'arbre traverse l'interstice entre deux cartes | petit | Visible sur `P2-05`. |
-| H6 | Une réponse sur trois a échoué | à instrumenter | Aucune erreur console ni requête en 4xx/5xx relevée : il faut journaliser côté serveur avant de chercher. |
+| H6 | Une réponse sur trois a échoué | à instrumenter | Aucune erreur console ni requête en 4xx/5xx relevée : il faut journaliser côté serveur avant de chercher. Le reclassement + une reprise unique sont posés ; reste à mesurer sur le vrai fournisseur. |
+| Barre-bis | Mi-défilement, la barre basse se superpose au texte des cartes (« Vierge » sous « Accueil ») | petit | **Nouveau, mesuré le 19/08.** Le dégradé n'est opaque que sur son tiers bas, donc les libellés de la barre flottent sur du texte de carte. Piste : masquer le bas de la région défilante plutôt qu'opacifier la barre — sinon elle devient un bandeau, ce que le design refuse. |
+
+### 3.a-bis — Ce que H4 a livré, et ce qu'il n'a pas livré
+
+Le passage existe : le lieu se présente **une fois**, en tête de l'accueil, et se tait ensuite. Ce
+qu'il ne fait pas, et qui reste ouvert :
+
+- **il n'est pas relisible.** Une fois franchi, la présentation n'est plus atteignable nulle part.
+  `/aide` n'est pas son lieu (page publique de crise, « les ressources d'abord ») ; `/reglages`
+  serait le candidat.
+- **il présente le lieu, pas le contenu.** C'est délibéré : présenter des cartes vides ne présente
+  rien. La note « certaines cartes attendent encore les leurs » se retire d'elle-même le jour où le
+  corpus est écrit — elle est dérivée de la bibliothèque, pas écrite en dur.
+- **le seuil, lui, n'a pas bougé**, et une mesure l'a décidé : sur iPhone 14 il reste 512 px utiles,
+  dont 300 pris par l'identité et la porte. La première version y logeait la présentation et
+  poussait « entrer dans le monde » ENTIÈREMENT hors du viewport. Le `toBeInViewport()` sur la porte
+  est resté dans le parcours, à l'endroit exact où la tentation reviendra.
 
 ### 3.b — Ce que le code ne peut pas fermer
 
@@ -108,9 +130,10 @@ ligne du produit ait changé.
 
 1. **Le corpus** (Anima). Rien d'autre ne débloque autant : quatre cartes sur cinq sont vides, et
    H4 ne se conçoit pas sans lui.
-2. **B4, B2** — la finition mesurable, une session.
+2. ~~**B4, B2**~~ — fait.
 3. **H6** — instrumenter d'abord, chercher ensuite.
-4. **H4** — le tutoriel, une fois le corpus écrit.
+4. ~~**H4**~~ — fait, sans attendre le corpus : le passage présente le LIEU, et la seule phrase qui
+   dépende du corpus se retire toute seule.
 5. **M5** — l'échelle typographique, quand Anima aura relu la copie.
 6. **Les portes juridiques** — indépendantes de tout le reste, et bloquantes pour la publication.
 

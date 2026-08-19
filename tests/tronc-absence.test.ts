@@ -236,7 +236,7 @@ describe("[T5-5 / AC1] la NAVIGATION ne connaît pas l'abonnement", () => {
   });
 
   it("les TROIS destinations sont là, nommées, sans marque", () => {
-    expect(REGIONS.map((r) => r.nom)).toEqual(["Accueil", "Anam", "L'arbre"]);
+    expect(REGIONS.map((r) => r.nom)).toEqual(["Accueil", "Anam", "L’arbre"]);
   });
 
   it("le bloc `<nav>` de la scène ne lit ni la projection, ni l'entitlement", () => {

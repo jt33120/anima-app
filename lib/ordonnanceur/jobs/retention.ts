@@ -4,6 +4,7 @@ import { LOT_MAX } from "@/lib/domain/retention";
 import { journaliserExploitation } from "@/lib/safety/rpc-repli";
 import { creerDepotRetention, echeancesCourantes, type DepotRetention } from "@/lib/data/depot-retention";
 import { annoncerInactivite } from "@/lib/courriel/avis-inactivite";
+import { avecDelai } from "@/lib/domain/delai";
 import type { ContexteJob } from "@/lib/ordonnanceur/registre";
 
 /**
@@ -43,7 +44,31 @@ import type { ContexteJob } from "@/lib/ordonnanceur/registre";
 
 export const NOM_JOB = "retention";
 
-export const RESERVE_RETENTION_MS = 2_400;
+/**
+ * ══ LA BORNE DE L'AVIS, ET POURQUOI LA RÉSERVE EN DÉRIVE (revue adversariale, R4) ══════════════
+ *
+ * `RESERVE_RETENTION_MS` valait 2 400 ms, « de quoi tenter AU MOINS une personne ». Une personne,
+ * en phase 2, c'est `annoncer()` PUIS `poserEcheance()`. Or `annoncer()` n'était borné NULLE PART
+ * dans ce job : la seule limite était celle de l'adaptateur Resend, à 10 000 ms — quatre fois la
+ * réserve censée la couvrir.
+ *
+ * Le job pouvait donc entrer dans une itération avec 2,5 s de budget, appeler un envoi qui prend
+ * dix secondes, et se faire couper ENTRE l'envoi et la pose de l'échéance. L'avis part — « ton
+ * compte sera supprimé » — aucune échéance n'est posée, et rien ne le dit : la plateforme tue la
+ * lambda sans passer par le `journaliserExploitation` de rendu de main.
+ *
+ * ⚠️ LE JOB JUMEAU AVAIT DÉJÀ RAISON. `rappel-echeance` borne son envoi à `DELAI_ENVOI_MS` (4 s) et
+ * en DÉRIVE sa réserve : `RESERVE_ENVOI_MS = DELAI_ENVOI_MS + 1 500`. On applique ici la même
+ * relation, à la même valeur — aucun mécanisme neuf, une garantie qui cesse d'être recopiée à moitié.
+ *
+ * ⚠️ ET ON NE MONTE PAS LA RÉSERVE À 10 000 POUR « COUVRIR RESEND ». Avec 12 s de budget, le job
+ * s'arrêterait dès qu'il resterait moins de dix secondes — il ne traiterait presque personne. Ce
+ * qu'il faut n'est pas une réserve plus grande, c'est un envoi qui ne peut pas la dépasser.
+ */
+export const DELAI_AVIS_MS = 4_000;
+
+/** L'envoi, plus de quoi poser l'échéance derrière. Même dérivation que `RESERVE_ENVOI_MS` (4.10). */
+export const RESERVE_RETENTION_MS = DELAI_AVIS_MS + 1_500;
 
 /** 12 s : la purge, puis deux boucles bornées à un aller-retour (ou deux) par personne. */
 export const DELAI_JOB_RETENTION_MS = 12_000;
@@ -109,7 +134,11 @@ export async function executerRetention(ctx: ContexteJob, deps?: Partial<DepsRet
     }
     prevenus += 1;
     try {
-      if (!(await annoncer(utilisatriceId))) {
+      // Borné ICI, plus court que la réserve — patron exact du job jumeau (`rappel-echeance`, 4.10).
+      // Un envoi coupé rejette : on tombe dans le `catch`, AUCUNE échéance n'est posée, et le compte
+      // ressort demain. C'est le repli que l'en-tête de cette phase décrit déjà — « mieux vaut un
+      // compte conservé trop longtemps qu'un compte supprimé sans avis » (AD-15).
+      if (!(await avecDelai(annoncer(utilisatriceId), DELAI_AVIS_MS, "retention_avis_timeout"))) {
         journaliserExploitation("retention_avis_impossible", { code: "avis_non_parti" });
         continue;
       }

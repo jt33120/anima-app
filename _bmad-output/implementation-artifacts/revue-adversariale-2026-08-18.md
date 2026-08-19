@@ -13,15 +13,15 @@ explicitement exclues.
 
 ## Où on en est (2026-08-18, fin de journée)
 
-**12 fermées sur 33** — R1, R2, R3, R5, R6, R7, R8, R9, R11, R12, R26, R28. Les quatre trouvailles nommées de la revue des
+**13 fermées sur 33** — R1, R2, R3, R4, R5, R6, R7, R8, R9, R11, R12, R26, R28. Les quatre trouvailles nommées de la revue des
 Epics 1 à 4 (#8, #14, #15, #16) sont fermées elles aussi, dans d'autres commits.
 
 Les trois qui coûtaient de l'argent à quelqu'un — R1 (69 € prélevés sur un compte effacé), R2
 (inencaissable à vie après une résiliation) et R3 (une fausse confirmation de virement) — sont
 toutes les trois fermées.
 
-Restent **21**, dont **une seule haute** : R4 (la réserve du moteur de rétention plus courte que
-l'opération qu'elle protège — un job de fond, invisible à l'usage).
+Restent **20**, et **AUCUNE HAUTE**. Ce qui reste est moyen ou bas : des chemins réels, mais
+aucun qui coûte de l'argent à quelqu'un, ferme une porte de sortie, ou retire un filet de sécurité.
 
 Les deux qui touchaient la sécurité de quelqu'un en détresse — R8 (le 3114 quittant l'écran au tour
 que le serveur classe « urgence ») et R12 (le filet jeté sur un blocage d'egress) — sont fermées.
@@ -160,7 +160,13 @@ L'en-tête de `resilierEnFinDePeriode` (lignes 20-22) just […]
 ```
 </details>
 
-### R4 — La réserve du moteur de rétention (`RESERVE_RETENTION_MS` = 2 400 ms) est plus courte que l'opération qu'elle protège : `annoncer()` n'est borné nulle part dans le job, et l'adaptateur Resend porte son propre délai de 10 000 ms. Le job peut donc entrer dans une itération avec 2,5 s de budget et se faire couper entre l'envoi de l'avis et la pose de l'échéance.
+### ~~R4~~ ✅ — La réserve du moteur de rétention (`RESERVE_RETENTION_MS` = 2 400 ms) est plus courte que l'opération qu'elle protège : `annoncer()` n'est borné nulle part dans le job, et l'adaptateur Resend porte son propre délai de 10 000 ms. Le job peut donc entrer dans une itération avec 2,5 s de budget et se faire couper entre l'envoi de l'avis et la pose de l'échéance.
+
+> **FERMÉE.** `HEAD` : l'avis est borné par `avecDelai(DELAI_AVIS_MS)` et la réserve en DÉRIVE
+> (`DELAI_AVIS_MS + 1 500`) — le patron exact du job jumeau `rappel-echeance`, qui l'avait écrit
+> dès la 4.10. Aucun mécanisme neuf : une garantie qui cessait d'être recopiée à moitié. 5 mutants,
+> 5 tués, dont deux qui ne rendaient la main que par la borne.
+
 
 - **Verdict** : CONFIRME · **angle** : 
 - **Où** : `lib/ordonnanceur/jobs/retention.ts:112`

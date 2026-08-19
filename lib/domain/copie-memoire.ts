@@ -19,7 +19,7 @@ export const TITRE_HALTE = "Ce qu'Anam retient";
  * pas le journal. Sans la troisième, quelqu'un qui supprime tout croirait avoir effacé ses messages.
  */
 export const INTRODUCTION =
-  "Voici ce qu'Anam a retenu de vos échanges, dans ses mots. Tu peux corriger ou supprimer chaque " +
+  "Voici ce qu'Anam a retenu de tes échanges, dans ses mots. Tu peux corriger ou supprimer chaque " +
   "ligne. Tes messages, eux, ne bougent pas : ils sont ailleurs, et c'est d'eux que ces phrases sont " +
   "tirées.";
 

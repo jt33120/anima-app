@@ -305,7 +305,14 @@ export default function SceneDom({
             Anam
           </h1>
           <p className="t-anam fondu-texte">
-            Bonsoir. Ce lieu ne te jugera pas — et ne te flattera pas non plus.
+            {/* ⚠️ AUCUNE SALUTATION D'HEURE ICI (QA visuelle du 2026-08-19, M4). « Bonsoir » a été
+                relevé à 9 h 55 puis à 10 h 15 du matin, sur deux comptes. Une salutation fausse
+                sur le tout premier écran coûte plus qu'elle ne rapporte : elle dit à quelqu'un
+                que le lieu ne le regarde pas. La rendre juste demanderait l'heure de
+                L'UTILISATRICE — le serveur est en UTC — et `render/` n'a pas le droit d'importer
+                `lib/domain` (AD-7/AD-10) : ce n'est donc pas un mot à replacer ici, c'est une
+                donnée à faire descendre. En attendant, la phrase ne ment plus. */}
+            Ce lieu ne te jugera pas — et ne te flattera pas non plus.
           </p>
           <button className={s.affordance} type="button" onClick={() => aller("accueil")}>
             <span className="t-bouton">entrer dans le monde</span>

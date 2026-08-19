@@ -71,8 +71,11 @@
   gap: var(--esp-3);
 }
 
+/* ⚠️ JAMAIS L'ACCENT ICI (QA visuelle du 2026-08-19). L'accent est la couleur de l'action, et
+   d'elle seule — or cette étiquette n'est pas cliquable. La peindre en accent promettait un lien
+   inexistant et diluait le seul signal qui désigne ce qu'on peut toucher. */
 .mention {
-  color: var(--accent);
+  color: var(--texte-doux);
   margin: 0;
 }
 

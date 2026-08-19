@@ -69,7 +69,13 @@ export default function Bibliotheque({ bibliotheque }: ProprietesBibliotheque) {
 function Carte({ carte, enAvant }: { carte: CarteVue; enAvant: boolean }) {
   return (
     <article className={`${s.carte} ${enAvant ? s.enAvant : ""}`} aria-labelledby={`carte-${carte.cle}`}>
-      <h2 id={`carte-${carte.cle}`} className={enAvant ? "t-titre-sm" : "t-corps-fort"}>
+      {/* ⚠️ UNE SEULE VOIX DE TITRE PAR ÉCRAN (QA visuelle du 2026-08-19). `t-corps-fort` est de
+          l'INTERFACE (Inter) : il mettait « Le mantra du jour » et « Ton ciel du jour » dans une
+          grasse sans-serif à trois centimètres de « Tes nombres » en Fraunces — deux familles de
+          titre sur le même écran. Un titre de carte est du CONTENU : il parle avec la voix d'Anam.
+          La mise en avant reste distinguée par ce qui l'ANNONCE, comme le dit le commentaire plus
+          bas, pas par un changement de police. */}
+      <h2 id={`carte-${carte.cle}`} className="t-titre-sm">
         {carte.titre}
       </h2>
 

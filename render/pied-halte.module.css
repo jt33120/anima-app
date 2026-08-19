@@ -21,8 +21,14 @@
   /* La cible tactile passe par le JETON, jamais par un littéral : `tests/cible-tactile.test.ts` lit
      les feuilles de style et refuse une commande qui la redéclare à la main. */
   min-height: var(--cible-tactile);
+  /* ⚠️ ET LA LARGEUR AUSSI (QA visuelle du 2026-08-19). `min-height` seul laissait « Aide » à
+     27,7 px de LARGE — la largeur du mot, sans surface autour. WCAG 2.5.8 mesure une CIBLE, pas
+     une hauteur : une bande de 44 px de haut et 27 de large n'est pas une cible de 44. Et c'est
+     la porte de secours d'un produit qui parle de détresse — le pire endroit où viser mal. */
+  min-width: var(--cible-tactile);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   color: var(--texte-doux);
   text-decoration: underline;
   text-underline-offset: 0.25em;
@@ -33,6 +39,6 @@
 }
 
 .lien:focus-visible {
-  outline: 2px solid var(--texte);
+  outline: 2px solid var(--bordure-forte);
   outline-offset: 2px;
 }

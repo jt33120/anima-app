@@ -486,8 +486,14 @@
   flex: none;
   pointer-events: auto;
   min-height: var(--cible-tactile);
+  /* ⚠️ ET LA LARGEUR (QA visuelle du 2026-08-19). « Aide » a été mesuré à 43,7 px de large —
+     sous le seuil d'un tiers de pixel, ce qu'aucune relecture ne verra jamais. Les deux liens
+     flottants partagent cette grammaire délibérément : ils reçoivent donc la correction
+     ensemble. La mesure, elle, vit dans `e2e/cibles-tactiles.spec.ts`, pas dans un œil. */
+  min-width: var(--cible-tactile);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: var(--esp-1) var(--esp-2);
   color: var(--texte-doux);
   text-transform: none;
@@ -513,8 +519,14 @@
   flex: none;
   pointer-events: auto;
   min-height: var(--cible-tactile);
+  /* ⚠️ ET LA LARGEUR (QA visuelle du 2026-08-19). « Aide » a été mesuré à 43,7 px de large —
+     sous le seuil d'un tiers de pixel, ce qu'aucune relecture ne verra jamais. Les deux liens
+     flottants partagent cette grammaire délibérément : ils reçoivent donc la correction
+     ensemble. La mesure, elle, vit dans `e2e/cibles-tactiles.spec.ts`, pas dans un œil. */
+  min-width: var(--cible-tactile);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: var(--esp-1) var(--esp-2);
   color: var(--texte-doux);
   text-transform: none;

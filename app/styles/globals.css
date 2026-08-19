@@ -171,6 +171,11 @@
 
 html {
   color-scheme: dark;
+  /* ⚠️ `color-scheme: dark` SEUL peint la racine en NOIR PUR — visible au rebond de défilement,
+     une bande noire sous une nuit indigo. La charte l'interdit nommément : « jamais un noir pur
+     (qui ferait ‹ écran éteint ›) ». Le fond du document doit donc être posé ici aussi, pas
+     seulement sur `body`. Trouvé par la QA visuelle du 2026-08-19 (B3). */
+  background: var(--fond);
 }
 
 body {

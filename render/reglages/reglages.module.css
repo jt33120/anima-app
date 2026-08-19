@@ -78,7 +78,7 @@
 
 .bouton:focus-visible,
 .select:focus-visible {
-  outline: 2px solid var(--texte);
+  outline: 2px solid var(--bordure-forte);
   outline-offset: 2px;
 }
 
@@ -119,6 +119,6 @@
 }
 
 .lienHalte:focus-visible {
-  outline: 2px solid var(--texte);
+  outline: 2px solid var(--bordure-forte);
   outline-offset: 2px;
 }

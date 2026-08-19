@@ -83,12 +83,20 @@
   font-size: 0.8125rem;
   color: var(--texte-doux);
 }
+/* ⚠️ MESURÉ À 27,7 × 43,4 px (QA visuelle du 2026-08-19). Deux erreurs dans trois lignes :
+   le `padding` vertical DÉDUISAIT une hauteur — 11 + 21,4 + 11 = 43,4, un pixel sous le
+   seuil — au lieu de la POSER ; et rien ne bornait la largeur, laissée à celle du mot.
+   Le jeton pose les deux dimensions, et `e2e/cibles-tactiles.spec.ts` les mesure rendues. */
 .mentions a {
   color: var(--texte-doux);
   text-decoration: underline;
   text-underline-offset: 0.2em;
-  display: inline-block;
-  padding: 0.6875rem 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cible-tactile);
+  min-width: var(--cible-tactile);
+  padding: 0 var(--esp-2);
 }
 .mentions a:focus-visible {
   outline: 2px solid var(--bordure-forte);

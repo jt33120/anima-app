@@ -40,3 +40,21 @@ export async function ouvrirUnCompteNeuf(page: Page): Promise<Compte> {
   await page.waitForURL((u) => !/\/(naissance|consentement|entrer)/.test(u.pathname));
   return { adresse };
 }
+
+/**
+ * Franchir le seuil, puis entrer dans une région par son nom.
+ *
+ * ⚠️ LE SEUIL N'A PLUS DE CONTOURNEMENT (QA manuelle du 2026-08-19), ET C'EST POURQUOI CE HELPER
+ * EXISTE. La barre des trois destinations s'affichait AU SEUIL : elle offrait les trois régions
+ * juste sous le bouton censé y mener, ce qui faisait du rideau une décoration. Les parcours qui
+ * cliquaient « Anam » depuis le seuil marchaient donc grâce au défaut lui-même. On traverse,
+ * comme quelqu'un traverse.
+ *
+ * La porte est franchie SI ELLE EST LÀ : qui a déjà franchi le seuil arrive directement à
+ * l'accueil, et ce helper doit servir dans les deux cas.
+ */
+export async function entrerDansLaRegion(page: Page, nom: string | RegExp): Promise<void> {
+  const porte = page.getByRole("button", { name: /entrer dans le monde/i });
+  if (await porte.isVisible().catch(() => false)) await porte.click();
+  await page.getByRole("navigation", { name: "Régions" }).getByRole("button", { name: nom }).click();
+}

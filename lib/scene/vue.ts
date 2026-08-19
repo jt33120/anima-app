@@ -8,7 +8,12 @@
  * Le rendu ne DÉCIDE rien du cadrage — il CONSOMME la caméra que ce réducteur calcule (AC9).
  */
 
-import { REGION_CONVERSATION, REGION_ENTREE, type IdRegion } from "./regions";
+import {
+  REGION_CONVERSATION,
+  REGION_ENTREE,
+  REGION_FOYER,
+  type IdRegion,
+} from "./regions";
 
 /** Caméra propre à l'arbre — indépendante du zoom 200 %/400 % de la page (Accessibility Floor). */
 export interface Camera {
@@ -18,7 +23,8 @@ export interface Camera {
 
 export const ZOOM_MIN = 0.5;
 export const ZOOM_MAX = 3;
-const clampZoom = (z: number): number => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+const clampZoom = (z: number): number =>
+  Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
 
 export const cameraInitiale: Camera = { pan: { x: 0, y: 0 }, zoom: 1 };
 
@@ -36,12 +42,27 @@ export interface EtatVue {
   } | null;
 }
 
-export const etatInitial: EtatVue = {
-  regionCourante: REGION_ENTREE,
+/**
+ * La région sur laquelle la scène S’OUVRE, selon que le seuil a déjà été franchi ou non.
+ *
+ * ⚠️ LE REPLI PENCHE VERS LE SEUIL, ET LE CHOIX N’EST PAS SYMÉTRIQUE. « On ne sait pas » (lecture
+ * en panne, aucune donnée, test qui monte la scène nue) redonne le seuil : revoir une entrée
+ * qu’on a déjà vue est un accroc, sauter une entrée qu’on n’a jamais vue en est un autre — et
+ * celui-là fait manquer la seule fois où le lieu se présente (voir `lib/domain/premier-passage.ts`,
+ * dont les deux replis penchent de la même façon, pour la même raison).
+ */
+export const regionDOuverture = (seuilDejaFranchi: boolean): IdRegion =>
+  seuilDejaFranchi ? REGION_FOYER : REGION_ENTREE;
+
+/** L’état de départ pour une région d’ouverture donnée. */
+export const etatInitialPour = (regionCourante: IdRegion): EtatVue => ({
+  regionCourante,
   camera: cameraInitiale,
   brancheSelectionnee: null,
   retour: null,
-};
+});
+
+export const etatInitial: EtatVue = etatInitialPour(REGION_ENTREE);
 
 export type ActionVue =
   | { type: "aller"; cible: IdRegion }
@@ -64,7 +85,12 @@ export function reducteurVue(etat: EtatVue, action: ActionVue): EtatVue {
     case "cadrer": {
       const zoom = clampZoom(action.camera.zoom);
       const { pan } = action.camera;
-      if (zoom === etat.camera.zoom && pan.x === etat.camera.pan.x && pan.y === etat.camera.pan.y) return etat;
+      if (
+        zoom === etat.camera.zoom &&
+        pan.x === etat.camera.pan.x &&
+        pan.y === etat.camera.pan.y
+      )
+        return etat;
       return { ...etat, camera: { pan: { x: pan.x, y: pan.y }, zoom } };
     }
 
@@ -81,7 +107,11 @@ export function reducteurVue(etat: EtatVue, action: ActionVue): EtatVue {
       return {
         ...etat,
         regionCourante: REGION_CONVERSATION,
-        retour: { region: etat.regionCourante, camera: etat.camera, brancheSelectionnee: etat.brancheSelectionnee },
+        retour: {
+          region: etat.regionCourante,
+          camera: etat.camera,
+          brancheSelectionnee: etat.brancheSelectionnee,
+        },
       };
 
     case "revenir":

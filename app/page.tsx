@@ -118,6 +118,11 @@ export default async function Page() {
       // connaître ni la date, ni la session, ni `lib/domain` (AD-7/AD-10).
       premierPassage={premierPassage(seuilFranchiLe, bibliotheque?.cartes ?? null)}
       onSeuilFranchi={marquerSeuilFranchi}
+      // Le seuil se franchit UNE fois : qui l'a déjà franchi ouvre la scène sur l'accueil. La
+      // lecture est déjà faite ci-dessus (`lireFranchiLe`), et son repli — `null`, donc « jamais
+      // franchi » — redonne le seuil, ce qui est le bon sens de la panne : mieux vaut un rideau
+      // de trop qu'une entrée manquée.
+      seuilDejaFranchi={seuilFranchiLe !== null}
     />
   );
 }

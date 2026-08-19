@@ -38,6 +38,16 @@ export const REGIONS: readonly Region[] = CATALOGUE_REGIONS.filter(
 export const REGION_ENTREE: IdRegion = "seuil";
 
 /**
+ * Le FOYER du monde : la région sur laquelle il s’ouvre une fois le seuil franchi.
+ *
+ * ⚠️ LE SEUIL SE FRANCHIT UNE FOIS, ET C’EST TOUT SON PROPOS. Il était rendu à CHAQUE chargement :
+ * une porte posée devant une porte déjà ouverte, puisque les trois destinations étaient offertes
+ * dans la barre juste en dessous. Quelqu’un qui revenait devait rouvrir un rideau qu’il avait
+ * déjà levé, et n’avait aucune raison de comprendre ce que cet écran faisait là.
+ */
+export const REGION_FOYER: IdRegion = "accueil";
+
+/**
  * La région où vit la conversation avec Anam. SOURCE UNIQUE (ne jamais coder « anam »
  * en dur ailleurs) : c’est elle qui, seule, porte la mention IA légale (FR-013, art. 50)
  * et le signe d’Anam dans la surimpression persistante (Story 1.8).

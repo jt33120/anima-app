@@ -59,6 +59,8 @@ class MoteurArbre {
   private baseY = 752;
   private built = false;
   private woodT: number | undefined;
+  /** Le CADRAGE calculé après génération : facteur d'échelle + décalage. Voir `cadrer()`. */
+  private cadre = { k: 1, dx: 0, dy: 0 };
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -183,6 +185,70 @@ class MoteurArbre {
 
     this.motes = [];
     for (let i = 0; i < 7; i++) this.motes.push({ rad: 50 + rng() * 60, spd: 0.18 + rng() * 0.3, ph: rng() * 6.28, size: 1.4 + rng() * 1.6 });
+
+    this.cadrer();
+  }
+
+  /**
+   * ── L'ARBRE ÉTAIT COUPÉ PAR SA PROPRE BOÎTE, SUR SES QUATRE BORDS ─────────────────────────────
+   *
+   * Mesuré le 2026-08-19 en relisant les pixels du canevas : 1 514 pixels peints sur la ligne 0,
+   * de l'encre jusqu'à la dernière ligne, et jusqu'aux deux bords latéraux. La cime du feuillage
+   * se terminait donc par une ARÊTE HORIZONTALE FRANCHE — sur la seule image du seuil, et sur une
+   * scène qui se dit « sans bords ». Personne ne l'avait vu comme un défaut de dessin : ça
+   * ressemblait à un choix graphique.
+   *
+   * La génération vit dans un repère de 1408 × 860 hérité du prototype ; le dessin y déborde,
+   * simplement. On ne déplace donc aucune coordonnée : on mesure l'encre RÉELLE une fois la
+   * génération faite, et on pose la transformation qui la fait tenir. Le canevas garde sa taille
+   * (donc son coût en pixels et son rapport, dont dépend la réserve du seuil — voir
+   * `render/monde.module.css` et `tests/scene-sans-bords.test.ts`).
+   */
+  private cadrer(): void {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const inclure = (x: number, y: number, r = 0) => {
+      if (x - r < x0) x0 = x - r;
+      if (y - r < y0) y0 = y - r;
+      if (x + r > x1) x1 = x + r;
+      if (y + r > y1) y1 = y + r;
+    };
+    // Le bois : chaque point porte sa demi-largeur.
+    for (const b of this.segs) for (const p of b.pts) inclure(p.x, p.y, p.w);
+    // ⚠️ C'EST LE HALO QUI PORTE LE PLUS LOIN, PAS LE BOUQUET. `draw()` peint un dégradé de rayon
+    // `tm.r * sc * 1.78` autour de chaque terminaison, où `sc` atteint `(tm.r / 64) * sc0` à
+    // l'éveil plein ; le bouquet lui-même ne va qu'à `74 * sc`. Mesurer le bouquet et oublier le
+    // halo redonnerait une arête, plus pâle.
+    for (const tm of this.terminals) inclure(tm.x, tm.y, tm.r * ((tm.r / 64) * tm.sc0) * 1.78);
+    // Le voile de couronne, et l'ombre au sol (ellipse aplatie à 0,16).
+    const cr = this.crown;
+    if (cr) { inclure(cr.cx - cr.rx, cr.cy - cr.ry); inclure(cr.cx + cr.rx, cr.cy + cr.ry); }
+    inclure(704, this.baseY + 34 + 300 * 0.16);
+    inclure(704 - 300, this.baseY + 34 - 300 * 0.16);
+    inclure(704 + 300, this.baseY + 34 + 300 * 0.16);
+
+    // ⚠️ 3 % D'AIR, ET CE N'EST PAS DE LA COQUETTERIE. Un ajustement exact posait l'encre à UN
+    // pixel du bord (mesuré) : la moindre dérive du générateur — un bouquet de plus, un halo un
+    // peu plus large — recoupe la cime sans que rien ne le signale. La garde de
+    // `e2e/arbre-entier.spec.ts` compte les pixels du bord ; cet air-là est ce qui lui laisse de
+    // quoi rougir AVANT que ça se voie.
+    const k = Math.min(1, this.W / (x1 - x0), this.H / (y1 - y0)) * 0.97;
+    this.cadre = {
+      k,
+      dx: (this.W - (x1 - x0) * k) / 2 - x0 * k,
+      dy: (this.H - (y1 - y0) * k) / 2 - y0 * k,
+    };
+    for (const c of [this.ctx, this.wctx]) {
+      c.setTransform(this.dpr * k, 0, 0, this.dpr * k, this.dpr * this.cadre.dx, this.dpr * this.cadre.dy);
+    }
+  }
+
+  /** Efface TOUT le bitmap, transformation de cadrage comprise — un `clearRect` en coordonnées de
+   *  dessin ne couvrirait plus la totalité des pixels une fois l'échelle posée. */
+  private effacer(c: CanvasRenderingContext2D, bitmap: HTMLCanvasElement): void {
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, bitmap.width, bitmap.height);
+    c.restore();
   }
 
   private buildTuft(r: number, seed: number): Tuft {
@@ -300,7 +366,7 @@ class MoteurArbre {
 
   private drawWood(t: number): void {
     const ctx = this.wctx;
-    ctx.clearRect(0, 0, this.W, this.H);
+    this.effacer(ctx, this.wood);
     const order: Record<string, number> = { root: 0, buttress: 1, trunk: 2, branch: 3 };
     const segs = this.segs.slice().sort((a, b) => (order[a.kind] - order[b.kind]) || (a.depth - b.depth));
     for (const b of segs) {
@@ -397,13 +463,16 @@ class MoteurArbre {
   private draw(t: number, time: number): void {
     if (this.woodT === undefined || Math.abs(t - this.woodT) > 0.0009) { this.drawWood(t); this.woodT = t; }
     const ctx = this.ctx;
-    ctx.clearRect(0, 0, this.W, this.H);
+    this.effacer(ctx, this.canvas);
     ctx.save(); ctx.translate(704, this.baseY + 34); ctx.scale(1, 0.16);
     const gs = ctx.createRadialGradient(0, 0, 0, 0, 0, 300);
     gs.addColorStop(0, "rgba(8,6,22,.55)"); gs.addColorStop(0.6, "rgba(8,6,22,.28)"); gs.addColorStop(1, "rgba(8,6,22,0)");
     ctx.fillStyle = gs; ctx.beginPath(); ctx.arc(0, 0, 300, 0, 6.2832); ctx.fill(); ctx.restore();
 
-    ctx.drawImage(this.wood, 0, 0, this.W, this.H);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(this.wood, 0, 0);
+    ctx.restore();
 
     const flIn = ramp(t, 0.74, 0.79), flOut = ramp(t, 0.86, 0.92);
     const cr = this.crown;

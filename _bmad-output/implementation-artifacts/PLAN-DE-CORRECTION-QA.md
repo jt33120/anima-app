@@ -291,6 +291,59 @@ liste séparée de ce que tu as trouvé de neuf.
 
 ---
 
+## 5 bis. Le tour MANUEL du 19 août — l'écran d'entrée
+
+Julian a ouvert l'application sur son propre compte et a écrit : « c'est quoi cet écran d'accueil
+de merde, je ne comprends pas ce que ça fait là, il y a deux mauvaises images, le texte est trop
+bas, ce n'est pas fluide ». Quatre phrases. En mesurant, **cinq défauts distincts**, dont aucun
+n'était visible depuis la source — et dont aucun des 5 070 tests Vitest ne pouvait voir un seul.
+
+| # | Ce qui a été mesuré (iPhone 14, 390 × 664) | Cause |
+|---|---|---|
+| 1 | Le seuil était rendu **à chaque chargement**, et la barre y offrait les trois destinations sous le bouton censé y mener | Une porte devant une porte ouverte. `seuil_franchi_le` existait depuis H4 et n'était jamais relu pour décider de la région d'ouverture |
+| 2 | Décor de l'arbre à (55, 250)–(336, 422) et personnage à (0, 329)–(226, 624) : **93 px de recouvrement**, titre, phrase et porte À L'INTÉRIEUR de la boîte du personnage | Deux images composées indépendamment, aucune ne connaissant l'autre |
+| 3 | **174 px de vide** sous la surimpression (26 % de l'écran), le texte collé au plancher (`margin-top: auto`) | Trois strates empilées, jamais une composition |
+| 4 | **1 514 pixels peints sur la ligne 0** du canevas de l'arbre, et de l'encre jusqu'aux quatre bords | Le dessin déborde son repère de génération (1408 × 860) : la cime finissait par une arête horizontale franche |
+| 5 | Les deux régions à **~0,5 d'opacité au même instant** pendant un tiers de seconde | Un fondu croisé de 700 ms dans les deux sens : ça marche entre deux images, ça brouille entre deux textes |
+
+### Ce que le fichier `anam-seuil.png` était vraiment
+
+La QA T9 avait corrigé un « rectangle plus clair aux arêtes franches » avec un masque plumeux, un
+rapport de boîte exact et deux fondus rectangulaires intersectés. Tout était juste, et tout
+traitait un symptôme : **le fichier n'a pas de canal alpha** (type de couleur PNG 2). Ce n'est pas
+un personnage détouré, c'est une peinture entière — avec son propre ciel étoilé, sa propre lune et
+sa propre voie lactée — composée sur le ciel étoilé de la scène. `presence/` et `veille/` prouvent
+que le détourage était possible ; celui-ci ne l'a jamais eu.
+
+L'image du seuil est donc l'**arbre** : l'objet du produit, procédural (net à toute densité), et
+qui n'apporte pas un second ciel. Le personnage n'est pas supprimé du dépôt — il n'est plus empilé.
+
+### Les gardes, et leur campagne de mutation
+
+**11 mutants, 11 tués** — après une réécriture, et c'est elle qui vaut d'être notée.
+
+`M3` (« centrage non-`safe` ») a **survécu**, et le mutant avait raison : la garde exigeait que le
+titre ne passe pas au-dessus du haut de la région, ce qui n'arrive jamais — la réserve du haut est
+trop large pour que le centrage la traverse. La propriété était vraie et ne gardait rien. Ce qui
+est réellement en jeu, c'est ce que cette réserve protège : à 300 px de haut (zoom 200 %, plancher
+WCAG 1.4.10), un `center` non-`safe` remonte le titre de 27 px **sous la surimpression**. Garde
+réécrite sur cette propriété-là, mutant mort.
+
+Trois outils, parce que trois natures de défaut :
+
+- **des rectangles** pour le recouvrement (`e2e/seuil.spec.ts`, `[UNE COMPOSITION]`) — c'est bien
+  la mise en page qui était fausse ;
+- **des pixels** pour le rognage de la cime (`[L'ARBRE EST ENTIER]`) — un dessin coupé et un
+  dessin entier occupent le même canevas aux mêmes coordonnées, aucune boîte ne les distingue ;
+- **des opacités échantillonnées à chaque trame** pour le fondu (`[LE FONDU]`) — « ce n'est pas
+  fluide » était une mesure, pas une impression.
+
+Et deux gardes de cause en Vitest (`tests/scene-sans-bords.test.ts`) : aucune image sans canal
+alpha n'est composée dans `render/`, et la réserve du seuil se déduit du rapport RÉEL du canevas,
+lu dans `arbre-vivant.tsx`.
+
+---
+
 ## 6. La règle qui gouverne tout ce document
 
 Tout correctif issu de ces tours reçoit une garde qui **rougit quand on réintroduit le défaut** —

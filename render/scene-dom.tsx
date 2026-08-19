@@ -10,7 +10,6 @@
  * aucun accès base, aucune variable d'environnement ici (frontière serveur = app/, AC6).
  */
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
@@ -23,8 +22,9 @@ import {
 import {
   REGIONS,
   adopterProjection,
-  etatInitial,
+  etatInitialPour,
   reducteurVue,
+  regionDOuverture,
   surimpressionPour,
   type IdRegion,
   type ProjectionScene,
@@ -93,6 +93,16 @@ export interface ProprietesSceneRendue {
    * Server Action.
    */
   onSeuilFranchi?: () => void;
+  /**
+   * Le seuil a-t-il DÉJÀ été franchi ? Si oui, le monde s’ouvre sur l’accueil.
+   *
+   * ⚠️ LA DÉCISION N’EST PAS ICI, ET C’EST LA RAISON DE CETTE PROPRIÉTÉ PLUTÔT QUE D’UN CALCUL.
+   * `render/` n’a le droit de connaître ni la date, ni la session, ni `lib/domain` (AD-7/AD-10) :
+   * la page lit `seuil_franchi_le`, le modèle (`regionDOuverture`) en tire la région d’ouverture,
+   * et ce fichier ne fait que la consommer. Absente → le seuil, qui est le repli sûr : c’est aussi
+   * ce que voient les tests de rendu qui montent la scène sans base.
+   */
+  seuilDejaFranchi?: boolean;
 }
 
 /* Étoiles générées côté client APRÈS montage → aucun décalage d'hydratation. */
@@ -155,8 +165,13 @@ export default function SceneDom({
   historique,
   premierPassage,
   onSeuilFranchi,
+  seuilDejaFranchi = false,
 }: ProprietesSceneRendue) {
-  const [etat, dispatch] = useReducer(reducteurVue, etatInitial);
+  const [etat, dispatch] = useReducer(
+    reducteurVue,
+    seuilDejaFranchi,
+    (franchi) => etatInitialPour(regionDOuverture(franchi)),
+  );
   const region = etat.regionCourante;
   /* Naviguer par la barre ANNULE le rejeu de l'échange source : sans ça, `echangeExtrait` restait collé et
      la région Anam demeurait bloquée sur l'ancien extrait, sans composeur (piège de navigation, revue 4.6). */
@@ -177,7 +192,11 @@ export default function SceneDom({
   const aller = (cible: IdRegion) => {
     setEchangeExtrait(null);
     dispatch({ type: "aller", cible });
-    if (cible === "accueil" && premierPassage?.du && !franchissementSignale.current) {
+    if (
+      cible === "accueil" &&
+      premierPassage?.du &&
+      !franchissementSignale.current
+    ) {
       franchissementSignale.current = true;
       onSeuilFranchi?.();
     }
@@ -241,7 +260,12 @@ export default function SceneDom({
         body: JSON.stringify({ action: "renommer", brancheId, nom }),
       });
       if (r.ok) {
-        setProjLocale((p) => ({ ...p, branches: p.branches.map((b) => (b.id === brancheId ? { ...b, nom } : b)) }));
+        setProjLocale((p) => ({
+          ...p,
+          branches: p.branches.map((b) =>
+            b.id === brancheId ? { ...b, nom } : b,
+          ),
+        }));
       }
       return r.ok;
     } catch {
@@ -253,7 +277,9 @@ export default function SceneDom({
   // intention, le serveur écrit et garde (D3 : la fenêtre détresse refuse au point d'écriture). On ne
   // met à jour localement QU'EN CAS DE SUCCÈS — afficher la pleine lumière sur un refus serait un
   // mensonge optimiste, et sur un état irréversible c'est le pire moment pour en faire un.
-  const declarerRayonnement = async (brancheId: string): Promise<ResultatGeste> => {
+  const declarerRayonnement = async (
+    brancheId: string,
+  ): Promise<ResultatGeste> => {
     try {
       const r = await fetch("/api/anam/branche", {
         method: "POST",
@@ -269,7 +295,9 @@ export default function SceneDom({
         // date fabriquée au client (elle différerait de celle qui fait foi).
         setProjLocale((p) => ({
           ...p,
-          branches: p.branches.map((b) => (b.id === brancheId ? { ...b, etat: "rayonnement" as const } : b)),
+          branches: p.branches.map((b) =>
+            b.id === brancheId ? { ...b, etat: "rayonnement" as const } : b,
+          ),
         }));
       }
       return "ok";
@@ -302,7 +330,10 @@ export default function SceneDom({
           jamais dans une région → jamais masquée/dissoute au changement de région (AC1). Le
           MODÈLE décide quoi porter (surimpressionPour) ; ce rendu ne fait que dessiner (AD-7). */}
       <Surimpression
-        modele={surimpressionPour(region, projection.abonnementGerable === true)}
+        modele={surimpressionPour(
+          region,
+          projection.abonnementGerable === true,
+        )}
         prepare={anamPrepare}
       />
 
@@ -326,7 +357,9 @@ export default function SceneDom({
           et le jeton gouverne à nouveau. */}
       {projection.tronc.present && (
         <div
-          className={`${s.arbreMonde} ${region === "accueil" ? s.arbreEnRetrait : ""} imagerie`}
+          className={`${s.arbreMonde} ${region === "seuil" ? s.arbreAuSeuil : ""} ${
+            region === "accueil" ? s.arbreEnRetrait : ""
+          } imagerie`}
           aria-hidden
         >
           <div className="fondu-image">
@@ -339,23 +372,35 @@ export default function SceneDom({
 
       {/* ─────────── Région : le seuil (le rideau se lève) ─────────── */}
       <section
-        className={`${s.region} ${s.seuil} ${seuilActif ? s.regionActive : ""}`}
+        className={`${s.region} ${s.seuil} ${
+          projection.tronc.present ? "" : s.seuilSansArbre
+        } ${seuilActif ? s.regionActive : ""}`}
         aria-label="Seuil"
         aria-hidden={seuilActif ? undefined : true}
         inert={seuilActif ? undefined : true}
       >
-        <div className={`${s.seuilPersonnage} imagerie`}>
-          <Image
-            src="/scene/anam-seuil.png"
-            alt=""
-            fill
-            sizes="(min-width: 1024px) 19rem, 58vw"
-            priority
-            className={`${s.seuilImg} fondu-personnage`}
-          />
-        </div>
-        <div className={`${s.seuilTexte} voile-seuil`}>
-          <h1 className="t-display" tabIndex={-1} ref={(el) => void (entetes.current.seuil = el)}>
+        {/* ⚠️ IL N'Y A PLUS QU'UNE SEULE IMAGE ICI, ET C'EST LA CORRECTION D'UN DÉFAUT MESURÉ.
+            `anam-seuil.png` était composité SOUS le texte : mesuré à 390 × 664, sa boîte occupait
+            (0, 329)–(226, 624) — c'est-à-dire exactement celle du titre, de la phrase et de la
+            porte, qui se lisaient donc sur son visage, tandis que le décor de l'arbre (250–422)
+            la traversait par le haut. Deux illustrations empilées sur un tiers d'écran.
+
+            Et le fichier n'était pas un personnage détouré : c'est une PEINTURE ENTIÈRE, avec son
+            propre ciel étoilé, sa propre lune et sa propre voie lactée, posée sur le ciel étoilé
+            de la scène. D'où le masque plumeux de la QA T9 — un emplâtre qui dissolvait un
+            rectangle dans une nuit qu'il dupliquait. `presence/` et `veille/` prouvent que le
+            détourage était possible (leur pourtour est transparent) ; ce fichier-ci ne l'a jamais
+            eu.
+
+            L'image du seuil est donc l'ARBRE, qui est l'objet du produit, qui est procédural (donc
+            net à toute densité), et qui n'apporte pas un second ciel. Le personnage reste dans
+            `public/scene/` : il n'est pas supprimé, il n'est plus empilé. */}
+        <div className={s.seuilTexte}>
+          <h1
+            className="t-display"
+            tabIndex={-1}
+            ref={(el) => void (entetes.current.seuil = el)}
+          >
             Anam
           </h1>
           <p className="t-anam fondu-texte">
@@ -379,7 +424,11 @@ export default function SceneDom({
               La contrainte n'était pas un accident de copie : un seuil est fait pour être
               traversé, pas lu. La présentation vit donc dans l'accueil, où elle est lue avec les
               trois noms visibles dans la barre juste en dessous — et où l'on peut y aller. */}
-          <button className={s.affordance} type="button" onClick={() => aller("accueil")}>
+          <button
+            className={s.affordance}
+            type="button"
+            onClick={() => aller("accueil")}
+          >
             <span className="t-bouton">entrer dans le monde</span>
           </button>
         </div>
@@ -388,7 +437,12 @@ export default function SceneDom({
       {/* ─────────── Régions : les destinations, DÉRIVÉES du modèle (ordre + libellés) ─────────── */}
       {REGIONS.map((r) => {
         const actif = region === r.id;
-        const classe = r.id === "anam" ? s.regionConversation : r.id === "arbre" ? s.regionArbre : s.panneau;
+        const classe =
+          r.id === "anam"
+            ? s.regionConversation
+            : r.id === "arbre"
+              ? s.regionArbre
+              : s.panneau;
         return (
           <section
             key={r.id}
@@ -424,7 +478,12 @@ export default function SceneDom({
                     onSocleAnnonce={onSocleAnnonce}
                   />
                 </div>
-                {echangeExtrait && <EchangeSource extraitSourceId={echangeExtrait} onRetour={retourArbre} />}
+                {echangeExtrait && (
+                  <EchangeSource
+                    extraitSourceId={echangeExtrait}
+                    onRetour={retourArbre}
+                  />
+                )}
               </>
             ) : r.id === "arbre" ? (
               <>
@@ -441,7 +500,9 @@ export default function SceneDom({
                   camera={etat.camera}
                   brancheSelectionnee={etat.brancheSelectionnee}
                   onCadrer={(camera) => dispatch({ type: "cadrer", camera })}
-                  onOuvrirFiche={(id) => dispatch({ type: "ouvrirFiche", brancheId: id })}
+                  onOuvrirFiche={(id) =>
+                    dispatch({ type: "ouvrirFiche", brancheId: id })
+                  }
                   onFermerFiche={() => dispatch({ type: "fermerFiche" })}
                   onVoirDansConversation={voirDansConversation}
                   onRenommer={renommer}
@@ -451,7 +512,11 @@ export default function SceneDom({
             ) : (
               <div className={s.bloc}>
                 {/* h1 par région : une seule est non-inert à la fois → une seule h1 exposée. */}
-                <h1 className="t-titre" tabIndex={-1} ref={(el) => void (entetes.current[r.id] = el)}>
+                <h1
+                  className="t-titre"
+                  tabIndex={-1}
+                  ref={(el) => void (entetes.current[r.id] = el)}
+                >
                   {r.nom}
                 </h1>
                 {/* Story 5.6 — la bibliothèque remplace le texte d'attente. Une lecture en panne
@@ -464,12 +529,19 @@ export default function SceneDom({
                         carte — elle n'entre pas dans la grille et ne compte pas dans UX-DR-30,
                         qui borne les objets de bibliothèque. */}
                     <PremierPassage
-                      modele={premierPassage ?? { du: false, desCartesAttendent: false }}
+                      modele={
+                        premierPassage ?? {
+                          du: false,
+                          desCartesAttendent: false,
+                        }
+                      }
                       classe={s.passage}
                       classeListe={s.passagePlaces}
                       classeNote={s.passageNote}
                     />
-                    {bibliotheque ? <Bibliotheque bibliotheque={bibliotheque} /> : null}
+                    {bibliotheque ? (
+                      <Bibliotheque bibliotheque={bibliotheque} />
+                    ) : null}
                   </>
                 ) : (
                   <p className="t-corps">{CORPS[r.id]}</p>
@@ -481,20 +553,29 @@ export default function SceneDom({
       })}
 
       {/* Doublage non-spatial de rang égal (UX-DR-37) : mêmes liens nommés partout,
-          barre basse en sm/md, rail à gauche en ≥ lg. Aucun cadenas/badge/compteur. */}
-      <nav className={s.nav} aria-label="Régions">
-        {REGIONS.map((r) => (
-          <button
-            key={r.id}
-            type="button"
-            className={s.navLien}
-            aria-current={region === r.id ? "location" : undefined}
-            onClick={() => aller(r.id)}
-          >
-            <span className="t-bouton">{r.nom}</span>
-          </button>
-        ))}
-      </nav>
+          barre basse en sm/md, rail à gauche en ≥ lg. Aucun cadenas/badge/compteur.
+
+          ⚠️ SAUF AU SEUIL, ET CE N'EST PAS UNE ENTORSE À UX-DR-37. Le doublage non-spatial DOUBLE
+          une navigation spatiale ; le seuil n'en a pas — il a une porte, et une seule. La barre y
+          offrait les trois destinations SOUS le bouton qui prétend y mener : la porte était
+          facultative, le rideau se contournait, et l'écran ne pouvait pas se lire comme un seuil.
+          Le doublage reprend dès la première région, c'est-à-dire dès qu'il y a quelque chose à
+          doubler. */}
+      {!seuilActif && (
+        <nav className={s.nav} aria-label="Régions">
+          {REGIONS.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              className={s.navLien}
+              aria-current={region === r.id ? "location" : undefined}
+              onClick={() => aller(r.id)}
+            >
+              <span className="t-bouton">{r.nom}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </main>
   );
 }

@@ -11,6 +11,19 @@
  */
 
 .monde {
+  /* ── LA GÉOMÉTRIE DE L'ARBRE, DÉCLARÉE UNE FOIS ────────────────────────────────────────────
+     Elle sert à DEUX endroits qui doivent s'accorder : le décor lui-même, et la réserve que le
+     seuil laisse au-dessus de son texte. Les écrire séparément, c'est laisser le titre remonter
+     dans le feuillage le jour où l'un des deux bouge — ce qui était EXACTEMENT l'état mesuré le
+     2026-08-19 (« Anam » à 331 px, feuillage de 250 à 422).
+
+     ⚠️ LE RAPPORT EST CELUI DU CANEVAS, PAS UN RAPPORT CHOISI. `arbre-vivant.tsx` dessine dans
+     1408 × 860 et `.arbreMonde canvas` pose `height: auto` : la hauteur rendue vaut donc
+     largeur × 860/1408, et rien d'autre. `tests/scene-sans-bords.test.ts` relit les deux
+     constantes dans le TypeScript et refuse que ce rapport s'en écarte. */
+  --arbre-l: min(72vw, 26rem);
+  --arbre-h: calc(var(--arbre-l) * 860 / 1408);
+
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
@@ -91,13 +104,32 @@
   z-index: 2;
   left: 50%;
   top: 50%;
-  width: min(72vw, 26rem);
-  transform: translate(-50%, -48%);
+  width: var(--arbre-l);
+  /* ⚠️ LE CENTRAGE PASSE PAR `top` SEUL, ET LE `-50%` NE BOUGE PLUS JAMAIS. C'est `top` que
+     `.arbreAuSeuil` déplace, et c'est `top` qui se transitionne : garder un `translate` variable
+     ferait SAUTER l'arbre au changement de région, pendant qu'il est encore visible. */
+  transform: translate(-50%, -50%);
   pointer-events: none;
   filter: drop-shadow(0 8px 40px rgba(143, 193, 239, 0.12));
   /* Le retrait derrière l'accueil se FOND, il ne coupe pas — même durée que le fondu de région,
-     pour que le passage accueil ↔ arbre reste UN mouvement et non deux. Voir .arbreEnRetrait. */
-  transition: opacity var(--duree-longue) var(--courbe);
+     pour que le passage accueil ↔ arbre reste UN mouvement et non deux. Voir .arbreEnRetrait.
+     `top` suit la même durée et la même courbe : l'arbre REDESCEND en s'effaçant, en un seul
+     geste, au lieu de se téléporter derrière un fondu. */
+  transition:
+    opacity var(--duree-longue) var(--courbe),
+    top var(--duree-longue) var(--courbe);
+}
+
+/* ── L'ARBRE MONTE AU SEUIL — il devient la seule image de l'entrée ─────────────────────────────
+   Mesuré à 390 × 664 avant correction : 174 px de vide entre la surimpression et le feuillage
+   (26 % de l'écran), puis le feuillage (250–422) et le personnage (329–624) qui se recouvraient
+   sur 93 px, le titre et la phrase se lisant par-dessus les deux. L'écran n'avait pas un défaut
+   d'image : il n'avait pas de composition.
+
+   L'arbre se cale donc sous la surimpression, et `.seuil` réserve exactement sa hauteur au-dessus
+   de son texte. Les deux règles lisent le MÊME jeton : elles ne peuvent pas diverger. */
+.arbreAuSeuil {
+  top: calc(var(--cible-tactile) + var(--esp-6) + var(--arbre-h) / 2);
 }
 .arbreMonde canvas {
   display: block;
@@ -151,15 +183,24 @@
     calc(var(--cible-tactile) + var(--esp-6));
   opacity: 0;
   visibility: hidden;
+  /* ⚠️ LA RÉGION QUI PART S'EFFACE AVANT QUE CELLE QUI ARRIVE NE PARAISSE, ET C'EST LA CORRECTION
+     D'UN DÉFAUT QU'ON SENT SANS SAVOIR LE NOMMER. Les deux fondus duraient 700 ms EN MÊME TEMPS :
+     à mi-parcours, les deux régions étaient à ~0,5 — c'est-à-dire deux écrans de texte superposés
+     et lisibles l'un à travers l'autre pendant un tiers de seconde. « Ce lieu ne te jugera pas »
+     se lisait par-dessus les cartes de l'accueil. Un fondu croisé marche entre deux IMAGES ; entre
+     deux TEXTES, il fabrique du brouillage.
+     La sortie prend donc les 4 premiers dixièmes, l'entrée les 6 suivants — même durée totale,
+     jamais deux textes à l'écran, et le creux laisse voir la scène, qui, elle, ne bouge pas. */
   transition:
-    opacity var(--duree-longue) var(--courbe),
+    opacity calc(var(--duree-longue) * 0.4) var(--courbe),
     visibility 0ms linear var(--duree-longue);
 }
 .regionActive {
   opacity: 1;
   visibility: visible;
   transition:
-    opacity var(--duree-longue) var(--courbe),
+    opacity calc(var(--duree-longue) * 0.6) var(--courbe)
+      calc(var(--duree-longue) * 0.4),
     visibility 0ms;
 }
 @media (min-width: 1024px) {
@@ -342,57 +383,83 @@
   border-radius: var(--rayon-sm);
 }
 
-/* ── Seuil : le personnage 4:5 à gauche, le texte dans la bande de voile (AC5) ── */
+/* ══ SEUIL : UNE IMAGE, UN NOM, UNE PHRASE, UNE PORTE — DANS CET ORDRE ═══════════════════════
+   Ce qui a été mesuré ici le 2026-08-19, à 390 × 664 :
+     • 174 px de vide sous la surimpression, puis le feuillage, puis un bloc de texte COLLÉ au
+       plancher (`margin-top: auto`) : trois strates sans rapport, jamais une composition ;
+     • `.seuilPersonnage` — une peinture rectangulaire avec son propre ciel — posée SOUS le texte,
+       de (0, 329) à (226, 624), donc sous le titre, la phrase et la porte, et coupée net par le
+       bord gauche de l'écran ;
+     • `.voile-seuil` peignant une bande sombre derrière ce texte : sur une scène « sans bords »,
+       un rectangle visible.
+   Les trois tombent ensemble, parce qu'ils n'avaient qu'une cause : rien ne tenait la colonne.
+
+   ⚠️ LE VOILE PART AVEC L'IMAGE, PAS AVANT. UX-DR-39 interdit qu'un texte se pose sur une image
+   SANS voile ; ici il n'y a plus d'image derrière le texte — l'arbre est AU-DESSUS, séparé par la
+   réserve ci-dessous. La règle `.voile-seuil` reste définie dans `globals.css` et gardée par
+   `tests/voile.test.ts` : le jour où une image repasse derrière un texte, elle est là. */
 .seuil {
-  align-items: flex-start;
+  align-items: center;
+  /* La colonne se centre dans ce qui RESTE une fois l'arbre servi — pas dans l'écran entier, et
+     pas au plancher.
+     ⚠️ `safe` N'EST PAS DÉCORATIF ICI. `.region` s'interdit `justify-content` en toutes lettres,
+     et pour une raison juste : un centrage rogne le HAUT quand le contenu déborde, et ce qui est
+     rogné par un centrage n'est pas atteignable au défilement — le titre disparaîtrait pour de
+     bon (zoom 200 %, paysage court). `safe center` retombe sur `start` dès qu'il y a débordement :
+     on garde le centrage quand il y a de la place, et le défilement quand il n'y en a plus. */
+  justify-content: safe center;
+  /* ⚠️ CETTE RÉSERVE EST CE QUI EMPÊCHE LE TITRE DE REMONTER DANS LE FEUILLAGE, et elle se déduit
+     du même jeton que l'arbre (voir `.monde`). Un nombre écrit à la main ici mentirait le jour où
+     l'arbre change de taille — ce qui est la forme exacte du défaut corrigé. */
+  padding-top: calc(
+    var(--cible-tactile) + var(--esp-6) + var(--arbre-h) + var(--esp-7)
+  );
 }
-.seuilPersonnage {
-  position: absolute;
-  left: max(0px, calc(50% - var(--contenu-max)));
-  bottom: 6%;
-  width: min(58vw, 19rem);
-  /* ⚠️ LE RAPPORT DOIT ÊTRE CELUI DU FICHIER (434 × 566), PAS UN RAPPORT ROND (QA T9).
-     `4 / 5` valait 0,800 pour une image à 0,767 : `object-fit: contain` laissait donc ~6 px de
-     bandes de chaque côté. Or le masque plumeux ci-dessous est calculé sur la BOÎTE, pas sur
-     l'image — le bord franc du fichier tombait à 6 px à l'intérieur, là où le masque est encore
-     opaque. Mesuré : un saut de couleur de 56 en UN pixel, rgb(13,11,31) → rgb(25,29,57), sur une
-     scène qui se veut « continue, sans bords » (AD-7, AC1). Le masque était juste ; c'est la boîte
-     qui ne l'était pas. */
-  aspect-ratio: 434 / 566;
-  z-index: -1;
-  pointer-events: none;
+/* ── SOUS 600 px DE HAUT, L'ARBRE SE RETIRE DU SEUIL ───────────────────────────────────────────
+   Paysage d'un téléphone, ou zoom 200 % (qui divise la hauteur du viewport de mise en page par
+   deux). Il reste alors ~308 px utiles une fois les deux réserves prises, et la colonne — nom,
+   phrase, porte — en occupe déjà ~202 : il n'y a pas de place pour une image, seulement pour une
+   image écrasée. On préfère la retirer. C'est la MÊME grammaire que le retrait derrière l'accueil
+   (le jeton, pas `opacity`), et la réserve tombe avec elle, sinon elle réserverait du vide. */
+@media (max-height: 600px) {
+  .arbreAuSeuil {
+    --imagerie-opacite: 0;
+  }
+  .seuil {
+    padding-top: calc(var(--cible-tactile) + var(--esp-6));
+  }
 }
-.seuilImg {
-  object-fit: contain;
-  /* ── BORD PLUMEUX : l'image se dissout dans la nuit, aucun cadre (AC1) ────────────────────
-     ⚠️ LE SEUL DÉGRADÉ RADIAL NE TOUCHAIT PAS LES CÔTÉS, et c'est ce que la QA a vu (T9).
-     Son ellipse fait 118 % de la largeur : la transparence n'arrive qu'à 0,82 × 1,18 W ≈ 0,97 W du
-     centre, alors que le bord latéral est à 0,54 W. À mi-hauteur, le masque était donc ENCORE
-     OPAQUE sur toute la largeur — il feutrait les coins et le haut, jamais les flancs.
-     Mesuré sur le rendu composité : un saut de couleur de 56 en UN pixel.
-     On l'intersecte donc avec deux fondus rectangulaires qui GARANTISSENT que les derniers pixels
-     de chaque côté tombent à zéro, quel que soit le rapport de la boîte. Le radial garde la forme
-     générale ; les linéaires garantissent l'absence d'arête. */
-  -webkit-mask-image: radial-gradient(118% 96% at 46% 44%, #000 55%, transparent 82%),
-    linear-gradient(to right, transparent 0%, #000 13%, #000 87%, transparent 100%),
-    linear-gradient(to bottom, transparent 0%, #000 11%, #000 89%, transparent 100%);
-  mask-image: radial-gradient(118% 96% at 46% 44%, #000 55%, transparent 82%),
-    linear-gradient(to right, transparent 0%, #000 13%, #000 87%, transparent 100%),
-    linear-gradient(to bottom, transparent 0%, #000 11%, #000 89%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-composite: intersect;
+
+/* Sans arbre — socle absent, ou imagerie cédée aux aplats — la réserve n'a plus rien à réserver :
+   elle laisserait un vide à la place d'une image qu'on ne peint pas. */
+.seuilSansArbre,
+:global(:root[data-a11y="contraste"]) .seuil {
+  padding-top: calc(var(--cible-tactile) + var(--esp-6));
+}
+@media (prefers-contrast: more) {
+  :global(:root:not([data-a11y="nuit"])) .seuil {
+    padding-top: calc(var(--cible-tactile) + var(--esp-6));
+  }
 }
 .seuilTexte {
   position: relative;
-  margin-top: auto;
   max-width: var(--mesure);
-  /* le texte tient dans la bande dense ≥ 85 % du voile ; padding généreux au-dessus */
-  padding: var(--esp-8) var(--esp-4) var(--esp-4);
-  border-radius: var(--rayon-md);
   display: flex;
   flex-direction: column;
-  gap: var(--esp-4);
-  text-align: left;
+  align-items: center;
+  gap: var(--esp-5);
+  /* Un nom, une phrase, une porte, sous une image centrée : la colonne est un axe, pas un
+     paragraphe. C'est le seul écran du produit qui centre son texte, et c'est ce qui le
+     distingue des régions, qui sont des lieux où l'on lit. */
+  text-align: center;
+}
+/* ⚠️ LES MARGES DU NAVIGATEUR S'AJOUTAIENT AU `gap`, ET DONNAIENT TROIS INTERVALLES DIFFÉRENTS.
+   Mesuré : 64 px entre le nom et la phrase, 51 entre la phrase et la porte, pour un `gap` qui en
+   déclare 24 — parce qu'un `<h1>` porte 0,67 em de marge et un `<p>` 1 em, et que `gap` s'AJOUTE
+   aux marges au lieu de les remplacer. Un rythme qu'on croit tenir par un jeton et que trois
+   valeurs par défaut décident à sa place. */
+.seuilTexte > * {
+  margin: 0;
 }
 
 /* ══ LE PREMIER PASSAGE (QA visuelle du 2026-08-19, H4) ═══════════════════════════════════════
@@ -452,8 +519,10 @@
 
 /* ── Affordance : jamais un bouton criard, une invitation basse ── */
 .affordance {
-  align-self: flex-start;
-  margin-top: var(--esp-2);
+  /* La porte est SUR L'AXE de la colonne du seuil (son unique emploi) : `flex-start` la laissait
+     seule à gauche sous un nom et une phrase centrés. */
+  align-self: center;
+  margin-top: var(--esp-3);
   padding: var(--esp-3) var(--esp-5);
   min-height: var(--cible-tactile);
   display: inline-flex;
@@ -553,7 +622,9 @@
 }
 @media (min-width: 1024px) {
   .surimpression {
-    padding-left: calc(var(--esp-9) + var(--esp-7)); /* dégage le rail latéral gauche (voir .region) */
+    padding-left: calc(
+      var(--esp-9) + var(--esp-7)
+    ); /* dégage le rail latéral gauche (voir .region) */
     padding-right: var(--marge-desktop);
   }
 }

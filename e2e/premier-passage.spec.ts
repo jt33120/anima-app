@@ -47,9 +47,10 @@ test("[H4] le lieu se présente une fois, puis plus jamais", async ({ page }) =>
   const barre = page.getByRole("navigation", { name: "Régions" });
   await expect(barre.getByRole("button")).toHaveText(["Accueil", "Anam", "L’arbre"]);
 
-  // ── 4. On revient. Le seuil est là — c'est la région d'entrée — mais l'accueil s'est tu.
+  // ── 4. On revient. Le monde s'ouvre DIRECTEMENT sur l'accueil — le seuil ne se redresse plus
+  //       (QA manuelle du 2026-08-19 : il était rendu à chaque chargement) — et l'accueil s'est tu.
+  await page.waitForTimeout(1500); // la Server Action pose la date avant qu'on recharge
   await page.reload();
-  await page.getByRole("button", { name: /entrer dans le monde/i }).click();
   await expect(page.getByRole("heading", { name: "Accueil", level: 1 })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Trois places", level: 2 }),

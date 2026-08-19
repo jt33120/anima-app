@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { ouvrirUnCompteNeuf } from "./_entrer";
+import { entrerDansLaRegion, ouvrirUnCompteNeuf } from "./_entrer";
 
 /**
  * conversation-attente.spec.ts — CE QU'ON VOIT PENDANT QUE ANAM CHERCHE SES MOTS
@@ -33,8 +33,8 @@ test.describe("L'attente d'une réponse", () => {
 
     // ⚠️ LA SCÈNE EST UN MONDE À RÉGIONS. Le composeur existe dès le chargement mais reste CACHÉ
     // tant qu'on n'est pas dans la région « Anam » — d'où un `waitFor` qui expire sur un élément
-    // pourtant présent dans le DOM. On y va comme quelqu'un y va.
-    await page.getByRole("link", { name: /^anam$/i }).or(page.getByRole("button", { name: /^anam$/i })).first().click();
+    // pourtant présent dans le DOM. On y va comme quelqu'un y va : par le seuil, puis par la barre.
+    await entrerDansLaRegion(page, "Anam");
     const champ = page.getByLabel(/ton message à anam/i);
     await champ.waitFor({ state: "visible" });
     await champ.fill("j'ai passé une journée un peu étrange");
@@ -70,8 +70,8 @@ test.describe("L'attente d'une réponse", () => {
 
     // ⚠️ LA SCÈNE EST UN MONDE À RÉGIONS. Le composeur existe dès le chargement mais reste CACHÉ
     // tant qu'on n'est pas dans la région « Anam » — d'où un `waitFor` qui expire sur un élément
-    // pourtant présent dans le DOM. On y va comme quelqu'un y va.
-    await page.getByRole("link", { name: /^anam$/i }).or(page.getByRole("button", { name: /^anam$/i })).first().click();
+    // pourtant présent dans le DOM. On y va comme quelqu'un y va : par le seuil, puis par la barre.
+    await entrerDansLaRegion(page, "Anam");
     const champ = page.getByLabel(/ton message à anam/i);
     await champ.waitFor({ state: "visible" });
     await champ.fill("je ne sais pas trop pourquoi je suis fatiguée en ce moment");

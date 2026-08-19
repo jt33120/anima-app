@@ -171,13 +171,49 @@ describe("[QA 19/08] trois règles de la charte qui s'étaient perdues", () => {
     expect(horsEchelle, `tailles de titre hors échelle :\n${horsEchelle.join("\n")}`).toEqual([]);
   });
 
-  it("les titres de cartes parlent d'une seule voix", () => {
-    // `t-corps-fort` est une classe d'INTERFACE (Inter). Elle mettait deux titres de cartes en
-    // grasse sans-serif à trois centimètres d'un titre en Fraunces, sur le même écran. Un titre de
-    // carte est du contenu : il prend la voix d'Anam.
-    const src = sansCommentaires(lire("render/accueil/Bibliotheque.tsx"));
-    expect(src, "un titre de carte est repassé dans la police d'interface").not.toMatch(
-      /<h2[^>]*t-corps-fort/,
-    );
+  it("les titres parlent d'une seule voix — dans TOUT `render/`, pas dans un fichier", () => {
+    // ⚠️ CETTE GARDE A ÉTÉ ÉCRITE TROP ÉTROITE, ET LE TOUR DE QA 2 L'A PROUVÉ. Elle ne lisait que
+    // `Bibliotheque.tsx` — quatre titres — dans une région qui en compte SIX. Le cinquième vit dans
+    // `CarteAnam.tsx` et est resté en `t-corps-fort` : après « correction », il était le SEUL titre
+    // sans empattement du produit, donc PLUS voyant qu'avant. Un correctif partiel avait aggravé ce
+    // qu'il réparait, et une garde nommant son fichier l'avait laissé faire.
+    //
+    // On balaie donc tout `render/`. C'est la même leçon que les anneaux de focus le matin même :
+    // l'endroit qui porte l'écart est toujours celui qu'on n'a pas regardé.
+    const fautifs: string[] = [];
+    for (const f of fichiers(".tsx")) {
+      if (!f.startsWith("render/")) continue;
+      for (const m of sansCommentaires(lire(f)).matchAll(/<h[12][^>]*className=[^>]*>/g)) {
+        if (/t-corps-fort|t-corps\b|t-meta/.test(m[0])) fautifs.push(`${f} → ${m[0].slice(0, 80)}`);
+      }
+    }
+    expect(fautifs, `titres dans la police d'interface :\n${fautifs.join("\n")}`).toEqual([]);
+  });
+
+  it("l'anneau de focus reste DEHORS — sinon le bouton primaire perd le sien", () => {
+    // ⚠️ UN RISQUE SIGNALÉ AVANT QU'IL N'ARRIVE (tour de QA 2). L'anneau `--bordure-forte` sur
+    // l'accent `#8FC1EF` donnerait 2,39:1 — sous le seuil de 3:1. Le cas ne se produit pas
+    // aujourd'hui parce que `outline-offset: 2px` dessine l'anneau à l'EXTÉRIEUR du bouton, donc
+    // sur le fond de page, où il tient à 4,29:1. Passer ce décalage à 0 ferait disparaître
+    // visuellement l'anneau du bouton primaire de `/entrer` — sans qu'aucune règle ne change de
+    // couleur, et sans que rien ne rougisse. C'est le seul endroit du produit où ça peut arriver.
+    const nuls: string[] = [];
+    for (const f of fichiers(".module.css")) {
+      for (const m of lire(f).matchAll(/outline-offset:\s*([^;]+);/g)) {
+        if (/^0(px|rem|em)?$/.test(m[1].trim())) nuls.push(`${f} → ${m[1].trim()}`);
+      }
+    }
+    expect(nuls, `anneaux collés au bord :\n${nuls.join("\n")}`).toEqual([]);
+  });
+
+  it("la case de l'effacement définitif est HABILLÉE — la cible est le label, l'apparence est la sienne", () => {
+    // Deux choses distinctes, et les confondre fait corriger la mauvaise. La CIBLE est le label
+    // (44 px, mesuré en navigateur par `e2e/cibles-tactiles.spec.ts`). L'APPARENCE, elle, était la
+    // taille native du navigateur — 13 × 13 px, la plus petite chose visible du produit, devant
+    // l'action la plus irréversible, quand les cases de `/consentement` en font 21,6.
+    const css = lire("render/mes-donnees/mes-donnees.module.css");
+    const bloc = css.match(/\.confirmation input\[type="checkbox"\]\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(bloc, "la case d'effacement est redevenue native").toMatch(/width:\s*1\.35rem/);
+    expect(bloc).toMatch(/height:\s*1\.35rem/);
   });
 });

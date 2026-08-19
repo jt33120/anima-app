@@ -100,11 +100,33 @@
   line-height: 1.5;
   min-height: var(--cible-tactile);
   cursor: pointer;
-  /* ⚠️ AUCUNE RÈGLE PROPRE À LA CASE, ET C'EST `tests/cible-tactile.test.ts` QUI L'A IMPOSÉ.
-     Une case dimensionnée à la main fait une cible de 18 px ; ici c'est le LABEL qui porte la
-     cible (44 px de haut, toute la largeur de la ligne), et cliquer le label coche la case —
-     comportement natif. `accent-color` s'hérite, donc la couleur descend sans règle dédiée. */
+  /* ⚠️ C'EST CE LABEL QUI PORTE LA CIBLE — 44 px de haut, toute la largeur de la ligne — et
+     cliquer l'étiquette coche la case, comportement natif. `accent-color` s'hérite, donc la
+     couleur descend sans règle dédiée.
+
+     Ce commentaire disait « AUCUNE RÈGLE PROPRE À LA CASE », et c'était vrai jusqu'au tour de QA 2 :
+     il en fallait une, non pour la cible mais pour l'APPARENCE. Voir juste en dessous. */
   accent-color: var(--texte);
+}
+
+/* ⚠️ LA CASE EST HABILLÉE, LA CIBLE RESTE LE LABEL (tour de QA 2, R2).
+   Deux choses distinctes, et les confondre fait corriger la mauvaise.
+
+   LA CIBLE : c'est le `<label>` ci-dessus — cliquer l'étiquette coche la case, comportement natif,
+   et `e2e/cibles-tactiles.spec.ts` mesure qu'elle fait bien 44 px. Rien à changer là.
+
+   L'APPARENCE : la case elle-même mesurait 13 × 13 px, la taille native du navigateur, jamais
+   habillée — quand celles de `/consentement` en font 21,6. C'était la plus petite chose visible du
+   produit, posée devant l'action la plus irréversible : effacer tout, sans retour. Une cible
+   suffisante n'excuse pas une case qu'on distingue à peine.
+
+   ⚠️ AUCUN `min-height` ICI, ET C'EST VOULU : `tests/cible-tactile.test.ts` exige le jeton sur les
+   commandes qu'il reconnaît, mais imposer 44 px à la CASE ferait une boîte énorme à côté de son
+   texte. La cible vit sur le label ; la case n'est qu'un signe. */
+.confirmation input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .effacer {

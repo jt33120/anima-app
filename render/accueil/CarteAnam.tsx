@@ -37,7 +37,14 @@ export interface ProprietesCarteAnam {
 export default function CarteAnam({ carte }: ProprietesCarteAnam) {
   return (
     <article className={`${s.carte} ${s.carteAnam}`} aria-labelledby="carte-anam-titre">
-      <h2 id="carte-anam-titre" className="t-corps-fort">
+      {/* ⚠️ LA SIXIÈME CARTE, OUBLIÉE PAR LE PREMIER CORRECTIF (tour de QA 2, R1).
+          Le 19 août au matin j'ai unifié les titres de `Bibliotheque.tsx` — quatre cartes — en
+          croyant tenir la région. Elle en compte SIX : celle-ci vit dans un autre fichier, et
+          elle est restée en `t-corps-fort` (Inter, 24 px, graisse 700). Résultat mesuré :
+          après correction, ce titre était le SEUL sans empattement du produit — donc plus
+          voyant qu'avant, pas moins. Un correctif partiel avait aggravé ce qu'il réparait.
+          `tests/qa-visuelle-19-aout.test.ts` balaie maintenant TOUS les `<h2>` de `render/`. */}
+      <h2 id="carte-anam-titre" className="t-titre-sm">
         {carte.titre}
       </h2>
 

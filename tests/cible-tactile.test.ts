@@ -71,6 +71,19 @@ function blocs(css: string): { selecteurs: string; corps: string }[] {
  * garde ne voyait alors plus que sept commandes sur onze, et le contrôle non-vacue l'a dit.
  */
 function estCommande(selecteur: string): boolean {
+  // ⚠️ UNE CASE À COCHER N'EST PAS SA PROPRE CIBLE, ET C'EST LA SEULE EXCEPTION (tour de QA 2, R2).
+  //
+  // Dans ce dépôt, toute case vit DANS un `<label>` : cliquer l'étiquette la coche, comportement
+  // natif, et c'est donc le label qui est la cible — 44 px de haut, toute la largeur de la ligne.
+  // Exiger 44 px sur la CASE ferait une boîte énorme à côté de son texte, et pousserait à ne jamais
+  // l'habiller du tout : c'est précisément ce qui l'a laissée à 13 × 13 px, la taille native du
+  // navigateur, devant l'action la plus irréversible du produit.
+  //
+  // ⚠️ L'EXEMPTION A UN FILET, ET IL EST NOMMÉ : `e2e/cibles-tactiles.spec.ts` mesure la cible
+  // EFFECTIVE dans un vrai navigateur — le label quand il en enveloppe une, l'élément sinon — et
+  // vérifie nommément celle de l'effacement définitif. Sans ce filet, l'exemption serait un trou.
+  if (/\[type=["']?(checkbox|radio)/.test(selecteur)) return false;
+
   // Les ZONES DE SAISIE comptent : WCAG 2.5.8 parle de cibles de pointeur, pas de boutons. Un champ trop
   // court est aussi difficile à viser qu'un bouton trop court — et la mutation-vérification l'a montré en
   // dégradant `.champ` sans qu'une seule ligne ne rougisse.

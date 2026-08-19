@@ -274,10 +274,25 @@ export default function SceneDom({
       <Etoiles />
 
       {/* Le DÉCOR de fond (ambiance, aria-hidden) — un arbre calme derrière toute la scène. L'arbre RÉEL et
-          adressable (branches, fiche, pan/zoom) vit dans la région « arbre ». AD-7 : décor muet, sans donnée. */}
+          adressable (branches, fiche, pan/zoom) vit dans la région « arbre ». AD-7 : décor muet, sans donnée.
+
+          ⚠️ LE FONDU D'ENTRÉE VIT SUR L'ENFANT, ET C'EST LA CORRECTION D'UN DÉFAUT MESURÉ. Les deux
+          classes étaient portées par le MÊME élément : `imagerie` y déclare
+          `opacity: var(--imagerie-opacite)`, `fondu-image` y anime l'opacité de 0 à 1 en
+          `fill: both`. Une animation l'emporte sur une déclaration, et son dernier keyframe reste
+          appliqué pour toujours : le jeton était donc MORT sur cet élément-ci, et sur lui seul.
+          Mesuré en mode contraste renforcé (2026-08-19) : jeton à 0, lune et étoiles en
+          `display: none` — et l'arbre à opacité 1. La règle était écrite, elle ne s'appliquait pas.
+          Séparées sur deux éléments, les deux opacités se MULTIPLIENT : l'entrée se fond toujours,
+          et le jeton gouverne à nouveau. */}
       {projection.tronc.present && (
-        <div className={`${s.arbreMonde} imagerie fondu-image`} aria-hidden>
-          <ArbreVivant />
+        <div
+          className={`${s.arbreMonde} ${region === "accueil" ? s.arbreEnRetrait : ""} imagerie`}
+          aria-hidden
+        >
+          <div className="fondu-image">
+            <ArbreVivant />
+          </div>
         </div>
       )}
 

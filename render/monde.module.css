@@ -95,11 +95,41 @@
   transform: translate(-50%, -48%);
   pointer-events: none;
   filter: drop-shadow(0 8px 40px rgba(143, 193, 239, 0.12));
+  /* Le retrait derrière l'accueil se FOND, il ne coupe pas — même durée que le fondu de région,
+     pour que le passage accueil ↔ arbre reste UN mouvement et non deux. Voir .arbreEnRetrait. */
+  transition: opacity var(--duree-longue) var(--courbe);
 }
 .arbreMonde canvas {
   display: block;
   width: 100%;
   height: auto;
+}
+
+/* ── L'ARBRE SE RETIRE DERRIÈRE L'ACCUEIL (QA visuelle du 2026-08-19, B4) ─────────────────────
+   Mesuré à 390 px : l'accueil est une PILE DE CARTES OPAQUES qui DÉFILE, posée sur une scène
+   qui, elle, ne défile pas. Entre deux cartes il reste 16 px (--esp-4) — une fente. L'arbre est
+   fixe derrière ; la fente, elle, se déplace sur lui à chaque geste de défilement. Ce qui passe
+   par la fente n'est donc pas « le monde qu'on aperçoit » : c'est une TRANCHE de feuillage clair,
+   à très fort contraste local (bleu pâle sur presque-noir), qui balaie la pile comme un défaut
+   de rendu. Sur ≥ 640 px c'est pire encore : la grille passe à deux colonnes et ouvre une
+   seconde fente, verticale, exactement là où l'arbre est centré.
+
+   ⚠️ ATTÉNUER NE SUFFIT PAS, ET C'EST POURQUOI LE RETRAIT EST TOTAL. Une opacité résiduelle
+   laisserait la même bande claire, plus pâle : l'artefact tient au CONTRASTE dans une fente de
+   16 px, pas à la quantité de lumière.
+
+   La scène reste UNE : le ciel, la lune, les étoiles et le grain ne bougent pas. Seul l'arbre —
+   le seul objet net et détaillé de l'arrière-plan — cède la place. C'est la même décision que
+   `.regionConversation` et `.regionArbre`, qui posent un aplat `--fond` pour que le texte ne
+   repose jamais sur l'imagerie ; l'accueil, lui, tient à garder son ciel, donc il ne pose pas
+   d'aplat : il éteint l'imagerie.
+
+   ⚠️ ON PASSE PAR LE JETON, PAS PAR `opacity`. `.imagerie` (globals) déclare déjà
+   `opacity: var(--imagerie-opacite)` : écrire ici `opacity: 0` mettrait deux règles de même
+   spécificité en concurrence, et l'ordre des feuilles déciderait. Éteindre le jeton localement
+   est la MÊME grammaire que le mode contraste renforcé, qui l'éteint à la racine. */
+.arbreEnRetrait {
+  --imagerie-opacite: 0;
 }
 
 /* ── Régions reliées en FONDU (crossfade). Empilées, une seule active à la fois. ── */
@@ -568,7 +598,10 @@
    où la transition d'opacité n'était pas couverte). Aucune parallaxe à neutraliser : retirée. */
 @media (prefers-reduced-motion: reduce) {
   .region,
-  .regionActive {
+  .regionActive,
+  /* Le retrait de l'arbre fait PARTIE du changement de région : s'il gardait sa transition,
+     le changement ne serait plus instantané, il durerait le temps que l'arbre s'efface. */
+  .arbreMonde {
     transition: none;
   }
   /* L'épaississement du signe reste INFORMATIF mais devient instantané (aucune info par le seul

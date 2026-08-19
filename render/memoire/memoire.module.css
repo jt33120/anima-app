@@ -12,9 +12,16 @@
   gap: 1.5rem;
 }
 
+/* ⚠️ TAILLE PRISE SUR L'ÉCHELLE, JAMAIS INVENTÉE ICI (QA visuelle du 2026-08-19, M5).
+   Ces classes portaient des tailles écrites à la main : trois haltes titraient à 1,75 rem quand
+   tout le reste du produit titre à 1,5 rem, et trois titres de SECTION valaient 1,2 / 1,2 /
+   1,25 rem — deux tailles pour un même rôle, à deux fichiers d'écart. Personne ne voit ça en
+   relisant un fichier ; ça ne se voit qu'en comparant les écrans entre eux, ce qu'aucun test ne
+   faisait. L'échelle vit dans `app/styles/globals.css` ; toute valeur posée ici doit en être une,
+   et `tests/qa-visuelle-19-aout.test.ts` le vérifie. */
 .titreHalte {
   font-family: var(--pile-anam);
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 400;
   color: var(--texte);
   margin: 0;
@@ -138,7 +145,7 @@
 
 .titreSection {
   font-family: var(--pile-anam);
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 400;
   color: var(--texte);
   margin: 0;

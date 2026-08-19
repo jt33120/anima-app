@@ -146,6 +146,31 @@ describe("[QA 19/08] trois règles de la charte qui s'étaient perdues", () => {
     );
   });
 
+  it("aucune taille de titre n'est inventée hors de l'échelle", () => {
+    // ⚠️ CE QU'AUCUN TEST NE POUVAIT VOIR, ET AUCUN RELECTEUR NON PLUS. Les tailles étaient justes
+    // À L'INTÉRIEUR de chaque fichier — c'est en COMPARANT les écrans que le désordre paraît :
+    // trois haltes titraient à 1,75 rem quand le reste titre à 1,5, et trois titres de section
+    // valaient 1,2 / 1,2 / 1,25 rem, deux tailles pour un même rôle. Cinq échelles au total.
+    //
+    // La règle n'interdit pas de poser une taille dans un module : elle exige qu'elle appartienne
+    // à l'échelle. Une valeur neuve doit d'abord entrer dans `globals.css`, où on la voit.
+    const echelle = new Set(
+      [...lire("app/styles/globals.css").matchAll(/font-size:\s*([\d.]+rem)/g)].map((m) => m[1]),
+    );
+    expect(echelle.size, "l'échelle typographique a disparu de `globals.css`").toBeGreaterThan(3);
+
+    const horsEchelle: string[] = [];
+    for (const f of fichiers(".module.css")) {
+      const css = lire(f).replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        if (!/titre/i.test(m[1])) continue;
+        const taille = m[2].match(/font-size:\s*([\d.]+rem)/)?.[1];
+        if (taille && !echelle.has(taille)) horsEchelle.push(`${f} → ${m[1].trim()} : ${taille}`);
+      }
+    }
+    expect(horsEchelle, `tailles de titre hors échelle :\n${horsEchelle.join("\n")}`).toEqual([]);
+  });
+
   it("les titres de cartes parlent d'une seule voix", () => {
     // `t-corps-fort` est une classe d'INTERFACE (Inter). Elle mettait deux titres de cartes en
     // grasse sans-serif à trois centimètres d'un titre en Fraunces, sur le même écran. Un titre de

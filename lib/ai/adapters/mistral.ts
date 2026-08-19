@@ -31,6 +31,35 @@ function assertConformiteArt9(): void {
   }
 }
 
+/** Le temps d'attente avant l'unique reprise. Assez pour laisser passer un pic, pas assez pour
+ *  qu'on croie l'écran figé — la latence du modèle est déjà de sept à neuf secondes. */
+const DELAI_REPRISE_MS = 400;
+
+/**
+ * Classe un échec du fournisseur, pour que le journal DISE quelque chose.
+ *
+ * ⚠️ « PASSAGER » EST UNE LISTE FERMÉE, JAMAIS UN REPLI. Un défaut de configuration (401, 403), une
+ * requête malformée (400) ou un modèle inconnu (404) ne se réparent pas en réessayant : les
+ * reprendre masquerait la panne et doublerait la facture. Seuls le quota (429), les pannes serveur
+ * (5xx) et les coupures réseau sans statut méritent une seconde chance.
+ */
+export type ClasseEchec = "passager" | "configuration" | "inconnu";
+
+export function classerEchec(e: unknown): ClasseEchec {
+  const statut =
+    typeof e === "object" && e !== null && "statusCode" in e
+      ? Number((e as { statusCode: unknown }).statusCode)
+      : typeof e === "object" && e !== null && "status" in e
+        ? Number((e as { status: unknown }).status)
+        : NaN;
+  if (statut === 429 || (statut >= 500 && statut <= 599)) return "passager";
+  if (statut >= 400 && statut <= 499) return "configuration";
+  // Aucun statut : coupure réseau, flux interrompu, délai dépassé. Rien n'a été produit puisqu'on
+  // n'est pas encore entré dans la boucle — reprendre est sûr.
+  if (Number.isNaN(statut)) return "passager";
+  return "inconnu";
+}
+
 /**
  * Extrait le texte d'un contenu Mistral qui peut être `string` OU `ContentChunk[]` (type SDK).
  * Une réponse/delta en tableau de chunks (contenu structuré) verrait sinon son texte silencieusement
@@ -102,7 +131,28 @@ export class AdaptateurMistral implements AiPort {
     const { tier, modele, messages } = this.preparer(req);
     let tokensEntree = 0;
     let tokensSortie = 0;
-    const flux = await this.client.chat.stream({ model: modele, messages });
+
+    // ⚠️ LA REPRISE S'ARRÊTE AU PREMIER FRAGMENT, ET C'EST TOUTE LA GARDE.
+    //
+    // La QA du 2026-08-19 a mesuré UNE RÉPONSE SUR TROIS en échec — deux sur quatorze le 15 août —
+    // sans erreur console ni requête en 4xx/5xx côté client : le flux mourait côté serveur et
+    // l'écran affichait « Je n'ai pas pu répondre ». Rien ne classait l'erreur : un 429 de quota,
+    // une coupure réseau et une panne du fournisseur ressortaient identiques, donc introuvables.
+    //
+    // Reprendre APRÈS qu'un fragment est parti dupliquerait du texte dans le fil — Anam se
+    // répéterait au milieu d'une phrase, sur un produit où elle est censée être quelqu'un. La
+    // reprise n'a donc lieu que tant que RIEN n'a été émis, et une seule fois.
+    let flux: Awaited<ReturnType<typeof this.client.chat.stream>>;
+    try {
+      flux = await this.client.chat.stream({ model: modele, messages });
+    } catch (e) {
+      const classe = classerEchec(e);
+      console.error("mistral/diffuser : ouverture du flux refusée", { classe, modele });
+      if (classe !== "passager") throw e;
+      await new Promise((r) => setTimeout(r, DELAI_REPRISE_MS));
+      flux = await this.client.chat.stream({ model: modele, messages });
+    }
+
     for await (const evenement of flux) {
       // `delta.content` peut être `string` OU `ContentChunk[]` (type SDK) : extraire les DEUX,
       // sinon un delta structuré serait silencieusement perdu (revue 2.2).

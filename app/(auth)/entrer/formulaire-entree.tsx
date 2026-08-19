@@ -1,10 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { envoyerLien, verifierCode, type EtatEntree, type EtatCode } from "./actions";
+import { envoyerLien, recommencer, verifierCode, type EtatEntree, type EtatCode } from "./actions";
 import s from "./entrer.module.css";
 
-const initial: EtatEntree = { ok: false };
 const initialCode: EtatCode = {};
 
 /**
@@ -17,8 +16,16 @@ const initialCode: EtatCode = {};
  * Le code est la porte qui traverse : il voyage par les yeux. On l'annonce donc SANS le présenter
  * comme un repli honteux — pour beaucoup de gens, ce sera le chemin normal.
  */
-export default function FormulaireEntree() {
-  const [etat, action, enCours] = useActionState(envoyerLien, initial);
+export default function FormulaireEntree({ adresseEnAttente }: { adresseEnAttente?: string }) {
+  /* ⚠️ L'ÉTAT INITIAL VIENT DU SERVEUR, ET C'EST TOUT LE CORRECTIF DU 2026-08-19.
+     Il valait `{ ok: false }` en dur : l'écran de code ne survivait donc qu'en mémoire de React.
+     Sur un téléphone, le geste normal — basculer sur sa boîte mail pour lire le code, revenir —
+     recharge l'onglet, et la page repartait au formulaire d'adresse avec un code valide et plus
+     aucun endroit où le taper. La page relit maintenant le cookie d'attente et le passe ici. */
+  const [etat, action, enCours] = useActionState<EtatEntree, FormData>(
+    envoyerLien,
+    adresseEnAttente ? { ok: true, adresse: adresseEnAttente } : { ok: false },
+  );
   const [etatCode, actionCode, verifEnCours] = useActionState(verifierCode, initialCode);
 
   if (etat.ok) {
@@ -54,6 +61,14 @@ export default function FormulaireEntree() {
           {etatCode.message ? <p className={s.erreur}>{etatCode.message}</p> : null}
           <button type="submit" className={s.bouton} disabled={verifEnCours}>
             <span className="t-bouton">{verifEnCours ? "Vérification…" : "Entrer avec ce code"}</span>
+          </button>
+        </form>
+        {/* SORTIR N'EST JAMAIS GARDÉ (AD-9). L'attente vit une heure côté serveur : sans cette
+            porte, une adresse tapée de travers enfermerait sur un écran réclamant un code qui
+            n'arrivera jamais. Formulaire distinct — imbriquer deux <form> est invalide en HTML. */}
+        <form action={recommencer}>
+          <button type="submit" className={s.lienSecondaire}>
+            <span className="t-meta">Ce n&apos;est pas la bonne adresse ? Recommencer</span>
           </button>
         </form>
       </div>

@@ -36,6 +36,8 @@ vi.mock("@/app/(auth)/entrer/actions", () => ({
   envoyerLien: (prev: unknown, donnees: FormData) => envoyerLien(prev, donnees),
   // La seconde porte (code à six chiffres). Muette ici : ce fichier mesure la validation NATIVE.
   verifierCode: async () => ({}),
+  // La sortie de l'écran de code (AD-9). Muette pour la même raison.
+  recommencer: async () => {},
 }));
 const FormulaireEntree = (await import("@/app/(auth)/entrer/formulaire-entree")).default;
 
@@ -247,9 +249,12 @@ describe("[entrée] l'écran du code à six chiffres", () => {
   });
 
   it("le champ de code coupe aussi la validation native (même règle que les autres)", async () => {
+    // ⚠️ ON VISE LE FORMULAIRE QUI PORTE LE CHAMP, PAS « LE DERNIER DE LA PAGE ». Écrite ainsi,
+    // la garde a rougi le 2026-08-19 quand la sortie « Recommencer » — un second formulaire, sans
+    // aucun champ, donc sans validation native possible — est devenue le dernier. Elle mesurait
+    // une position ; la règle porte sur le formulaire où l'on tape.
     await apresEnvoi();
-    const formulaires = document.querySelectorAll("form");
-    const dernier = formulaires[formulaires.length - 1] as HTMLFormElement;
-    expect(dernier.hasAttribute("noValidate")).toBe(true);
+    const champ = document.querySelector('input[name="code"]') as HTMLInputElement;
+    expect(champ.form?.hasAttribute("noValidate")).toBe(true);
   });
 });

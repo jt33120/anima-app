@@ -1,17 +1,18 @@
 "use server";
 
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { destinationApresAuth } from "@/app/(auth)/destination-apres-auth";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/data/supabase/admin";
 import { appliquerBarriereMinorite } from "@/lib/safety/appliquer-barriere";
 import { origineDuSite } from "@/lib/courriel/origine";
+import { ESSAIS_MAX, lireAttente, poserAttente } from "./attente";
 
 /**
  * `ok` — le courriel est parti, l'écran passe à la saisie du code. `adresse` sert UNIQUEMENT à
  * l'afficher : « J'ai envoyé un code à toi@exemple.fr ». C'est une garde, pas un ornement — voir
- * `COOKIE_ATTENTE` ci-dessous.
+ * `./attente.ts`, où vit le cookie.
  */
 export type EtatEntree = { ok: boolean; message?: string; adresse?: string };
 export type EtatCode = { message?: string };
@@ -45,47 +46,12 @@ export type EtatCode = { message?: string };
  * qui défend est côté Supabase : `rate_limit_verify = 30` par tranche de cinq minutes et par IP,
  * mesuré sur le projet le 2026-08-18. Un million d'essais à ce rythme demande des mois. Écrire ici
  * une garde qui ne garde pas serait pire que de ne rien écrire : ça ferait cesser de chercher.
+ *
+ * ⚠️ L'ATTENTE EST UN FAIT DU SERVEUR, PAS UN ÉTAT D'ÉCRAN. Le cookie et sa lecture vivent dans
+ * `./attente.ts` — la page LE RELIT au chargement. Tant qu'il n'était lu que par cette action,
+ * un simple rechargement d'onglet (le geste normal : aller lire son courriel, revenir) rendait
+ * le code intapable. Voir l'en-tête d'`./attente.ts`.
  */
-const COOKIE_ATTENTE = "anam_entree_attente";
-/** Aligné sur `mailer_otp_exp` du projet (3 600 s, mesuré le 2026-08-18) : le cookie ne survit pas au code. */
-const DUREE_ATTENTE_S = 3600;
-/** Ce qu'on tolère avant de renvoyer demander un code neuf. Confort, pas garde — voir ci-dessus. */
-const ESSAIS_MAX = 5;
-
-type Attente = { readonly adresse: string; readonly essais: number };
-
-async function lireAttente(): Promise<Attente | null> {
-  const brut = (await cookies()).get(COOKIE_ATTENTE)?.value;
-  if (!brut) return null;
-  try {
-    const v = JSON.parse(brut) as Partial<Attente>;
-    if (typeof v.adresse !== "string" || !v.adresse.includes("@")) return null;
-    return { adresse: v.adresse, essais: typeof v.essais === "number" ? v.essais : 0 };
-  } catch {
-    return null;
-  }
-}
-
-async function poserAttente(attente: Attente | null): Promise<void> {
-  const jar = await cookies();
-  if (!attente) {
-    jar.delete(COOKIE_ATTENTE);
-    return;
-  }
-  jar.set(COOKIE_ATTENTE, JSON.stringify(attente), {
-    httpOnly: true,
-    // ⚠️ ÉCRIT À L'ENVERS, EXPRÈS — et c'est une garde de ce dépôt qui me l'a fait corriger.
-    // La forme naturelle (`=== "production"`) rend `false` quand `NODE_ENV` manque : le cookie
-    // partirait alors SANS `Secure` sur un déploiement réel, donc en clair. Écrite ainsi, une
-    // variable absente donne `Secure`. Le seul cas qui l'abaisse est nommé : `development`, où le
-    // site est en http://localhost et où un cookie `Secure` ne serait jamais posé.
-    // Même patron que les portes de démo plus bas, et `tests/auth-magic-link.test.ts` le vérifie.
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: "lax",
-    path: "/",
-    maxAge: DUREE_ATTENTE_S,
-  });
-}
 
 /** Les seuls hôtes pour lesquels `http:` reste acceptable — miroir de `lib/courriel/origine.ts`. */
 const HOTES_LOCAUX = new Set(["localhost", "127.0.0.1"]);
@@ -203,6 +169,21 @@ export async function verifierCode(_prev: EtatCode, formData: FormData): Promise
   await poserAttente(null);
   // LA MÊME machine d'état que le lien magique — jamais une seconde (leçon 1.4).
   redirect(await destinationApresAuth(supabase, "/"));
+}
+
+/**
+ * Abandonner l'attente et repartir d'une adresse.
+ *
+ * ⚠️ SORTIR N'EST JAMAIS GARDÉ (AD-9). Depuis que la page RELIT le cookie, l'écran de code
+ * réapparaît à chaque chargement pendant une heure. Sans cette porte, quelqu'un qui s'est trompé
+ * d'adresse — ou qui reprend le téléphone de quelqu'un d'autre — serait enfermé sur un écran
+ * réclamant un code qui n'arrivera jamais. On aurait échangé un piège contre un autre.
+ *
+ * Aucune condition, aucun message d'erreur possible : on efface, on revient au formulaire.
+ */
+export async function recommencer(): Promise<void> {
+  await poserAttente(null);
+  redirect("/entrer");
 }
 
 /**

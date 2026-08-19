@@ -43,7 +43,10 @@ describe("[art. 13] `/entrer` informe avant de demander une adresse", () => {
     // un chemin qu'on n'emprunte presque jamais. Cette page a DEUX branches — le refus d'âge, et
     // tout le reste. Le formulaire de collecte ne vit que dans la seconde ; l'information due doit
     // vivre exactement là où la collecte a lieu. On l'ancre donc sur `FormulaireEntree`.
-    const iFormulaire = page.indexOf("<FormulaireEntree />");
+    // ⚠️ ANCRE SUR LA BALISE, PAS SUR SA FORME EXACTE. Écrite `"<FormulaireEntree />"`, elle a
+    // rougi le jour où le composant a reçu une propriété — un changement qui ne touche en rien
+    // l'information due. Ce qu'on mesure est la POSITION du formulaire, pas sa signature.
+    const iFormulaire = page.indexOf("<FormulaireEntree");
     const iCgu = page.indexOf('href="/cgu"');
     expect(iFormulaire, "le formulaire de collecte a disparu").toBeGreaterThan(-1);
     expect(iCgu, "aucun lien vers les conditions").toBeGreaterThan(-1);

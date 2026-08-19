@@ -94,3 +94,23 @@
   outline: 2px solid var(--bordure-forte);
   outline-offset: 2px;
 }
+
+/* La sortie de l'écran de code (AD-9 — sortir n'est jamais gardé). Un bouton, parce que c'est une
+   action serveur qui efface l'attente, mais habillé en lien : il ne doit jamais rivaliser avec
+   « Entrer avec ce code ». Cible de 44 px de haut comme les mentions ci-dessus (WCAG 2.5.8). */
+.lienSecondaire {
+  display: inline-block;
+  margin-top: var(--esp-3);
+  padding: 0.6875rem 0;
+  background: none;
+  border: 0;
+  color: var(--texte-doux);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+  min-height: var(--cible-tactile);
+}
+.lienSecondaire:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}

@@ -177,8 +177,17 @@ describe("Le lien de connexion ne part jamais en clair", () => {
     // code à six chiffres. Elle avait raison sur le fond — je l'avais écrit `=== "production"`,
     // donc un cookie de session en clair si `NODE_ENV` manquait — et tort sur la forme : un test
     // qui grave un nombre rougit à chaque ajout, y compris correct. On mesure donc la RÈGLE.
-    const comparaisons = action.match(/NODE_ENV\s*[!=]==\s*["'][a-z]+["']/g) ?? [];
-    expect(comparaisons.length, "plus aucune comparaison de NODE_ENV ?").toBeGreaterThanOrEqual(3);
+    //
+    // ⚠️ ET ELLE A ROUGI UNE SECONDE FOIS, le 2026-08-19, pour la MÊME raison sous un autre
+    // déguisement : le compte était juste passé de « exactement deux » à « au moins trois », et le
+    // cookie d'attente a déménagé dans `attente.ts`. Un seuil dans un seul fichier reste un nombre
+    // gravé. La règle, elle, porte sur TOUTES les portes d'entrée : on lit le dossier entier, et on
+    // exige seulement qu'il en reste au moins une — sinon la garde passerait en ne mesurant rien.
+    const portes = ["app/(auth)/entrer/actions.ts", "app/(auth)/entrer/attente.ts"];
+    const comparaisons = portes.flatMap(
+      (f) => lire(f).match(/NODE_ENV\s*[!=]==\s*["'][a-z]+["']/g) ?? [],
+    );
+    expect(comparaisons.length, "plus aucune comparaison de NODE_ENV ?").toBeGreaterThanOrEqual(1);
     for (const c of comparaisons) {
       expect(c, `« ${c} » échoue OUVERT quand la variable manque`).toMatch(
         /!==\s*["']development["']/,

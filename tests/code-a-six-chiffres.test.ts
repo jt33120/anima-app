@@ -155,7 +155,11 @@ describe("[entrée] l'adresse vérifiée ne vient JAMAIS du formulaire", () => {
   });
 
   it("le cookie d'attente est `httpOnly` — sinon un script de page le réécrit", () => {
-    const src = lire("app/(auth)/entrer/actions.ts");
+    // ⚠️ LA GARDE SUIT LE COOKIE, PAS LE FICHIER. Elle lisait `actions.ts` ; le 2026-08-19 le
+    // cookie a déménagé dans `attente.ts` — parce que la PAGE devait le relire pour que l'écran de
+    // code survive à un rechargement d'onglet — et la garde est devenue verte-puis-rouge sur un
+    // déplacement qui ne changeait rien à la propriété gardée. On lit donc là où le cookie est posé.
+    const src = lire("app/(auth)/entrer/attente.ts");
     expect(src).toMatch(/httpOnly:\s*true/);
     expect(src).toMatch(/sameSite:\s*"lax"/);
   });

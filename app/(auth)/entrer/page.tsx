@@ -1,4 +1,5 @@
 import FormulaireEntree from "./formulaire-entree";
+import { lireAttente } from "./attente";
 import { entreeDemo, entreeDemoSuspendue } from "./actions";
 import { ADIEU } from "@/lib/domain/copie-mes-donnees";
 import { SESSION_FERMEE } from "@/lib/domain/copie-reglages";
@@ -31,6 +32,13 @@ export default async function PageEntrer({
 }) {
   const { refus, efface, deconnexion } = await searchParams;
 
+  /* ⚠️ LA LECTURE QUI MANQUAIT (mesuré le 2026-08-19 sur le téléphone de Julian).
+     L'écran « tape ton code » ne vivait que dans la mémoire de React. Basculer sur sa boîte mail
+     pour lire le code et revenir — le geste NORMAL — recharge l'onglet sur iOS : la page repartait
+     au formulaire d'adresse, et le code reçu, valide une heure, n'avait plus aucun endroit où être
+     tapé. Le cookie, lui, survivait déjà ; il n'était simplement jamais relu. Voir `./attente.ts`. */
+  const attente = await lireAttente();
+
   return (
     <main className={s.page}>
       <div className={s.contenu}>
@@ -59,11 +67,16 @@ export default async function PageEntrer({
                 {SESSION_FERMEE}
               </p>
             )}
-            <p className="t-anam">
-              Laisse-moi ton adresse. Je t&apos;enverrai un lien — pas de mot de
-              passe à retenir, rien à perdre.
-            </p>
-            <FormulaireEntree />
+            {/* L'invitation ne vaut que tant qu'on attend une ADRESSE. Une fois le code parti,
+                le formulaire dit lui-même où il en est ; garder « laisse-moi ton adresse » au-dessus
+                de « c'est parti vers toi@… » ferait se contredire l'écran. */}
+            {!attente && (
+              <p className="t-anam">
+                Laisse-moi ton adresse. Je t&apos;enverrai un lien — pas de mot de
+                passe à retenir, rien à perdre.
+              </p>
+            )}
+            <FormulaireEntree adresseEnAttente={attente?.adresse} />
             {/* ── QA tour 2 — L'INFORMATION DUE AVANT LA COLLECTE (RGPD art. 13) ──────────────
                 Mesuré : cet écran ne contenait AUCUN `href`. Pas un lien, pas une ligne sur ce
                 qu'on fait des données — et c'est ici qu'on demande une adresse e-mail.

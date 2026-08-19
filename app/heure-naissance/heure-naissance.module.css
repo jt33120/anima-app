@@ -124,3 +124,13 @@
   color: var(--texte);
   margin: 0;
 }
+
+/* ⚠️ L'ANNEAU DE FOCUS DE LA CASE (trouvé par la tabulation RÉELLE, e2e/clavier.spec.ts).
+   Aucune case du produit n'en avait : elles peignaient toutes celui du navigateur — un contour
+   bleu système de 1 px, `outline-style: auto`, qui n'est ni la couleur ni l'épaisseur de la charte
+   et qui change d'un navigateur à l'autre. Invisible dans la source (il n'y avait rien à lire) et
+   invisible à l'œil (il faut traverser au clavier pour le voir). */
+.checkbox:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}

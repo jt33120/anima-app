@@ -303,10 +303,31 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* ⚠️ `safe`, ET C'EST LA MOITIÉ DE LA CORRECTION. Un `center` ordinaire qui déborde déborde DES
+     DEUX CÔTÉS : le haut du contenu sort par le bord supérieur, où aucun défilement ne va le
+     chercher. `safe center` retombe sur `flex-start` dès que ça ne tient plus — on perd le
+     centrage, on ne perd pas le contenu. */
+  justify-content: safe center;
   gap: var(--esp-2);
   text-align: center;
   padding: var(--esp-6);
+  /* ══ POURQUOI CE BLOC NE DOIT PLUS DÉBORDER (QA visuelle du 2026-08-19) ══════════════════════
+     Mesuré sur iPhone 14 : « Ton heure de naissance » — le seul chemin vers la fiche du tronc
+     depuis un arbre vide, donc exactement le bouton dont la personne a besoin le premier jour —
+     avait ses 14 px du bas SOUS la barre de navigation. En PERMANENCE, pas au défilement.
+
+     La cause n'est pas une marge oubliée. La chaîne mesurée : la région réserve bien ses 76 px en
+     bas et son `overflow-y: auto` promet le défilement (WCAG 1.4.10) — mais son enfant `.arbre` a
+     `min-height: 0` (il le faut, sinon le canevas imposerait sa hauteur), et CE bloc-ci, en
+     `flex: 1` avec `min-height: auto`, refusait de descendre sous la hauteur de son contenu. Il
+     débordait donc de 54 px en `overflow: visible`, PAR-DESSUS la réserve, sans que la région
+     enregistre le moindre débordement : `scrollHeight === clientHeight`. La promesse de
+     défilement était intacte et ne servait à rien, parce qu'il n'y avait rien à faire défiler.
+
+     `min-height: 0` rend ce bloc compressible ; `overflow-y: auto` lui rend le défilement que la
+     région ne pouvait pas lui donner. */
+  min-height: 0;
+  overflow-y: auto;
 }
 .videTitre {
   font-family: var(--pile-anam);
@@ -473,4 +494,14 @@
   max-height: 180px;
   margin: 0 auto var(--esp-2);
   flex: none;
+}
+/* ⚠️ SUR UN ÉCRAN COURT, C'EST LE DESSIN QUI CÈDE — PAS LE TEXTE, PAS LE BOUTON. L'en-tête
+   ci-dessus le dit déjà : « c'est le décor de l'écran, pas son sujet ». Un défilement imbriqué
+   marche (voir `.vide`), mais faire défiler pour atteindre le seul bouton de l'écran est une
+   solution de repli, pas une mise en page. 70 px rendus ici suffisent à ce que tout tienne sur un
+   iPhone 14, où il en manquait 54. */
+@media (max-height: 720px) {
+  .troncSeul {
+    max-height: 110px;
+  }
 }

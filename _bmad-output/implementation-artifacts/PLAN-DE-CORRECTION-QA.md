@@ -12,7 +12,18 @@ quel ordre. Un constat qu'on ne tranche pas est un constat perdu.
 
 Chaque ligne a une garde qui **rougit** quand on réintroduit le défaut. Campagnes de mutation :
 6 mutants sur les gardes de source, 6 tués ; 1 sur la garde E2E, tué ; 4 sur B4, tués ; 4 sur B2,
-tués (deux ont d'abord SURVÉCU, voir plus bas) ; 6 sur H4, tués.
+tués (deux ont d'abord SURVÉCU, voir plus bas) ; 6 sur H4, tués ; 6 sur la barre basse, tués — après
+**trois** campagnes, chacune ayant appris quelque chose que la précédente ignorait :
+
+1. deux mutants « survivants » ne l'étaient pas : je n'avais muté que la variante `-webkit-` du
+   masque, et la déclaration non préfixée juste en dessous continuait de s'appliquer. **Un mutant
+   écrit sur le disque mais sans effet dans le navigateur prouve zéro, et se déguise en garde faible.**
+2. un vrai trou : rien ne mesurait que le masque *ne mange pas* ce qui s'arrête. Le défaut symétrique
+   de celui qu'on corrigeait — du contenu effacé au lieu de contenu qui transparaît.
+3. **deux corrections se couvraient l'une l'autre** (le rognage du dessin et la compressibilité de
+   l'état vide) : chacune rendait l'autre intuable. Il a fallu énoncer les DEUX propriétés
+   distinctes qu'elles défendent — « rien ne passe sous la barre, même à 460 px de haut » et
+   « aucun geste n'est nécessaire sur un téléphone ordinaire » — pour que les deux mutants meurent.
 
 | # | Défaut mesuré | Où vit la garde |
 |---|---|---|
@@ -34,6 +45,9 @@ tués (deux ont d'abord SURVÉCU, voir plus bas) ; 6 sur H4, tués.
 | B4-bis | **`--imagerie-opacite` était un jeton MORT sur le décor de l'arbre** — `fill: both` l'emportait sur la déclaration ; en contraste renforcé la lune disparaissait et l'arbre restait | idem |
 | B2-bis | **« L'arbre », 7 caractères, passait sous le seuil de 8 de ma propre garde** — le libellé le plus visible du produit, sur les quatre régions | idem, seuil abaissé à 3 et balayage étendu à tout `lib/` |
 | H4 | Pas de passage « je viens de m'inscrire » → « je sais quoi faire » | `e2e/premier-passage.spec.ts` + `tests/seuil-franchi.test.ts` |
+| Barre-bis | Mi-défilement, le texte des cartes se lisait PAR-DESSUS « Accueil Anam L'arbre » | `e2e/barre-basse.spec.ts` |
+| Barre-ter | **« Ton heure de naissance » — le seul chemin vers la fiche du tronc depuis un arbre vide — avait ses 14 px du bas sous la barre, EN PERMANENCE** | idem |
+| Rail | La réserve du rail de bureau était 6 px trop courte (128 contre 134) | idem |
 
 ---
 
@@ -81,7 +95,7 @@ conclure par la négative.** Elle prouve ce qu'elle a vu, jamais ce qu'elle n'a 
 |---|---|---|---|
 | M5 | Cinq échelles de titre (40/28/24/18 px) | moyen | Demande de trancher l'échelle, pas seulement de l'appliquer. |
 | H6 | Une réponse sur trois a échoué | à instrumenter | Aucune erreur console ni requête en 4xx/5xx relevée : il faut journaliser côté serveur avant de chercher. Le reclassement + une reprise unique sont posés ; reste à mesurer sur le vrai fournisseur. |
-| Barre-bis | Mi-défilement, la barre basse se superpose au texte des cartes (« Vierge » sous « Accueil ») | petit | **Nouveau, mesuré le 19/08.** Le dégradé n'est opaque que sur son tiers bas, donc les libellés de la barre flottent sur du texte de carte. Piste : masquer le bas de la région défilante plutôt qu'opacifier la barre — sinon elle devient un bandeau, ce que le design refuse. |
+
 
 ### 3.a-bis — Ce que H4 a livré, et ce qu'il n'a pas livré
 

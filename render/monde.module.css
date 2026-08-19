@@ -164,10 +164,32 @@
 }
 @media (min-width: 1024px) {
   .region {
-    /* dégage le rail latéral gauche (doublage non-spatial) */
-    padding-left: calc(var(--esp-9) + var(--esp-6));
+    /* ── DÉGAGE LE RAIL LATÉRAL GAUCHE (doublage non-spatial) ────────────────────────────────
+       ⚠️ LA RÉSERVE ÉTAIT DE SIX PIXELS TROP COURTE, ET C'EST UNE MESURE QUI L'A DIT. Le rail est
+       large de 134 px (24 px de rembourrage × 2 + le plus long libellé, « L'arbre ») ; la réserve
+       valait `--esp-9 + --esp-6`, soit 128. Le bouton « Vue liste » de la région arbre commençait
+       donc SOUS le rail. Invisible à l'œil — le dégradé du rail y est transparent à 95 % — mais
+       le jour où un libellé s'allonge, où la police grossit, ou où l'on traduit, l'écart cesse
+       d'être invisible. On dégage de dix pixels, et `e2e/barre-basse.spec.ts` mesure la boîte
+       ENTIÈRE du rail, pas la partie qu'on voit : c'est lui qui rougira le jour venu. */
+    padding-left: calc(var(--esp-9) + var(--esp-7));
     padding-right: var(--marge-desktop);
     padding-bottom: var(--esp-8);
+  }
+  /* ⚠️ PLUS DE BARRE EN BAS ICI : elle devient un RAIL À GAUCHE, dégagé par le `padding-left`
+     ci-dessus. Garder le fondu du bas mangerait le pied d'une page qui n'a rien sous elle. Le
+     fondu du HAUT reste : la surimpression, elle, ne change pas de place. */
+  .panneau {
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent calc(var(--esp-4) + var(--cible-tactile)),
+      #000 var(--dissolution-haut)
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent calc(var(--esp-4) + var(--cible-tactile)),
+      #000 var(--dissolution-haut)
+    );
   }
 }
 
@@ -237,6 +259,52 @@
 /* ── Bloc de texte d'une région (panneau placeholder / voix) ── */
 .panneau {
   align-items: center;
+  /* ══ CE QUI DÉFILE SE DISSOUT AVANT D'ATTEINDRE LA BARRE (QA visuelle du 2026-08-19) ═════════
+     Mesuré sur iPhone 14, accueil à mi-défilement : « Anima n'a pas encore écrit cette carte. »
+     se lisait EXACTEMENT par-dessus « Accueil  Anam  L'arbre ». Deux textes de contraste voisin
+     sur la même ligne — la barre n'était plus lisible, et la carte non plus.
+
+     ⚠️ LA BARRE N'EST PAS LE PROBLÈME, ET L'OPACIFIER SERAIT LA MAUVAISE RÉPONSE. Son dégradé est
+     transparent sur ses deux tiers hauts DÉLIBÉRÉMENT : « la scène n'a pas de bord franc » (AC1).
+     Le rendre opaque en ferait un bandeau, c'est-à-dire l'objet que tout ce fichier refuse de
+     dessiner. C'est donc le CONTENU qui cède, comme il cède déjà partout ailleurs dans ce produit :
+     l'image du seuil se dissout dans la nuit, le voile se dissout vers le bas, l'arbre se retire
+     derrière l'accueil.
+
+     Les deux bords sont traités, parce que le défaut est le même aux deux bouts : en haut, le
+     contenu passait sous la surimpression (la réserve `--cible-tactile + --esp-6`) ; en bas, sous
+     la barre. Le fondu du bas est plus RAPIDE que la bande — il est éteint à mi-hauteur, là où
+     flottent les libellés — pour que rien ne subsiste derrière un mot.
+
+     ⚠️ À PLEIN DÉFILEMENT, RIEN N'EST PERDU — À CONDITION QUE LA RÉSERVE SUIVE LE FONDU. Elle vaut
+     donc `--hauteur-nav + --esp-6`, exactement l'endroit où le fondu commence : la dernière carte
+     s'arrête au bord du masque, entièrement opaque. La laisser à `--hauteur-nav` seul ferait pâlir
+     les 32 derniers pixels de la dernière carte, à l'arrêt. Le masque ne mange que ce qui PASSE,
+     jamais ce qui se pose.
+
+     ⚠️ LES BORNES SE CALENT SUR LES BOÎTES DES LIENS, PAS SUR LES BANDES. Le premier jet fondait
+     sur toute la hauteur de la barre : à mi-fondu, c'est-à-dire pile derrière les libellés, le
+     texte de carte était encore à ~40 % — donc encore lisible, donc le défaut était toujours là,
+     seulement plus pâle. Les libellés font 44 px dans une bande de 68 : il ne reste que 12 px de
+     marge au-dessus d'eux, et aucun dégradé étalé sur la bande ne peut être éteint à temps. Le
+     fondu commence donc AU-DESSUS de la bande et se termine juste avant la boîte du lien. Même
+     raisonnement en haut, où « Aide » descend jusqu'à `--esp-4 + --cible-tactile`. */
+  --dissolution-haut: calc(var(--cible-tactile) + var(--esp-6));
+  --dissolution-bas: calc(var(--hauteur-nav) + var(--esp-6));
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent calc(var(--esp-4) + var(--cible-tactile)),
+    #000 var(--dissolution-haut),
+    #000 calc(100% - var(--dissolution-bas)),
+    transparent calc(100% - var(--hauteur-nav) + var(--esp-2))
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent calc(var(--esp-4) + var(--cible-tactile)),
+    #000 var(--dissolution-haut),
+    #000 calc(100% - var(--dissolution-bas)),
+    transparent calc(100% - var(--hauteur-nav) + var(--esp-2))
+  );
   /* ⚠️ LA RÉSERVE DE LA BARRE MANQUAIT ICI (QA visuelle du 2026-08-19). `.regionConversation` la
      posait depuis le tour 2 — « le composeur finissait 12 px DESSOUS, et la barre avalait le tap
      sur Envoyer » — mais la correction n'avait été portée QUE sur la région de conversation. Les
@@ -246,7 +314,7 @@
 
      C'est le patron de défaut le plus fréquent de ce dépôt : une règle vraie, corrigée à UN endroit,
      et le jumeau qu'on n'a pas regardé. */
-  padding-bottom: var(--hauteur-nav);
+  padding-bottom: var(--dissolution-bas);
 }
 .bloc {
   position: relative;
@@ -485,7 +553,7 @@
 }
 @media (min-width: 1024px) {
   .surimpression {
-    padding-left: calc(var(--esp-9) + var(--esp-6)); /* dégage le rail latéral gauche */
+    padding-left: calc(var(--esp-9) + var(--esp-7)); /* dégage le rail latéral gauche (voir .region) */
     padding-right: var(--marge-desktop);
   }
 }

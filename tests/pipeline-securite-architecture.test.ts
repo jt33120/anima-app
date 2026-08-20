@@ -35,6 +35,27 @@ const POLITIQUE = resolve(racine, "lib/ai/politique-tier.ts");
 
 const tousSource = [...fichiersTs("app"), ...fichiersTs("lib"), ...fichiersTs("render")];
 
+
+/**
+ * L'ORDRE RÉEL des préfixes système, lu dans la route.
+ *
+ * ⚠️ ÉCRIT APRÈS QU'UN AJOUT LÉGITIME A FAIT ROUGIR CETTE GARDE. Elle exigeait le littéral exact
+ * `[consigneVoix, consignePhase, consigneDetresse]` — donc elle interdisait d'ajouter QUOI QUE CE
+ * SOIT, y compris à une place parfaitement correcte. Le jour où le contexte d'Anam s'est inséré
+ * entre la voix et la phrase (QA du 2026-08-20), elle a dénoncé un câblage juste. Une garde de
+ * position doit mesurer des POSITIONS RELATIVES, pas recopier une ligne.
+ *
+ * L'invariant, lui, n'a pas bougé : la voix la plus LOIN des messages, la détresse la plus PRÈS.
+ */
+function ordreDesPrefixes(src: string): string[] {
+  const m = /const\s+prefixes\s*=\s*\[([^\]]*)\]/.exec(src);
+  expect(m, "le tableau des préfixes système est introuvable dans la route").not.toBeNull();
+  return m![1]
+    .split(",")
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0);
+}
+
 describe("Pipeline sécurité-d'abord — invariants d'architecture (AD-16)", () => {
   it("a bien scanné du code applicatif", () => {
     expect(tousSource.length).toBeGreaterThan(10);
@@ -284,9 +305,13 @@ describe("Story 2.7 — arc de séance : câblage serveur (AD-16, AD-1, AD-5)", 
     expect(src, "la route ne re-dérive pas la consigne depuis la seule phase").not.toMatch(
       /consignePhaseArc\s*\(/,
     );
-    // Ordre [voix (2.8), consignePhase, consigneDetresse] → la consigne de détresse (2.6) reste la
-    // DERNIÈRE avant messages (overlay sécurité prioritaire) ; la voix (2.8) se préfixe en tête.
-    expect(src).toMatch(/\[\s*consigneVoix\s*,\s*consignePhase\s*,\s*consigneDetresse\s*\]/);
+    // La consigne de détresse (2.6) reste la DERNIÈRE avant les messages — l'overlay de sécurité
+    // est prioritaire — et la phase vient après la voix. Ce qui s'ajoute entre les deux (le
+    // contexte d'Anam, 2026-08-20) ne peut donc pas s'intercaler après la détresse.
+    const ordre = ordreDesPrefixes(src);
+    expect(ordre[ordre.length - 1], "la détresse doit rester le dernier préfixe").toBe("consigneDetresse");
+    expect(ordre.indexOf("consignePhase")).toBeGreaterThan(ordre.indexOf("consigneVoix"));
+    expect(ordre.indexOf("consignePhase")).toBeLessThan(ordre.indexOf("consigneDetresse"));
   });
 
   it("no-leak : la trame `beat` émise n'a QUE t + beat (allowlist — revue 2.7)", () => {
@@ -313,9 +338,11 @@ describe("Story 2.8 — voix + troncature : câblage serveur (FR-083/084, AD-1/A
     const src = lire(ROUTE);
     expect(src).toMatch(/@\/lib\/domain\/consigne-voix/);
     expect(src).toMatch(/consigneVoixAnam\s*\(/);
-    expect(src, "ordre [voix, phase, détresse, …messages]").toMatch(
-      /\[\s*consigneVoix\s*,\s*consignePhase\s*,\s*consigneDetresse\s*\]/,
+    const ordre = ordreDesPrefixes(src);
+    expect(ordre[0], "la voix doit rester le PREMIER préfixe, donc le plus loin des messages").toBe(
+      "consigneVoix",
     );
+    expect(ordre[ordre.length - 1], "la détresse doit rester le dernier préfixe").toBe("consigneDetresse");
   });
 
   it("la troncature à 3 phrases est GATÉE hors détresse (jamais couper une réponse de sécurité)", () => {

@@ -41,6 +41,8 @@ import { lireDescriptionCarte } from "@/lib/corpus/description-cartes";
 import type { CleCarteJeu } from "@/lib/tirage/jeu";
 import { consignePhaseDuTour } from "@/lib/domain/consigne-phase";
 import { consigneVoixAnam } from "@/lib/domain/consigne-voix";
+import { consigneContexte } from "@/lib/domain/contexte-anam";
+import { lireContexteAnam } from "@/lib/data/lire-contexte-anam";
 import { consigneBilan } from "@/lib/domain/consigne-bilan";
 import { structurerBilan } from "@/lib/domain/bilan";
 import { doitProposerAbonnement } from "@/lib/domain/proposer-abonnement";
@@ -680,6 +682,23 @@ export async function POST(request: NextRequest) {
   // toujours vrais (forme, hypothèses, corpus Anima, interdit d'affect) qui valent aussi en détresse.
   // Toutes sont `{role:"system"}`, jamais reçues du client, jamais renvoyées au client.
   const consigneVoix = consigneVoixAnam();
+
+  /* ── CE QU'ANAM SAIT D'ELLE (QA manuelle du 2026-08-20) ───────────────────────────────────────
+   *
+   * ⚠️ AVANT CETTE LIGNE, LE MODÈLE NE RECEVAIT QUE DU STYLE. `[voix, phase, détresse, …messages]` :
+   * une consigne de forme, une consigne d'étape, et la liste des messages du client. Ni prénom, ni
+   * socle, ni branches, ni faits retenus. Le produit avait un écran « ce qu'Anam retient » (6.5) et
+   * une mémoire à trois couches (AD-8/AD-18) dont aucune ligne n'atteignait la conversation : Anam
+   * avait une mémoire et n'y avait pas accès. C'est ce que « juste un wrapper » désignait.
+   *
+   * ⚠️ SA PLACE DANS L'ORDRE EST UNE GARDE. Juste après la voix, donc LOIN des messages, et donc
+   * avant la consigne de phase et avant l'overlay de détresse : ce qu'on lui APPREND ne peut pas
+   * primer sur ce qu'on lui INTERDIT. `tests/contexte-anam.test.ts` tient cet ordre.
+   *
+   * Repli : jamais bloquant. Une lecture en panne rend une matière vide, et le module pur sait dire
+   * l'ignorance — ce qui vaut mieux qu'un modèle qui comble. */
+  const matiereContexte = await lireContexteAnam(supabase, user.id).catch(() => null);
+  const contexte = matiereContexte ? consigneContexte(matiereContexte) : null;
   // En détresse au moment d'une clôture, on NE demande PAS au modèle de clore (la séance cesse d'être
   // une séance, AC5) : la consigne de phase `clore` (« c'est toi qui clos… ») est supprimée — seul
   // l'overlay détresse régit le tour. Les autres phases restent injectées (bénignes en détresse ;
@@ -689,7 +708,9 @@ export async function POST(request: NextRequest) {
   // toujours. La règle — et ce qu'elle coûtait — est écrite dans `consigne-phase.ts`.
   const consignePhase = consignePhaseDuTour(arc, clotureAutorisee);
   const consigneDetresse = consigneReponse(securite.verdict);
-  const prefixes = [consigneVoix, consignePhase, consigneDetresse].filter((c): c is MessageIa => c !== null);
+  const prefixes = [consigneVoix, contexte, consignePhase, consigneDetresse].filter(
+    (c): c is MessageIa => c !== null,
+  );
   const messagesReponse = prefixes.length ? [...prefixes, ...messages] : messages;
   const bloc = blocRessourcesDetresse(securite.verdict);
   const trameRessources = bloc

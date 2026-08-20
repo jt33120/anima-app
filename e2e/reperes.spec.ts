@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { ouvrirUnCompteNeuf } from "./_entrer";
+import { ouvrirUnCompteNeuf, passerLeTour } from "./_entrer";
 
 /**
  * reperes.spec.ts — LE LIEU S'EXPLIQUE, ET ÇA SE RELIT (QA manuelle du 2026-08-19)
@@ -32,6 +32,7 @@ test.describe("Repères", () => {
     ).toBeVisible();
 
     await page.getByRole("button", { name: /entrer dans le monde/i }).click();
+    await passerLeTour(page);
     const barre = page.getByRole("navigation", { name: "Régions" });
     for (const region of ["Accueil", "Anam", "L’arbre"]) {
       await barre.getByRole("button", { name: region, exact: true }).click();

@@ -14,6 +14,7 @@ import { marquerHypotheseDite } from "@/app/_enneagramme/marquer-hypothese";
 import { marquerSeuilFranchi } from "@/app/_seuil/marquer-franchissement";
 import { creerDepotSeuil } from "@/lib/data/depot-seuil";
 import { premierPassage } from "@/lib/domain/premier-passage";
+import { ETAPES, SUIVANT, TERMINER, QUITTER } from "@/lib/domain/copie-guide";
 
 /**
  * ⚠️ RENDUE À LA DEMANDE, ET C'EST UNE GARDE (revue adversariale, R5).
@@ -123,6 +124,9 @@ export default async function Page() {
       // franchi » — redonne le seuil, ce qui est le bon sens de la panne : mieux vaut un rideau
       // de trop qu'une entrée manquée.
       seuilDejaFranchi={seuilFranchiLe !== null}
+      // Le tour guidé (retour du 2026-08-20). La copie vit dans `lib/domain` ; le rendu n'a pas le
+      // droit de l'importer (AD-7/AD-10), donc elle descend d'ici.
+      guide={{ etapes: ETAPES, suivant: SUIVANT, terminer: TERMINER, quitter: QUITTER }}
     />
   );
 }

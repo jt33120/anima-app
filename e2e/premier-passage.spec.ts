@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { ouvrirUnCompteNeuf } from "./_entrer";
+import { ouvrirUnCompteNeuf, passerLeTour } from "./_entrer";
 
 /**
  * premier-passage.spec.ts — « JE VIENS DE M'INSCRIRE » → « JE SAIS QUOI FAIRE » (H4)
@@ -26,8 +26,9 @@ test("[H4] le lieu se présente une fois, puis plus jamais", async ({ page }) =>
   const porte = page.getByRole("button", { name: /entrer dans le monde/i });
   await expect(porte, "la porte du seuil n'est pas atteignable").toBeInViewport();
   await porte.click();
+  await passerLeTour(page);
 
-  const titre = page.getByRole("heading", { name: "Trois places", level: 2 });
+  const titre = page.getByRole("heading", { name: "Trois places", level: 2, exact: true });
   await expect(titre, "un compte neuf n'a pas été présenté au lieu").toBeVisible();
   // ⚠️ DEUX PIÈGES DE LOCALISATION, TOUS DEUX PAYÉS ICI.
   //  1. un `<dt>` ne tire pas son nom accessible de son texte : `getByRole("term", { name })` ne
@@ -53,7 +54,7 @@ test("[H4] le lieu se présente une fois, puis plus jamais", async ({ page }) =>
   await page.reload();
   await expect(page.getByRole("heading", { name: "Accueil", level: 1 })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Trois places", level: 2 }),
+    page.getByRole("heading", { name: "Trois places", level: 2, exact: true }),
     "la présentation revient à chaque chargement : la date n'a pas été posée, ou pas relue",
   ).toHaveCount(0);
 });

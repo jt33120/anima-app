@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/data/supabase/server";
 import { etapeOnboardingPour } from "@/app/(auth)/etat-onboarding";
 import * as copie from "@/lib/domain/copie-reperes";
+import { RELANCER } from "@/lib/domain/copie-guide";
 import Reperes from "@/render/reperes/Reperes";
 import PiedHalte from "@/render/PiedHalte";
 import { piedPour, MENTION_IA, URL_AIDE, URL_TRANSPARENCE } from "@/lib/domain/pied-halte";
@@ -57,6 +58,10 @@ export default async function PageReperes() {
         siCaNeVaPas={copie.SI_CA_NE_VA_PAS}
         parOuCommencer={copie.PAR_OU_COMMENCER}
         urlRetour="/"
+        relancerLeTour={RELANCER}
+        // `?tour=1` : la scène l'ouvre puis retire le paramètre de l'URL, pour qu'un rechargement
+        // ne relance pas le tour indéfiniment.
+        urlTour="/?tour=1"
       />
       {/* Story 6.9 (QA T7) — la porte de secours (FR-077) et, là où elle est due, la mention IA
           (art. 50). Le MODÈLE décide ; ce composant dessine. Elle n'est PAS due ici : rien sur

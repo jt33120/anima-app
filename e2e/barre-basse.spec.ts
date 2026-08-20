@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { ouvrirUnCompteNeuf } from "./_entrer";
+import { ouvrirUnCompteNeuf, passerLeTour } from "./_entrer";
 
 /**
  * barre-basse.spec.ts — CE QU'ON LIT DANS LA BARRE NE DÉPEND PAS DE CE QUI PASSE DERRIÈRE
@@ -87,6 +87,7 @@ test.describe("La barre de régions", () => {
     await ouvrirUnCompteNeuf(page);
     await page.goto("/");
     await page.getByRole("button", { name: /entrer dans le monde/i }).click();
+    await passerLeTour(page);
     await expect(page.getByRole("heading", { name: "Accueil", level: 1 })).toBeVisible();
     await page.waitForTimeout(1200);
 
@@ -136,6 +137,7 @@ test.describe("La barre de régions", () => {
     await ouvrirUnCompteNeuf(page);
     await page.goto("/");
     await page.getByRole("button", { name: /entrer dans le monde/i }).click();
+    await passerLeTour(page);
     await expect(page.getByRole("heading", { name: "Accueil", level: 1 })).toBeVisible();
     await page.waitForTimeout(1200);
 
@@ -178,6 +180,7 @@ test.describe("La barre de régions", () => {
     await ouvrirUnCompteNeuf(page);
     await page.goto("/");
     await page.getByRole("button", { name: /entrer dans le monde/i }).click();
+    await passerLeTour(page);
     await page.getByRole("navigation", { name: "Régions" }).getByRole("button", { name: "L’arbre" }).click();
     await expect(page.getByRole("heading", { name: "L’arbre", level: 1 })).toBeVisible();
     await page.waitForTimeout(1200);
@@ -216,6 +219,7 @@ test.describe("La barre de régions", () => {
     await ouvrirUnCompteNeuf(page);
     await page.goto("/");
     await page.getByRole("button", { name: /entrer dans le monde/i }).click();
+    await passerLeTour(page);
     await page.getByRole("navigation", { name: "Régions" }).getByRole("button", { name: "L’arbre" }).click();
     await expect(page.getByRole("heading", { name: "L’arbre", level: 1 })).toBeVisible();
 

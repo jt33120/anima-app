@@ -1,0 +1,127 @@
+/*
+ * guide.module.css — LE TOUR GUIDÉ : un projecteur, une bulle, deux boutons.
+ *
+ * ⚠️ C'EST LA SEULE SURIMPRESSION BLOQUANTE DU PRODUIT, ET ELLE EST ASSUMÉE. Partout ailleurs la
+ * scène refuse les modales : elle se dit « continue, sans bords », et une boîte posée dessus est un
+ * corps étranger. Ici, l'objet EST l'interruption — on ne peut pas désigner un élément et laisser
+ * en même temps toucher le reste, sinon le tour se perd au premier geste. Elle se ferme d'un
+ * bouton nommé, d'Échap, et elle ne revient jamais toute seule.
+ */
+
+.voile {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  /* Le voile n'est PAS peint ici : il l'est par le `box-shadow` du trou, ce qui donne un
+     découpage net sans masque ni SVG. Voir `.trou`. */
+  pointer-events: auto;
+}
+
+/*
+ * LE TROU DE PROJECTEUR — QUATRE VOLETS, PAS UNE OMBRE DE 9999 PIXELS.
+ *
+ * ⚠️ LA PREMIÈRE VERSION COÛTAIT LES TROIS QUARTS DU BUDGET DE TRAME, ET C'EST UNE GARDE VOISINE
+ * QUI L'A DIT. `box-shadow: 0 0 0 9999px` produit exactement l'effet voulu en une déclaration —
+ * mais l'ombre est REPEINTE à chaque trame pendant que la boîte se déplace, sur une surface de
+ * 9999 px de côté. Mesuré pendant le tour : 38 trames en 2,8 s, soit ~13 im/s au lieu de 60. Ce
+ * n'est pas une mesure de laboratoire : c'est ce que quelqu'un ressent comme « ça rame », sur
+ * l'écran qui sert à lui apprendre le produit.
+ *
+ * Quatre aplats bordent le trou. Aucune ombre, aucun filtre, aucun masque : quatre rectangles
+ * remplis, ce qu'un navigateur fait sans y penser. L'élément désigné garde ses couleurs, tout le
+ * reste recule — le résultat est le même, le coût ne l'est pas.
+ */
+.volet {
+  position: fixed;
+  background: rgba(6, 5, 18, 0.82);
+  pointer-events: none;
+}
+.trou {
+  position: fixed;
+  border-radius: var(--rayon);
+  border: 2px solid var(--accent);
+  pointer-events: none;
+}
+/* Sans cible : les volets couvrent tout, et la bulle parle de l'écran entier. */
+.trouAbsent {
+  display: none;
+}
+
+
+.bulle {
+  position: fixed;
+  z-index: 61;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100vw - 2 * var(--esp-4)), 26rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  padding: var(--esp-5);
+  background: var(--surface-elevee);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon-lg);
+  pointer-events: auto;
+}
+.bulle h2 {
+  margin: 0;
+  color: var(--texte);
+}
+.bulle p {
+  margin: 0;
+}
+
+.pied {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  margin-top: var(--esp-1);
+}
+/* La progression, DITE, jamais un chiffre : « ●●○○○ ». Un « 3 / 6 » serait un compte, et le produit
+   n'en affiche aucun. Ici il n'y a rien à compter — seulement à situer. */
+.jalons {
+  display: flex;
+  gap: var(--esp-1);
+  margin-right: auto;
+}
+.jalon {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rayon-full);
+  background: var(--bordure-forte);
+}
+.jalonFait {
+  background: var(--accent);
+}
+.passer {
+  min-height: var(--cible-tactile);
+  padding: var(--esp-2) var(--esp-3);
+  background: transparent;
+  border: 0;
+  color: var(--texte-doux);
+  cursor: pointer;
+}
+.passer:hover {
+  color: var(--texte);
+}
+.suivant {
+  min-height: var(--cible-tactile);
+  padding: var(--esp-2) var(--esp-5);
+  background: transparent;
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  color: var(--texte);
+  cursor: pointer;
+  transition:
+    border-color var(--duree-standard) var(--courbe),
+    background var(--duree-standard) var(--courbe);
+}
+.suivant:hover {
+  border-color: var(--accent);
+  background: rgba(143, 193, 239, 0.06);
+}
+.passer:focus-visible,
+.suivant:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}

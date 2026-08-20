@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { dimensionnerTout } from "./_outils";
 import ArbreInteractif from "@/render/arbre/ArbreInteractif";
 import { VIDE_TITRE, VIDE_CORPS, VIDE_OU_NAISSENT_LES_BRANCHES, BASCULE_LISTE } from "@/render/arbre/copie-arbre";

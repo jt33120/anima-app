@@ -28,7 +28,26 @@
   min-height: 100vh;
   min-height: 100dvh;
   overflow: hidden;
-  background: radial-gradient(120% 90% at 50% 8%, #1a1640 0%, var(--fond) 58%);
+  /* ══ LA NUIT, EN COUCHES (retour du 2026-08-20 : « tout en violet plein est ennuyeux ») ═══════
+     Le fond était UN seul dégradé radial — un halo violet centré en haut, puis l'aplat. Sur un
+     écran de téléphone, ça se lit comme une couleur unie avec une tache : rien à parcourir des
+     yeux, aucune profondeur, et surtout aucun ENDROIT. Une nuit réelle n'est pas monochrome.
+
+     Quatre couches, du fond vers l'avant, chacune avec un rôle nommé :
+       1. un souffle FROID en bas à droite — l'horizon, ce qui donne le bas et le haut ;
+       2. une nébuleuse TIÈDE en haut à gauche, décentrée : c'est elle qui casse la symétrie et
+          empêche l'écran de se lire comme un dégradé de logiciel ;
+       3. le halo d'origine, conservé mais RECULÉ (il servait la lune, il continue) ;
+       4. l'aplat, qui reste `--fond` — la charte l'exige, et rien ici ne le remplace.
+
+     ⚠️ AUCUNE COULEUR EN DUR HORS DE CE BLOC, ET AUCUNE SATURATION GRATUITE. Les trois teintes
+     sont des dérivées de la palette (`--fond`, `--lueur`, `--surface-elevee`) mêlées à l'aplat :
+     un violet vif ajouté ici ressortirait sur les cartes, qui se posent dessus. */
+  background:
+    radial-gradient(130% 62% at 88% 98%, color-mix(in srgb, var(--lueur) 16%, transparent) 0%, transparent 62%),
+    radial-gradient(80% 48% at 10% 12%, color-mix(in srgb, var(--surface-elevee) 62%, transparent) 0%, transparent 70%),
+    radial-gradient(120% 90% at 50% 8%, #1a1640 0%, var(--fond) 58%),
+    var(--fond);
   isolation: isolate;
 }
 
@@ -38,6 +57,7 @@
   background: var(--fond);
 }
 :global(:root[data-a11y="contraste"]) .lune,
+:global(:root[data-a11y="contraste"]) .voie,
 :global(:root[data-a11y="contraste"]) .etoiles {
   display: none;
 }
@@ -46,6 +66,7 @@
     background: var(--fond);
   }
   :global(:root:not([data-a11y="nuit"])) .lune,
+  :global(:root:not([data-a11y="nuit"])) .voie,
   :global(:root:not([data-a11y="nuit"])) .etoiles {
     display: none;
   }
@@ -57,6 +78,41 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
+}
+
+/* ── LA VOIE LACTÉE ────────────────────────────────────────────────────────────────────────────
+   Une bande diagonale, à la limite du visible (elle vaut ~4 % d'opacité une fois floutée). Son
+   rôle n'est pas d'être vue mais d'être TRAVERSÉE : elle donne à l'œil une direction dans un
+   écran qui n'en avait aucune, et c'est ce qui distingue un ciel d'un aplat.
+
+   ⚠️ ELLE A ÉTÉ FLOUTÉE, ET LE FLOU COÛTAIT LES CINQ SIXIÈMES DU BUDGET DE TRAME. Un
+   `filter: blur(44px)` sur un élément débordant de 20 % — donc 140 % du viewport — doit être
+   recomposité à chaque trame dès que quoi que ce soit bouge derrière (les étoiles scintillent, le
+   canevas de l'arbre se peint). Mesuré : **4 images/seconde avec, 25 sans**, au repos, sur le tout
+   premier écran. C'est-à-dire que le fond « plus immersif » rendait l'application saccadée — le
+   contraire exact de ce qu'on cherchait, et invisible à l'œil sur une capture.
+   Le flou est remplacé par des arrêts LARGES. Une bande à quelques pour cent d'opacité n'a pas
+   besoin d'un bord irrégulier pour être crédible : elle a besoin de ne pas se voir. */
+.voie {
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  /* ⚠️ CES VALEURS ONT ÉTÉ DIVISÉES PAR TROIS APRÈS MESURE. La première version montait à 30 % de
+     `--lueur` : la bande passait SOUS la colonne de lecture et y posait une tache claire — un fond
+     qui gêne le texte est pire qu'un fond ennuyeux. Elle croise maintenant le coin, pas le texte,
+     et elle vaut quelques pour cent une fois floutée. Si on la voit, c'est qu'elle est trop forte. */
+  opacity: 0.3;
+  background: linear-gradient(
+    122deg,
+    transparent 18%,
+    color-mix(in srgb, var(--lueur) 5%, transparent) 32%,
+    color-mix(in srgb, var(--lueur) 12%, transparent) 44%,
+    color-mix(in srgb, #b9c8ee 9%, transparent) 50%,
+    color-mix(in srgb, var(--lueur) 12%, transparent) 56%,
+    color-mix(in srgb, var(--lueur) 5%, transparent) 68%,
+    transparent 82%
+  );
 }
 .lune {
   position: absolute;
@@ -291,8 +347,16 @@
   /* Fond OPAQUE (aplat --fond) sous la conversation : le texte du fil ne se pose JAMAIS sur
      l'imagerie de la scène (l'arbre clair au centre, la lune) — AC5/UX-DR-39, contraste WCAG AA
      garanti. La story autorise explicitement « un aplat fond comme fond de fil ». Le fondu de
-     région (opacité) fait apparaître/disparaître ce panneau ; hors anam, la scène redevient visible. */
-  background: var(--fond);
+     région (opacité) fait apparaître/disparaître ce panneau ; hors anam, la scène redevient visible.
+
+     ⚠️ OPAQUE NE VEUT PAS DIRE UNI (retour du 2026-08-20). Deux dégradés à quelques points de
+     `--fond` — même famille, aucune texture : la surface reste assez uniforme pour porter un fil de
+     conversation, et cesse d'être une couleur morte sur toute la hauteur. Le contraste ne bouge
+     pas : `tests/contraste.test.ts` compose sur `--fond`, qui reste la base et le repli. */
+  background:
+    radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--surface) 55%, var(--fond)) 0%, transparent 64%),
+    radial-gradient(100% 50% at 50% 100%, color-mix(in srgb, var(--lueur) 7%, var(--fond)) 0%, transparent 70%),
+    var(--fond);
 }
 /* h1 de la conversation : discret (cible du focus + hiérarchie), la conversation vient dessous. */
 .titreConversation {
@@ -312,10 +376,23 @@
       fiche ne se posent pas sur l'imagerie de fond). Le canevas gère son propre pan/zoom (overflow hidden). ── */
 .regionArbre {
   align-items: stretch;
+  /* ══ L'APLAT N'EST PLUS PLAT (retour du 2026-08-20 : « le fond tout en violet plein est
+     ennuyeux ») ══════════════════════════════════════════════════════════════════════════════
+     Cette région posait `background: var(--fond)` — une couleur unie sur toute la hauteur. La
+     RAISON de l'aplat reste entière et n'est pas négociable : le texte ne doit jamais reposer sur
+     l'imagerie (UX-DR-39), et c'est ce qui distingue une région où l'on LIT d'un ciel où l'on
+     regarde. Mais « pas d'imagerie » n'oblige pas à « une seule couleur ».
+
+     Deux dégradés très proches de `--fond` — quelques points d'écart, jamais une texture : la
+     surface reste assez uniforme pour porter du texte, et cesse d'être morte. Rien ici ne
+     transporte d'information ; en contraste renforcé, tout retombe sur l'aplat. */
+  background:
+    radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--surface) 55%, var(--fond)) 0%, transparent 64%),
+    radial-gradient(100% 50% at 50% 100%, color-mix(in srgb, var(--lueur) 7%, var(--fond)) 0%, transparent 70%),
+    var(--fond);
   /* `auto` et non `hidden` : au zoom 200 %/400 % ou en paysage court, le contenu doit rester atteignable
      par défilement (WCAG 1.4.10 Reflow). Le canevas gère son propre pan/zoom, indépendant (revue 4.6). */
   overflow-y: auto;
-  background: var(--fond);
 }
 
 /* Garder la Conversation MONTÉE mais hors vue pendant le rejeu de l'échange source : `display: contents`

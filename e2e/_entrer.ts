@@ -56,5 +56,33 @@ export async function ouvrirUnCompteNeuf(page: Page): Promise<Compte> {
 export async function entrerDansLaRegion(page: Page, nom: string | RegExp): Promise<void> {
   const porte = page.getByRole("button", { name: /entrer dans le monde/i });
   if (await porte.isVisible().catch(() => false)) await porte.click();
+  await passerLeTour(page);
   await page.getByRole("navigation", { name: "Régions" }).getByRole("button", { name: nom }).click();
+}
+
+/**
+ * Fermer le tour guidé s'il s'est ouvert.
+ *
+ * ⚠️ POURQUOI CE HELPER EXISTE, ET CE QU'IL DIT DU PRODUIT. Le tour s'ouvre TOUT SEUL à la première
+ * arrivée dans le monde (retour du 2026-08-20 : « on est lancé dans le grand bain »), et c'est une
+ * surimpression BLOQUANTE — la seule du produit, assumée comme telle : on ne peut pas désigner un
+ * élément et laisser toucher le reste. Or chaque parcours de cette suite part d'un compte NEUF :
+ * ils sont donc tous, sans exception, derrière ce voile au moment où ils franchissent la porte.
+ *
+ * Douze parcours l'ont découvert en même temps, et c'est le bon endroit pour le régler. Cliquer
+ * ailleurs pour contourner le voile mentirait sur ce que voit une vraie personne ; on fait ce
+ * qu'elle fait — on ferme le tour. `e2e/guide.spec.ts` est le seul fichier qui ne l'appelle jamais :
+ * c'est son sujet.
+ */
+export async function passerLeTour(page: Page): Promise<void> {
+  // ⚠️ ON ATTEND, ON NE SUPPOSE PAS. Un simple `isVisible()` juste après le clic sur la porte
+  // interroge l'écran AVANT que l'effet d'ouverture n'ait tourné : le tour n'est pas encore là, on
+  // ne le ferme pas, et le clic suivant part dans le voile. Ça passait sur téléphone et échouait
+  // sur bureau — c'est-à-dire une course, donc un test qui ment une fois sur deux.
+  const passer = page.getByRole("button", { name: /Passer le tour/ });
+  await passer.waitFor({ state: "visible", timeout: 1200 }).catch(() => undefined);
+  if (await passer.isVisible().catch(() => false)) {
+    await passer.click();
+    await page.getByRole("dialog").waitFor({ state: "detached" }).catch(() => undefined);
+  }
 }

@@ -344,6 +344,78 @@ lu dans `arbre-vivant.tsx`.
 
 ---
 
+## 5 ter. Le tour manuel du 20 août — « on est lancé dans le grand bain »
+
+Quatre reproches, et le plus grave n'était pas visuel.
+
+### « Anam est juste un wrapper de LLM »
+
+**C'était exact au sens strict.** La route de conversation envoyait au modèle
+`[consigneVoix, consignePhase, consigneDetresse, …messages du client]` : une consigne de style, une
+consigne d'étape, un overlay de sécurité, et la liste des messages. **Ni prénom, ni socle calculé,
+ni branches déjà nommées, ni faits retenus.**
+
+Le produit a un écran « ce qu'Anam retient » (6.5), une table de faits extraits (4.2) et une
+mémoire à trois couches inscrite à l'architecture (AD-8/AD-18) — et aucune de ces lignes
+n'atteignait la conversation. **Anam avait une mémoire et n'y avait pas accès.**
+
+`lib/domain/contexte-anam.ts` (pur) + `lib/data/lire-contexte-anam.ts` (JWT, cinq sources, cinq
+replis) composent désormais un message système injecté entre la voix et la phase. Il porte aussi la
+moitié qu'on oublie : **l'ignorance**. Un modèle à qui l'on ne dit rien comble — il salue comme
+s'il vous connaissait. Deux vides sont donc distingués : « c'est la première fois » et « elle est
+déjà venue, mais rien n'a été retenu ».
+
+Le mutant qui a failli passer : **retirer `contexte` du tableau des préfixes ne faisait rougir
+personne.** La lecture avait lieu, son repli était gardé, son contenu était gardé — et le modèle ne
+le voyait plus. C'est-à-dire l'état d'avant, avec des tests verts par-dessus.
+
+### « Le tutoriel doit me guider, pas être une liste de texte »
+
+La première réponse avait été une PAGE (`/reperes`). Le reproche est juste : **un document
+explique, un tour DÉSIGNE.** Ce ne sont pas deux niveaux de qualité du même objet — on garde les
+deux, et le tour renvoie au document.
+
+`render/guide/Guide.tsx` : projecteur découpé au `box-shadow`, bulle, « Suivant ». Trois propriétés
+en font un tour plutôt qu'une pile de modales, et chacune a demandé du soin :
+
+1. il **va** lui-même dans la région de l'étape, puis **attend** que le fondu retombe — désigner
+   pendant que la région se déplace pointe un rectangle périmé ;
+2. il **mesure** la cible à chaque étape, chaque redimensionnement et chaque défilement ;
+3. il **saute** une étape dont la cible n'existe pas — le contenu dépend du compte, et un
+   projecteur sur du vide est pire qu'une étape absente.
+
+Défaut trouvé en mesurant : la bulle se plaçait avec une hauteur **supposée** (232 px). Dès qu'un
+texte passait à cinq lignes, elle recouvrait l'élément qu'elle désignait — donc la barre, dans
+l'étape qui parle de la barre. Elle se mesure.
+
+### « Où est sa graine ??? »
+
+Le chemin du tronc partait de sa base vers `(430, 880)` et `(570, 880)` — vers le **haut**, en
+repère SVG. Un trait vertical surmonté de deux obliques qui remontent : **une pointe de flèche.**
+Ce qui était à l'écran n'était pas un arbre.
+
+Et un troisième défaut que la question ne nommait pas : l'état vide cadrait le tronc **entier**
+jusqu'à la fourche, laquelle ne porte rien sur un arbre sans branche. Le dessin se réduisait à un
+trait fin de 400 unités montant s'arrêter dans le vide.
+
+### « À quoi correspond vue liste pour l'arbre ? »
+
+**La question n'avait pas de réponse.** Depuis la story 3.3, les deux vues d'un arbre sans branche
+rendent littéralement le même composant : le bouton changeait son propre libellé et rien d'autre.
+Un contrôle qui ne fait rien enseigne qu'on ne comprend pas l'écran.
+
+### « Le fond tout en violet plein est ennuyeux »
+
+Le « violet plein » n'était pas le ciel — c'étaient les régions **Anam** et **arbre**, qui posent un
+aplat `--fond` pour que le texte ne repose jamais sur l'imagerie (UX-DR-39). La raison reste
+entière ; « pas d'imagerie » n'oblige pas à « une seule couleur ». Deux dégradés à quelques points
+de `--fond` par région, et le ciel de l'accueil gagne trois couches plus une voie lactée.
+
+**Valeurs divisées par trois après mesure :** la première voie lactée passait sous la colonne de
+lecture et y posait une tache claire. *Un fond qui gêne le texte est pire qu'un fond ennuyeux.*
+
+---
+
 ## 6. La règle qui gouverne tout ce document
 
 Tout correctif issu de ces tours reçoit une garde qui **rougit quand on réintroduit le défaut** —

@@ -26,6 +26,8 @@ export interface ProprietesReperes {
   readonly siCaNeVaPas: string;
   readonly parOuCommencer: string;
   readonly urlRetour: string;
+  readonly relancerLeTour: string;
+  readonly urlTour: string;
 }
 
 export default function Reperes(p: ProprietesReperes) {
@@ -39,6 +41,14 @@ export default function Reperes(p: ProprietesReperes) {
         <p className="t-surtitre">Anam</p>
         <h1 className="t-titre">{p.titre}</h1>
         <p className="t-corps">{p.ouverture}</p>
+
+        {/* ⚠️ EN HAUT, ET AVANT LE TEXTE. Cette page est la version longue ; le tour est la version
+            qui DÉSIGNE. Quelqu'un qui arrive ici parce qu'il ne comprend pas l'écran a plus besoin
+            qu'on lui montre que d'un document à lire — le proposer après trois écrans de prose
+            reviendrait à le cacher. */}
+        <Link className={s.tour} href={p.urlTour}>
+          <span className="t-bouton">{p.relancerLeTour}</span>
+        </Link>
 
         <section className={s.section} aria-label="Les trois places">
           <h2 className="t-titre-sm">Les trois places</h2>

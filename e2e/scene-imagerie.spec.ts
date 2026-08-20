@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { ouvrirUnCompteNeuf } from "./_entrer";
+import { ouvrirUnCompteNeuf, passerLeTour } from "./_entrer";
 
 /**
  * scene-imagerie.spec.ts — CE QUE L'ARRIÈRE-PLAN PEINT VRAIMENT, RÉGION PAR RÉGION
@@ -51,6 +51,7 @@ test.describe("Le décor de l'arbre", () => {
     await page.goto("/");
     await laisserRetomber(page);
     await page.getByRole("button", { name: /entrer dans le monde/i }).click();
+    await passerLeTour(page);
     await laisserRetomber(page);
 
     // La région d'accueil est bien celle qui est active — sans quoi la mesure ne dirait rien.

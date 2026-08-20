@@ -36,6 +36,7 @@ import Conversation from "./conversation/Conversation";
 import EchangeSource from "./conversation/EchangeSource";
 import Bibliotheque from "./accueil/Bibliotheque";
 import PremierPassage, { type PremierPassageVue } from "./premier-passage";
+import Guide, { type EtapeGuideVue } from "./guide/Guide";
 import type { BibliothequeVue } from "./accueil/types";
 import type { TourHistorique } from "./conversation/types";
 import type { OuvertureData } from "./conversation/types";
@@ -103,6 +104,19 @@ export interface ProprietesSceneRendue {
    * ce que voient les tests de rendu qui montent la scène sans base.
    */
   seuilDejaFranchi?: boolean;
+  /**
+   * LE TOUR GUIDÉ (retour du 2026-08-20) — ses étapes et ses libellés, décidés hors du rendu.
+   *
+   * ⚠️ ILS ARRIVENT PAR PROPRIÉTÉ PARCE QUE `render/` N'A PAS LE DROIT D'IMPORTER `lib/domain`
+   * (AD-7/AD-10), où vit la copie. Absents ⇒ pas de tour : c'est le repli de tous les tests de
+   * rendu qui montent la scène sans passer par la page.
+   */
+  guide?: {
+    readonly etapes: readonly EtapeGuideVue[];
+    readonly suivant: string;
+    readonly terminer: string;
+    readonly quitter: string;
+  };
 }
 
 /* Étoiles générées côté client APRÈS montage → aucun décalage d'hydratation. */
@@ -200,6 +214,7 @@ export default function SceneDom({
   premierPassage,
   onSeuilFranchi,
   seuilDejaFranchi = false,
+  guide,
 }: ProprietesSceneRendue) {
   const [etat, dispatch] = useReducer(
     reducteurVue,
@@ -235,6 +250,36 @@ export default function SceneDom({
       onSeuilFranchi?.();
     }
   };
+
+  /* ── LE TOUR GUIDÉ ─────────────────────────────────────────────────────────────────────────────
+   *
+   * Deux portes, et une seule fois chacune :
+   *   • à la PREMIÈRE arrivée dans le monde — le moment exact où « on est lancé dans le grand
+   *     bain » ; c'est le même signal que la présentation de l'accueil (`premierPassage.du`), donc
+   *     aucune colonne de plus, aucune migration ;
+   *   • depuis « Repères », par `?tour=1` — pour qui veut le refaire, et pour qui a franchi le
+   *     seuil avant que ce tour n'existe.
+   *
+   * ⚠️ LE PARAMÈTRE EST RETIRÉ DE L'URL AUSSITÔT LU. Sans ça, un rechargement — ou un partage de
+   * lien — relance le tour indéfiniment, et une aide qu'on ne peut pas faire taire cesse d'en être
+   * une.
+   */
+  const [tourOuvert, setTourOuvert] = useState(false);
+  const tourDejaOuvert = useRef(false);
+  useEffect(() => {
+    if (!guide || tourDejaOuvert.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const demande = params.get("tour") === "1";
+    const premiereArrivee = premierPassage?.du === true && region !== "seuil";
+    if (!demande && !premiereArrivee) return;
+    tourDejaOuvert.current = true;
+    setTourOuvert(true);
+    if (demande) {
+      params.delete("tour");
+      const reste = params.toString();
+      window.history.replaceState(null, "", reste ? `${window.location.pathname}?${reste}` : window.location.pathname);
+    }
+  }, [guide, premierPassage, region]);
 
   /* ── LE GESTE : le doigt mène (voir le bloc « LE GLISSEMENT LATÉRAL » plus haut) ───────────── */
   const ordre = useMemo(() => REGIONS.map((r) => r.id), []);
@@ -489,6 +534,15 @@ export default function SceneDom({
           de secours est parmi les tout premiers arrêts de tabulation (AC3). Couche constante,
           jamais dans une région → jamais masquée/dissoute au changement de région (AC1). Le
           MODÈLE décide quoi porter (surimpressionPour) ; ce rendu ne fait que dessiner (AD-7). */}
+      {tourOuvert && guide && (
+        <Guide
+          etapes={guide.etapes}
+          libelles={{ suivant: guide.suivant, terminer: guide.terminer, quitter: guide.quitter }}
+          onAller={aller}
+          onFini={() => setTourOuvert(false)}
+        />
+      )}
+
       <Surimpression
         modele={surimpressionPour(
           region,
@@ -501,6 +555,9 @@ export default function SceneDom({
       <div className={s.ciel} aria-hidden>
         <div className={s.lune} />
       </div>
+      {/* La voie lactée — une direction dans le ciel, à la limite du visible. Décor pur : elle
+          cède avec le reste de l'imagerie en contraste renforcé (voir `.voie` et le bloc a11y). */}
+      <div className={`${s.voie} imagerie`} aria-hidden />
       <Etoiles />
 
       {/* Le DÉCOR de fond (ambiance, aria-hidden) — un arbre calme derrière toute la scène. L'arbre RÉEL et

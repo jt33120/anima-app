@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { ouvrirUnCompteNeuf } from "./_entrer";
+import { ouvrirUnCompteNeuf, passerLeTour } from "./_entrer";
 
 /**
  * seuil.spec.ts — L'ÉCRAN D'ENTRÉE, MESURÉ (QA manuelle du 2026-08-19)
@@ -183,6 +183,7 @@ test.describe("Le seuil", () => {
     ).toBe(false);
 
     await page.getByRole("button", { name: /entrer dans le monde/i }).click();
+    await passerLeTour(page);
     await expect(page.getByRole("heading", { name: /^Accueil$/, level: 1 })).toBeVisible();
     await expect(
       page.getByRole("navigation", { name: "Régions" }).getByRole("button"),
@@ -194,6 +195,7 @@ test.describe("Le seuil", () => {
     await ouvrirUnCompteNeuf(page);
     await page.goto("/");
     await page.getByRole("button", { name: /entrer dans le monde/i }).click();
+    await passerLeTour(page);
     await expect(page.getByRole("heading", { name: /^Accueil$/, level: 1 })).toBeVisible();
     // La Server Action pose la date ; on lui laisse le temps de revenir avant de recharger.
     await page.waitForTimeout(1500);
@@ -232,6 +234,7 @@ test.describe("Le seuil", () => {
       requestAnimationFrame(tic);
     });
     await page.getByRole("button", { name: /entrer dans le monde/i }).click();
+    await passerLeTour(page);
     await page.waitForTimeout(1600);
 
     const ech = await page.evaluate(() => (window as unknown as { __ech: number[][] }).__ech);

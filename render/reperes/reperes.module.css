@@ -70,3 +70,28 @@
   margin: 0;
   color: var(--texte-doux);
 }
+
+/* Le chemin vers le tour guidé. Même grammaire que `.affordance` de la scène : aucun fond, un
+   contour, une cible de 44 px. Ce n'est pas un appel à l'action, c'est une porte. */
+.tour {
+  align-self: flex-start;
+  min-height: var(--cible-tactile);
+  display: inline-flex;
+  align-items: center;
+  padding: var(--esp-3) var(--esp-5);
+  border: 1px solid var(--bordure-forte);
+  border-radius: var(--rayon);
+  color: var(--texte);
+  text-decoration: none;
+  transition:
+    border-color var(--duree-standard) var(--courbe),
+    background var(--duree-standard) var(--courbe);
+}
+.tour:hover {
+  border-color: var(--accent);
+  background: rgba(143, 193, 239, 0.06);
+}
+.tour:focus-visible {
+  outline: 2px solid var(--bordure-forte);
+  outline-offset: 2px;
+}

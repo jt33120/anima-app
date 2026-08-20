@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { dimensionnerTout } from "./_outils";
+import { CHEMIN_TRONC } from "@/render/arbre/Tronc";
 import ArbreInteractif from "@/render/arbre/ArbreInteractif";
 import {
   ACTION_AJOUTER_HEURE,
@@ -260,12 +261,46 @@ describe("[5.6/AC9 · FR-088] l'état vide dessine le tronc", () => {
    * rougit ces trois tests, donc le canevas n'est bien pas rendu en parallèle).
    */
   const VIDE: ProjectionScene = { tronc: { present: true }, branches: [] };
-  const EST_LE_TRONC = "M 500 950 L 500 560";
-
+  /**
+   * ⚠️ LE CHEMIN EST IMPORTÉ, PAS RECOPIÉ — ET C'EST UN REDESSIN QUI L'A EXIGÉ. Cette garde gravait
+   * `"M 500 950 L 500 560"`. Le 2026-08-20, la base du tronc est descendue de quatre pixels pour
+   * naître d'une graine, et la garde a annoncé « aucun tronc dessiné » sur un écran qui en montrait
+   * un. Ce qu'elle doit prouver, c'est qu'un tronc EST DESSINÉ ; le tracé exact est du dessin, et le
+   * dessin a le droit de changer sans qu'un test se prenne pour un cahier des charges graphique.
+   */
   const cheminsTronc = (c: HTMLElement) =>
-    Array.from(c.querySelectorAll("path")).filter((p) =>
-      (p.getAttribute("d") ?? "").includes(EST_LE_TRONC),
+    Array.from(c.querySelectorAll("path")).filter(
+      (p) => (p.getAttribute("d") ?? "") === CHEMIN_TRONC,
     );
+
+  it("[« OÙ EST SA GRAINE ? »] la base porte une graine, et les racines DESCENDENT", () => {
+    // ⚠️ RETOUR DU 2026-08-20, MOT POUR MOT. L'ancien chemin partait de la base vers (430, 880) et
+    // (570, 880) — vers le HAUT, en repère SVG. Un trait vertical surmonté de deux obliques qui
+    // remontent : une pointe de flèche. Personne ne l'avait lu comme un arbre, et la question posée
+    // était la bonne.
+    //
+    // Deux propriétés distinctes, parce qu'aucune ne suffit : la graine EXISTE (une surface pleine,
+    // la seule du dessin), et les racines vont vers le BAS (`y` plus grand que la base du tronc).
+    const { container } = monter(VIDE);
+    const graine = container.querySelector("circle[class*='graine']");
+    expect(graine, "aucune graine : le dessin n’a pas de point de départ").not.toBeNull();
+
+    const ordonnees = [...CHEMIN_TRONC.matchAll(/[ML]\s+\d+\s+(\d+)|,?\s(\d+)\s(\d+)(?=\s|$)/g)];
+    expect(ordonnees.length, "témoin : le chemin n’a pas pu être lu").toBeGreaterThan(0);
+    // La base du tronc, d'où tout part.
+    const base = Number(/M\s+500\s+(\d+)\s+L/.exec(CHEMIN_TRONC)?.[1]);
+    expect(Number.isFinite(base), "témoin : la base du tronc est introuvable").toBe(true);
+    const finsDeRacines = [...CHEMIN_TRONC.matchAll(/C[^MLC]*?(\d+)\s+(\d+)(?=\s|$)/g)].map((m) =>
+      Number(m[2]),
+    );
+    expect(finsDeRacines.length, "témoin : aucune racine dans le chemin").toBeGreaterThan(1);
+    const quiRemontent = finsDeRacines.filter((y) => y <= base);
+    expect(
+      quiRemontent,
+      `des racines finissent AU-DESSUS de la base (${quiRemontent.join(", ")} ≤ ${base}) : ` +
+        "le dessin redevient une flèche",
+    ).toEqual([]);
+  });
 
   it("[LE TEST QUI COMPTE] un arbre sans branche montre quand même un tronc", () => {
     const { container } = monter(VIDE);

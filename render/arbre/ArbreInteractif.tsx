@@ -363,10 +363,22 @@ export default function ArbreInteractif(p: ProprietesArbreInteractif) {
       </p>
 
       <div className={s.barre}>
-        {/* `aria-pressed` retiré : combiné à un libellé qui bascule, il annonçait l'inverse de la réalité. */}
-        <button type="button" className={s.actionSecondaire} onClick={basculer}>
-          {vueListe ? BASCULE_ARBRE : BASCULE_LISTE}
-        </button>
+        {/* ⚠️ PAS DE BASCULE SUR UN ARBRE VIDE (retour du 2026-08-20 : « à quoi correspond vue liste
+            pour l'arbre ? »). La question n'avait pas de réponse : les deux vues d'un arbre sans
+            branche rendent LITTÉRALEMENT le même composant (`EtatVideArbre`, story 3.3), donc le
+            bouton changeait son propre libellé et rien d'autre. Un contrôle qui ne fait rien coûte
+            plus qu'il ne rapporte : il enseigne qu'on ne comprend pas l'écran.
+
+            UX-DR-37 n'est pas entamé : le doublage non-spatial DOUBLE un contenu spatial, et il n'y
+            a ici aucun contenu spatial à doubler. Le seul chemin de l'écran — la fiche du tronc —
+            vit dans l'état vide lui-même, et `tests/rendu/tronc-incomplet.test.tsx` le vérifie dans
+            les trois états dès qu'une branche existe. */}
+        {!vide && (
+          /* `aria-pressed` retiré : combiné à un libellé qui bascule, il annonçait l'inverse de la réalité. */
+          <button type="button" className={s.actionSecondaire} onClick={basculer}>
+            {vueListe ? BASCULE_ARBRE : BASCULE_LISTE}
+          </button>
+        )}
         {!vueListe && !vide && !indisponible && (
           <div className={s.zoomBoutons}>
             <button type="button" className={s.zoomBouton} onClick={() => zoomer(1 / 1.2)} aria-label={ZOOM_MOINS}>

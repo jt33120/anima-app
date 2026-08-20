@@ -27,8 +27,32 @@ import s from "./arbre.module.css";
  * Tronc + racines. Coordonnées du canevas 1000×1000 : la fourche est à `y = 560`, d'où partent
  * les branches — ne pas la déplacer sans `geometrie.ts`.
  */
-export const CHEMIN_TRONC =
-  "M 500 950 C 470 900 450 880 430 880 M 500 950 C 530 900 550 880 570 880 M 500 950 L 500 560";
+/**
+ * ⚠️ LES RACINES MONTAIENT, ET LE DESSIN SE LISAIT COMME UNE FLÈCHE VERS LE BAS.
+ *
+ * L'ancien chemin partait de la base (500, 950) vers (430, 880) et (570, 880) — c'est-à-dire, en
+ * repère SVG où `y` croît vers le bas, vers le HAUT et vers l'extérieur. Un trait vertical surmonté
+ * de deux obliques qui remontent : la forme exacte d'une pointe de flèche. Retour du 2026-08-20,
+ * mot pour mot : « Où est sa graine ??? ». La question était la bonne — ce qui était à l'écran
+ * n'était pas un arbre.
+ *
+ * Les racines DESCENDENT maintenant sous la graine, et le tronc en sort. La fourche reste à
+ * `y = 560` : les branches s'y accrochent (`geometrie.ts`), et rien au-dessus de la graine ne bouge.
+ */
+export const CHEMIN_TRONC = [
+  "M 500 946 L 500 560", // le tronc, jusqu'à la fourche — inchangé
+  "M 500 946 C 476 962 452 972 424 976", // racine gauche, vers le bas et le dehors
+  "M 500 946 C 524 962 548 972 576 976", // racine droite
+  "M 500 952 C 492 970 486 982 478 994", // deux radicelles, pour que la base ait de la matière
+  "M 500 952 C 508 970 514 982 522 994",
+].join(" ");
+
+/**
+ * LA GRAINE — d'où le tronc sort. Elle n'existait pas, et c'est ce qui manquait pour que le dessin
+ * se lise. Un cercle plein à la naissance du tronc : la seule surface remplie de tout l'arbre, donc
+ * le point que l'œil trouve en premier.
+ */
+export const GRAINE = { cx: 500, cy: 946, r: 26 } as const;
 
 export interface ProprietesTronc {
   /**
@@ -41,7 +65,17 @@ export interface ProprietesTronc {
 
 /** Le `<path>` seul — à poser dans un `<svg>` au repère du canevas (`ArbreInteractif`). */
 export function CheminTronc({ enReserve }: ProprietesTronc) {
-  return <path d={CHEMIN_TRONC} className={`${s.tronc} ${enReserve ? s.troncEnReserve : ""}`} />;
+  return (
+    <>
+      <path d={CHEMIN_TRONC} className={`${s.tronc} ${enReserve ? s.troncEnReserve : ""}`} />
+      <circle
+        cx={GRAINE.cx}
+        cy={GRAINE.cy}
+        r={GRAINE.r}
+        className={`${s.graine} ${enReserve ? s.graineEnReserve : ""}`}
+      />
+    </>
+  );
 }
 
 /**
@@ -54,7 +88,16 @@ export function CheminTronc({ enReserve }: ProprietesTronc) {
 export default function TroncSeul({ enReserve }: ProprietesTronc) {
   return (
     <svg
-      viewBox={`380 540 240 430`}
+      /* ⚠️ ON CADRE LA BASE, PAS TOUT LE TRONC — ET C'EST LE SUJET DE L'ÉCRAN QUI LE DIT. Cette
+         boîte montrait `380 540 240 430`, c'est-à-dire le tronc ENTIER jusqu'à la fourche : sur un
+         arbre sans branche, la fourche ne porte rien, et le dessin se réduisait à un trait fin de
+         400 unités qui montait s'arrêter dans le vide. Mesuré à l'écran : un trait et une pointe.
+
+         Ce qu'on a à montrer ici, c'est le DÉBUT : la graine, ses racines, et la pousse qui en
+         sort. On cadre donc les 190 unités du bas, où la graine occupe un bon quart de la largeur
+         au lieu d'un dixième. Le tronc entier reste dessiné par le même chemin sur le canevas,
+         là où des branches s'y accrochent. */
+      viewBox={`400 850 200 190`}
       className={s.troncSeul}
       aria-hidden
       preserveAspectRatio="xMidYMax meet"

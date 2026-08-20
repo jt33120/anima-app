@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { dimensionnerTout } from "./_outils";
 import ArbreInteractif from "@/render/arbre/ArbreInteractif";
@@ -91,19 +91,37 @@ describe("[AC2 DUR] le vide d'un compte gratuit EST le vide d'un compte premium"
     );
   });
 
-  it("[AC1] la bascule vue liste / vue arbre est offerte à l'identique, gratuite ou non", () => {
-    // La destination et ses commandes ne se dégradent pas : pas de bouton grisé, pas d'action retirée.
-    monter(VIDE);
+  it("[AC1] la bascule vue liste / vue arbre est offerte à l'identique, gratuite ou non", async () => {
+    // ⚠️ CE TEST DISAIT « OFFERTE », ET IL VÉRIFIAIT « OFFERTE SUR UN ÉCRAN VIDE » — deux choses
+    // différentes. Retour du 2026-08-20 : « à quoi correspond vue liste pour l'arbre ? ». La
+    // question n'avait pas de réponse, parce que les deux vues d'un arbre SANS BRANCHE rendent
+    // littéralement le même composant (`EtatVideArbre`) : le bouton changeait son libellé et rien
+    // d'autre. Il ne s'affiche plus là.
+    //
+    // Ce que l'AC1 protège reste entier — la commande ne se DÉGRADE pas selon l'abonnement — et se
+    // mesure là où elle a un sens : dès qu'il y a quelque chose à lister.
+    const avecBranche: ProjectionScene = {
+      tronc: { present: true },
+      branches: [{ id: "b1", etat: "naissance" as const, intensite: 0, extraitSourceId: "e1", nom: "un nom" }],
+    };
+    monter(avecBranche);
     expect(screen.getByRole("button", { name: BASCULE_LISTE })).toBeTruthy();
+    cleanup();
+    monter({ ...avecBranche, planOuvert: true });
+    expect(
+      screen.getByRole("button", { name: BASCULE_LISTE }),
+      "la commande se dégrade selon l’abonnement",
+    ).toBeTruthy();
+    await Promise.resolve();
   });
 
-  it("[AC2 / UX-DR-37] la VUE LISTE aussi : même vide, même phrase, même rang", async () => {
-    // Le doublage non-spatial n'est pas un jumeau dégradé. Depuis la 3.3 les deux vues rendent le MÊME
-    // composant (`EtatVideArbre`) — mutation-cible : redonner à `VueListe` sa propre copie de l'écran vide.
+  it("[UN CONTRÔLE QUI NE FAIT RIEN N'EST PAS OFFERT] l'arbre vide n'a pas de bascule", () => {
+    // La contrepartie de la ligne ci-dessus, et la garde du retour du 2026-08-20 : sur un écran où
+    // les deux vues sont le MÊME écran, un bouton qui bascule enseigne qu'on n'a pas compris.
     monter(VIDE);
-    await userEvent.click(screen.getByRole("button", { name: BASCULE_LISTE }));
+    expect(screen.queryByRole("button", { name: BASCULE_LISTE })).toBeNull();
+    // Témoin : l'écran vide est bien monté — sans quoi l'absence ci-dessus ne prouverait rien.
     expect(screen.getByText(VIDE_TITRE)).toBeTruthy();
-    expect(screen.getByText(VIDE_OU_NAISSENT_LES_BRANCHES)).toBeTruthy();
   });
 });
 

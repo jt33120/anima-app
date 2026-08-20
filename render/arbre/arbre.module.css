@@ -105,6 +105,18 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* LA GRAINE (retour du 2026-08-20 : « où est sa graine ??? »). La seule surface REMPLIE de tout
+   l'arbre — c'est ce qui en fait un point de départ plutôt qu'un trait de plus. Elle partage la
+   teinte du tronc : ce n'est pas un objet posé sur l'arbre, c'est son origine. */
+.graine {
+  fill: var(--arbre-tronc);
+  stroke: none;
+}
+.graineEnReserve {
+  fill: var(--arbre-tronc);
+  opacity: 0.45;
+}
+
 /* Story 5.3 (AC3) — la MATIÈRE EN RÉSERVE.
    Le contour reste ENTIER : ni `stroke-dasharray`, ni fantôme, ni rouge, ni cadenas. Seule la densité
    de la matière change. Un tronc en pointillés dirait « cassé » ou « à débloquer » ; celui-ci dit
@@ -489,7 +501,7 @@
 .troncSeul {
   display: block;
   width: 100%;
-  max-width: 160px;
+  max-width: 190px;
   height: auto;
   max-height: 180px;
   margin: 0 auto var(--esp-2);
